@@ -1,0 +1,50 @@
+[
+  {
+    "pathname": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "body": "{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\"}",
+    "status": 200,
+    "response": "{\"id\":\"ses_ec75f4a63ffeAyRVwuNHbIPyM9\",\"slug\":\"proud-squid\",\"projectID\":\"8e8e9703e893b2ec666e86f233da94697f23a58c\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-224oy8qqdzb\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"isolated undo probe\",\"version\":\"local\",\"time\":{\"created\":1791951418782,\"updated\":1791951421664},\"revert\":{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\",\"snapshot\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"op_id\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+  },
+  {
+    "pathname": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "body": "{\"messageID\":\"msg_138a0c25c0014QKkYO5vpP2W7P\"}",
+    "status": 200,
+    "response": "{\"id\":\"ses_ec75f4a63ffeAyRVwuNHbIPyM9\",\"slug\":\"proud-squid\",\"projectID\":\"8e8e9703e893b2ec666e86f233da94697f23a58c\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-224oy8qqdzb\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"isolated undo probe\",\"version\":\"local\",\"time\":{\"created\":1791951418782,\"updated\":1791951422033},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+  },
+  {
+    "pathname": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "body": "{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\"}",
+    "status": 500,
+    "response": ""
+  },
+  {
+    "pathname": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/abort",
+    "body": "{}",
+    "status": 200,
+    "response": "true"
+  },
+  {
+    "pathname": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "body": "{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\"}",
+    "status": 200,
+    "response": "{\"id\":\"ses_ec75f4a63ffeAyRVwuNHbIPyM9\",\"slug\":\"proud-squid\",\"projectID\":\"8e8e9703e893b2ec666e86f233da94697f23a58c\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-224oy8qqdzb\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"isolated undo probe\",\"version\":\"local\",\"time\":{\"created\":1791951418782,\"updated\":1791951422621},\"revert\":{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\",\"snapshot\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"op_id\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+  },
+  {
+    "pathname": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "body": "{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\"}",
+    "status": 200,
+    "response": "{\"id\":\"ses_ec75f4a63ffeAyRVwuNHbIPyM9\",\"slug\":\"proud-squid\",\"projectID\":\"8e8e9703e893b2ec666e86f233da94697f23a58c\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-224oy8qqdzb\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"isolated undo probe\",\"version\":\"local\",\"time\":{\"created\":1791951418782,\"updated\":1791951425365},\"revert\":{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\",\"snapshot\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"op_id\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+  },
+  {
+    "pathname": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "body": "{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\"}",
+    "status": 500,
+    "response": ""
+  },
+  {
+    "pathname": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/abort",
+    "body": "{}",
+    "status": 200,
+    "response": "true"
+  }
+]

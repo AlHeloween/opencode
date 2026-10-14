@@ -1,0 +1,11 @@
+{"removed_environment_names": ["BASETEN_API_KEY", "DEEPSEEK_API_KEY", "GITHUB_PAT_TOKEN", "HF_TOKEN", "NOVITA_API_KEY", "OPENCODE_API_KEY", "OPENROUTER_API_KEY", "STREAMLAKE_API_KEY"]}
+{"mode": "qualify-ui", "command": ["C:\\Users\\Alexander\\AppData\\Roaming\\npm\\node_modules\\bun\\bin\\bun.exe", "test", "D:\\zPython\\opencode\\experiments\\2026-10-14_session-undo-investigation\\module-qualification.test.ts", "--timeout", "20000"]}
+bun test v1.4.2 (744846f84)
+
+..\..\experiments\2026-10-14_session-undo-investigation\module-qualification.test.ts:
+(pass) experimental TUI resolves the product source aliases [1136.95ms]
+
+ 1 pass
+ 0 fail
+ 3 expect() calls
+Ran 1 test across 1 file. [3.83s]

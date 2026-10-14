@@ -1,0 +1,3 @@
+{
+  "extends": "../../packages/opencode/tsconfig.json"
+}

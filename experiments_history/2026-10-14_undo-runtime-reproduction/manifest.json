@@ -1,0 +1,256 @@
+{
+  "sourceCommit": "e279b77741a5f1b6ffa705c7223c690124ae43f2",
+  "files": [
+    {
+      "path": "payload.py",
+      "sha256": "179d19e4dc059026cf5004c2739a35b0139cdad85ecc6a2e4b3ab5327f720193",
+      "bytes": 1553
+    },
+    {
+      "path": "replay.test.ts",
+      "sha256": "09e1e8d04fb48a9befdd2dec06b02ece6089d504024644a98502d658ef7113d0",
+      "bytes": 11082
+    },
+    {
+      "path": "dialog-replay.tsx",
+      "sha256": "6b1ea78f90f376ba3369c5b67da6b735092f7946b0f8c23e256435d5c14f1ad9",
+      "bytes": 4591
+    },
+    {
+      "path": "module-qualification.test.ts",
+      "sha256": "6b12f5ed14402eb2916669417fc0a1574dfaa3946f76fc2c0993d61ffd7bc6ce",
+      "bytes": 335
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "3a9925f0a998a48f4f981577acb073e4dfdcd4a7229bb7e9f0d25c1999fc594e",
+      "bytes": 57
+    },
+    {
+      "path": "http-replay.json",
+      "sha256": "a4a80dc86bb5d9f9c23f42c1e42a134d2c790bce6f2740d09014d7275d2d2878",
+      "bytes": 39129
+    },
+    {
+      "path": "wire-replay.json",
+      "sha256": "a43f6a82118707c0b651663c6e942d8af2b8780bd6f2a8881978b5d8eb545d33",
+      "bytes": 4558
+    },
+    {
+      "path": "logs/baseline.state.json",
+      "sha256": "a316572f3a8698a8ff015d616b91a97dfe293388ec22e9e9f0cd56e4e514aed1",
+      "bytes": 475
+    },
+    {
+      "path": "logs/baseline.stdout.log",
+      "sha256": "306346e1cbf72d6f1624c69fd2ea1a588b39e6d8db6e829875c3ece95ac3cb9f",
+      "bytes": 639
+    },
+    {
+      "path": "logs/build.state.json",
+      "sha256": "ab8dbc7dc1442a8de4209a5da7767e9d681a9bf767295e4b103c5378a4daa8e1",
+      "bytes": 477
+    },
+    {
+      "path": "logs/build.stdout.log",
+      "sha256": "5787df2659013d15e9f0aa5f3093130fbcfc4b9139433f8876d6f1cc8f0c9e5b",
+      "bytes": 50696
+    },
+    {
+      "path": "logs/harness-effect-fail.state.json",
+      "sha256": "c5522ef87fa2ba5f73bb766400bd52bb086c0d1953205e88c493b061cf55be64",
+      "bytes": 475
+    },
+    {
+      "path": "logs/harness-effect-fail.stdout.log",
+      "sha256": "d32f4525c3fa6456d6bffe666ec9681a69a93e345e2ea0f073c7b5271b27dbfb",
+      "bytes": 1300
+    },
+    {
+      "path": "logs/harness-snapshot-fail.state.json",
+      "sha256": "1d23a98630c3fdb3ce25b091b45703d8a5207515ad34700fc9ad04fdebc1d483",
+      "bytes": 475
+    },
+    {
+      "path": "logs/harness-snapshot-fail.stdout.log",
+      "sha256": "c06bfdbddb8ab2a15fad6d63382b55127ec5b7e18964055f8798ee2c5aeab796",
+      "bytes": 1274
+    },
+    {
+      "path": "logs/http-pass.state.json",
+      "sha256": "36775da2dc8b2081ae0fa481282faf59b7925764fff2f602b02f3d41c7a118d2",
+      "bytes": 475
+    },
+    {
+      "path": "logs/http-pass.stdout.log",
+      "sha256": "8c8d1a9d536479dd3ddb9217aa7077ab0a76d9105e4f455acd3f048bdb30a52b",
+      "bytes": 657
+    },
+    {
+      "path": "logs/primitive.state.json",
+      "sha256": "e5484a31ab4e496c573dc347b2fded65afe716a044158515e9bada789c4f1c17",
+      "bytes": 474
+    },
+    {
+      "path": "logs/primitive.stdout.log",
+      "sha256": "23057bd509f7758d4f2b60cdd0d7208536913ff072beded0a351eb05c90d1681",
+      "bytes": 21
+    },
+    {
+      "path": "logs/ui-alias-fail.state.json",
+      "sha256": "eb7645125e2829c3affbaf956a79829067d9cc7f606aaca4081130e95200a3ed",
+      "bytes": 474
+    },
+    {
+      "path": "logs/ui-alias-fail.stdout.log",
+      "sha256": "69deac16f9affd9abc04680b2a8aae4efa3ef5d4f7796dd646ef2ec6541fb90d",
+      "bytes": 792
+    },
+    {
+      "path": "logs/ui-alias-junction-fail.state.json",
+      "sha256": "6ba496e8cd14ddc6eccffa1c5fb49021301815481138ca772772baab1f4d4639",
+      "bytes": 475
+    },
+    {
+      "path": "logs/ui-alias-junction-fail.stdout.log",
+      "sha256": "6c2ab5f9dd7cafeb81b87a4ebddd6f1dd8baeba5bec28848bfe1d06b90910cb2",
+      "bytes": 792
+    },
+    {
+      "path": "logs/ui-context-fail.state.json",
+      "sha256": "b249cf8ab94839b7cdbe0485027d6e8b27012bd7079ec3b4b34bf71499961a16",
+      "bytes": 476
+    },
+    {
+      "path": "logs/ui-context-fail.stdout.log",
+      "sha256": "be267613907722833262f57c885f924b02a404535ccbbf90d674a6b3e4f51ee4",
+      "bytes": 4351
+    },
+    {
+      "path": "logs/ui-input-api-fail.state.json",
+      "sha256": "bdf73caf97488e8af7fcd6b263725fa1a182eefc415931b82ed7275258be3d4f",
+      "bytes": 475
+    },
+    {
+      "path": "logs/ui-input-api-fail.stdout.log",
+      "sha256": "9e27ea08af68f03441b944ae8c132428547f0caf05de758c9c81b97aa15e4940",
+      "bytes": 1359
+    },
+    {
+      "path": "logs/ui-pass.state.json",
+      "sha256": "3c36468a9817aaf54359adc5918f1334541be91d1ec762f60542b41fe4ed5988",
+      "bytes": 475
+    },
+    {
+      "path": "logs/ui-pass.stdout.log",
+      "sha256": "5802c9b6e9932d8c962073d2f9a20c25b38ac8edb8659ecc7bf40583faec3f04",
+      "bytes": 655
+    },
+    {
+      "path": "logs/ui-qualification-pass.state.json",
+      "sha256": "ae76cfb40c0e81b21189fb2390515f99393b9bf623cadfdea980013b8cc0ec85",
+      "bytes": 475
+    },
+    {
+      "path": "logs/ui-qualification-pass.stdout.log",
+      "sha256": "be35b66388aac56e31e92920f83f6002c080a31911d0d8ed7953182ab8c440b8",
+      "bytes": 696
+    }
+  ],
+  "runs": [
+    {
+      "name": "primitive",
+      "id": "20261014T040949Z_0e1c0990",
+      "exit": 0,
+      "bytes": 21
+    },
+    {
+      "name": "baseline",
+      "id": "20261014T041055Z_40971829",
+      "exit": 0,
+      "bytes": 639
+    },
+    {
+      "name": "harness-effect-fail",
+      "id": "20261014T041137Z_83b502c8",
+      "exit": 1,
+      "bytes": 1300
+    },
+    {
+      "name": "harness-snapshot-fail",
+      "id": "20261014T041210Z_6d1a0acb",
+      "exit": 1,
+      "bytes": 1274
+    },
+    {
+      "name": "http-pass",
+      "id": "20261014T041250Z_299b70bf",
+      "exit": 0,
+      "bytes": 657
+    },
+    {
+      "name": "ui-alias-fail",
+      "id": "20261014T041349Z_fb521aaf",
+      "exit": 1,
+      "bytes": 792
+    },
+    {
+      "name": "ui-alias-junction-fail",
+      "id": "20261014T041430Z_17a95096",
+      "exit": 1,
+      "bytes": 792
+    },
+    {
+      "name": "ui-input-api-fail",
+      "id": "20261014T041521Z_f09a95a7",
+      "exit": 1,
+      "bytes": 1359
+    },
+    {
+      "name": "ui-qualification-pass",
+      "id": "20261014T041554Z_8d078427",
+      "exit": 0,
+      "bytes": 696
+    },
+    {
+      "name": "ui-context-fail",
+      "id": "20261014T041608Z_c5bb0a84",
+      "exit": 1,
+      "bytes": 4351
+    },
+    {
+      "name": "ui-pass",
+      "id": "20261014T041652Z_802ead1e",
+      "exit": 0,
+      "bytes": 655
+    },
+    {
+      "name": "build",
+      "id": "20261014T041736Z_c8e6fb5e",
+      "exit": 0,
+      "bytes": 50536
+    }
+  ],
+  "sourcePins": [
+    {
+      "path": "packages/opencode/src/cli/cmd/tui/routes/session/dialog-message.tsx",
+      "sha256": "fedefa5d0bccc1eb80f1e01441e8cf3183a81ed84c065a6f8c8d1754532cf442"
+    },
+    {
+      "path": "packages/opencode/src/session/revert.ts",
+      "sha256": "06f06a105aa7de12202d363496d245f8f932526b282428f7d383bc05292ecceb"
+    },
+    {
+      "path": "packages/opencode/src/session/run-state.ts",
+      "sha256": "9d67606cde5bc48116f900b8245ee357034452cfc9dfc01537df7d561979044b"
+    },
+    {
+      "path": "packages/opencode/src/effect/runner.ts",
+      "sha256": "ac9f0067c2f4ffbc7bcf97d822cd67f7abf5b9995c73da837f20b3d78828a2ca"
+    },
+    {
+      "path": "packages/opencode/src/snapshot/fossil.ts",
+      "sha256": "af7cf53b3e6dff5e9b7acf85c97d7f56737b41a6e4e806e1b3fc84f56cdc5445"
+    }
+  ]
+}

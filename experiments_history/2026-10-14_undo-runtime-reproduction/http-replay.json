@@ -1,0 +1,810 @@
+[
+  {
+    "name": "qualification:get",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951418782
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "idle:revert",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "request": {
+      "messageID": "msg_138a0bcfc001w0qZMG9fkUC6lu"
+    },
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951421664
+      },
+      "revert": {
+        "messageID": "msg_138a0bcfc001w0qZMG9fkUC6lu",
+        "snapshot": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "op_id": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "idle:readback",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951421664
+      },
+      "revert": {
+        "messageID": "msg_138a0bcfc001w0qZMG9fkUC6lu",
+        "snapshot": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "op_id": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "idle:readback:artifact",
+    "dbPath": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb\\.opencode\\data\\opencode.db",
+    "row": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "project_id": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "workspace_id": null,
+      "parent_id": null,
+      "slug": "proud-squid",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "title": "isolated undo probe",
+      "version": "local",
+      "share_url": null,
+      "summary_additions": 0,
+      "summary_deletions": 0,
+      "summary_files": 0,
+      "summary_diffs": null,
+      "revert": "{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\",\"snapshot\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"op_id\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"}",
+      "permission": null,
+      "time_created": 1791951418782,
+      "time_updated": 1791951421664,
+      "time_compacting": null,
+      "time_archived": null,
+      "cost": 0,
+      "tokens_input": 0,
+      "tokens_output": 0,
+      "tokens_reasoning": 0,
+      "tokens_cache_read": 0,
+      "tokens_cache_write": 0,
+      "hit_rate_is_null": null,
+      "cost_sidecar": 0
+    },
+    "content": "BEFORE\n"
+  },
+  {
+    "name": "idle:redo",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/unrevert",
+    "request": {},
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951422033
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "redo:readback",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951422033
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "redo:readback:artifact",
+    "dbPath": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb\\.opencode\\data\\opencode.db",
+    "row": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "project_id": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "workspace_id": null,
+      "parent_id": null,
+      "slug": "proud-squid",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "title": "isolated undo probe",
+      "version": "local",
+      "share_url": null,
+      "summary_additions": 0,
+      "summary_deletions": 0,
+      "summary_files": 0,
+      "summary_diffs": null,
+      "revert": null,
+      "permission": null,
+      "time_created": 1791951418782,
+      "time_updated": 1791951422033,
+      "time_compacting": null,
+      "time_archived": null,
+      "cost": 0,
+      "tokens_input": 0,
+      "tokens_output": 0,
+      "tokens_reasoning": 0,
+      "tokens_cache_read": 0,
+      "tokens_cache_write": 0,
+      "hit_rate_is_null": null,
+      "cost_sidecar": 0
+    },
+    "content": "AFTER\n"
+  },
+  {
+    "name": "idle:missing-target",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "request": {
+      "messageID": "msg_138a0c25c0014QKkYO5vpP2W7P"
+    },
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951422033
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "missing-target:readback",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951422033
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "missing-target:readback:artifact",
+    "dbPath": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb\\.opencode\\data\\opencode.db",
+    "row": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "project_id": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "workspace_id": null,
+      "parent_id": null,
+      "slug": "proud-squid",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "title": "isolated undo probe",
+      "version": "local",
+      "share_url": null,
+      "summary_additions": 0,
+      "summary_deletions": 0,
+      "summary_files": 0,
+      "summary_diffs": null,
+      "revert": null,
+      "permission": null,
+      "time_created": 1791951418782,
+      "time_updated": 1791951422033,
+      "time_compacting": null,
+      "time_archived": null,
+      "cost": 0,
+      "tokens_input": 0,
+      "tokens_output": 0,
+      "tokens_reasoning": 0,
+      "tokens_cache_read": 0,
+      "tokens_cache_write": 0,
+      "hit_rate_is_null": null,
+      "cost_sidecar": 0
+    },
+    "content": "AFTER\n"
+  },
+  {
+    "name": "busy:revert",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "request": {
+      "messageID": "msg_138a0bcfc001w0qZMG9fkUC6lu"
+    },
+    "status": 500,
+    "response": {
+      "text": ""
+    }
+  },
+  {
+    "name": "busy:readback",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951422033
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "busy:readback:artifact",
+    "dbPath": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb\\.opencode\\data\\opencode.db",
+    "row": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "project_id": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "workspace_id": null,
+      "parent_id": null,
+      "slug": "proud-squid",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "title": "isolated undo probe",
+      "version": "local",
+      "share_url": null,
+      "summary_additions": 0,
+      "summary_deletions": 0,
+      "summary_files": 0,
+      "summary_diffs": null,
+      "revert": null,
+      "permission": null,
+      "time_created": 1791951418782,
+      "time_updated": 1791951422033,
+      "time_compacting": null,
+      "time_archived": null,
+      "cost": 0,
+      "tokens_input": 0,
+      "tokens_output": 0,
+      "tokens_reasoning": 0,
+      "tokens_cache_read": 0,
+      "tokens_cache_write": 0,
+      "hit_rate_is_null": null,
+      "cost_sidecar": 0
+    },
+    "content": "AFTER\n"
+  },
+  {
+    "name": "busy:abort",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/abort",
+    "request": {},
+    "status": 200,
+    "response": true
+  },
+  {
+    "name": "after-abort:revert",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/revert",
+    "request": {
+      "messageID": "msg_138a0bcfc001w0qZMG9fkUC6lu"
+    },
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951422621
+      },
+      "revert": {
+        "messageID": "msg_138a0bcfc001w0qZMG9fkUC6lu",
+        "snapshot": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "op_id": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "after-abort:readback",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951422621
+      },
+      "revert": {
+        "messageID": "msg_138a0bcfc001w0qZMG9fkUC6lu",
+        "snapshot": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "op_id": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "after-abort:readback:artifact",
+    "dbPath": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb\\.opencode\\data\\opencode.db",
+    "row": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "project_id": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "workspace_id": null,
+      "parent_id": null,
+      "slug": "proud-squid",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "title": "isolated undo probe",
+      "version": "local",
+      "share_url": null,
+      "summary_additions": 0,
+      "summary_deletions": 0,
+      "summary_files": 0,
+      "summary_diffs": null,
+      "revert": "{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\",\"snapshot\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"op_id\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"}",
+      "permission": null,
+      "time_created": 1791951418782,
+      "time_updated": 1791951422621,
+      "time_compacting": null,
+      "time_archived": null,
+      "cost": 0,
+      "tokens_input": 0,
+      "tokens_output": 0,
+      "tokens_reasoning": 0,
+      "tokens_cache_read": 0,
+      "tokens_cache_write": 0,
+      "hit_rate_is_null": null,
+      "cost_sidecar": 0
+    },
+    "content": "BEFORE\n"
+  },
+  {
+    "name": "ui:reset",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/unrevert",
+    "request": {},
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951422976
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "ui:idle:before",
+    "frame": "UNDO_DIALOG_STAND                                                                                   \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n"
+  },
+  {
+    "name": "ui:idle:readback",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951425365
+      },
+      "revert": {
+        "messageID": "msg_138a0bcfc001w0qZMG9fkUC6lu",
+        "snapshot": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "op_id": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "ui:idle:readback:artifact",
+    "dbPath": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb\\.opencode\\data\\opencode.db",
+    "row": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "project_id": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "workspace_id": null,
+      "parent_id": null,
+      "slug": "proud-squid",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "title": "isolated undo probe",
+      "version": "local",
+      "share_url": null,
+      "summary_additions": 0,
+      "summary_deletions": 0,
+      "summary_files": 0,
+      "summary_diffs": null,
+      "revert": "{\"messageID\":\"msg_138a0bcfc001w0qZMG9fkUC6lu\",\"snapshot\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"op_id\":\"6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"}",
+      "permission": null,
+      "time_created": 1791951418782,
+      "time_updated": 1791951425365,
+      "time_compacting": null,
+      "time_archived": null,
+      "cost": 0,
+      "tokens_input": 0,
+      "tokens_output": 0,
+      "tokens_reasoning": 0,
+      "tokens_cache_read": 0,
+      "tokens_cache_write": 0,
+      "hit_rate_is_null": null,
+      "cost_sidecar": 0
+    },
+    "content": "BEFORE\n"
+  },
+  {
+    "name": "ui:idle:after",
+    "frame": "UNDO_DIALOG_STAND                                                                                   \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "prompts": 1
+  },
+  {
+    "name": "ui:redo",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/unrevert",
+    "request": {},
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951425713
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "ui:busy:before",
+    "frame": "UNDO_DIALOG_STAND                                                                                   \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n"
+  },
+  {
+    "name": "ui:busy:readback",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "status": 200,
+    "response": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "slug": "proud-squid",
+      "projectID": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "summary": {
+        "additions": 0,
+        "deletions": 0,
+        "files": 0
+      },
+      "title": "isolated undo probe",
+      "version": "local",
+      "time": {
+        "created": 1791951418782,
+        "updated": 1791951425713
+      },
+      "cost": 0,
+      "costSidecar": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0,
+          "hitRateIsNull": null
+        }
+      }
+    }
+  },
+  {
+    "name": "ui:busy:readback:artifact",
+    "dbPath": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb\\.opencode\\data\\opencode.db",
+    "row": {
+      "id": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+      "project_id": "8e8e9703e893b2ec666e86f233da94697f23a58c",
+      "workspace_id": null,
+      "parent_id": null,
+      "slug": "proud-squid",
+      "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+      "title": "isolated undo probe",
+      "version": "local",
+      "share_url": null,
+      "summary_additions": 0,
+      "summary_deletions": 0,
+      "summary_files": 0,
+      "summary_diffs": null,
+      "revert": null,
+      "permission": null,
+      "time_created": 1791951418782,
+      "time_updated": 1791951425713,
+      "time_compacting": null,
+      "time_archived": null,
+      "cost": 0,
+      "tokens_input": 0,
+      "tokens_output": 0,
+      "tokens_reasoning": 0,
+      "tokens_cache_read": 0,
+      "tokens_cache_write": 0,
+      "hit_rate_is_null": null,
+      "cost_sidecar": 0
+    },
+    "content": "AFTER\n"
+  },
+  {
+    "name": "ui:busy:after",
+    "frame": "UNDO_DIALOG_STAND                                                                                   \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "prompts": 2
+  },
+  {
+    "name": "ui:cancel",
+    "url": "/session/ses_ec75f4a63ffeAyRVwuNHbIPyM9/abort",
+    "request": {},
+    "status": 200,
+    "response": true
+  },
+  {
+    "name": "ui:wrong-owner",
+    "frame": "UNDO_DIALOG_STAND                                                                                   \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Cancel queued message    message has no reply yet …                         \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "noRequest": true
+  },
+  {
+    "name": "summary",
+    "verdict": "PASS",
+    "stand": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-224oy8qqdzb",
+    "sid": "ses_ec75f4a63ffeAyRVwuNHbIPyM9",
+    "userID": "msg_138a0bcfc001w0qZMG9fkUC6lu",
+    "before": "10a61fc5bd787364f991f0b275c2317c3aa3b462",
+    "after": "6fc82f8e1c2b56e19a04b3a292208a2ceac2e2e3"
+  }
+]

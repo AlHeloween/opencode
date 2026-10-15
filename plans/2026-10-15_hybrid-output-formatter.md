@@ -34,7 +34,7 @@ parent-goal-md5: bb33c8057b8b8034611310aae9bb9f85
 
 ## Tasks
 
-- [ ] T1 — Tests first: add to `packages/opencode/test/tool/universalsearch.test.ts` a
+- [x] T1 — Tests first: add to `packages/opencode/test/tool/universalsearch.test.ts` a
   `describe("tool.universalsearch hybrid output")` with a fake service (Bun.serve, port 0) answering
   `/hybrid` with the real service shape: one web hit (source `web`, rung `Guess`, title,
   description, url) and one sourcegraph hit (source `sourcegraph`, rung `Inferred`, file, repository,
@@ -47,7 +47,7 @@ parent-goal-md5: bb33c8057b8b8034611310aae9bb9f85
   md5: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d7
   -->
 
-- [ ] T2 — Implement in `executeHybridSearch`:
+- [x] T2 — Implement in `executeHybridSearch`:
   1. label by `result.source`: `"sourcegraph"` → `[Code · Sourcegraph]`, `"web"` → `[Web]`,
      anything else → `[<value>]` (never a guess);
   2. print `title` when present; `description`/`preview` when present; for code hits
@@ -65,7 +65,7 @@ parent-goal-md5: bb33c8057b8b8034611310aae9bb9f85
   md5: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a1
   -->
 
-- [ ] T3 — Oracles: the new tests GREEN; the pre-existing tests in the same file still green
+- [x] T3 — Oracles: the new tests GREEN; the pre-existing tests in the same file still green
   (regression); `bun typecheck` from `packages/opencode` clean; `_build.ps1` exit 0.
   <!-- sv:
   Keywords: oracle 0.40, regression 0.30, typecheck 0.30

@@ -388,7 +388,7 @@ function executeCodeSearch(url: string, params: { query?: string; limit?: number
   })
 }
 
-function executeHybridSearch(url: string, params: { query?: string; limit?: number }) {
+export function executeHybridSearch(url: string, params: { query?: string; limit?: number }) {
   return Effect.gen(function* () {
     if (!params.query) {
       throw new Error("query is required for hybrid search")
@@ -427,23 +427,47 @@ function executeHybridSearch(url: string, params: { query?: string; limit?: numb
         }
       }
 
+      const hits = results.results
+      const countBy = (source: string) => hits.filter((h: any) => h?.source === source).length
+      const sgCount = typeof results.sourcegraph_results === "number" ? results.sourcegraph_results : countBy("sourcegraph")
+      const webCount = typeof results.web_results === "number" ? results.web_results : countBy("web")
       let output = `# Hybrid Search Results for "${params.query}"\n\n`
-      output += "_Results from local code search (first) and Sourcegraph (second)_\n\n"
+      output += `_Results from Sourcegraph code search and web search_\n\n`
+      output += `sourcegraph_results: ${sgCount}\n`
+      output += `web_results: ${webCount}\n\n`
 
-      for (let i = 0; i < results.results.length; i++) {
-        const result = results.results[i]
-        const sourceLabel = result.source === "local" ? "[Local]" : "[Sourcegraph]"
-        output += `## ${i + 1}. ${sourceLabel} ${result.file || result.url}\n`
-        if (result.repository) output += `**Repository:** ${result.repository}\n\n`
-        if (result.line) output += `Line ${result.line}: `
-        if (result.preview) output += `\`${result.preview.trim()}\`\n\n`
-        if (result.url) output += `**URL:** ${result.url}\n\n`
+      const sourceStamps: ReturnType<typeof Constitution.makeSourceStamp>[] = []
+      for (let i = 0; i < hits.length; i++) {
+        const result = hits[i]
+        const sourceLabel =
+          result?.source === "sourcegraph"
+            ? "[Code · Sourcegraph]"
+            : result?.source === "web"
+              ? "[Web]"
+              : `[${String(result?.source ?? "unknown")}]`
+        output += `## ${i + 1}. ${sourceLabel} ${result?.title ?? result?.file ?? result?.url ?? "untitled"}\n`
+        if (typeof result?.rung === "string" && result.rung) output += `rung=${result.rung}\n`
+        if (result?.title && result?.file) output += `${result.file}\n`
+        if (result?.description) output += `${result.description}\n\n`
+        if (result?.repository) output += `**Repository:** ${result.repository}\n\n`
+        if (result?.line) output += `Line ${result.line}: `
+        if (typeof result?.preview === "string" && result.preview.trim()) output += `\`${result.preview.trim()}\`\n\n`
+        if (result?.url) output += `**URL:** ${result.url}\n\n`
+        const stamp = Constitution.parseSourceStamp(result?.source_stamp)
+        if (stamp) {
+          output += `${Constitution.formatSourceStamp(stamp)}\n\n`
+          sourceStamps.push(stamp)
+        } else if (result?.source === "web" && typeof result?.url === "string" && result.url) {
+          const webStamp = snippetStamp(result.url, result?.description ?? result?.title ?? result.url)
+          output += `${Constitution.formatSourceStamp(webStamp)}\n\n`
+          sourceStamps.push(webStamp)
+        }
       }
 
       return {
         output,
         title: `Hybrid search: ${params.query}`,
-        metadata: { resultsCount: results.results.length, mode: "hybrid" } as Metadata,
+        metadata: { resultsCount: hits.length, mode: "hybrid", source_stamps: sourceStamps } as Metadata,
       }
     } finally {
       clearTimeout(timer)

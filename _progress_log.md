@@ -1,6 +1,14 @@
 ﻿# Progress Log
 
 
+## [2026-10-15] t56 — universalsearch hybrid output: show what the service returns (план plans/2026-10-15_hybrid-output-formatter.md)
+
+✓ CONFIRMED (bun test test/tool/universalsearch.test.ts RED→GREEN, fake /hybrid endpoint with the real service shape): RED `20261015T104914Z_1a6ec521` — 5 pass / 4 fail: web hit printed `[Sourcegraph]` under the stale «local code search (first)» header, title/description/rung dropped; sourcegraph hit without rung/stamp; no per-leg counts (full strings in experiments/2026-10-15_hybrid-output/red.log). GREEN `20261015T105209Z_ddc588e5` exit 0 — 9 pass / 0 fail, 37 expect().
+✓ CONFIRMED (bun test test/session/constitution.test.ts `20261015T105332Z_907d49fa` exit 0): 51 pass / 0 fail — stamp widening round-trips old shapes byte-identical (kind always set, no scope → same string).
+✓ CONFIRMED (tsgo --noEmit `20261015T105512Z_0d2d1de0` exit 0, 14 s): typecheck clean. (One earlier typecheck session died with a stale `running` state and no compiler process — re-ran fresh, the known stale-snapshot class, 2026-10-11.)
+✓ CONFIRMED (source diff): `executeHybridSearch` labels by `result.source` (`[Code · Sourcegraph]` / `[Web]` / `[<value>]`), prints title, description/preview, repository + `Line N:`, url, `rung=`, the hit's `source_stamp` through `Constitution.formatSourceStamp`, web-hit fallback stamp via the web branch's `snippetStamp` (no second formatter), fills `metadata.source_stamps`, header `_Results from Sourcegraph code search and web search_` plus `sourcegraph_results` / `web_results` counts; `export` on the executor is the test seam (no behavior change). Constitution: `AuthorityClass` +`source_code`, `SourceStamp.kind?` + `scope?: metadata|content`, parse accepts kind-less source_code stamps, `source_code`→Inferred, format appends `scope=` (old stamps byte-identical). Tests drive the real executor over HTTP (Bun.serve /health + /hybrid), no mocks.
+— Остаток: `_build.ps1` receipt; сборка/промоушен bin/ — владелец.
+<!-- sv: hybrid-output 0.35, source-labeling 0.25, stamp-scope 0.20, red-first 0.20 -->
 ## [2026-10-15] t49 review-round — binding-only ticket route + cap raises (план plans/2026-10-15_kernel-one-copy-ticket-route.md)
 
 ✓ CONFIRMED (review Smit: content PASS 9a13ea8ad8): ирония one-copy устранена — из add-on'ов убран пересказ нормы, остался только host binding «Kernel owner = org login `claude`; ticket route: …» во всех 4 вариантах; тест нормы остался на source.py (INTENTION_RESET), тест binding'а — на add-ons.

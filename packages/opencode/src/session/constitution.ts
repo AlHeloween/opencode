@@ -1872,14 +1872,15 @@ export function sessionReadExactBanner(sessionID: string): string {
   )
 }
 
-export type AuthorityClass = "primary" | "secondary" | "generic" | "unknown"
+export type AuthorityClass = "primary" | "secondary" | "generic" | "unknown" | "source_code"
 export type SourceKind = "snippet" | "document"
-
+export type StampScope = "metadata" | "content"
 export type SourceStamp = {
   authority_class: AuthorityClass
   url_provenance: string
   content_hash: string
-  kind: SourceKind
+  kind?: SourceKind
+  scope?: StampScope
   discipline?: string
 }
 
@@ -1981,27 +1982,36 @@ export function parseSourceStamp(value: unknown): SourceStamp | undefined {
   if (
     !("authority_class" in value) ||
     !("url_provenance" in value) ||
-    !("content_hash" in value) ||
-    !("kind" in value)
+    !("content_hash" in value)
   ) {
     return undefined
   }
   const authority = value.authority_class
-  const kind = value.kind
+  const kind = "kind" in value ? value.kind : undefined
   const url = value.url_provenance
   const hash = value.content_hash
-  if (authority !== "primary" && authority !== "secondary" && authority !== "generic" && authority !== "unknown") {
+  if (
+    authority !== "primary" &&
+    authority !== "secondary" &&
+    authority !== "generic" &&
+    authority !== "unknown" &&
+    authority !== "source_code"
+  ) {
     return undefined
   }
-  if (kind !== "snippet" && kind !== "document") return undefined
+  if (kind !== undefined && kind !== "snippet" && kind !== "document") return undefined
+  if (kind === undefined && authority !== "source_code") return undefined
   if (typeof url !== "string" || !url) return undefined
   if (typeof hash !== "string" || !/^[0-9a-f]{64}$/i.test(hash)) return undefined
   const discipline = "discipline" in value ? value.discipline : undefined
+  const scope = "scope" in value ? value.scope : undefined
+  if (scope !== undefined && scope !== "metadata" && scope !== "content") return undefined
   return {
     authority_class: authority,
     url_provenance: url,
     content_hash: hash.toLowerCase(),
-    kind,
+    ...(kind ? { kind } : {}),
+    ...(scope ? { scope } : {}),
     ...(typeof discipline === "string" && discipline ? { discipline } : {}),
   }
 }
@@ -2009,7 +2019,7 @@ export function parseSourceStamp(value: unknown): SourceStamp | undefined {
 export function infomarkForSourceStamp(stamp: SourceStamp | undefined): InfoMark | undefined {
   if (!stamp?.content_hash || !stamp.url_provenance) return undefined
   if (stamp.kind === "snippet") return undefined
-  if (stamp.authority_class === "primary") return "Inferred"
+  if (stamp.authority_class === "primary" || stamp.authority_class === "source_code") return "Inferred"
   if (stamp.authority_class === "secondary") return "Hypothetical"
   return undefined
 }
@@ -2017,7 +2027,9 @@ export function infomarkForSourceStamp(stamp: SourceStamp | undefined): InfoMark
 export function formatSourceStamp(stamp: SourceStamp) {
   const mark = infomarkForSourceStamp(stamp) ?? "Guess"
   const discipline = stamp.discipline ? ` discipline=${stamp.discipline}` : ""
-  return `source_stamp: authority_class=${stamp.authority_class}${discipline} kind=${stamp.kind} infomark=${mark} url_provenance=${stamp.url_provenance} content_hash=${stamp.content_hash}`
+  const kind = stamp.kind ? ` kind=${stamp.kind}` : ""
+  const scope = stamp.scope ? ` scope=${stamp.scope}` : ""
+  return `source_stamp: authority_class=${stamp.authority_class}${discipline}${kind}${scope} infomark=${mark} url_provenance=${stamp.url_provenance} content_hash=${stamp.content_hash}`
 }
 
 export function evidenceUpgradeForTool(toolName: string): InfoMark | undefined {

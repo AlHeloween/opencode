@@ -8,7 +8,7 @@ import { Provider } from "@/provider/provider"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { MessageID, type SessionID } from "@/session/schema"
 import { Session } from "@/session/session"
-import { HYBRID_TIMEOUT_MS, resolveSearchSource, UniversalSearchTool } from "@/tool/universalsearch"
+import { HYBRID_TIMEOUT_MS, executeHybridSearch, resolveSearchSource, UniversalSearchTool } from "@/tool/universalsearch"
 import * as Tool from "@/tool/tool"
 import { Truncate } from "@/tool/truncate"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -114,4 +114,105 @@ describe("tool.universalsearch", () => {
       ),
     )
   }
+
+  // t56: the hybrid formatter must show what the service actually returns. The
+  // service (universal-search/src/hybrid.rs) sets `source` only to
+  // "sourcegraph" or "web" — "local" is never produced — and stamps sourcegraph
+  // hits with rung "Inferred" and a source_stamp whose scope is "metadata".
+  // Today's formatter labels every hit [Sourcegraph] (web hits included), drops
+  // title/description/rung/stamp, never fills metadata.source_stamps, and keeps
+  // a stale header. These tests drive the real executor against a fake /hybrid
+  // endpoint carrying the service's real shape.
+  describe("tool.universalsearch hybrid output", () => {
+    function fakeService(results: unknown[], extra: Record<string, unknown> = {}) {
+      return Bun.serve({
+        port: 0,
+        fetch: (req) => {
+          if (new URL(req.url).pathname === "/hybrid") {
+            return Response.json({
+              query: "q",
+              mode: "hybrid",
+              result_count: results.length,
+              sourcegraph_results: results.filter((r: any) => r.source === "sourcegraph").length,
+              web_results: results.filter((r: any) => r.source === "web").length,
+              results,
+              ...extra,
+            })
+          }
+          if (new URL(req.url).pathname === "/health") {
+            return new Response("ok")
+          }
+          return new Response("not found", { status: 404 })
+        },
+      })
+    }
+
+    function execHybrid(baseUrl: string) {
+      return Effect.runPromise(executeHybridSearch(baseUrl.replace(/\/$/, ""), { query: "q", limit: 10 }))
+    }
+
+    const sourcegraphHit = {
+      source: "sourcegraph",
+      rung: "Inferred",
+      file: "src/auth/session.ts",
+      repository: "github.com/example/repo",
+      line: 42,
+      preview: "const session = createSession()",
+      url: "https://github.com/example/repo/blob/main/src/auth/session.ts#L42",
+      source_stamp: {
+        authority_class: "source_code",
+        url_provenance: "github.com/example/repo",
+        content_hash: "a".repeat(64),
+        scope: "metadata",
+      },
+    }
+
+    const webHit = {
+      source: "web",
+      rung: "Guess",
+      title: "Effect docs: services",
+      description: "How to build Effect services",
+      url: "https://effect.website/docs/requirements-services",
+    }
+
+    test("labels a web hit [Web] and shows its title, description and rung", async () => {
+      using server = fakeService([webHit])
+      const result = await execHybrid(server.url.toString())
+      expect(result.output).toContain("[Web]")
+      expect(result.output).not.toContain("[Sourcegraph]")
+      expect(result.output).toContain("Effect docs: services")
+      expect(result.output).toContain("How to build Effect services")
+      expect(result.output).toContain("rung=Guess")
+      expect(result.metadata.resultsCount).toBe(1)
+    })
+
+    test("labels a sourcegraph hit [Code · Sourcegraph] and prints rung, stamp with scope", async () => {
+      using server = fakeService([sourcegraphHit])
+      const result = await execHybrid(server.url.toString())
+      expect(result.output).toContain("[Code · Sourcegraph]")
+      expect(result.output).toContain("rung=Inferred")
+      expect(result.output).toContain("scope=metadata")
+      expect(result.output).toContain("authority_class=source_code")
+      expect(result.output).toContain("content_hash=" + "a".repeat(64))
+      expect(result.output).toContain("**Repository:** github.com/example/repo")
+      expect(result.output).toContain("Line 42:")
+      expect(result.metadata.source_stamps).toHaveLength(1)
+      expect(result.metadata.source_stamps?.[0].scope).toBe("metadata")
+    })
+
+    test("prints per-leg counts and a current header", async () => {
+      using server = fakeService([webHit, sourcegraphHit])
+      const result = await execHybrid(server.url.toString())
+      expect(result.output).toContain("sourcegraph_results: 1")
+      expect(result.output).toContain("web_results: 1")
+      expect(result.output).not.toContain("local code search (first)")
+    })
+
+    test("a zero on the code leg is visible", async () => {
+      using server = fakeService([webHit])
+      const result = await execHybrid(server.url.toString())
+      expect(result.output).toContain("sourcegraph_results: 0")
+      expect(result.output).toContain("web_results: 1")
+    })
+  })
 })

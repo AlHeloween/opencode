@@ -21,7 +21,7 @@
  */
 
 import { isPrimaryModeIdentity } from "./mode-identity"
-import { hasValidStopClaim } from "../util/stop-claim"
+import { hasValidCleanNextState } from "../util/stop-claim"
 
 /** Opt-out switch: OPENCODE_STOP_CHECK=0|false|off|no (the repo's convention — codegraph-mcp-auto.ts). */
 export const OPT_OUT_ENV = "OPENCODE_STOP_CHECK"
@@ -29,8 +29,8 @@ export const OPT_OUT_ENV = "OPENCODE_STOP_CHECK"
 /** Part-metadata key marking a continuation message — the «never twice in a row» latch. */
 export const LATCH_KEY = "stop_check"
 
-export type StopCheckKind = "question" | "handoff" | "stop-claim"
-
+/** `stopped-exit` (was `stop-claim`, plan B3): the turn declared a stopped outcome without the exit form. */
+export type StopCheckKind = "question" | "handoff" | "stopped-exit"
 export interface StopCheckHit {
   kind: StopCheckKind
   /** The synthetic continuation text the model receives. */
@@ -50,12 +50,17 @@ export const HANDOFF_REASON =
   "(cmd_runner, the Terminal panel run_in_terminal, PowerShell/Bash, an MCP tool, a robot) and do it. Only a real " +
   "blocker goes to the owner — through the question tool, naming each route tried with its receipt (command → error)."
 
-export const STOP_CLAIM_REASON =
-  "Turn ends by DECLARING a blocked/stopped outcome. That is a claim about the whole route space, and an empty routes " +
-  "list is not a claim — it is Guess, and Guess decides nothing. Write a `## Stop claim` section: a routes table " +
-  "(route | receipt (run id / output) | failing component) for every route TRIED, the untried routes NAMED, and " +
-  "reopen_when — the condition that reopens this work. If a route remains untried, try it now and report its receipt. " +
-  "Only then may the turn close. (Отвечай владельцу по-русски.)"
+/**
+ * The stopped-exit contract (plan 2026-10-15 B3, audit F2; was STOP_CLAIM_REASON): blocked is not
+ * an exit — the kernel removed the BLOCKED terminal. Name the next action and do it; when the run
+ * limit is really reached, the turn ends with a `## Clean next state` section, and THAT section,
+ * not a stop claim, is what lets the turn close.
+ */
+export const STOPPED_EXIT_REASON =
+  "Turn ends by declaring a blocked/stopped outcome. Blocked is not an exit — the kernel removed the BLOCKED " +
+  "terminal: name the next action and DO it now. When the run limit is really reached, end the turn with a " +
+  "`## Clean next state` section — completed, residual, next action, continuation receipt — and that section, " +
+  "not a stop claim, is what lets the turn close. (Отвечай владельцу по-русски.)"
 
 /** A trailing session-vector fence is bookkeeping, not the tail the owner reads. */
 const SV_BLOCK = /```(?:yaml)?\s*\n\s*Keywords:[\s\S]*?```\s*$/
@@ -135,10 +140,12 @@ export function stopCheckDecision(input: {
   if (input.questionToolCalled) return undefined
   if (endsOnQuestion(input.text)) return { kind: "question", reason: QUESTION_REASON }
   if (handsOff(input.text)) return { kind: "handoff", reason: HANDOFF_REASON }
-  // The stop-claim form (owner 2026-10-14 «Да + механизм»): a turn may END on a blocked/stopped
-  // verdict only when it carries the form — routes tried with receipts, untried named, reopen_when.
-  if (declaredStopped(input.text) && !hasValidStopClaim(input.text)) {
-    return { kind: "stop-claim", reason: STOP_CLAIM_REASON }
+  // The stopped-exit contract (plan 2026-10-15 B3, audit F2; was the stop-claim form): a turn may
+  // END on a blocked/stopped verdict only when it carries `## Clean next state` — completed,
+  // residual, next action, continuation receipt. A stop claim no longer ends a turn: blocked is
+  // not an exit, the next action is.
+  if (declaredStopped(input.text) && !hasValidCleanNextState(input.text)) {
+    return { kind: "stopped-exit", reason: STOPPED_EXIT_REASON }
   }
   return undefined
 }

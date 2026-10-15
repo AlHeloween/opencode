@@ -144,13 +144,15 @@ describe("stop-check / stopCheckDecision", () => {
   })
 })
 
-// ── The stop-claim form (owner decision 2026-10-14 «Да + механизм», t42 report §1.5/§2) ──
-// A turn may not CLOSE by declaring a blocked/stopped outcome — the BLOCKED exit is a universal
-// negative over the route space, and only its scope (routes tried, receipts, failing component,
-// untried named, reopen_when) makes it a claim. The measured case: Codex parked a plan after ONE
-// refused route with the refusal text as reason (docs/robot-protocol-log.md:49).
+// ── The stopped-exit contract (plan 2026-10-15_kernel-continuation-without-blocked B3, audit F2) ──
+// The kernel removed the BLOCKED terminal: blocked is not an exit — name the next action and do it;
+// when the run limit is really reached, the turn ends with a `## Clean next state` section
+// (completed, residual, next action, continuation receipt). That section, not a stop claim, is what
+// lets the turn end. The quoted-span exclusion and the once-only latch are unchanged. SUPERSEDES the
+// 2026-10-14 stop-claim exit (owner «Да + механизм»): a stop claim no longer ends a turn — it stays
+// the PLAN-side form (plans/postponed/ audits in util/plan-status.ts).
 
-describe("stop-check / stop claim", () => {
+describe("stop-check / stopped exit", () => {
   const base = {
     agent: "build_mode",
     alreadyContinued: false,
@@ -158,22 +160,49 @@ describe("stop-check / stop claim", () => {
     env: {} as NodeJS.ProcessEnv,
   }
   const BLOCKED_TAIL = "Итог: BLOCKED — маршрут отклонён политикой, продолжать не могу."
+  const CLEAN =
+    "## Clean next state\n\n" +
+    "completed: the reproducer and the red tests\n" +
+    "residual: the gated install of the kernel pipeline\n" +
+    "next action: run the install after the review\n" +
+    "continuation receipt: plans/2026-10-15_kernel-continuation-without-blocked.md B2\n"
   const CLAIM =
     "## Stop claim\n\n" +
     "| route | receipt | failing component |\n" +
     "|---|---|---|\n" +
-    "| cmd_runner start (direct) | 20261013T151834Z_19c6f90e — exit 1, WinError 5 | job breakaway denial |\n" +
-    "\nuntried routes: an approval request; the Terminal panel\n" +
-    "reopen_when: the runtime permits an independent host launch\n"
+    "| cmd_runner | run-1 exit 1 | policy |\n" +
+    "\nuntried routes: an approval request\n" +
+    "reopen_when: the policy changes\n"
 
-  it("fires when the turn declares a blocked outcome WITHOUT the claim form", () => {
+  it("fires when the turn declares a blocked outcome WITHOUT any exit form", () => {
     const hit = stopCheckDecision({ ...base, text: BLOCKED_TAIL })
-    expect(hit?.kind).toBe("stop-claim")
-    expect(hit?.reason).toContain("Stop claim")
+    expect(hit?.kind).toBe("stopped-exit")
+    expect(hit?.reason).toContain("Clean next state")
+    expect(hit?.reason).toContain("not an exit")
   })
 
-  it("does not fire when the blocked turn CARRIES a valid stop claim", () => {
-    expect(stopCheckDecision({ ...base, text: BLOCKED_TAIL + "\n\n" + CLAIM })).toBeUndefined()
+  it("a valid STOP CLAIM no longer lets the turn end — blocked is not an exit (plan B3)", () => {
+    // The verdict is the turn's TAIL (the exit claim is what the turn closes on) and the stop
+    // claim form rides in the same closing block: the 2026-10-14 contract exempted this text,
+    // the B3 contract does not — blocked is not an exit, the next action is.
+    const text =
+      "## Stop claim\n\n" +
+      "| route | receipt | failing component |\n" +
+      "|---|---|---|\n" +
+      "| cmd_runner | run-1 exit 1 | policy |\n" +
+      "untried routes: an approval request\n" +
+      "reopen_when: the policy changes\n" +
+      "Итог: BLOCKED — маршрут отклонён политикой, продолжать не могу."
+    expect(stopCheckDecision({ ...base, text })?.kind).toBe("stopped-exit")
+  })
+
+  it("a valid ## Clean next state lets the turn end", () => {
+    expect(stopCheckDecision({ ...base, text: BLOCKED_TAIL + "\n\n" + CLEAN })).toBeUndefined()
+  })
+
+  it("an INCOMPLETE clean-next-state section does not let the turn end", () => {
+    const incomplete = BLOCKED_TAIL + "\n\n" + CLEAN.replace(/^next action:.*$/im, "")
+    expect(stopCheckDecision({ ...base, text: incomplete })?.kind).toBe("stopped-exit")
   })
 
   it("does not fire on a successful report that merely mentions a blocked route", () => {
@@ -187,7 +216,7 @@ describe("stop-check / stop claim", () => {
 
   it("fires on the Russian spellings too — заблокировано / не могу продолжить / отложен", () => {
     for (const tail of ["Ничего не вышло: заблокировано политикой.", "Не могу продолжить.", "План отложен."]) {
-      expect(stopCheckDecision({ ...base, text: tail })?.kind).toBe("stop-claim")
+      expect(stopCheckDecision({ ...base, text: tail })?.kind).toBe("stopped-exit")
     }
   })
 

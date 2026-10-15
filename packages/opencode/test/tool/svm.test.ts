@@ -65,7 +65,7 @@ type Params = {
   sv?: string
   etaTurns?: number
   oracle?: string
-  state?: "doing" | "blocked" | "verified" | "waiting-on-user"
+  state?: "doing" | "verified" | "waiting-on-user"
 }
 
 /** Call the tool the way the runtime does: init once, then execute on that definition. */
@@ -230,5 +230,49 @@ describe("svm tool", () => {
     expect(JSON.parse(result.second.output).gapsBefore).toEqual([])
     // DETERMINISM IS THE ACCEPTANCE: a re-run is byte-identical, which is why no clock is read.
     expect(result.afterSecond).toBe(result.afterFirst)
+  })
+})
+
+// ── States (plan 2026-10-15_kernel-continuation-without-blocked B3) ──
+// `blocked` is not a state a NEW manifest carries — the kernel removed the BLOCKED terminal, and a
+// manifest parked as blocked is the stop template under a new name. The schema is the gate: the raw
+// input below is what a MODEL could emit; the decode refuses it before any write happens.
+
+describe("svm tool / states", () => {
+  test("set refuses state:'blocked' — blocked is not a new state (plan B3)", async () => {
+    const raw = {
+      action: "set",
+      plan: PLAN,
+      task: "S9",
+      sv: "Keywords: state 1.0",
+      etaTurns: 1,
+      oracle: "refusal",
+      state: "blocked",
+    }
+    await expect(inTmpdir(() => call(raw as Params))).rejects.toThrow(/invalid arguments/)
+  })
+
+  test("set accepts the three current states and stores them verbatim", async () => {
+    for (const state of ["doing", "verified", "waiting-on-user"] as const) {
+      // Set and read share ONE scope: the fixture re-points Global.Path.data in the scope
+      // finalizer, so a read in a LATER scope addresses a different store root (the measured
+      // property this file's header documents) — the round-trip must live inside one scope.
+      const read = await inTmpdir(() =>
+        Effect.gen(function* () {
+          const set = yield* call({
+            action: "set",
+            plan: PLAN,
+            task: `S9-${state}`,
+            sv: "Keywords: state 1.0",
+            etaTurns: 1,
+            oracle: "acceptance",
+            state,
+          })
+          expect(set.metadata.present).toBe(true)
+          return yield* call({ action: "read", plan: PLAN, task: `S9-${state}` })
+        }),
+      )
+      expect(JSON.parse(read.output).state).toBe(state)
+    }
   })
 })

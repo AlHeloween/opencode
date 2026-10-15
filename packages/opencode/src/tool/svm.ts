@@ -39,8 +39,9 @@ const Parameters = Schema.Struct({
   oracle: Schema.optional(Schema.String).annotate({
     description: "set only, and REQUIRED there: what will PROVE the task — the instrument, not the hope.",
   }),
-  state: Schema.optional(Schema.Literals(["doing", "blocked", "verified", "waiting-on-user"])).annotate({
-    description: "set only: where the task stands. Defaults to doing.",
+  state: Schema.optional(Schema.Literals(["doing", "verified", "waiting-on-user"])).annotate({
+    description:
+      "set only: where the task stands — doing / verified / waiting-on-user (`blocked` is not a state: plan B3, the kernel removed the BLOCKED terminal). Defaults to doing.",
   }),
 })
 

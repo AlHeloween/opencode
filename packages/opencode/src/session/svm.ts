@@ -35,6 +35,11 @@ import {
 
 const log = Log.create({ service: "session.svm" })
 
+/** The state a NEW manifest carries — `blocked` is not one (plan B3: blocked is not an exit). */
+export type SVMState = "doing" | "verified" | "waiting-on-user"
+/** What the store may hold: a historical record still reads with the pre-B3 `blocked`, never rewritten. */
+export type SVMRecordState = SVMState | "blocked"
+
 export interface SVMRecord {
   /** Task id as it appears in the plan file, e.g. `S3`. */
   task: string
@@ -44,7 +49,8 @@ export interface SVMRecord {
   sv: string
   /** Approximate turns until this plan moves to `plans_completed/`. */
   etaTurns: number
-  state: "doing" | "blocked" | "verified" | "waiting-on-user"
+  /** New writes carry @SVMState; a stored historical `blocked` reads as data, never rewritten (plan B3). */
+  state: SVMRecordState
   /** What will PROVE it — the instrument, not the hope. */
   oracle: string
 }

@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { findStopClaimSection, hasValidStopClaim, stopClaimProblems } from "../../src/util/stop-claim"
+import {
+  cleanNextStateProblems,
+  findCleanNextStateSection,
+  findStopClaimSection,
+  hasValidCleanNextState,
+  hasValidStopClaim,
+  stopClaimProblems,
+} from "../../src/util/stop-claim"
 
 // The «## Stop claim» form — t42 report §1.5/§2/§2.2, owner decision 2026-10-14 «Да + механизм».
 // The measured red case it exists for: Codex parked a plan as BLOCKED after ONE refused route,
@@ -105,5 +112,69 @@ describe("util.stop-claim form", () => {
   test("the claim's table must not be borrowed from the NEXT section", () => {
     const text = `## Stop claim\n\nТут нет таблицы.\n\n## Risks\n\n| route | receipt | failing component |\n|---|---|---|\n| A | run-1 | policy |\n\nuntried routes: none\nreopen_when: never\n`
     expect(hasValidStopClaim(text)).toBe(false)
+  })
+})
+
+// ── «## Clean next state» — the form that lets a turn END (plan 2026-10-15 B3, audit F2) ──
+// The kernel removed the BLOCKED terminal: blocked is not an exit — name the next action and do
+// it; when the run limit is really reached, the turn ends with a `## Clean next state` section
+// (completed, residual, next action, continuation receipt). That section, not a stop claim, is
+// what lets the turn end. The stop-claim form above stays for the PLAN side (plans/postponed/
+// audits in util/plan-status.ts) — the two forms answer different questions.
+
+const CLEAN_VALID = `## Clean next state
+
+completed: the reproducer and the red tests
+residual: the gated install of the kernel pipeline
+next action: run the install after the review
+continuation receipt: plans/2026-10-15_kernel-continuation-without-blocked.md B2
+`
+
+describe("util.stop-claim / clean next state", () => {
+  test("finds the section body and stops at the next level-2 heading", () => {
+    const body = findCleanNextStateSection(CLEAN_VALID + "\n## Risks\n\nnone\n")
+    expect(body).toBeDefined()
+    expect(body).toContain("completed:")
+    expect(body).not.toContain("## Risks")
+  })
+
+  test("the complete form is VALID — the positive control", () => {
+    expect(cleanNextStateProblems(findCleanNextStateSection(CLEAN_VALID)!)).toEqual([])
+    expect(hasValidCleanNextState(CLEAN_VALID)).toBe(true)
+  })
+
+  test("a text without the heading has no clean-next-state section", () => {
+    expect(findCleanNextStateSection("# Just a report\n\nВсе хорошо.")).toBeUndefined()
+    expect(hasValidCleanNextState("# Just a report\n\nВсе хорошо.")).toBe(false)
+  })
+
+  test("each of the four fields missing is a NAMED problem", () => {
+    for (const name of ["completed", "residual", "next action", "continuation receipt"]) {
+      const section = CLEAN_VALID.replace(new RegExp(`^${name}:.*$`, "im"), "")
+      const problems = cleanNextStateProblems(findCleanNextStateSection(section)!)
+      expect(problems.some((p) => p.startsWith(name))).toBe(true)
+    }
+  })
+
+  test("an empty or dash value is a named problem — a dash is not a field", () => {
+    const empty = CLEAN_VALID.replace(/^residual:.*$/im, "residual:")
+    expect(cleanNextStateProblems(findCleanNextStateSection(empty)!).some((p) => p.startsWith("residual"))).toBe(true)
+    const dashed = CLEAN_VALID.replace(/^next action:.*$/im, "next action: -")
+    expect(cleanNextStateProblems(findCleanNextStateSection(dashed)!).some((p) => p.startsWith("next action"))).toBe(true)
+    expect(hasValidCleanNextState(empty)).toBe(false)
+  })
+
+  test("heading spellings and underscore spellings are accepted too", () => {
+    const headed =
+      "## Clean next state\n\n### Completed\n\nthe reproducer.\n\n### Residual\n\nthe install.\n\n### Next action\n\nrun it.\n\n### Continuation receipt\n\nplans/2026-10-15_kernel-continuation-without-blocked.md B2\n"
+    expect(cleanNextStateProblems(findCleanNextStateSection(headed)!)).toEqual([])
+    const underscored =
+      "## Clean next state\n\ncompleted: the reproducer.\nresidual: the install.\nnext_action: run it.\ncontinuation_receipt: plans/2026-10-15_kernel-continuation-without-blocked.md B2\n"
+    expect(hasValidCleanNextState(underscored)).toBe(true)
+  })
+
+  test("the section's fields must not be borrowed from the NEXT section", () => {
+    const text = "## Clean next state\n\nТут ничего нет.\n\n## Details\n\ncompleted: x\nresidual: y\nnext action: z\ncontinuation receipt: w\n"
+    expect(hasValidCleanNextState(text)).toBe(false)
   })
 })

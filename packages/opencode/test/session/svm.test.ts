@@ -302,3 +302,25 @@ describe("SVM store", () => {
     expect(result.nowhere).toMatch(/\| plans completed \||UNAVAILABLE —/)
   })
 })
+
+// ── States (plan 2026-10-15_kernel-continuation-without-blocked B3) ──
+// `blocked` is not a state a NEW manifest carries (the kernel removed the BLOCKED terminal); a
+// stored historical `blocked` still READS — as data, never rewritten. The write gate is the tool's
+// schema (test/tool/svm.test.ts); this file pins the read half on this file's own key space.
+
+describe("SVM store / states", () => {
+  test("a stored historical «blocked» manifest reads back unchanged, never rewritten", async () => {
+    const result = await inTmpdir(() =>
+      Effect.gen(function* () {
+        const storage = yield* Storage.Service
+        // Written the way the pre-B3 tool wrote it, under this file's own task id — the READ path
+        // is what is under test, not the write path.
+        const legacy: SVM.SVMRecord = { ...record, task: "S1L", state: "blocked" }
+        yield* SVM.write(storage, PLAN, legacy)
+        return yield* SVM.read(storage, PLAN, "S1L")
+      }),
+    )
+    expect(result?.state).toBe("blocked")
+    expect(result?.task).toBe("S1L")
+  })
+})

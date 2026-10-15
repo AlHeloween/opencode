@@ -120,10 +120,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 247 |
-| plans active | 26 |
-| tasks passed / total | 1087 / 1354 |
-| open boxes | 124 |
+| plans completed | 248 |
+| plans active | 25 |
+| tasks passed / total | 1088 / 1354 |
+| open boxes | 123 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -305,14 +305,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_base-load-analyzer.md` — 1 open / 15 box(es) · lifecycle UNKNOWN
-  sv: intention "base load unmeasured (kernel tuned blind to its surroundings) -> per-host base load measured with receipts: bytes, %, tokens, provenance, cache class; overlaps and unexplained remainder reported; nothing changed" · keywords [Keywords: base-load 0.30, wire-capture 0.20, native-instruments 0.20, no-keys 0.15, source-reading 0.15
-Semantic dominant: Measure what each host (opencode, codex CLI, Claude Code) actually sends the model on turn 1 — per component, bytes and tokens — using each host's own instruments, without touching any key or credential store.
-md5: b47a1c2d5e8f903a4b6c7d8e9f0a1b2c
-prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 367dce9d86c7f26930b0426d9a1963da]
-  - TASK-15 [PENDING] · sv [Keywords: closure 0.4, commit 0.3, build 0.3; Semantic dominant: own paths committed, progress log appended, build run and its state read. md5: e293a4b5c6d7e8f90a1b2c3d4e5f60718] · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-15_dais-peer-trust-reward.md` — 4 open / 5 box(es) · lifecycle ACTIVE
   sv: intention "the reward sees one run alone and the syndicate has no memory of whose claims held -> peer trust, earned only by claims that survived independent verification, enters the reward and routes delegation" · keywords [peer-trust-ledger 0.40, verification-not-votes 0.30, reward-integration 0.20, delegation-routing 0.10]
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -355,6 +347,6 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 ## The checks
 
-This body names all 28 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 27 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -8,7 +8,7 @@
  *    restore is skipped; the message-level revert still lands, or the UI has
  *    no undoable state to show and the tail is stranded.
  */
-import { describe, expect } from "bun:test"
+import { describe, expect, setDefaultTimeout } from "bun:test"
 import { Effect, Layer } from "effect"
 import { Session } from "../../src/session/session"
 import { SessionRevert } from "../../src/session/revert"
@@ -21,6 +21,9 @@ import { Config } from "@/config/config"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+
+// Real Fossil setup and checkout exceed Bun's 5 s default on a loaded host.
+setDefaultTimeout(20_000)
 
 const env = Layer.mergeAll(
   Session.defaultLayer,

@@ -1,0 +1,18 @@
+{"mode": "test", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "test", "test/cli/tui/session-revert.test.ts", "test/cli/tui/session-revert-request.test.ts"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+bun test v1.4.2 (744846f84)
+
+test\cli\tui\session-revert-request.test.ts:
+(pass) confirmed session revert through the real SDK > success [27.86ms]
+(pass) confirmed session revert through the real SDK > abort-error [14.88ms]
+(pass) confirmed session revert through the real SDK > revert-error [3.68ms]
+(pass) confirmed session revert through the real SDK > missing-target [4.26ms]
+(pass) confirmed session revert through the real SDK > wrong-target [3.89ms]
+(pass) confirmed session revert through the real SDK > wrong-session [4.36ms]
+
+test\cli\tui\session-revert.test.ts:
+(pass) DialogMessage revert confirms the reached point or shows an error [7246.05ms]
+
+ 7 pass
+ 0 fail
+ 79 expect() calls
+Ran 7 tests across 2 files. [13.05s]

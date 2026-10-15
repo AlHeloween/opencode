@@ -100,6 +100,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 ## Standing rules that outlive any plan
 
+[Живой текст после Revert](../plans_completed/2026-10-15_revert-live-text.md) — воспроизведение исчезающего текста и ремонт полного snapshot/фильтра строк; кадры и границы проверки находятся в плане.
+<!-- sv: revert-live-text,full-snapshot,native-frame -->
+
 [Восстановление награды и completion term](../plans_completed/2026-10-15_restore-reward-formula.md) — исторический контракт, подтверждённый done %, четыре получателя и собственные проигрывающие controls; доказательства в плане.
 <!-- sv: reward-contract,task-completion,independent-oracle -->
 

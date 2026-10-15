@@ -160,6 +160,27 @@ idle/busy отката и redo. Отказы HTTP и ответ без точк�
 и работа с реальным LLM в этот стенд не входят. Исходное воспроизведение:
 `experiments_history/2026-10-14_undo-runtime-reproduction`.
 
+### Живой текст после выбранного Revert
+
+`session.updated` на шине обычно является полным snapshot: серверный
+`convertEvent` перечитывает строку после применения patch. После очистки
+отката JSON уже не содержит поля `revert`. Поэтому SyncProvider применяет
+полные snapshots (с `info.id === sessionID`) через `reconcile`, а прямые
+частичные уведомления без `id` продолжает сливать как patches. Обычный
+`Object.assign` сохранял старый `revert`, хотя сервер уже начал новый ход.
+
+Отбор сообщений отката выполняется в `messagesList` через `revertedRun`.
+Второго скрывающего условия `message.id >= revert.messageID` в строках нет:
+оно гасило новый текст даже после допуска сообщения в список. Повторный вход
+в сессию перечитывал полное состояние и маскировал эту ошибку.
+
+`test/cli/tui/session-live-text.test.ts` монтирует настоящий Session и
+проверяет кадры до навигации, текстовые дельты, повторный Revert, соседнюю
+сессию и полные/частичные обновления. Session, Fossil и HTTP настоящие;
+события Bus проходят JSON-сериализацию. Очистка и ответы вызываются
+детерминированно без LLM. Доказательства и границы:
+`experiments_history/2026-10-15_revert-live-text/`.
+
 | Action | Behavior |
 |--------|----------|
 | **Undo** to message `M` | Collect `patch` parts after `M`. Target leaf = `patches[0].hash` (tree **before** earliest undone agent step). Redo anchor = `track(sessionFiles)` when the working copy is dirty, else `checkpoint()`. |

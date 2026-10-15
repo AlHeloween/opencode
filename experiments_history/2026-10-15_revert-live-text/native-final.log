@@ -1,0 +1,10 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/cli/tui/session-live-text.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\cli\tui\session-live-text.test.ts:
+(pass) selected Revert followed by a new turn streams text without leaving the session [8114.38ms]
+
+ 1 pass
+ 0 fail
+ 15 expect() calls
+Ran 1 test across 1 file. [19.46s]

@@ -1,0 +1,229 @@
+{
+  "frames": {
+    "initial": "LIVE_TEXT_STAND                                                                                     \n                                                                                                    \n  ┃                                                                                                 \n  ┃                                                                                                 \n  ┃                                                                                                 \n                                                                                                    \n     INITIAL_REPLY                                                                                  \n                                                                                                    \n     ▣  Build · gpt-4 · 8ms                                                                         \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "reverted": "LIVE_TEXT_STAND                                                                                     \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "beforeNavigation": "LIVE_TEXT_STAND                                                                                     \n                                                                                                    \n  ┃                                                                                                 \n  ┃  NEXT_REQUEST                                                                                   \n  ┃                                                                                                 \n                                                                                                    \n     LIVE_AFTER_REVERT                                                                              \n                                                                                                    \n     ▣  Build · gpt-4 · 6ms                                                                         \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "afterNavigation": "LIVE_TEXT_STAND                                                                                     \n                                                                                                    \n  ┃                                                                                                 \n  ┃                                                                                                 \n  ┃                                                                                                 \n                                                                                                    \n     LIVE_AFTER_REVERT                                                                              \n                                                                                                    \n     ▣  Build · gpt-4 · 6ms                                                                         \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n"
+  },
+  "observations": [
+    {
+      "serverRevert": null,
+      "clientRevert": null,
+      "held": [
+        "msg_13edf3fd2001Q1DUPWexRH3W21",
+        "msg_13edf3fd8001S2H3gsxgR4T0Ie"
+      ],
+      "part": [
+        {
+          "id": "prt_13edf3fdb001FH6WwGwgVqCWzs",
+          "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+          "messageID": "msg_13edf3fd8001S2H3gsxgR4T0Ie",
+          "type": "text",
+          "text": "LIVE_AFTER_REVERT"
+        }
+      ]
+    }
+  ],
+  "wire": [
+    {
+      "type": "session.status",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "status": {
+          "type": "idle"
+        }
+      }
+    },
+    {
+      "type": "session.idle",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2"
+      }
+    },
+    {
+      "type": "session.diff",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "diff": []
+      }
+    },
+    {
+      "type": "session.updated",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "info": {
+          "id": "ses_ec120d22cffevdE4CLJqkie6Z2",
+          "slug": "sunny-planet",
+          "projectID": "a36633c8dba56ae121b9e86f5f540e8727ce71c0",
+          "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-sa0jbqdibbj",
+          "title": "live text after revert",
+          "version": "local",
+          "summary": {
+            "additions": 0,
+            "deletions": 0,
+            "files": 0
+          },
+          "revert": {
+            "messageID": "msg_13edf3644001HPhxOGxGafzAzn",
+            "snapshot": "bbc820926030e8ed2dbeb4cba1ac1ac38957d7c9",
+            "op_id": "bbc820926030e8ed2dbeb4cba1ac1ac38957d7c9",
+            "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+          },
+          "time": {
+            "created": 1792056176085,
+            "updated": 1792056180637
+          },
+          "cost": 0,
+          "costSidecar": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "message.removed",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "messageID": "msg_13edf3644001HPhxOGxGafzAzn"
+      }
+    },
+    {
+      "type": "message.removed",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "messageID": "msg_13edf364c001EHYYc00RpW7suO"
+      }
+    },
+    {
+      "type": "session.updated",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "info": {
+          "id": "ses_ec120d22cffevdE4CLJqkie6Z2",
+          "slug": "sunny-planet",
+          "projectID": "a36633c8dba56ae121b9e86f5f540e8727ce71c0",
+          "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-sa0jbqdibbj",
+          "title": "live text after revert",
+          "version": "local",
+          "summary": {
+            "additions": 0,
+            "deletions": 0,
+            "files": 0
+          },
+          "time": {
+            "created": 1792056176085,
+            "updated": 1792056180680
+          },
+          "cost": 0,
+          "costSidecar": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "message.updated",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "projectID": "a36633c8dba56ae121b9e86f5f540e8727ce71c0",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-sa0jbqdibbj",
+        "info": {
+          "id": "msg_13edf3fd2001Q1DUPWexRH3W21",
+          "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+          "role": "user",
+          "agent": "build",
+          "model": {
+            "providerID": "openai",
+            "modelID": "gpt-4"
+          },
+          "time": {
+            "created": 1792056180690
+          }
+        }
+      }
+    },
+    {
+      "type": "message.part.updated",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "projectID": "a36633c8dba56ae121b9e86f5f540e8727ce71c0",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-sa0jbqdibbj",
+        "part": {
+          "id": "prt_13edf3fd6001vitM93SK2ipiuN",
+          "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+          "messageID": "msg_13edf3fd2001Q1DUPWexRH3W21",
+          "type": "text",
+          "text": "NEXT_REQUEST"
+        },
+        "time": 1792056180694
+      }
+    },
+    {
+      "type": "message.updated",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "projectID": "a36633c8dba56ae121b9e86f5f540e8727ce71c0",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-sa0jbqdibbj",
+        "info": {
+          "id": "msg_13edf3fd8001S2H3gsxgR4T0Ie",
+          "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+          "role": "assistant",
+          "parentID": "msg_13edf3fd2001Q1DUPWexRH3W21",
+          "agent": "build",
+          "mode": "build",
+          "providerID": "openai",
+          "modelID": "gpt-4",
+          "path": {
+            "cwd": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-sa0jbqdibbj",
+            "root": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-sa0jbqdibbj"
+          },
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792056180696,
+            "completed": 1792056180696
+          },
+          "finish": "stop"
+        }
+      }
+    },
+    {
+      "type": "message.part.updated",
+      "properties": {
+        "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+        "projectID": "a36633c8dba56ae121b9e86f5f540e8727ce71c0",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-sa0jbqdibbj",
+        "part": {
+          "id": "prt_13edf3fdb001FH6WwGwgVqCWzs",
+          "sessionID": "ses_ec120d22cffevdE4CLJqkie6Z2",
+          "messageID": "msg_13edf3fd8001S2H3gsxgR4T0Ie",
+          "type": "text",
+          "text": "LIVE_AFTER_REVERT"
+        },
+        "time": 1792056180700
+      }
+    }
+  ]
+}

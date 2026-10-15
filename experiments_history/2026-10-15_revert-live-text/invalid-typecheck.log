@@ -1,0 +1,8 @@
+{"mode": "typecheck", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "run", "typecheck"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+$ tsgo --noEmit
+test/cli/tui/session-live-text.test.ts(34,5): error TS2322: Type '(this: Server<undefined>, request: Request) => Promise<Promise<Response> | Response>' is not assignable to type '((this: Server<undefined>, req: Request, server: Server<undefined>) => MaybePromise<Response>) | ((this: Server<...>, req: Request, server: Server<...>) => MaybePromise<...>) | ((this: Server<...>, req: Request, server: Server<...>) => MaybePromise<...>) | ((this: Server<...>, req: Request, server: Server<...>) => M...'.
+  Type '(this: Server<undefined>, request: Request) => Promise<Promise<Response> | Response>' is not assignable to type '(this: Server<undefined>, req: Request, server: Server<undefined>) => MaybePromise<Response>'.
+    Type 'Promise<Promise<Response> | Response>' is not assignable to type 'MaybePromise<Response>'.
+      Type 'Promise<Promise<Response> | Response>' is not assignable to type 'Promise<Response>'.
+        Type 'Promise<Response> | Response' is not assignable to type 'Response'.
+          Type 'Promise<Response>' is missing the following properties from type 'Response': headers, ok, redirected, status, and 12 more.

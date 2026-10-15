@@ -1,0 +1,25 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/cli/tui/session-live-text.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\cli\tui\session-live-text.test.ts:
+110 |         await fixture.navigate(sid)
+111 |         await waitFor(ui, () => ui.captureCharFrame().includes("LIVE_AFTER_REVERT"), 20_000,
+112 |           "navigation rereads and paints text")
+113 |         frames.afterNavigation = ui.captureCharFrame()
+114 |         expect(state.revert).toBeUndefined()
+115 |         expect(visibleBeforeNavigation).toBe(true)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at toBe (unknown:1:1)
+      at D:\zPython\opencode\packages\opencode\test\cli\tui\session-live-text.test.ts:115:41
+      at processTicksAndRejections (unknown:7:39)
+(fail) selected Revert followed by a new turn streams text without leaving the session [6669.69ms]
+
+ 0 pass
+ 1 fail
+ 6 expect() calls
+Ran 1 test across 1 file. [13.88s]

@@ -1791,9 +1791,6 @@ export function Session() {
                         )
                       })()}
                     </Match>
-                    <Match when={revert()?.messageID && message.id >= revert()!.messageID && (message as any)._source !== "orch"}>
-                      <></>
-                    </Match>
                     <Match when={memoryRuns().get(message.id)?.isMemory && !expandedMemory().has(memoryRuns().get(message.id)!.runId)}>
                       {(() => {
                         const info = memoryRuns().get(message.id)!

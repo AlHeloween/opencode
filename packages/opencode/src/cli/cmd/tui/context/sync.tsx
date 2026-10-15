@@ -597,11 +597,15 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         case "session.updated": {
           const result = Binary.search(store.session, event.properties.sessionID, (s) => s.id)
           if (result.found) {
-            // PATCH semantics — must match the server projector (toPartialRow =
-            // partial UPDATE). reconcile() REPLACED the store entry, so every
-            // partial patch ({time} from touch, {cost, tokens} from usage)
-            // wiped the other fields and the sidebar read $0.00 between full
-            // syncs. Merge instead.
+            // The server converter expands persisted patches into full bus
+            // snapshots. JSON omits cleared optional fields, so merging one
+            // retains stale revert state and hides the next turn. A snapshot
+            // carries its session id; partial usage/touch patches do not.
+            if (event.properties.info.id === event.properties.sessionID) {
+              setStore("session", result.index, reconcile(event.properties.info))
+              break
+            }
+            // Direct partial publishers still need patch semantics.
             setStore(
               "session",
               result.index,

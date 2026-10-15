@@ -1,0 +1,54 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/cli/tui/session-live-text.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\cli\tui\session-live-text.test.ts:
+[sync] Failed to sync session ses_ec121ed61ffetHObYS9rDlRUdx: DOMException {
+  line: 99,
+  column: 18,
+  sourceURL: "d:\\zPython\\opencode\\packages\\opencode\\src\\cli\\cmd\\tui\\context\\sdk.tsx",
+  stack: "abort@[native code]\n@d:\\zPython\\opencode\\packages\\opencode\\src\\cli\\cmd\\tui\\context\\sdk.tsx:99:18\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1020:23\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\ncleanNode@d:\\zPython\\opencode\\node_modules\\.bun\\solid-js@1.9.12\\node_modules\\solid-js\\dist\\server.js:1015:16\nrunDispose@d:\\zPython\\opencode\\packages\\opentui\\packages\\solid\\index.ts:15:12\nemit@node:events:118:23\nfinalizeDestroy@d:\\zPython\\opencode\\packages\\opentui\\packages\\core\\src\\renderer.ts:2873:14\ndestroy@d:\\zPython\\opencode\\packages\\opentui\\packages\\core\\src\\renderer.ts:2781:25\n@d:\\zPython\\opencode\\packages\\opencode\\test\\cli\\tui\\session-live-text.test.ts:118:33\nprocessTicksAndRejections@",
+  code: 20,
+  name: "AbortError",
+  message: "The operation was aborted.",
+  INDEX_SIZE_ERR: 1,
+  DOMSTRING_SIZE_ERR: 2,
+  HIERARCHY_REQUEST_ERR: 3,
+  WRONG_DOCUMENT_ERR: 4,
+  INVALID_CHARACTER_ERR: 5,
+  NO_DATA_ALLOWED_ERR: 6,
+  NO_MODIFICATION_ALLOWED_ERR: 7,
+  NOT_FOUND_ERR: 8,
+  NOT_SUPPORTED_ERR: 9,
+  INUSE_ATTRIBUTE_ERR: 10,
+  INVALID_STATE_ERR: 11,
+  SYNTAX_ERR: 12,
+  INVALID_MODIFICATION_ERR: 13,
+  NAMESPACE_ERR: 14,
+  INVALID_ACCESS_ERR: 15,
+  VALIDATION_ERR: 16,
+  TYPE_MISMATCH_ERR: 17,
+  SECURITY_ERR: 18,
+  NETWORK_ERR: 19,
+  ABORT_ERR: 20,
+  URL_MISMATCH_ERR: 21,
+  QUOTA_EXCEEDED_ERR: 22,
+  TIMEOUT_ERR: 23,
+  INVALID_NODE_TYPE_ERR: 24,
+  DATA_CLONE_ERR: 25,
+  toString: [Function: toString],
+}
+78 |         wire.push(JSON.parse(JSON.stringify(payload)))
+79 |       })
+80 |       try {
+81 |         fixture = await mountLiveSession({ url: server.url.toString(), directory: stand.path, sid })
+82 |         const ui = fixture.ui
+83 |         await waitFor(ui, () => ui.captureCharFrame().includes("INITIAL_REPLY"), 20_000, "initial reply painted")
+                           ^
+TypeError: fixture.openRevert is not a function. (In 'fixture.openRevert(sid, initial.id)', 'fixture.openRevert' is undefined)
+      at D:\zPython\opencode\packages\opencode\test\cli\tui\session-live-text.test.ts:83:23
+      at processTicksAndRejections (unknown:7:39)
+(fail) selected Revert followed by a new turn streams text without leaving the session [5265.64ms]
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [14.48s]

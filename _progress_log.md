@@ -1,5 +1,12 @@
 ﻿# Progress Log
 
+## [2026-10-15] Revert — живой текст без переключения сессии
+
+✓ Воспроизведено на полном native Session: `20261015T092157Z_515e9085`, сервер очистил revert, клиент сохранил старый курсор, новый text есть в store, кадр пуст; A→B→A показывает тот же ответ. Причина: полный session.updated после JSON ошибочно мёржился, второй JSX Match скрывал все новые id.
+✓ Исправлено: полный snapshot → reconcile, partial без id → merge; второй cursor Match удалён. `20261015T092706Z_4fb86753`: 1 pass / 15 assertions, новый текст до навигации, delta, повторный Revert, соседняя сессия, partial/full и obsolete cursor. `20261015T092457Z_014a609f`: 7 pass / 79 assertions; `20261015T092603Z_68de357f`: 14 pass / 67 assertions; typecheck `20261015T092707Z_1ced63ee` exit0.
+✓ `_build.ps1` `20261015T092745Z_85a27016` exit0, candidate 10.0.1351 в dist, version/embedded prompt smoke. Неудачные прогоны, исправления стенда и file-level timeout Fossil сохранены, assertions не смягчались. Доказательства: `experiments_history/2026-10-15_revert-live-text/`; план `plans_completed/2026-10-15_revert-live-text.md`. Живой LLM/SSE и установка bin не входят в доказанный результат; чужой dirty сохранён.
+<!-- sv: revert-live-text,full-snapshot,native-frame,independent-oracle -->
+
 
 ## [2026-10-15T10:40+08:00] t46 — universalsearch: hybrid by default, timeout that fits hybrid (план 2026-10-15_universalsearch-hybrid-default)
 

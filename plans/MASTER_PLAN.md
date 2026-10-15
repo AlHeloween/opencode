@@ -120,10 +120,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 241 |
-| plans active | 19 |
-| tasks passed / total | 1033 / 1277 |
-| open boxes | 101 |
+| plans completed | 245 |
+| plans active | 23 |
+| tasks passed / total | 1058 / 1314 |
+| open boxes | 113 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -297,8 +297,32 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-8 [PENDING] · sv [codex-compact 1.0] · manifest: MISSING — nobody has written down what this box is
   - TASK-9 [PENDING] · sv [independent-verify 1.0] · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-14_return-channel-binding.md` — 5 open / 5 box(es) · lifecycle UNKNOWN
+  sv: intention "`done [--report]` makes the report optional and `escalate --code "why"` sets BLOCKED on one sentence, so the delegator receives bare fields and cannot tell a busy WORKING ticket from a dead one (heartbeat frozen at claim time) -> `done` refuses without a CLEAN_NEXT_STATE technote, `escalate` refuses without a stop-claim technote, the wake text and `inbox --json` carry the report ref with its first lines, and orgd refreshes the heartbeat from the claimed session's own activity (silence stays silence); the retracted session-delivery machinery leaves the tree" · keywords [return-channel, done-report-gate, stop-claim-gate, delegator-wake, heartbeat-activity]
+  - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-15_graph-first-read-not-scan.md` — 4 open / 5 box(es) · lifecycle ERROR
+  sv: intention "агенты сканируют list/glob/grep и читают доки питоном, не трогая codegraph и не читая файл -> первый сканер сессии без codegraph-вызова отказывается один раз с маршрутом на граф, а python/node-скрипт над текстом .md/.txt/.rst отказывается с маршрутом на read" · keywords [graph-first 0.40, docs-are-read 0.35, once-only-latch 0.25]
+  - TASK-2 [PENDING] · sv [red-first 0.6, controls 0.4] · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv [graph-first 0.5, once-only-latch 0.3, wiring 0.2] · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv [docs-are-read 0.5, byte-allowance 0.3, wiring 0.2] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-15_kernel-continuation-without-blocked.md` — 2 open / 6 box(es) · lifecycle ACTIVE
+  sv: intention "Unknown и чужая ответственность превращаются в BLOCKED и остановку -> пробел ведёт к проверке/декомпозиции, чужой исполнитель к тикету/наблюдению/follow-up, родитель остаётся открыт до проверенного done" · keywords [task-continuation 0.45, unknown-decomposition 0.30, verified-delegation 0.25]
+  - TASK-2 [PENDING] · sv [oracle 0.6, generated-parity 0.4] · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv [pct-denominator 0.35, receipt-readback 0.30, quoted-postpone 0.20, budget-67000 0.15] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-15_kernel-undefined-contract-audit.md` — 1 open / 2 box(es) · lifecycle ACTIVE
+  sv: intention "расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source" · keywords [contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20]
+  - TASK-2 [PENDING] · sv [independent-verification 0.6, evidence 0.4] · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 21 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 25 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -1,0 +1,26 @@
+{
+  "verdict": "UNKNOWN",
+  "scope": "actual ReasoningPart/frame not mounted; no substitute component",
+  "reason": "ReasoningPart and Session context are private; existing dialog-replay mounts DialogMessage with multiple provider/context layers, not Session. Full-session bridge needs SDK/server bootstrap, route, local provider, prompt and spinner contexts.",
+  "source": {
+    "path": "D:/zPython/opencode/packages/opencode/src/cli/cmd/tui/routes/session/index.tsx",
+    "sha256": "c118954246a78c13df811021b973a747f2bcd9ea3c47c6df5546a912b9fca6b6",
+    "defaultAt": 462,
+    "visibilityAt": 2291
+  },
+  "authority": "kv.signal(\"thinking_visibility\", true); worktree TUI preference, not session-specific",
+  "reader": "packages/opencode/src/cli/cmd/tui/context/kv.tsx:24,44,70-82",
+  "persistedReadback": {
+    "path": "D:/zPython/opencode/.opencode/data/state/kv.json",
+    "thinking_visibility": true,
+    "limitation": "disk value only; active process loaded once, may differ after failed writes or own in-memory changes"
+  },
+  "nextOracle": "Mount exported Session in existing provider stack connected to isolated fixture server; frame signed-empty/nonempty with thinking_visibility true/false; do not copy private component",
+  "sv": {
+    "Keywords": "actual-ui 0.50, evidence-gap 0.30, visibility-authority 0.20",
+    "Semantic dominant": "Сохранить непроверенную границу actual TUI и проверенный источник настройки видимости.",
+    "md5": "e62918f5d0a14b67c3fe809ab5724d16",
+    "prev-md5": "00000000000000000000000000000000",
+    "parent-goal-md5": "521cbe68349a4f82b176d9e028fa703d"
+  }
+}

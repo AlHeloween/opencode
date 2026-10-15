@@ -1,0 +1,41 @@
+{
+  "verdict": "PASS",
+  "run": "gateway-1792083629782-60188153-65c1-4756-bd02-f83d61a7c0d6",
+  "scope": "real gateway HTTP/1.1 local SSE + terminal capture, not SDK/processor/TUI or live Anthropic",
+  "stand": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\gateway-1792083629782-60188153-65c1-4756-bd02-f83d61a7c0d6",
+  "sv": {
+    "Keywords": "gateway-capture 0.50, cancellation 0.30, deterministic-controls 0.20",
+    "Semantic dominant": "Проверить сохранение реального SSE при завершении и отмене потребителем.",
+    "md5": "b2a9130ce78446f19e6d08572fa3c641",
+    "prev-md5": "00000000000000000000000000000000",
+    "parent-goal-md5": "521cbe68349a4f82b176d9e028fa703d"
+  },
+  "cases": [
+    {
+      "mode": "complete",
+      "prediction": "complete + text",
+      "verdict": "PASS",
+      "control": "EXPECTED_FAIL",
+      "capturePath": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\gateway-1792083629782-60188153-65c1-4756-bd02-f83d61a7c0d6\\gateway\\per-response\\2026-10-15T17-00-30-627Z-079fb32f-057d-4f1d-b15c-1a4963e1ed5d-attempt1.json",
+      "rawPath": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\gateway-1792083629782-60188153-65c1-4756-bd02-f83d61a7c0d6\\gateway\\per-response\\2026-10-15T17-00-30-627Z-079fb32f-057d-4f1d-b15c-1a4963e1ed5d-attempt1.raw.txt",
+      "sha256": "3adfd0a8195a0750f54e42251498102356f5131ad532135d5a6f725e7212b275",
+      "rawBytes": 1181,
+      "receivedBytes": 1181,
+      "confirmedDelta": "HAIKU_R_α_complete",
+      "serverCancelledAtReadback": false
+    },
+    {
+      "mode": "abort",
+      "prediction": "aborted + partial thinking",
+      "verdict": "PASS",
+      "control": "EXPECTED_FAIL",
+      "capturePath": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\gateway-1792083629782-60188153-65c1-4756-bd02-f83d61a7c0d6\\gateway\\per-response\\2026-10-15T17-00-30-649Z-06893b1d-662d-4135-91e0-9da8bea889af-attempt1.json",
+      "rawPath": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\gateway-1792083629782-60188153-65c1-4756-bd02-f83d61a7c0d6\\gateway\\per-response\\2026-10-15T17-00-30-649Z-06893b1d-662d-4135-91e0-9da8bea889af-attempt1.raw.txt",
+      "sha256": "7893f58ebaacec499af77e4241eee2ae05d2a044d2a438908a9d9afdf6ee2f73",
+      "rawBytes": 460,
+      "receivedBytes": 460,
+      "confirmedDelta": "HAIKU_R_α_abort",
+      "serverCancelledAtReadback": true
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "type": "response",
+  "timestamp": 1792083630638,
+  "id": "079fb32f-057d-4f1d-b15c-1a4963e1ed5d",
+  "status": 200,
+  "state": "complete",
+  "headers": {
+    "content-type": "text/event-stream",
+    "date": "Thu, 15 Oct 2026 17:00:30 GMT",
+    "transfer-encoding": "chunked"
+  },
+  "message": {
+    "content": "",
+    "reasoning_content": "",
+    "tool_calls": [],
+    "finish_reason": null,
+    "usage": null
+  }
+}

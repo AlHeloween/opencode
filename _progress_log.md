@@ -7025,3 +7025,16 @@ Untried, named: contention against a REAL second concurrent _build (only fixture
 ✓ PRICED (estimates, t48 method): DENSIFY ≈ 14 800 B (D0 constitution ×3→one ≈ 5 800 head) + MERGE ≈ 12 300 B (M1 todo-alias-dup 2 954, zero behavior change, cheapest) − overlap ≈ 2 700 → net ≈ 24 400 B ≈ 16% of tool block. Top-10 table + kernel/AGENTS dup map (t48 datum) in REPORT.md §8. Notable: `todo` ships as a full duplicate schema of `todowrite` (5 B name delta); fossilcell absent from capture (added 16:26, after the 11:42 capture); fossilgrep grew +1 529 B post-capture.
 — Deliverables: experiments/2026-10-15_tool-schema-review/REPORT.md + inventory.mjs (--json verified). No product file changed; no _build.ps1 (report/plan/log only — build runs after CHANGES, there were none). Residual: todo-dup origin trace; full 58-name DESC≠SCHEMA proof; codex/claude schema bytes untouched.
 <!-- sv: tool-schema-review 0.35, wire-measured 0.25, priced-not-cut 0.25, report-only 0.15 -->
+
+## [2026-10-16] Haiku end-to-end research
+
+✓ READBACK: `plans_completed/2026-10-16_haiku-end-to-end-research.md`; результаты — `experiments_history/2026-10-16_haiku-research/REPORT.md`. Исследование, product actual_diff=none. Original wire body SHA-256 `6f212a766cf332b0fb09d2c9bdcab16bf4e62c91355d4acc49fd19483cff5a93`; исторический 96s user abort не назван provider completion. Official contract и installed SDK 4.0.57 проверены независимо.
+
+✓ LIVE: main `20261015T165513Z_4b8dea2c` + supplement `20261015T170122Z_dfdea369`, девять HTTP200/message_stop arms, cap4096/8192, 150s deadlines. Original full request = 328546 provider input tokens. Max/high исчерпали cap на thinking без text; low/medium дали tool_use. Summarized показывает thinking, но не гарантирует ответ. Одиночные последовательные arms не latency benchmark; tool calls не исполнялись. CRT format predicate FAIL сохранён.
+
+✓ DIFFERENTIAL: SDK run `20261015T165628Z_21a44b9c`: direct SDK сохраняет signed-empty reasoning, transform теряет. HTTP1 parent `20261015T170029Z_f8ef125b` capture complete/aborted PASS. ✗ H2 parent `20261015T170413Z_04ea3748` exit1: real gateway игнорирует AbortSignal и доставляет late marker; direct H2 отменяет RST_STREAM=8, но cleanup даёт unhandledRejection `h2-transport.ts:504:20`. Полные receipts, synthetic raw и source hashes сохранены; это reproducer, не зелёная regression будущего ремонта.
+
+✓ BASELINE: focused tests `20261015T165514Z_967905af`:188 pass/0 fail/373 expect. ✗ BUILD `20261015T165629Z_9cde306d` exit1: candidate smoke10.0.1362/embedded prompt PASS; collection в dist/bin заблокирован PID18400 serve:4123. Сервер не остановлен, bin не менялся. Full logs read, dropped0/truncatedfalse.
+
+RESIDUAL: original125000-token completion, actual Session/TUI frame, full tool loop, source fixes signed replay/H2 signal+cleanup, output-path lock. Следующий ремонт начинает с сохранённых fixtures и их независимых controls; research closure не закрывает эти результаты FAIL/UNKNOWN. Чужой portfolio acceptance не проверен, чужая dirty work не staged.
+<!-- sv: haiku-research 0.35, live-wire 0.25, signed-replay 0.20, h2-cancellation 0.20 -->

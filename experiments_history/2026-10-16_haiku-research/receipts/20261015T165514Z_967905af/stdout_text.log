@@ -1,0 +1,312 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\provider\transform-anthropic-adaptive.test.ts:
+(pass) Anthropic Haiku 5.5 adaptive thinking > direct Anthropic (hyphen spelling): five effort levels, adaptive thinking [1.11ms]
+(pass) Anthropic Haiku 5.5 adaptive thinking > direct Anthropic (dot spelling): same five-level adaptive set [0.23ms]
+(pass) Anthropic Haiku 5.5 adaptive thinking > vertex Anthropic: five-level adaptive set [0.11ms]
+(pass) Anthropic Haiku 5.5 adaptive thinking > gateway: five-level adaptive set [0.18ms]
+(pass) Anthropic Haiku 5.5 adaptive thinking > bedrock: adaptive reasoningConfig with maxReasoningEffort [0.21ms]
+(pass) Anthropic Haiku 5.5 adaptive thinking > SAP AI provider: five-level adaptive set [0.20ms]
+(pass) Anthropic legacy Haiku 4.5 is unchanged > hyphen spelling keeps enabled/budgetTokens [0.20ms]
+(pass) Anthropic legacy Haiku 4.5 is unchanged > dot spelling keeps enabled/budgetTokens [0.12ms]
+(pass) Anthropic legacy Haiku 4.5 is unchanged > a model without reasoning capability returns no variants [0.08ms]
+(pass) Anthropic Haiku 5.5 SDK wire > the variant serializes to adaptive thinking + output_config.effort on the real SDK [34.81ms]
+
+test\provider\transform.test.ts:
+(pass) ProviderTransform.maxOutputTokens > returns an eighth of the content window when the model ceiling is higher [0.32ms]
+(pass) ProviderTransform.maxOutputTokens > never drops below the 32 768 floor, whatever the window [0.08ms]
+(pass) ProviderTransform.maxOutputTokens > a lower model ceiling wins over the window budget [0.04ms]
+(pass) ProviderTransform.maxOutputTokens > caps output when native output equals or exceeds context [0.04ms]
+(pass) ProviderTransform.maxOutputTokens > unknown native output falls back to the budget itself [0.15ms]
+(pass) ProviderTransform.maxOutputTokens > respects an explicit override, still capped by the ceiling [0.07ms]
+(pass) ProviderTransform.maxOutputTokens > the budget scales with the window above the floor and equals the reserve the gate keeps free [0.12ms]
+(pass) ProviderTransform.systemPromptPrefix > includes reasoning and the deterministic runtime dictionary for all models [0.70ms]
+(pass) ProviderTransform.options - setCacheKey > should set prompt_cache_key when providerOptions.setCacheKey is true [3.53ms]
+(pass) ProviderTransform.options - setCacheKey > should use explicit cacheKey when provided [0.29ms]
+(pass) ProviderTransform.options - setCacheKey > should not set prompt_cache_key when providerOptions.setCacheKey is fal
+lse [0.09ms]
+(pass) ProviderTransform.options - setCacheKey > should not set prompt_cache_key when providerOptions is undefined [0.08
+8ms]
+(pass) ProviderTransform.options - setCacheKey > should not set prompt_cache_key when providerOptions does not have setC
+CacheKey [0.05ms]
+(pass) ProviderTransform.options - setCacheKey > uses the OpenAI SDK option for its prompt cache key [0.15ms]
+(pass) ProviderTransform.options - setCacheKey > should set prompt_cache_key for openai-compatible providers (NVIDIA, De
+eepSeek, etc.) [0.13ms]
+(pass) ProviderTransform.options - setCacheKey > should set prompt_cache_key for deepseek providerID [0.11ms]
+(pass) ProviderTransform.options - setCacheKey > uses the Azure SDK option for its prompt cache key [0.14ms]
+(pass) ProviderTransform.options - setCacheKey > sends the stable cache key through the installed OpenAI Responses SDK [
+[17.93ms]
+(pass) ProviderTransform.options - setCacheKey > sends the cache key through the installed Azure Responses SDK [16.51ms]
+(pass) ProviderTransform.options - setCacheKey > should set chat_template_kwargs for NVIDIA + DeepSeek V4 [0.23ms]
+(pass) ProviderTransform.options - setCacheKey > should NOT set chat_template_kwargs for non-NVIDIA DeepSeek V4 [0.11ms]
+(pass) ProviderTransform.options - setCacheKey > should NOT set chat_template_kwargs for NVIDIA non-DeepSeek-V4 models [
+[0.11ms]
+(pass) ProviderTransform.options - setCacheKey > should set store=false for openai provider [0.16ms]
+(pass) ProviderTransform.options - setCacheKey > should set store=true for azure provider by default [0.12ms]
+(pass) ProviderTransform.options - zai/zhipuai thinking > zai-coding-plan should set thinking cfg [0.41ms]
+(pass) ProviderTransform.options - zai/zhipuai thinking > zai should set thinking cfg [0.07ms]
+(pass) ProviderTransform.options - zai/zhipuai thinking > zhipuai-coding-plan should set thinking cfg [0.08ms]
+(pass) ProviderTransform.options - zai/zhipuai thinking > zhipuai should set thinking cfg [0.06ms]
+(pass) ProviderTransform.options - deepseek-v4 thinking > deepseek-v4-pro returns thinking: { type: enabled } [0.20ms]  
+(pass) ProviderTransform.options - deepseek-v4 thinking > deepseek-v4-flash returns thinking: { type: enabled } [0.12ms]
+(pass) ProviderTransform.options - deepseek-v4 thinking > non-deepseek openai-compatible does NOT include thinking [0.09
+9ms]
+(pass) ProviderTransform.options - google thinkingConfig gating > does not set thinkingConfig for google models without 
+ reasoning capability [0.29ms]
+(pass) ProviderTransform.options - google thinkingConfig gating > sets thinkingConfig for google models with reasoning c
+capability [0.12ms]
+(pass) ProviderTransform.options - google thinkingConfig gating > does not set thinkingConfig for vertex models without 
+ reasoning capability [0.09ms]
+(pass) ProviderTransform.options - gpt-5 textVerbosity > gpt-5.2 should have textVerbosity set to low [0.28ms]
+(pass) ProviderTransform.options - gpt-5 textVerbosity > gpt-5.1 should have textVerbosity set to low [0.13ms]
+(pass) ProviderTransform.options - gpt-5 textVerbosity > gpt-5.2-chat-latest should NOT have textVerbosity set (only sup
+pports medium) [0.13ms]
+(pass) ProviderTransform.options - gpt-5 textVerbosity > gpt-5.1-chat-latest should NOT have textVerbosity set (only sup
+pports medium) [0.10ms]
+(pass) ProviderTransform.options - gpt-5 textVerbosity > gpt-5.2-chat should NOT have textVerbosity set [0.16ms]        
+(pass) ProviderTransform.options - gpt-5 textVerbosity > gpt-5-chat should NOT have textVerbosity set [0.18ms]
+(pass) ProviderTransform.options - gpt-5 textVerbosity > gpt-5.2-codex should NOT have textVerbosity set (codex models e
+excluded) [0.15ms]
+(pass) ProviderTransform.options - gateway > puts gateway defaults under gateway key [0.18ms]
+(pass) ProviderTransform.providerOptions > uses sdk key for non-gateway models [0.32ms]
+(pass) ProviderTransform.providerOptions > keeps Vanchin PayGo requests free of legacy coding-template fields [0.19ms]  
+(pass) ProviderTransform.providerOptions > uses gateway model provider slug for gateway models [0.30ms]
+(pass) ProviderTransform.providerOptions > falls back to gateway key when gateway api id is unscoped [0.13ms]
+(pass) ProviderTransform.providerOptions > splits gateway routing options from provider-specific options [0.12ms]       
+(pass) ProviderTransform.providerOptions > falls back to gateway key when model id has no provider slug [0.09ms]        
+(pass) ProviderTransform.providerOptions > maps amazon slug to bedrock for provider options [0.13ms]
+(pass) ProviderTransform.providerOptions > uses groq slug for groq models [0.12ms]
+(pass) ProviderTransform.schema - gemini array items > adds missing items for array properties [0.54ms]
+(pass) ProviderTransform.schema - gemini nested array items > adds type to 2D array with empty inner items [0.15ms]     
+(pass) ProviderTransform.schema - gemini nested array items > adds items and type to 2D array with missing inner items [
+[0.12ms]
+(pass) ProviderTransform.schema - gemini nested array items > handles deeply nested arrays (3D) [0.14ms]
+(pass) ProviderTransform.schema - gemini nested array items > preserves existing item types in nested arrays [0.08ms]   
+(pass) ProviderTransform.schema - gemini nested array items > handles mixed nested structures with objects and arrays [0
+0.09ms]
+(pass) ProviderTransform.schema - gemini combiner nodes > keeps edits.items.anyOf without adding type [0.46ms]
+(pass) ProviderTransform.schema - gemini combiner nodes > does not add sibling keys to combiner nodes during sanitize [0
+0.45ms]
+(pass) ProviderTransform.schema - gemini non-object properties removal > removes properties from non-object types [0.13m
+ms]
+(pass) ProviderTransform.schema - gemini non-object properties removal > removes required from non-object types [0.11ms]
+(pass) ProviderTransform.schema - gemini non-object properties removal > removes properties and required from nested non
+n-object types [0.10ms]
+(pass) ProviderTransform.schema - gemini non-object properties removal > keeps properties and required on object types [
+[0.10ms]
+(pass) ProviderTransform.schema - gemini non-object properties removal > does not affect non-gemini providers [0.06ms]  
+(pass) ProviderTransform.schema - moonshot $ref siblings > removes sibling descriptions from referenced tool parameter s
+schemas [0.47ms]
+(pass) ProviderTransform.schema - moonshot $ref siblings > also runs for kimi models outside the moonshot provider [0.24
+4ms]
+(pass) ProviderTransform.schema - moonshot $ref siblings > converts tuple-style array items to a single item schema [0.1
+17ms]
+(pass) ProviderTransform.message - DeepSeek reasoning content > DeepSeek with tool calls includes reasoning_content in p
+providerOptions [1.83ms]
+(pass) ProviderTransform.message - DeepSeek reasoning content > Non-DeepSeek providers leave reasoning content unchanged
+d [0.46ms]
+(pass) ProviderTransform.message - empty image handling > should replace empty base64 image with error text [1.78ms]    
+(pass) ProviderTransform.message - empty image handling > should keep valid base64 images unchanged [0.28ms]
+(pass) ProviderTransform.message - empty image handling > should handle mixed valid and empty images [0.30ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > filters out messages with empty string content [0
+0.42ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > filters out empty text parts from array content [
+[0.65ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > filters out empty reasoning parts from array cont
+tent [0.53ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > removes entire message when all parts are empty [
+[0.37ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > keeps non-text/reasoning parts even if text parts
+s are empty [0.57ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > keeps messages with valid text alongside empty pa
+arts [0.50ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > filters empty content for bedrock provider [0.78m
+ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > does not filter for non-anthropic providers [0.25
+5ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > splits anthropic assistant messages when text tra
+ails tool calls [0.59ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > leaves valid anthropic assistant tool ordering un
+nchanged [0.56ms]
+(pass) ProviderTransform.message - anthropic empty content filtering > splits vertex anthropic assistant messages when t
+text trails tool calls [0.40ms]
+(pass) ProviderTransform.message - strip openai metadata when store=false > preserves itemId and reasoningEncryptedConte
+ent when store=false [0.19ms]
+(pass) ProviderTransform.message - strip openai metadata when store=false > preserves itemId and reasoningEncryptedConte
+ent when store=false even when not openai [0.20ms]
+(pass) ProviderTransform.message - strip openai metadata when store=false > preserves other openai options including ite
+emId [0.16ms]
+(pass) ProviderTransform.message - strip openai metadata when store=false > preserves metadata for openai package when s
+store is true [0.12ms]
+(pass) ProviderTransform.message - strip openai metadata when store=false > preserves metadata for non-openai packages w
+when store is false [0.17ms]
+(pass) ProviderTransform.message - strip openai metadata when store=false > preserves metadata using providerID key when
+n store is false [0.38ms]
+(pass) ProviderTransform.message - strip openai metadata when store=false > preserves itemId across all providerOptions 
+ keys [0.26ms]
+(pass) ProviderTransform.message - strip openai metadata when store=false > does not strip metadata for non-openai packa
+ages when store is not false [0.20ms]
+(pass) ProviderTransform.message - providerOptions key remapping > azure keeps 'azure' key and does not remap to 'openai
+i' [0.24ms]
+(pass) ProviderTransform.message - providerOptions key remapping > azure cognitive services remaps providerID to 'azure'
+' key [0.18ms]
+(pass) ProviderTransform.message - providerOptions key remapping > copilot remaps providerID to 'copilot' key [0.16ms]  
+(pass) ProviderTransform.message - providerOptions key remapping > bedrock remaps providerID to 'bedrock' key [0.12ms]  
+(pass) ProviderTransform.message - claude w/bedrock custom inference profile > adds no cache markers (anthropic-only dir
+rective 2026-09-07) [0.13ms]
+(pass) ProviderTransform.message - bedrock caching with non-bedrock providerID > no cache options when npm package is am
+mazon-bedrock (anthropic-only directive) [0.18ms]
+(pass) ProviderTransform.message - cache control on gateway > gateway does not set cache control for anthropic models [0
+0.23ms]
+(pass) ProviderTransform.message - cache control on gateway > non-gateway anthropic keeps existing cache control behavio
+or [0.22ms]
+(pass) ProviderTransform.message - cache control on gateway > google-vertex-anthropic applies cache control [0.29ms]    
+(pass) ProviderTransform.message - cache control on gateway > openai-compatible providers get NO cache markers (auto-cac
+che by prefix) [0.32ms]
+(pass) ProviderTransform.variants > returns empty object when model has no reasoning capabilities [0.21ms]
+(pass) ProviderTransform.variants > deepseek returns empty object [0.08ms]
+(pass) ProviderTransform.variants > deepseek-v4-pro returns off/high/max (catalog declares toggle + high|max) [0.24ms]  
+(pass) ProviderTransform.variants > deepseek-flash (V4.1 rename) returns off/low/high/max — no v4 substring required [0.
+.26ms]
+(pass) ProviderTransform.variants > deepseek-flash effort set follows the catalog when it differs [0.21ms]
+(pass) ProviderTransform.variants > minimax returns empty object [0.18ms]
+(pass) ProviderTransform.variants > glm-5.3-flash on openrouter: effort variants low/high/max (forced thinking, no off) 
+ [0.37ms]
+(pass) ProviderTransform.variants > glm-5.3 direct API: thinking enabled + reasoningEffort [0.27ms]
+(pass) ProviderTransform.variants > glm-4 (no reasoning_effort): thinking toggle only [0.14ms]
+(pass) ProviderTransform.variants > glm without reasoning capability stays empty [0.08ms]
+(pass) ProviderTransform.variants > mistral with reasoning returns variants [0.11ms]
+(pass) ProviderTransform.variants > mistral without reasoning returns empty object [0.09ms]
+(pass) ProviderTransform.variants > mistral large with reasoning returns empty object (only small supports reasoning) [0
+0.08ms]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > a model that declares NO efforts keeps the full set — 
+ silence is not an empty menu [0.25ms]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > the DECLARED effort set is used — the model's name is 
+ not a criterion [0.25ms]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > a declared effort the gateway would reject is DROPPED,
+, not offered [0.13ms]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > a declared set that filters down to nothing falls back
+k rather than muting the model [0.18ms]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > the SYNCED CATALOG drives the menu — a real entry, not
+t a fixture [4.53ms]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > gpt models return OPENAI_EFFORTS with reasoning [0.16m
+ms]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > gemini-3 returns OPENAI_EFFORTS with reasoning [0.08ms
+s]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > grok-4 returns empty object [0.13ms]
+(pass) ProviderTransform.variants > @openrouter/ai-sdk-provider > grok-3-mini returns low and high with reasoning [0.17m
+ms]
+(pass) ProviderTransform.variants > @ai-sdk/gateway > anthropic sonnet 4.6 models return adaptive thinking options [0.12
+2ms]
+(pass) ProviderTransform.variants > @ai-sdk/gateway > anthropic sonnet 4.6 dot-format models return adaptive thinking op
+ptions [0.15ms]
+(pass) ProviderTransform.variants > @ai-sdk/gateway > anthropic opus 4.6 dot-format models return adaptive thinking opti
+ions [0.20ms]
+(pass) ProviderTransform.variants > @ai-sdk/gateway > anthropic opus 4.7 models return adaptive thinking options with xh
+high [0.12ms]
+(pass) ProviderTransform.variants > @ai-sdk/gateway > anthropic opus 4.7 dot-format models return adaptive thinking opti
+ions with xhigh [0.08ms]
+(pass) ProviderTransform.variants > @ai-sdk/gateway > anthropic models return anthropic thinking options [0.17ms]       
+(pass) ProviderTransform.variants > @ai-sdk/gateway > returns OPENAI_EFFORTS with reasoningEffort [0.17ms]
+(pass) ProviderTransform.variants > @ai-sdk/github-copilot > standard models return low, medium, high [0.25ms]
+(pass) ProviderTransform.variants > @ai-sdk/github-copilot > gpt-5.1-codex-max includes xhigh [0.10ms]
+(pass) ProviderTransform.variants > @ai-sdk/github-copilot > gpt-5.1-codex-mini does not include xhigh [0.11ms]
+(pass) ProviderTransform.variants > @ai-sdk/github-copilot > gpt-5.1-codex does not include xhigh [0.06ms]
+(pass) ProviderTransform.variants > @ai-sdk/github-copilot > gpt-5.2 includes xhigh [0.15ms]
+(pass) ProviderTransform.variants > @ai-sdk/github-copilot > gpt-5.2-codex includes xhigh [0.09ms]
+(pass) ProviderTransform.variants > @ai-sdk/github-copilot > gpt-5.3-codex includes xhigh [0.19ms]
+(pass) ProviderTransform.variants > @ai-sdk/github-copilot > gpt-5.4 includes xhigh [0.12ms]
+(pass) ProviderTransform.variants > @ai-sdk/cerebras > returns WIDELY_SUPPORTED_EFFORTS with reasoningEffort [0.11ms]   
+(pass) ProviderTransform.variants > @ai-sdk/togetherai > returns WIDELY_SUPPORTED_EFFORTS with reasoningEffort [0.08ms] 
+(pass) ProviderTransform.variants > @ai-sdk/xai > grok-3 returns empty object [0.10ms]
+(pass) ProviderTransform.variants > @ai-sdk/xai > grok-3-mini returns low and high with reasoningEffort [0.16ms]        
+(pass) ProviderTransform.variants > @ai-sdk/deepinfra > returns WIDELY_SUPPORTED_EFFORTS with reasoningEffort [0.13ms]  
+(pass) ProviderTransform.variants > @ai-sdk/openai-compatible > returns WIDELY_SUPPORTED_EFFORTS with reasoningEffort [0
+0.10ms]
+(pass) ProviderTransform.variants > @ai-sdk/azure > o1-mini returns empty object [0.09ms]
+(pass) ProviderTransform.variants > @ai-sdk/azure > standard azure models return custom efforts with reasoningSummary [0
+0.22ms]
+(pass) ProviderTransform.variants > @ai-sdk/azure > gpt-5 adds minimal effort [0.12ms]
+(pass) ProviderTransform.variants > @ai-sdk/openai > gpt-5-pro returns empty object [0.08ms]
+(pass) ProviderTransform.variants > @ai-sdk/openai > standard openai models return custom efforts with reasoningSummary 
+ [0.29ms]
+(pass) ProviderTransform.variants > @ai-sdk/openai > models after 2025-11-13 include 'none' effort [0.08ms]
+(pass) ProviderTransform.variants > @ai-sdk/openai > models after 2025-12-04 include 'xhigh' effort [0.11ms]
+(pass) ProviderTransform.variants > @ai-sdk/anthropic > sonnet 4.6 returns adaptive thinking options [0.07ms]
+(pass) ProviderTransform.variants > @ai-sdk/anthropic > opus 4.7 returns adaptive thinking options with xhigh [0.11ms]  
+(pass) ProviderTransform.variants > @ai-sdk/anthropic > returns high and max with thinking config [0.07ms]
+(pass) ProviderTransform.variants > @ai-sdk/amazon-bedrock > anthropic sonnet 4.6 returns adaptive reasoning options [0.
+.08ms]
+(pass) ProviderTransform.variants > @ai-sdk/amazon-bedrock > anthropic opus 4.7 returns adaptive reasoning options with 
+ xhigh [0.07ms]
+(pass) ProviderTransform.variants > @ai-sdk/amazon-bedrock > returns WIDELY_SUPPORTED_EFFORTS with reasoningConfig [0.10
+0ms]
+(pass) ProviderTransform.variants > @ai-sdk/google > gemini-2.5 returns high and max with thinkingConfig and thinkingBud
+dget [0.10ms]
+(pass) ProviderTransform.variants > @ai-sdk/google > other gemini models return low and high with thinkingLevel [0.15ms]
+(pass) ProviderTransform.variants > @ai-sdk/google-vertex > gemini-2.5 returns high and max with thinkingConfig and thin
+nkingBudget [0.10ms]
+(pass) ProviderTransform.variants > @ai-sdk/google-vertex > other vertex models return low and high with thinkingLevel [
+[0.08ms]
+(pass) ProviderTransform.variants > @ai-sdk/cohere > returns empty object [0.11ms]
+(pass) ProviderTransform.variants > @ai-sdk/groq > returns none and WIDELY_SUPPORTED_EFFORTS with thinkingLevel [0.13ms]
+(pass) ProviderTransform.variants > @ai-sdk/perplexity > returns empty object [0.11ms]
+(pass) ProviderTransform.variants > @jerome-benoit/sap-ai-provider-v2 > anthropic models return thinking variants [0.14m
+ms]
+(pass) ProviderTransform.variants > @jerome-benoit/sap-ai-provider-v2 > anthropic 4.6 models return adaptive thinking va
+ariants [0.08ms]
+(pass) ProviderTransform.variants > @jerome-benoit/sap-ai-provider-v2 > gemini 2.5 models return thinkingConfig variants
+s [0.12ms]
+(pass) ProviderTransform.variants > @jerome-benoit/sap-ai-provider-v2 > gpt models return reasoningEffort variants [0.13
+3ms]
+(pass) ProviderTransform.variants > @jerome-benoit/sap-ai-provider-v2 > o-series models return reasoningEffort variants 
+ [0.20ms]
+(pass) ProviderTransform.variants > @jerome-benoit/sap-ai-provider-v2 > sonar models return empty object [0.07ms]       
+(pass) ProviderTransform.variants > @jerome-benoit/sap-ai-provider-v2 > mistral models return empty object [0.07ms]     
+
+test\session\reasoning-finalize.test.ts:
+(pass) finalizeReasoning — an interrupted thought survives > the builder is found by stream id, not by part id [0.37ms]
+(pass) finalizeReasoning — an interrupted thought survives > a part id never collides into the builder table [0.50ms]
+(pass) finalizeReasoning — an interrupted thought survives > every open stream is flushed, not just the first [0.29ms]  
+(pass) finalizeReasoning — an interrupted thought survives > a stream with no builder keeps whatever text the part alrea
+ady had [0.42ms]
+(pass) finalizeReasoning — an interrupted thought survives > an empty builder does not resurrect stale text [0.19ms]    
+(pass) finalizeReasoning — an interrupted thought survives > the part is closed with an end time and keeps its start [0.
+.52ms]
+(pass) finalizeReasoning — an interrupted thought survives > a part already closed by finishReasoning keeps its own end 
+ time [0.13ms]
+(pass) finalizeReasoning — an interrupted thought survives > nothing open means nothing written [0.10ms]
+
+ 188 pass
+ 0 fail
+ 373 expect() calls
+Ran 188 tests across 3 files. [2.74s]

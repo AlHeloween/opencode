@@ -1,0 +1,19 @@
+{
+  "type": "response",
+  "timestamp": 1792083630704,
+  "id": "06893b1d-662d-4135-91e0-9da8bea889af",
+  "status": 200,
+  "state": "aborted",
+  "headers": {
+    "content-type": "text/event-stream",
+    "date": "Thu, 15 Oct 2026 17:00:30 GMT",
+    "transfer-encoding": "chunked"
+  },
+  "message": {
+    "content": "",
+    "reasoning_content": "",
+    "tool_calls": [],
+    "finish_reason": null,
+    "usage": null
+  }
+}

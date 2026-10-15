@@ -1,0 +1,19 @@
+{
+  "type": "response",
+  "timestamp": 1792083855806,
+  "id": "aeb86828-bec1-41cd-a678-5b95037efed7",
+  "status": 200,
+  "state": "complete",
+  "headers": {
+    "content-type": "text/event-stream",
+    "date": "Thu, 15 Oct 2026 17:04:15 GMT",
+    "x-fixture-transport": "node-http2"
+  },
+  "message": {
+    "content": "",
+    "reasoning_content": "",
+    "tool_calls": [],
+    "finish_reason": null,
+    "usage": null
+  }
+}

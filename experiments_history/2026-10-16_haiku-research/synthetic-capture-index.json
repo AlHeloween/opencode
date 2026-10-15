@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "gateway-fixture-results.json",
+    "mode": "complete",
+    "raw": "gateway-complete.raw.txt",
+    "metadata": "gateway-complete.capture.json",
+    "sha256": "3adfd0a8195a0750f54e42251498102356f5131ad532135d5a6f725e7212b275"
+  },
+  {
+    "kind": "gateway-fixture-results.json",
+    "mode": "abort",
+    "raw": "gateway-abort.raw.txt",
+    "metadata": "gateway-abort.capture.json",
+    "sha256": "7893f58ebaacec499af77e4241eee2ae05d2a044d2a438908a9d9afdf6ee2f73"
+  },
+  {
+    "kind": "h2-abort-fixture-results.json",
+    "mode": "complete",
+    "raw": "h2-abort-complete.raw.txt",
+    "metadata": "h2-abort-complete.capture.json",
+    "sha256": "7dd849a352e13debc64591519a66aaa28f00e20b7fd68d5ca94c6e3fba48ab85"
+  },
+  {
+    "kind": "h2-abort-fixture-results.json",
+    "mode": "abort",
+    "raw": "h2-abort-abort.raw.txt",
+    "metadata": "h2-abort-abort.capture.json",
+    "sha256": "043721a857c4fade4919bfd665745093995a61289e67708079c67ba206a6ba76"
+  }
+]

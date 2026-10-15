@@ -1,0 +1,69 @@
+{
+  "run": "h2-abort-1792083854554-2c38e63d-4833-44f9-97e9-a3b1d5e4c87d",
+  "stand": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\h2-abort-1792083854554-2c38e63d-4833-44f9-97e9-a3b1d5e4c87d",
+  "sv": {
+    "Keywords": "h2-abort 0.50, signal-propagation 0.30, differential-control 0.20",
+    "Semantic dominant": "Отделить потерю AbortSignal в gateway от работоспособности реального H2 transport.",
+    "md5": "abc85016e9fd4a92810cb67d435fe209",
+    "prev-md5": "00000000000000000000000000000000",
+    "parent-goal-md5": "521cbe68349a4f82b176d9e028fa703d"
+  },
+  "scope": "current source, localhost h2c, no TLS/Anthropic/history claim",
+  "qualification": {
+    "verdict": "PASS",
+    "transport": "h2c",
+    "independentlyObserved": "H2_QUALIFIED"
+  },
+  "cases": [
+    {
+      "mode": "complete",
+      "actualTransport": "node-http2",
+      "signalAborted": false,
+      "abortOutcome": "not-requested",
+      "abortPropagated": false,
+      "lateDelivered": false,
+      "terminal": "complete",
+      "terminalReversalRejected": true,
+      "verdict": "PASS",
+      "deliveryPredicate": "PASS",
+      "capturePath": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\h2-abort-1792083854554-2c38e63d-4833-44f9-97e9-a3b1d5e4c87d\\gateway\\per-response\\2026-10-15T17-04-15-394Z-c16e3697-aee9-4071-9d2b-2b00ca6fe1a2-attempt1.json",
+      "rawPath": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\h2-abort-1792083854554-2c38e63d-4833-44f9-97e9-a3b1d5e4c87d\\gateway\\per-response\\2026-10-15T17-04-15-394Z-c16e3697-aee9-4071-9d2b-2b00ca6fe1a2-attempt1.raw.txt",
+      "rawBytes": 316,
+      "sha256": "7dd849a352e13debc64591519a66aaa28f00e20b7fd68d5ca94c6e3fba48ab85"
+    },
+    {
+      "mode": "abort",
+      "actualTransport": "node-http2",
+      "signalAborted": true,
+      "abortOutcome": "pending",
+      "abortPropagated": false,
+      "lateDelivered": true,
+      "terminal": "complete",
+      "terminalReversalRejected": true,
+      "verdict": "FAIL",
+      "deliveryPredicate": "EXPECTED_FAIL",
+      "capturePath": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\h2-abort-1792083854554-2c38e63d-4833-44f9-97e9-a3b1d5e4c87d\\gateway\\per-response\\2026-10-15T17-04-15-414Z-aeb86828-bec1-41cd-a678-5b95037efed7-attempt1.json",
+      "rawPath": "D:\\zPython\\opencode\\experiments\\2026-10-16_haiku-research\\stand\\h2-abort-1792083854554-2c38e63d-4833-44f9-97e9-a3b1d5e4c87d\\gateway\\per-response\\2026-10-15T17-04-15-414Z-aeb86828-bec1-41cd-a678-5b95037efed7-attempt1.raw.txt",
+      "rawBytes": 452,
+      "sha256": "043721a857c4fade4919bfd665745093995a61289e67708079c67ba206a6ba76"
+    }
+  ],
+  "retainedRuntimeErrors": [
+    {
+      "layer": "unhandledRejection",
+      "error": "TypeError [ERR_INVALID_STATE]: Invalid state: Cannot close a WritableStream that is closed or errored",
+      "stack": "TypeError: Invalid state: Cannot close a WritableStream that is closed or errored\n    at close (unknown)\n    at <anonymous> (D:\\zPython\\opencode\\packages\\opencode\\src\\provider\\gateway\\h2-transport.ts:504:20)\n    at emit (node:events:97:22)\n    at endReadableNT (internal:streams/readable:901:50)\n    at processTicksAndRejections (native:7:39)"
+    }
+  ],
+  "directControl": {
+    "verdict": "PASS",
+    "observedDelta": true,
+    "outcome": {
+      "kind": "error",
+      "error": "Error: Request aborted"
+    },
+    "rstCode": 8,
+    "h2SessionHealthy": true
+  },
+  "verdict": "DEFECT_REPRODUCED"
+}

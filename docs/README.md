@@ -9,6 +9,8 @@
 
 ## Product / stack
 
+- [Исследование Haiku 5.5 — 2026-10-16](../experiments_history/2026-10-16_haiku-research/REPORT.md) — live wire, hidden thinking, signed replay, HTTP/2 cancellation; воспроизводители и границы без заявления product fix
+
 - [Отчётность и wiki организации](organization-reporting.md) — входы к паспорту, портфелю, участникам и отчётам Agent Corporation
 - [Устав агентной корпорации](organization-charter.md) — роли, продвижение по проверенным результатам, непрерывная память и самостоятельный запуск
 

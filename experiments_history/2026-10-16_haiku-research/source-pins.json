@@ -1,0 +1,45 @@
+{
+  "pins": [
+    {
+      "path": "packages/opencode/src/provider/transform.ts",
+      "bytes": 63528,
+      "sha256": "41e8cc595a8dd749269ba83cf25eab098df8dbd8fe57e6ad77722d142abb572a"
+    },
+    {
+      "path": "packages/opencode/src/provider/gateway/adaptive-client.ts",
+      "bytes": 53312,
+      "sha256": "107e56a29c33c30c9600aed5a36c77f396fe0736a7614c4a06a47a48ff9124fa"
+    },
+    {
+      "path": "packages/opencode/src/provider/gateway/h2-transport.ts",
+      "bytes": 19444,
+      "sha256": "b3e57a5f7e9fa1da3a28e4ab097034b467801f430d1410b70fe6f57a2823d620"
+    },
+    {
+      "path": "packages/opencode/src/session/llm.ts",
+      "bytes": 45744,
+      "sha256": "269df52ef9da491091c0007b1982ec0eeaff8554d582b31e111eafe9fae0d784"
+    },
+    {
+      "path": "packages/opencode/src/session/processor.ts",
+      "bytes": 86172,
+      "sha256": "441302e2b3ce05b475ec11c025bacbb208c0e42ba719bb5b693d8089331fa415"
+    },
+    {
+      "path": "packages/opencode/src/session/message-v2.ts",
+      "bytes": 107207,
+      "sha256": "5fbaf44e338b647df695b99b3b5c4adf909e3d8d73ae58006cb5420a11b709cc"
+    },
+    {
+      "path": "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx",
+      "bytes": 129217,
+      "sha256": "c118954246a78c13df811021b973a747f2bcd9ea3c47c6df5546a912b9fca6b6"
+    },
+    {
+      "path": "packages/opencode/node_modules/@ai-sdk/anthropic/dist/index.js",
+      "bytes": 295082,
+      "sha256": "6c174178d7e79decb1aa6b0ec862bdffafc0563fb291ce85601e18de6e380059"
+    }
+  ],
+  "source_version_scope": "Current worktree sources; historical runtime was 10.0.1359, current build candidate 10.0.1362."
+}

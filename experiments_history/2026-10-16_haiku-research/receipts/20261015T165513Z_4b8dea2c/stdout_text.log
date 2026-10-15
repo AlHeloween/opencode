@@ -1,0 +1,40 @@
+(node:34456) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34456) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{"label":"model metadata","status":200,"elapsed_ms":606,"complete":false,"text_chars":0,"thinking_chars":0}
+{"label":"original token count","status":200,"elapsed_ms":1316,"complete":false,"text_chars":0,"thinking_chars":0}
+{"label":"small/max/omitted","status":200,"elapsed_ms":3247,"complete":true,"text_chars":7,"thinking_chars":0,"stop_reason":"end_turn"}
+{"label":"small/max/summarized","status":200,"elapsed_ms":4724,"complete":true,"text_chars":7,"thinking_chars":622,"stop_reason":"end_turn"}
+{"label":"history/max/omitted","status":200,"elapsed_ms":23852,"complete":true,"text_chars":0,"thinking_chars":0,"stop_reason":"max_tokens"}
+{"label":"history/max/summarized","status":200,"elapsed_ms":20862,"complete":true,"text_chars":0,"thinking_chars":3732,"stop_reason":"max_tokens"}
+{"label":"history/low/summarized","status":200,"elapsed_ms":7353,"complete":true,"text_chars":186,"thinking_chars":0,"stop_reason":"tool_use"}
+{"label":"small/max/tiny-budget-control","status":200,"elapsed_ms":1506,"complete":true,"text_chars":0,"thinking_chars":69,"stop_reason":"max_tokens"}
+RESULT D:\zPython\opencode\experiments\2026-10-16_haiku-research\live-results.json

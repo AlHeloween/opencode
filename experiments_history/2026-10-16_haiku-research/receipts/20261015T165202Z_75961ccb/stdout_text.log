@@ -1,0 +1,145 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "captures": [
+    {
+      "id": "claude-haiku-5-5",
+      "variant": "high",
+      "thinking": {
+        "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "high"
+      }
+    },
+    {
+      "id": "claude-haiku-5.5",
+      "variant": "high",
+      "thinking": {
+        "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "high"
+      }
+    },
+    {
+      "id": "claude-opus-4-7",
+      "variant": "high",
+      "thinking": {
+        "type": "adaptive",
+        "display": "summarized"
+      },
+      "output_config": {
+        "effort": "high"
+      }
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "variant": "high",
+      "thinking": {
+        "type": "enabled",
+        "budget_tokens": 500000
+      }
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "variant": "explicit summarized/max",
+      "thinking": {
+        "type": "adaptive",
+        "display": "summarized"
+      },
+      "output_config": {
+        "effort": "max"
+      }
+    }
+  ],
+  "signed_empty": {
+    "direct_sdk_preserved": true,
+    "transformed_preserved": false
+  },
+  "streams": [
+    {
+      "summarized": false,
+      "complete": true,
+      "text": "T_OK_α",
+      "thinking_chars": 0,
+      "signature_events": 1,
+      "event_types": [
+        "start",
+        "start-step",
+        "reasoning-start",
+        "reasoning-delta",
+        "reasoning-end",
+        "text-start",
+        "text-delta",
+        "text-end",
+        "finish-step",
+        "finish"
+      ]
+    },
+    {
+      "summarized": true,
+      "complete": true,
+      "text": "T_OK_α",
+      "thinking_chars": 3,
+      "signature_events": 1,
+      "event_types": [
+        "start",
+        "start-step",
+        "reasoning-start",
+        "reasoning-delta",
+        "reasoning-delta",
+        "reasoning-end",
+        "text-start",
+        "text-delta",
+        "text-end",
+        "finish-step",
+        "finish"
+      ]
+    }
+  ],
+  "controls": {
+    "utf8_chunk_boundary": "PASS",
+    "complete_stream": "PASS",
+    "truncated_stream": "EXPECTED_FAIL"
+  },
+  "scope": "Actual installed SDK and ProviderTransform; no provider network, processor or TUI execution."
+}
+(node:12164) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+(Use `bun.exe --trace-warnings ...` to show where the warning was created)
+(node:12164) Warning: AI SDK Warning (anthropic.messages / claude-haiku-4-5): The feature "maxOutputTokens" is not suppo
+orted. 508192 (maxOutputTokens + thinkingBudget) is greater than claude-haiku-4-5 64000 max output tokens. The max output
+t tokens have been limited to 64000.
+(node:12164) Warning: AI SDK Warning (anthropic.messages / claude-haiku-5-5): The feature "maxOutputTokens" is used in a
+a compatibility mode. The model "claude-haiku-5-5" is unknown. The max output tokens have been limited to 128000. Set max
+xOutputTokens explicitly to override this limit.
+(node:12164) Warning: AI SDK Warning (anthropic.messages / claude-haiku-5-5): The feature "maxOutputTokens" is used in a
+a compatibility mode. The model "claude-haiku-5-5" is unknown. The max output tokens have been limited to 128000. Set max
+xOutputTokens explicitly to override this limit.

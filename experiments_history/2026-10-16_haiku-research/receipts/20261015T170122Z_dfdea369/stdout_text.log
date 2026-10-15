@@ -1,0 +1,35 @@
+(node:21024) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21024) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{"label":"history/medium/summarized","status":200,"elapsed_ms":7436,"complete":true,"text_chars":188,"thinking_chars":0,"stop_reason":"tool_use"}
+{"label":"history/high/summarized","status":200,"elapsed_ms":27260,"complete":true,"text_chars":0,"thinking_chars":3565,"stop_reason":"max_tokens"}
+{"label":"history/max/8192/omitted","status":200,"elapsed_ms":37780,"complete":true,"text_chars":0,"thinking_chars":0,"stop_reason":"max_tokens"}
+RESULT D:\zPython\opencode\experiments\2026-10-16_haiku-research\live-supplement-results.json

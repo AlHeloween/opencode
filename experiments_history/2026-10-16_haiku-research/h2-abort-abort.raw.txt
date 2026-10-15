@@ -1,0 +1,12 @@
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"H2_THINK_abort"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"LATE_AFTER_ABORT"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

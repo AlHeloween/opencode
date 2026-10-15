@@ -103,6 +103,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 ## Standing rules that outlive any plan
 
+[Исследование Haiku 5.5](../plans_completed/2026-10-16_haiku-end-to-end-research.md) — wire/SDK/replay/cancellation receipts и явно непроверенная граница actual TUI; результаты и остатки находятся в плане и отчёте.
+<!-- sv: haiku-research,wire-sdk-parity,stream-observability,independent-controls -->
+
 [Живой текст после Revert](../plans_completed/2026-10-15_revert-live-text.md) — воспроизведение исчезающего текста и ремонт полного snapshot/фильтра строк; кадры и границы проверки находятся в плане.
 <!-- sv: revert-live-text,full-snapshot,native-frame -->
 

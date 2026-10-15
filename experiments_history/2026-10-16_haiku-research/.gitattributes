@@ -1,0 +1,7 @@
+# Evidence hashes refer to exact captured bytes, including original line endings.
+* -text
+# Raw SSE framing and terminal scrollback are immutable evidence, not authored prose.
+*.raw.txt -whitespace
+*.capture.json whitespace=cr-at-eol
+receipts/**/state.json whitespace=cr-at-eol
+receipts/**/stdout_text.log -whitespace

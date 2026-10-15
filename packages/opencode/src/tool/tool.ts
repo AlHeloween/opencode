@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect"
+import { actionableValidationMessage, clearValidationFailures, CONSECUTIVE_VALIDATION_FAILURES, noteValidationFailure, stallValidationMessage } from "./validation-guard"
 import type { MessageV2 } from "../session/message-v2"
 import type { Permission } from "../permission"
 import type { SessionID, MessageID } from "../session/schema"
@@ -123,15 +124,17 @@ function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadat
         }
         return Effect.gen(function* () {
           const decoded = yield* decode(args).pipe(
-            Effect.mapError((error) =>
-              toolInfo.formatValidationError
-                ? new Error(toolInfo.formatValidationError(error), { cause: error })
-                : new Error(
-                    `The ${id} tool was called with invalid arguments: ${error}.\nPlease rewrite the input so it satisfies the expected schema.`,
-                    { cause: error },
-                  ),
-            ),
+            Effect.mapError((error) => {
+              const base = toolInfo.formatValidationError
+                ? toolInfo.formatValidationError(error)
+                : actionableValidationMessage(id, toolInfo.parameters as Schema.Top, args, error)
+              const count = noteValidationFailure(ctx.sessionID, id, args)
+              const message =
+                count >= CONSECUTIVE_VALIDATION_FAILURES ? stallValidationMessage(id, count, base) : base
+              return new Error(message, { cause: error })
+            }),
           )
+          yield* Effect.sync(() => clearValidationFailures(ctx.sessionID, id))
           const result = yield* execute(decoded as Schema.Schema.Type<Parameters>, ctx)
           if (result.metadata.truncated !== undefined) {
             return result

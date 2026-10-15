@@ -1,6 +1,19 @@
 ﻿# Progress Log
 
 
+## [2026-10-15] t49 INSTALL — receivers по ревью Smit PASS e888f9b8f1 (план plans/2026-10-15_kernel-one-copy-ticket-route.md, T8)
+
+✓ CONFIRMED (pipeline): product --install (installed 1d279e5a…), --claude --install (installed 93e11ae3…), --cursor --install (body cbd3cb6d…, receiver a6771368…); baseline.json repinned (sha256 1d279e5a…, prev ee6e3959…, rollback untouched); codex dist refreshed via --codex без install (de5d5cd8…). NOT --codex-global, no ~/.codex/AGENTS.md (t54 retired), no build (fleet lead builds).
+✓ CONFIRMED (readback byte-equal): product/claude/cursor receivers == canonical render; codex dist artifact == render. pytest prompt_kernel/tests: 300 passed / 0 failed.
+<!-- sv: install-pipeline 0.40, receiver-byte-equal 0.30, baseline-repinned 0.20, suite-green 0.10 -->
+## [2026-10-15] t57 — edit-tool schema loop: actionable error + validation-layer repeat guard (план plans/2026-10-15_edit-schema-loop.md)
+
+✓ MEASURED (opencode.db part census + gateway perRequest payloads): t46 (ses_ec2961e15ffefWEjqE2WOQOj10) — 872 schema errors, one identical input 475x then another 390x; t56 (ses_ec0e750eeffe9eXHP4zA4j177P) — 50 schema errors, one input 47x. Wire shapes: top-level `{"edits":…}` / `{"edits","filePath"}` / nested `edits:[{edits:[…]}]` vs schema `{"files":[…]}` (edit.ts:494). No description/schema mismatch — edit.txt advertises `{"files":[…]}`; nothing to repair there. Schema-rejected calls DO leave error parts (watcher-visible); the in-message doom-loop guard (processor.ts:70, per-message ctx) is blind across turns — the hole.
+✓ CONFIRMED (bun test test/tool/tool-validation-guard.test.ts): RED `20261015T105412Z_c1b911e4` exit 1 (2 fail on predicted assertions) → GREEN `20261015T105707Z_ff82028d` exit 0 (3 pass) after the fix.
+✓ CONFIRMED (shared-path regression): test/tool/tool-define.test.ts `20261015T105750Z_ab9ce1ce` 5 pass; test/tool/svm.test.ts `20261015T105830Z_28619a37` 8 pass (the one consumer matching the error prefix); bun typecheck `20261015T105907Z_fd761b38` exit 0.
+✓ CONFIRMED (source diff): new src/tool/validation-guard.ts — schema-derived minimal example + received-vs-required keys in the shared wrap() error (tool.ts:126-137), session-scoped consecutive-identical tracker (N=3, mirrors DOOM_LOOP_THRESHOLD, two orders below the shortest measured run 47), 3rd identical rejection → STALL via the existing error-part path. Wire schemas / KV prefix untouched. Absorbs the queued «repeat-failure-guard» item.
+— Остаток: commit naming the plan; `_build.ps1` receipt.
+<!-- sv: schema-loop 0.35, actionable-error 0.25, validation-guard 0.25, cross-turn-stall 0.15 -->
 ## [2026-10-15] t56 — universalsearch hybrid output: show what the service returns (план plans/2026-10-15_hybrid-output-formatter.md)
 
 ✓ CONFIRMED (bun test test/tool/universalsearch.test.ts RED→GREEN, fake /hybrid endpoint with the real service shape): RED `20261015T104914Z_1a6ec521` — 5 pass / 4 fail: web hit printed `[Sourcegraph]` under the stale «local code search (first)» header, title/description/rung dropped; sourcegraph hit without rung/stamp; no per-leg counts (full strings in experiments/2026-10-15_hybrid-output/red.log). GREEN `20261015T105209Z_ddc588e5` exit 0 — 9 pass / 0 fail, 37 expect().

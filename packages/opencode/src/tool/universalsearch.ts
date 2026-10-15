@@ -14,7 +14,7 @@ export const Parameters = Schema.Struct({
   ),
   source: Schema.optional(Source).annotate({
     description:
-      "REUSE.BEFORE: default 'web'. Prefer 'web', 'code' (Sourcegraph indexed git), or 'hybrid'. Use 'agent' only for multi-hop research after web/code. Follow SOURCE_ROUTING: snippets stay Guess; webfetch a primary URL for Inferred.",
+      "REUSE.BEFORE: default 'hybrid' — one call grounds local code AND papers (code hits are local code, Inferred; web snippets stay Guess; a DOI/paper link becomes Inferred only after its primary URL is fetched). Prefer 'web', 'code' (Sourcegraph indexed git), or 'hybrid'. Use 'agent' only for multi-hop research after web/code. Follow SOURCE_ROUTING: snippets stay Guess; webfetch a primary URL for Inferred.",
   }),
   limit: Schema.optional(Schema.Number).annotate({
     description: "Number of results to return (default: 5 for web, 10 for code)",
@@ -31,6 +31,14 @@ const DEFAULT_TIMEOUT = 60000
 const POLL_INTERVAL_MS = 5000
 const MAX_POLL_DURATION_MS = 300000
 
+// Hybrid gets its own client timeout, derived from measurement (plan
+// 2026-10-15_universalsearch-hybrid-default, step-1 table): the service's code leg
+// streams Sourcegraph with a 50 s upstream cap and the web leg measured up to 18.9 s,
+// so the composed worst case is ~69 s; the measured hybrid max was 55.3 s and an
+// independent case 64 s — both above the shared 60 s default, which aborted healthy
+// calls. 90 s = composed worst case + ~30% headroom. Web/code/agent keep DEFAULT_TIMEOUT.
+export const HYBRID_TIMEOUT_MS = 90_000
+
 type Metadata = {
   resultsCount?: number
   jobId?: string
@@ -42,7 +50,7 @@ type Metadata = {
 export function resolveSearchSource(
   params: Pick<Schema.Schema.Type<typeof Parameters>, "source">,
 ): SearchSource {
-  return params.source ?? "web"
+  return params.source ?? "hybrid"
 }
 
 function snippetStamp(url: string, content: string) {
@@ -392,7 +400,7 @@ function executeHybridSearch(url: string, params: { query?: string; limit?: numb
     }
 
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT)
+    const timer = setTimeout(() => controller.abort(), HYBRID_TIMEOUT_MS)
 
     try {
       const response = yield* Effect.tryPromise(() =>

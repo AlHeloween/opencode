@@ -8,7 +8,7 @@ import { Provider } from "@/provider/provider"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { MessageID, type SessionID } from "@/session/schema"
 import { Session } from "@/session/session"
-import { resolveSearchSource, UniversalSearchTool } from "@/tool/universalsearch"
+import { HYBRID_TIMEOUT_MS, resolveSearchSource, UniversalSearchTool } from "@/tool/universalsearch"
 import * as Tool from "@/tool/tool"
 import { Truncate } from "@/tool/truncate"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -57,10 +57,21 @@ function context(
 }
 
 describe("tool.universalsearch", () => {
-  test("omitted source defaults to web", () => {
-    expect(resolveSearchSource({})).toBe("web")
+  test("omitted source defaults to hybrid", () => {
+    expect(resolveSearchSource({})).toBe("hybrid")
     expect(resolveSearchSource({ source: "code" })).toBe("code")
     expect(resolveSearchSource({ source: "agent" })).toBe("agent")
+    expect(resolveSearchSource({ source: "web" })).toBe("web")
+  })
+
+  // t46: the hybrid path gets its own client timeout, derived from measurement
+  // (plan 2026-10-15_universalsearch-hybrid-default): the service's code leg streams
+  // Sourcegraph with a 50 s upstream cap and the web leg measured up to 18.9 s, so
+  // the composed worst case is ~69 s; a healthy hybrid call measured 55.3 s and an
+  // independent case 64 s — both above the old shared 60 s default, which aborted
+  // them. The export must exist and clear the measured maximum.
+  test("hybrid timeout clears the measured maximum", () => {
+    expect(HYBRID_TIMEOUT_MS).toBeGreaterThan(55_300)
   })
 
   // The web-only executor gate used to refuse researcher_agent before the

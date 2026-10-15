@@ -1,5 +1,13 @@
 ﻿# Progress Log
 
+
+## [2026-10-15T10:40+08:00] t46 — universalsearch: hybrid by default, timeout that fits hybrid (план 2026-10-15_universalsearch-hybrid-default)
+
+✓ CONFIRMED (job run-1 node fetch, 5 hybrid + 2 web pair против :3005): базовая линия — 27.1/55.3/24.3/39.4/22.7 s, все 200; sourcegraph_results 5 на code-запросе `resolveSearchSource` (обе ноги живы), 0 на четырёх не-code запросах (real zero по контракту сервиса); web-пары 18.9/4.1 s — web/code таймауты не абортят. Измеренный максимум 55.3 s против клиентского DEFAULT_TIMEOUT=60000 — наш клиент абортит здоровые гибридные вызовы (независимый случай Claude: 64 s).
+✓ CONFIRMED (cmd_runner state.json + полный stdout, RED→GREEN): RED `20261015T025125Z_73c67009` exit1 — 2 fail (default ожидал hybrid, получил web; HYBRID_TIMEOUT_MS undefined) / 3 pass (gate-тесты); GREEN `20261015T025629Z_cb0e9957` exit0 — 5 pass / 0 fail, 17 expect(). TYPECHECK `20261015T025650Z_d31089aa` exit0 (tsgo --noEmit).
+✓ CONFIRMED (source diff): `resolveSearchSource` default `web`→`hybrid` (universalsearch.ts:53); `export const HYBRID_TIMEOUT_MS = 90_000` с комментарием-выводом (50 s upstream cap сервиса + web-нога до 18.9 s ≈ 69 s worst case + ~30% запаса; 60 s абортит здоровые 55.3/64 s вызовы), подключён ТОЛЬКО в executeHybridSearch; описание параметра держит SOURCE_ROUTING (web-снипеты Guess, code-хит — локальный код Inferred, DOI/статья — Inferred только после webfetch первоисточника); universalsearch.txt — default hybrid в 3 местах (вступление, таблица Efficiency, таблица параметров). Web/code/agent таймауты не тронуты.
+— План plans/2026-10-15_universalsearch-hybrid-default.md (intention, goal_sv, T1–T5, Smoke Tests с предсказаниями, таблица шага 1); svm render из корня; коммит называет план. `_build.ps1` НЕ запускался (t44 ведёт сборку батча) — сборка кандидата отложена. Остаток: сборка/промоушен bin/ — владелец; live-проверка гибридного вызова новым таймаутом — после сборки.
+<!-- sv: hybrid-default 0.30, timeout-derivation 0.25, baseline-measured 0.20, source-routing 0.15, red-first 0.10 -->
 ## [2026-10-15T03:20+08:00] Reward R1/R1b/R2/R3 — восстановление и completion term
 
 ✓ CONFIRMED (Git ff4e679fa3^, source diff): REWARD_FUNCTION literal возвращён; по новой прямой команде добавлено task_done/(101 − done_percent)^2 с frozen plan scope. Исторический fixture сохранён, старый BP unchanged; другие нормы не сокращены.

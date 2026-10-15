@@ -128,6 +128,7 @@ export const DEFAULT_KNOWN_TOOL_IDS: ReadonlySet<string> = new Set(
     "compare",
     "treediff",
     "fossilgrep",
+    "fossilcell",
     "question",
     "invalid",
   ].map(toolKey),

@@ -8,6 +8,8 @@ Constitution: do not use fossil CLI mutate paths; this tool is for inspection/se
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `pattern` | string | **required** | POSIX extended regular expression to search for |
+| `mode` | string | — | `files` (default) searches file versions; `comments` searches check-in COMMENTS — the semantic-vector timeline (dominant, keywords, sv md5) |
+| `allProjects` | boolean | — | comments mode only: search EVERY registered project's snapshot repo (`fossil all list`), not just this one; a repo that fails to open is NAMED in the result |
 | `files` | string[] | — | File paths to search. If omitted, searches all tracked files. |
 | `ignoreCase` | boolean | — | Case-insensitive search (default: false) |
 | `maxResults` | number | — | Maximum number of version matches to return (default: 50) |

@@ -8,7 +8,7 @@ import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tool.fossilgrep" })
 
-function findFossil(): string {
+export function findFossil(): string {
   const fs = require("fs") as typeof import("fs")
   const names = process.platform === "win32" ? ["fossil.exe", "fossil"] : ["fossil", "fossil.exe"]
   const dirs = [
@@ -44,6 +44,12 @@ function fossilAsync(args: string[], cwd: string): Promise<{ code: number; stdou
 
 export const Parameters = Schema.Struct({
   pattern: Schema.String.annotate({ description: "POSIX extended regular expression to search for" }),
+  mode: Schema.optional(Schema.Literals(["files", "comments"])).annotate({
+    description: "files (default) searches file versions; comments searches check-in COMMENTS — the semantic-vector timeline (dominant, keywords, sv md5)",
+  }),
+  allProjects: Schema.optional(Schema.Boolean).annotate({
+    description: "comments mode only: search EVERY registered project's snapshot repo (fossil all list), not just this one; a repo that fails to open is NAMED in the result",
+  }),
   files: Schema.optional(Schema.Array(Schema.String)).annotate({
     description: "File paths to search. If omitted, searches all tracked files.",
   }),
@@ -159,15 +165,122 @@ export function searchComments(
   return matches
 }
 
+/** The snapshot.fsl repos out of a `fossil all list` output — one path per line. */
+export function parseRepoList(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && line.toLowerCase().endsWith("snapshot.fsl"))
+}
+
+/** The project name a snapshot repo belongs to: the worktree dir above its data/fossil layout. */
+export function projectNameOf(repo: string): string {
+  const norm = repo.replaceAll("\\", "/")
+  const marker =
+    norm.match(/^(.*)\/(?:\.opencode|\.smit)\/data\/fossil\//) ?? norm.match(/^(.*)\/data\/fossil\//)
+  if (marker) {
+    const parts = marker[1]!.split("/")
+    return parts[parts.length - 1] || marker[1]
+  }
+  const parts = norm.split("/")
+  return parts[parts.length - 3] || norm
+}
+
+/** Every registered snapshot repo on this host — the federation's registry (read-only). */
+export async function registeredSnapshotRepos(): Promise<string[]> {
+  const r = await fossilAsync(["all", "list"], process.cwd())
+  if (r.code !== 0 && !r.stdout.trim()) throw new Error(`fossil all list failed: ${r.stderr || "no output"}`)
+  return parseRepoList(r.stdout)
+}
+
+function formatCommentMatches(project: string, matches: CommentMatch[]): string {
+  const lines = [`## ${project} — ${matches.length} match(es)`]
+  for (const m of matches) {
+    lines.push(`[${m.checkin} · ${m.date}${m.sv ? ` · sv:${m.sv}` : ""}]`)
+    if (m.dominant) lines.push(`  dominant: ${m.dominant}`)
+    else lines.push(`  comment: ${m.comment}`)
+    if (m.files.length > 0) lines.push(`  files: ${m.files.join(", ")}`)
+  }
+  return lines.join("\n")
+}
+
 export const FossilGrepTool = Tool.define(
   "fossilgrep",
   Effect.gen(function* () {
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { pattern: string; files?: string[]; ignoreCase?: boolean; maxResults?: number; once?: boolean }, ctx: Tool.Context) =>
+      execute: (
+        params: {
+          pattern: string
+          mode?: "files" | "comments"
+          allProjects?: boolean
+          files?: string[]
+          ignoreCase?: boolean
+          maxResults?: number
+          once?: boolean
+        },
+        ctx: Tool.Context,
+      ) =>
         Effect.gen(function* () {
           const worktree = Global.Path.worktree || Global.Path.home
+
+          // ── COMMENT MODE — the semantic-vector timeline (plan 2026-10-15_project-fossil-cell.md) ──
+          if (params.mode === "comments") {
+            const maxResults = params.maxResults ?? 50
+            const ownDir = path.join(worktree, ".opencode", "data", "fossil")
+            let repos: string[]
+            if (params.allProjects) {
+              repos = yield* Effect.promise(() => registeredSnapshotRepos())
+            } else {
+              const fs = require("fs") as typeof import("fs")
+              let found: string | undefined
+              try {
+                for (const entry of fs.readdirSync(ownDir)) {
+                  const candidate = path.join(ownDir, entry, "snapshot.fsl")
+                  if (fs.existsSync(candidate)) {
+                    found = candidate
+                    break
+                  }
+                }
+              } catch {
+                // no fossil dir — reported below as the honest zero
+              }
+              if (!found) {
+                return {
+                  title: "fossilgrep comments",
+                  metadata: { matches: 0 },
+                  output: `No snapshot repo under ${ownDir} — this project has no fossil cell yet.`,
+                }
+              }
+              repos = [found]
+            }
+
+            const sections: string[] = []
+            let total = 0
+            let failed = 0
+            for (const repo of repos) {
+              const project = projectNameOf(repo)
+              try {
+                const matches = searchComments(repo, params.pattern, {
+                  ignoreCase: params.ignoreCase,
+                  maxResults,
+                })
+                total += matches.length
+                if (matches.length > 0) sections.push(formatCommentMatches(project, matches))
+              } catch (e) {
+                // A repo that fails to open is NAMED — an auditable zero, never a silent skip.
+                failed++
+                sections.push(`## ${project} — FAILED to open\n  ${repo}\n  ${e instanceof Error ? e.message : String(e)}`)
+              }
+            }
+            const head = `fossilgrep comments "${params.pattern}" — ${total} match(es) across ${repos.length} repo(s)${failed > 0 ? `, ${failed} failed (named below)` : ""}`
+            return {
+              title: head,
+              metadata: { matches: total, repos: repos.length, failed } as Record<string, unknown>,
+              output: sections.length > 0 ? `${head}\n\n${sections.join("\n\n")}` : `${head}\n\nNo matches.`,
+            }
+          }
 
           // Get file list
           let files = params.files ?? []

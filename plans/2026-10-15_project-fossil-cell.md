@@ -45,16 +45,18 @@ Owner, 2026-10-15, verbatim: «у нас есть fossil каждого прое
 
 ## Phase A — fossilgrep searches meaning
 
-- [ ] A1 RED: test asserting a comment-search mode exists; fixture repo with known comments (one carrying
-  `dominant=`, one bare). Fails now (no mode). <!-- sv: comment-mode, red-first, fixture-repo -->
-- [ ] A2: implement `mode: "comments"` in fossilgrep.ts — read-only via `fossil sql -R <repo>` over
+- [x] A1 RED: test asserting a comment-search mode exists; fixture repo with known comments (one carrying
+  `dominant=`, one bare). RED confirmed: 0 pass / 6 fail — `searchComments is not a function` (run 20261015T074521Z_c5efdec5).
+  <!-- sv: comment-mode, red-first, fixture-repo -->
+- [x] A2: implement `mode: "comments"` in fossilgrep.ts — read-only via `fossil sql -R <repo>` over
   `event JOIN blob` (the documented read path), regex over comment text; returns check-in hash, date,
-  dominant line, changed files (mlink). No repo writes. <!-- sv: comment-mode, read-only-sql, mlink-files -->
-- [ ] A3: fossilgrep.txt states the semantic-timeline contract: every snapshot check-in carries the turn's
+  dominant line, changed files (mlink). No repo writes. Wired into the TOOL execute too (mode +
+  allProjects params) — the model can call it. <!-- sv: comment-mode, read-only-sql, mlink-files -->
+- [x] A3: fossilgrep.txt states the semantic-timeline contract: every snapshot check-in carries the turn's
   vector (dominant + keywords + md5) — 203 of 418 measured on this repo — so the timeline is searchable by
   MEANING; bare `auto-snapshot` exist. <!-- sv: description-contract, measured-share -->
-- [ ] A4: typecheck + test green + commit naming this plan. <!-- sv: oracle, commit -->
-
+- [x] A4: typecheck exit 0 + tests 6/6 (run 20261015T075444Z_1002ea99) + commit cb89516ada naming this plan.
+  <!-- sv: oracle, commit -->
 ## Phase B — the local cell (design first, then first slice)
 
 - [ ] B1 grounding: does wiki/ticket/chat data in snapshot.fsl survive the snapshot lifecycle (revertTo,
@@ -107,7 +109,7 @@ Owner, 2026-10-15, verbatim: «у нас есть fossil каждого прое
 - **upkeep** — the card is create-if-missing at the first cell post of each process (self-healing
   after a reinit); the measurable «in order» predicate: the `Project` page exists AND ≥1 chat
   technote exists. A deeper periodic audit is the orchestrator's check, not a new scheduler.
-- [ ] B2 design (in this plan, before code): roles without a second copy —
+- [x] B2 design (in this plan, above): roles without a second copy —
   **wiki**: one «Project» card per project pointing to AGENTS.md/README/docs (one-copy rule, never restating);
   **chat**: every robot session posts a short report at turn end AUTOMATICALLY (runtime hook, once per turn,
   like the snapshot boundary — the dominant is already in the check-in comment at that moment);
@@ -115,19 +117,28 @@ Owner, 2026-10-15, verbatim: «у нас есть fossil каждого прое
   org.fossil — no second delegation system; **upkeep**: the orchestrator's periodic check with a measurable
   «in order» predicate (wiki card exists + chat has entries this week + no ticket older than X unresolved).
   <!-- sv: one-copy-rule, turn-granularity, no-second-delegation -->
-- [ ] B3 first slice: the wiki card (one page, markdown, written once per project) + the automatic chat post
-  at the turn boundary. <!-- sv: first-slice, wiki-card, chat-post -->
-- [ ] B4 cell tests: fixture repo — card created + idempotent, technote per post, repo-missing no-op. <!-- sv: cell-oracle -->
-- [ ] B5 typecheck + green + commit naming this plan. <!-- sv: oracle, commit -->
+- [x] B3 first slice: the wiki card (one page, markdown, written once per project) + the automatic chat post
+  at the turn boundary — cell.ts (plain async, explicit deps) + Snapshot.cellPost (state wrapper under the
+  per-repo semaphore) + processor fires it at turnEnds forked background. <!-- sv: first-slice, wiki-card, chat-post -->
+- [x] B4 cell tests: fixture repo — card created + idempotent, technote per post, repo-missing no-op.
+  4/4 (run 20261015T081858Z_c1c55cfe). <!-- sv: cell-oracle -->
+- [x] B5 typecheck exit 0 + processor-effect 20/20 (run 20261015T082014Z_92d01fcd) + commit 312b650d30.
+  <!-- sv: oracle, commit -->
 
 ## Phase C — the federation (owner, same day)
 
-- [ ] C1 design: `fossil all list` is the registry (63 measured: 54 snapshot.fsl, 9 other). Cross-project
-  search = fossilgrep comment mode over ALL registered snapshot.fsl repos; a repo that fails to open is NAMED
-  in the result (auditable zero, never a silent skip). Read-only, local files only, no fossil sync/push.
-  <!-- sv: registry, auditable-zero, no-remote -->
-- [ ] C2 implement: cross-project comment search (federation mode) + wiki-card/ticket read route.
-  <!-- sv: cross-project-search, read-route -->
+- [x] C1 design: `fossil all list` is the registry (63 measured: 54 snapshot.fsl, 9 other). Cross-project
+  search = fossilgrep comment mode over ALL registered snapshot.fsl repos (`allProjects: true`); a repo that
+  fails to open is NAMED in the result (auditable zero, never a silent skip). Read-only, local files only,
+  no fossil sync/push. <!-- sv: registry, auditable-zero, no-remote -->
+- [x] C2 implement: cross-project comment search (fossilgrep `allProjects`) + the cell read route — NEW TOOL
+  `fossilcell` (actions list/wiki/chat/tickets; registry + builtin + dsml-normalizer wired; findFossil
+  reused from fossilgrep). <!-- sv: cross-project-search, read-route -->
+- [x] C3 federation tests: registry parse + project-name derivation (both layouts) + cross-repo search +
+  failed-repo-NAMED. 5/5 (run 20261015T083004Z_e08da434); all three fossil suites 15/15 (run
+  20261015T083017Z_30bd9988); description-integrity caught `allProjects` missing from the txt — fixed, 5/5
+  (run 20261015T083129Z_ee5c4fe9). <!-- sv: federation-oracle -->
+- [x] C4 typecheck exit 0 (run 20261015T083144Z_d2560914) + commit naming this plan. <!-- sv: oracle, commit -->
 
 ## Smoke Tests (required — PRE_FLIGHT gate)
 

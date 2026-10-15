@@ -59,6 +59,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { LspTool } from "./lsp"
 import * as Truncate from "./truncate"
 import { FossilGrepTool } from "./fossilgrep"
+import { FossilCellTool } from "./fossilcell"
 import { Glob } from "@opencode-ai/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -209,6 +210,7 @@ export const layer: Layer.Layer<
     const edit = yield* EditTool
     const greptool = yield* GrepTool
     const fossilgreptool = yield* FossilGrepTool
+    const fossilcelltool = yield* FossilCellTool
     const skilltool = yield* SkillTool
     const listtool = yield* ListTool
     const restore = yield* RestoreTool
@@ -328,6 +330,7 @@ export const layer: Layer.Layer<
           glob: Tool.init(globtool),
           grep: Tool.init(greptool),
           fossilGrep: Tool.init(fossilgreptool),
+          fossilCell: Tool.init(fossilcelltool),
           edit: Tool.init(edit),
           write: Tool.init(writetool),
           task: Tool.init(task),
@@ -382,6 +385,7 @@ export const layer: Layer.Layer<
             tool.glob,
             tool.grep,
             tool.fossilGrep,
+            tool.fossilCell,
             tool.edit,
             tool.write,
             tool.task,

@@ -1,0 +1,31 @@
+FossilCell — the read route into every project's LOCAL CELL (plan 2026-10-15_project-fossil-cell.md).
+
+Each project's snapshot repo (`{worktree}/.opencode/data/fossil/<id>/snapshot.fsl`) carries, beside
+the undo timeline: a wiki page `Project` (pointers to AGENTS.md/README/docs — one-copy rule), a CHAT
+timeline (one technote per turn, tagged `chat`, comment carries agent + sv md5 + dominant + session),
+and the local ticket table. This tool reads those from ANY registered project — so a robot grounds
+on its neighbours' state before inventing (REUSE.BEFORE across the syndicate).
+
+## Actions
+
+| action | reads | notes |
+|--------|-------|-------|
+| `list` | every registered project cell | `fossil all list` filtered to snapshot.fsl repos |
+| `wiki` | the `Project` card of one or all projects | the pointers, never a restatement |
+| `chat` | the last 20 chat technotes per project | the syndicate's short turn reports |
+| `tickets` | the last 20 local tickets per project | local only — cross-project delegation lives in org.fossil |
+
+`project` (optional) narrows to ONE project by its worktree dir name (e.g. `opencode`). Omit it to
+read ALL registered projects.
+
+## Rules
+
+- READ-ONLY over local files only: every call is `fossil -R <repo>`; nothing is fetched, nothing is
+  written, no fossil sync/push to any remote.
+- A repo that fails to open is NAMED in the result (`## <project> — FAILED to open`) — an auditable
+  zero, never a silent skip.
+- The registry is fossil's own global config (`fossil all list`); a project not registered there is
+  invisible to the federation by construction.
+- Writing to a cell is NOT this tool's job: the runtime posts chat reports automatically at the
+  turn-end boundary; tickets are created via `fossil ticket add -R <repo>` (constitution: no fossil
+  CLI mutate paths without need).

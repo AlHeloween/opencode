@@ -510,7 +510,42 @@ def main() -> int:
         return fail(9, "unattributed processes hold the target bin (see inventory) — close them or pass "
                        "--worktree to attribute them; the swap is blocked, nothing changed")
     if not inventory["hosts"]:
-        return fail(2, f"no live host executes {bin_path} — nothing to promote")
+        # t60 cold case: no live host and (checked above) no unattributed holder.
+        # The simplest and safest promotion: nothing to drain, nothing to resume.
+        # Swap + verify + version smoke + rollback-on-failure exactly as the warm
+        # path; relaunch nothing (nothing was recorded). No marker touched: this
+        # run wrote none, so there is none of its own to unlink.
+        log(f"cold promotion: no live host executes {bin_path} and no holder blocks "
+            f"the swap \u2014 swapping without drain; nothing will be relaunched")
+        cold_started_ms = int(time.time() * 1000)
+        cold_state = {"time": cold_started_ms, "bin": str(bin_path), "candidate": str(candidate),
+                      "old_health_version": None, "excluded": args.exclude_session, "hosts": [],
+                      "resume": [], "drain": {"busy_at_start": {}, "waited_s": 0.0, "cold": True},
+                      "swap": None, "relaunched": [], "resumed": [], "timings": {}, "cold": True}
+        cold_state_file = state_dir / f"promotion-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+        cold_state_file.write_text(json.dumps(cold_state, indent=2), encoding="utf-8")
+        log(f"recorded 0 host(s), 0 session(s) to resume -> {cold_state_file} (cold: nothing to drain)")
+        cold_holders = [p["pid"] for p in list_processes() if norm(p["exe"]) == norm(str(bin_path))]
+        if cold_holders:
+            return fail(5, f"processes still hold {bin_path}: {cold_holders} \u2014 nothing was swapped")
+        cold_prev = bin_path.with_name(bin_path.name + ".prev")
+        cold_phase = time.monotonic()
+        try:
+            cold_state["swap"] = swap(bin_path, candidate, cold_prev)
+        except SwapBlocked as blocked:
+            return fail(6, f"swap failed, binary rolled back: {blocked}")
+        cold_state["timings"]["swap_s"] = round(time.monotonic() - cold_phase, 1)
+        log(f"swap: old sha {cold_state['swap']['old_sha256'][:12]} -> new sha {cold_state['swap']['new_sha256'][:12]} "
+            f"(smoke: {cold_state['swap']['smoke_version']})")
+        log("cold promotion: nothing was recorded, nothing relaunched")
+        cold_state["done"] = True
+        cold_state_file.write_text(json.dumps(cold_state, indent=2), encoding="utf-8")
+        cold_version = cold_state["swap"]["smoke_version"] or "unknown"
+        log(f"report: version (cold, no prior health) -> {cold_version}; "
+            f"0 server(s) relaunched; 0 session(s) resumed; timings {cold_state['timings']}")
+        log(f"rollback copy: {cold_prev} (tool convention; a hand-made *.prev-* file, if any, is left as is)")
+        log(f"state: {cold_state_file}")
+        return 0
 
     started_ms = int(time.time() * 1000)
     state = {"time": started_ms, "bin": str(bin_path), "candidate": str(candidate),

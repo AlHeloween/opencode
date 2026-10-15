@@ -1,0 +1,369 @@
+[
+  {
+    "run": "20261015T101555Z_f6b18592",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 350,
+    "result_lines": [
+      " 1 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T101556Z_dca11302",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 550,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T101715Z_e11ec2df",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 349,
+    "result_lines": [
+      " 1 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T102213Z_1cbce811",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 1224,
+    "result_lines": [
+      "TypeError: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+      " 0 pass",
+      " 1 fail"
+    ]
+  },
+  {
+    "run": "20261015T102303Z_2fdb7fb9",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 1126,
+    "result_lines": [
+      " 0 pass",
+      " 1 fail"
+    ]
+  },
+  {
+    "run": "20261015T102949Z_5055f8b3",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 715,
+    "result_lines": [
+      "TypeError: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+      " 1 pass",
+      " 1 fail"
+    ]
+  },
+  {
+    "run": "20261015T103026Z_bace854e",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 751,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T103138Z_16166578",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 5436,
+    "result_lines": [
+      "preparation frame failed 30 |   for (;;) {",
+      " 1 pass",
+      " 1 fail"
+    ]
+  },
+  {
+    "run": "20261015T103301Z_138a1643",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 2272,
+    "result_lines": [
+      " 1 pass",
+      " 2 fail"
+    ]
+  },
+  {
+    "run": "20261015T103325Z_5a08d731",
+    "exit_code": 2,
+    "status": "finished",
+    "bytes": 554,
+    "result_lines": [
+      "test/tool/universalsearch.test.ts(127,3): error TS1005: ',' expected.",
+      "test/tool/universalsearch.test.ts(212,1): error TS1005: ',' expected."
+    ]
+  },
+  {
+    "run": "20261015T103326Z_5012cd3c",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 947,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T103405Z_5e0cf1ac",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 5401,
+    "result_lines": [
+      "preparation frame failed 32 |     if (fn()) return",
+      " 2 pass",
+      " 1 fail"
+    ]
+  },
+  {
+    "run": "20261015T103419Z_0b24c085",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 3269,
+    "result_lines": [
+      "(pass) Runner > ensureRunning propagates work failures [3.91ms]",
+      " 37 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T103420Z_2de151fa",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 905,
+    "result_lines": [
+      "(pass) graph pre-build proceeds when the explore fails [4359.22ms]",
+      " 6 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T103523Z_9157d034",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 857,
+    "result_lines": [
+      " 3 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T103553Z_1e6a5f96",
+    "exit_code": 2,
+    "status": "finished",
+    "bytes": 554,
+    "result_lines": [
+      "test/tool/universalsearch.test.ts(127,3): error TS1005: ',' expected.",
+      "test/tool/universalsearch.test.ts(212,1): error TS1005: ',' expected."
+    ]
+  },
+  {
+    "run": "20261015T103731Z_5ae1ccc8",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 1356,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T103732Z_6d0c5b33",
+    "exit_code": 2,
+    "status": "finished",
+    "bytes": 1299,
+    "result_lines": [
+      "test/cli/tui/session-live-text-fixture.tsx(57,16): error TS2352: Conversion of type '{ renderer: CliRenderer; theme: { theme: Theme; readonly selected: string; all(): Record<string, ThemeJson>; has(name: string): boolean; syntax: Accessor<...>; ... 7 more ...; readonly ready: boolean; }; }' to type 'TuiPluginApi' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+      "test/tool/universalsearch.test.ts(200,49): error TS2339: Property 'scope' does not exist on type 'SourceStamp'."
+    ]
+  },
+  {
+    "run": "20261015T103742Z_31c20532",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 1459,
+    "result_lines": [
+      " 3 pass",
+      " 1 fail"
+    ]
+  },
+  {
+    "run": "20261015T103846Z_72ca57b9",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 946,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T103922Z_deb034e7",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 1380,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T103923Z_1383470c",
+    "exit_code": 2,
+    "status": "finished",
+    "bytes": 824,
+    "result_lines": [
+      "test/cli/tui/session-live-text-fixture.tsx(60,7): error TS2741: Property 'install' is missing in type '{ theme: Theme; selected: string; all(): Record<string, ThemeJson>; has(name: string): boolean; syntax: Accessor<SyntaxStyle>; ... 8 more ...; current: Theme; }' but required in type 'TuiTheme'.",
+      "test/tool/universalsearch.test.ts(200,49): error TS2339: Property 'scope' does not exist on type 'SourceStamp'."
+    ]
+  },
+  {
+    "run": "20261015T103945Z_05401cd5",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 1011,
+    "result_lines": [
+      " 4 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T103946Z_e9c799b9",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 3509,
+    "result_lines": [
+      "(pass) Runner > ensureRunning propagates work failures [5.27ms]",
+      " 37 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T104030Z_5e7324d9",
+    "exit_code": 2,
+    "status": "finished",
+    "bytes": 511,
+    "result_lines": [
+      "test/tool/universalsearch.test.ts(200,49): error TS2339: Property 'scope' does not exist on type 'SourceStamp'."
+    ]
+  },
+  {
+    "run": "20261015T104038Z_a7d6630b",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 50735,
+    "result_lines": [
+      "  [OK] .temp/test/ cleaned",
+      "  [OK] OpenTUI lib dist is current",
+      "  \"version\": \"10.0.1355\",",
+      "Smoke test passed: 10.0.1355",
+      "Smoke test passed: reasoning_prompt.txt embedded (BunFS asset present)",
+      "  [OK] Native binary copied",
+      "  [OK] Markdownify binary staged to platform dist",
+      "  [OK] Markdownify binary copied",
+      "  [OK] opentui native DLL copied",
+      "  [OK] WASM modules mirrored to dist (63 .wasm files under wasm/core/pkg)",
+      "  [OK] App build copied",
+      "  [OK] Build complete - artifacts in dist/"
+    ]
+  },
+  {
+    "run": "20261015T104233Z_6d606fc3",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 4832,
+    "result_lines": [
+      " 5 pass",
+      " 4 fail"
+    ]
+  },
+  {
+    "run": "20261015T104234Z_309bcef9",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 414,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T104416Z_1202d8cc",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 50735,
+    "result_lines": [
+      "  [OK] .temp/test/ cleaned",
+      "  [OK] OpenTUI lib dist is current",
+      "  \"version\": \"10.0.1356\",",
+      "Smoke test passed: 10.0.1356",
+      "Smoke test passed: reasoning_prompt.txt embedded (BunFS asset present)",
+      "  [OK] Native binary copied",
+      "  [OK] Markdownify binary staged to platform dist",
+      "  [OK] Markdownify binary copied",
+      "  [OK] opentui native DLL copied",
+      "  [OK] WASM modules mirrored to dist (63 .wasm files under wasm/core/pkg)",
+      "  [OK] App build copied",
+      "  [OK] Build complete - artifacts in dist/"
+    ]
+  },
+  {
+    "run": "20261015T104649Z_3ebb3aa3",
+    "exit_code": 1,
+    "status": "finished",
+    "bytes": 5376,
+    "result_lines": [
+      " 3 pass",
+      " 1 fail"
+    ]
+  },
+  {
+    "run": "20261015T104742Z_a5a3cf52",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 1344,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T104743Z_d8198efe",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 414,
+    "result_lines": []
+  },
+  {
+    "run": "20261015T104749Z_22dfd0be",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 943,
+    "result_lines": [
+      " 4 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T104750Z_d3f2a2dd",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 3277,
+    "result_lines": [
+      "(pass) Runner > ensureRunning propagates work failures [14.85ms]",
+      " 37 pass",
+      " 0 fail"
+    ]
+  },
+  {
+    "run": "20261015T104858Z_d9d64687",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 50735,
+    "result_lines": [
+      "  [OK] .temp/test/ cleaned",
+      "  [OK] OpenTUI lib dist is current",
+      "  \"version\": \"10.0.1357\",",
+      "Smoke test passed: 10.0.1357",
+      "Smoke test passed: reasoning_prompt.txt embedded (BunFS asset present)",
+      "  [OK] Native binary copied",
+      "  [OK] Markdownify binary staged to platform dist",
+      "  [OK] Markdownify binary copied",
+      "  [OK] opentui native DLL copied",
+      "  [OK] WASM modules mirrored to dist (63 .wasm files under wasm/core/pkg)",
+      "  [OK] App build copied",
+      "  [OK] Build complete - artifacts in dist/"
+    ]
+  },
+  {
+    "run": "20261015T105041Z_fe73e281",
+    "exit_code": 0,
+    "status": "finished",
+    "bytes": 491,
+    "result_lines": []
+  }
+]

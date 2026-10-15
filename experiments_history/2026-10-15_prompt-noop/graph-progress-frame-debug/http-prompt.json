@@ -1,0 +1,561 @@
+{
+  "observations": [
+    {
+      "mode": "regular",
+      "status": 200,
+      "body": "{\"info\":{\"parentID\":\"msg_13f1e3b9a001StokdwIsvbm2xW\",\"role\":\"assistant\",\"mode\":\"build_mode\",\"agent\":\"build_mode\",\"path\":{\"cwd\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-5omgdbcitz\",\"root\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-5omgdbcitz\"},\"cost\":0,\"tokens\":{\"total\":0,\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0},\"cacheRatio\":0},\"modelID\":\"test-model\",\"providerID\":\"test\",\"time\":{\"created\":1792060308828,\"completed\":1792060309797},\"finish\":\"stop\",\"id\":\"msg_13f1e3d5c001pBun1zLgHpJhgb\",\"sessionID\":\"ses_ec0e1c972ffew6u9a53Db8nYyW\"},\"parts\":[{\"type\":\"step-start\",\"id\":\"prt_13f1e40fb0019jztg3BHSf0fif\",\"sessionID\":\"ses_ec0e1c972ffew6u9a53Db8nYyW\",\"messageID\":\"msg_13f1e3d5c001pBun1zLgHpJhgb\"},{\"type\":\"text\",\"text\":\"REGULAR_REPLY\",\"time\":{\"start\":1792060309758,\"end\":1792060309764},\"id\":\"prt_13f1e40fe0017EQE60JKpJhyaj\",\"sessionID\":\"ses_ec0e1c972ffew6u9a53Db8nYyW\",\"messageID\":\"msg_13f1e3d5c001pBun1zLgHpJhgb\"},{\"contextPrefix\":\"7944376374071156000:8806205082763794000\",\"reason\":\"stop\",\"rawFinishReason\":\"stop\",\"type\":\"step-finish\",\"timing\":{\"requestMs\":705},\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":0},\"cacheRatio\":0},\"cost\":0,\"id\":\"prt_13f1e410b001IqDe5j2L1bPziQ\",\"sessionID\":\"ses_ec0e1c972ffew6u9a53Db8nYyW\",\"messageID\":\"msg_13f1e3d5c001pBun1zLgHpJhgb\"}]}",
+      "messages": [
+        {
+          "info": {
+            "role": "user",
+            "agent": "build_mode",
+            "model": {
+              "providerID": "test",
+              "modelID": "test-model"
+            },
+            "time": {
+              "created": 1792060307094
+            },
+            "id": "msg_13f1e3696001ne5rGIzJwl3Tbu",
+            "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW"
+          },
+          "parts": [
+            {
+              "type": "text",
+              "text": "Opening graph context supplied by test fixture",
+              "synthetic": true,
+              "metadata": {
+                "graph_prebuild": true
+              },
+              "id": "prt_13f1e369b001y5xmQmxMDJ1EOs",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3696001ne5rGIzJwl3Tbu"
+            }
+          ]
+        },
+        {
+          "info": {
+            "role": "user",
+            "time": {
+              "created": 1792060308378
+            },
+            "agent": "build_mode",
+            "model": {
+              "providerID": "test",
+              "modelID": "test-model"
+            },
+            "id": "msg_13f1e3b9a001StokdwIsvbm2xW",
+            "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW"
+          },
+          "parts": [
+            {
+              "type": "text",
+              "text": "REGULAR_REQUEST\n\nUTC: 2026-10-15T10:31:48.383Z",
+              "id": "prt_13f1e3b9f001s8i92i17FVWAUS",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3b9a001StokdwIsvbm2xW"
+            },
+            {
+              "type": "text",
+              "text": "<compaction-status>\nowed: no open plan task — the boxes are clear; memory's open list is the remainder (not machine-readable yet)\nmap: no un-ticked box — plans/MASTER_PLAN.md needs no reconciliation today\ncoupling: 0 vector link(s), 0 manifest(s) · 0 findings\nclaims: 0 recorded · 0 unstamped\ncritical risks: 0 in open plans\nmarks: no assistant reply in the window yet — nothing to count\nsv: no assistant reply in the window yet — nothing to check\nYour context window: 10,023 of 100,000 tokens. Model requests before compact: estimate unavailable yet — collecting stable-prefix request growth. Continue the current task. Compact threshold: 80,000 tokens.\nThis is the current window, not a limit on completing the task. Use compact at a completed boundary, then continue from the preserved state.\nctx 10,023/80,000 · headroom 69,977 · layer-1 23/65,536\n</compaction-status>",
+              "synthetic": true,
+              "id": "prt_13f1e4008001krA7jwYFwPNm3A",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3b9a001StokdwIsvbm2xW"
+            }
+          ]
+        },
+        {
+          "info": {
+            "parentID": "msg_13f1e3b9a001StokdwIsvbm2xW",
+            "role": "assistant",
+            "mode": "build_mode",
+            "agent": "build_mode",
+            "path": {
+              "cwd": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-5omgdbcitz",
+              "root": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-5omgdbcitz"
+            },
+            "cost": 0,
+            "tokens": {
+              "total": 0,
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              },
+              "cacheRatio": 0
+            },
+            "modelID": "test-model",
+            "providerID": "test",
+            "time": {
+              "created": 1792060308828,
+              "completed": 1792060309797
+            },
+            "finish": "stop",
+            "id": "msg_13f1e3d5c001pBun1zLgHpJhgb",
+            "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW"
+          },
+          "parts": [
+            {
+              "type": "step-start",
+              "id": "prt_13f1e40fb0019jztg3BHSf0fif",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3d5c001pBun1zLgHpJhgb"
+            },
+            {
+              "type": "text",
+              "text": "REGULAR_REPLY",
+              "time": {
+                "start": 1792060309758,
+                "end": 1792060309764
+              },
+              "id": "prt_13f1e40fe0017EQE60JKpJhyaj",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3d5c001pBun1zLgHpJhgb"
+            },
+            {
+              "contextPrefix": "7944376374071156000:8806205082763794000",
+              "reason": "stop",
+              "rawFinishReason": "stop",
+              "type": "step-finish",
+              "timing": {
+                "requestMs": 705
+              },
+              "tokens": {
+                "input": 0,
+                "output": 0,
+                "reasoning": 0,
+                "cache": {
+                  "write": 0,
+                  "read": 0
+                },
+                "cacheRatio": 0
+              },
+              "cost": 0,
+              "id": "prt_13f1e410b001IqDe5j2L1bPziQ",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3d5c001pBun1zLgHpJhgb"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "finished-regular",
+      "status": {
+        "type": "idle"
+      }
+    },
+    {
+      "mode": "repeat",
+      "status": 200,
+      "body": "{\"info\":{\"parentID\":\"msg_13f1e4175001BAqd5aHP2Myau1\",\"role\":\"assistant\",\"mode\":\"build_mode\",\"agent\":\"build_mode\",\"path\":{\"cwd\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-5omgdbcitz\",\"root\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-5omgdbcitz\"},\"cost\":0,\"tokens\":{\"total\":0,\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0},\"cacheRatio\":0},\"modelID\":\"test-model\",\"providerID\":\"test\",\"time\":{\"created\":1792060309897,\"completed\":1792060309976},\"finish\":\"stop\",\"id\":\"msg_13f1e4189001DtrdqmU5LIJF3x\",\"sessionID\":\"ses_ec0e1c972ffew6u9a53Db8nYyW\"},\"parts\":[{\"type\":\"step-start\",\"id\":\"prt_13f1e41c1001xs6diCoya2G188\",\"sessionID\":\"ses_ec0e1c972ffew6u9a53Db8nYyW\",\"messageID\":\"msg_13f1e4189001DtrdqmU5LIJF3x\"},{\"type\":\"text\",\"text\":\"ok\",\"time\":{\"start\":1792060309955,\"end\":1792060309959},\"id\":\"prt_13f1e41c3001xun0i6D6W5AZrL\",\"sessionID\":\"ses_ec0e1c972ffew6u9a53Db8nYyW\",\"messageID\":\"msg_13f1e4189001DtrdqmU5LIJF3x\"},{\"contextPrefix\":\"7944376374071156000:8806205082763794000\",\"reason\":\"stop\",\"rawFinishReason\":\"stop\",\"type\":\"step-finish\",\"timing\":{\"requestMs\":28},\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":0},\"cacheRatio\":0},\"cost\":0,\"id\":\"prt_13f1e41c90015z533F79ESQj2S\",\"sessionID\":\"ses_ec0e1c972ffew6u9a53Db8nYyW\",\"messageID\":\"msg_13f1e4189001DtrdqmU5LIJF3x\"}]}",
+      "messages": [
+        {
+          "info": {
+            "role": "user",
+            "agent": "build_mode",
+            "model": {
+              "providerID": "test",
+              "modelID": "test-model"
+            },
+            "time": {
+              "created": 1792060307094
+            },
+            "id": "msg_13f1e3696001ne5rGIzJwl3Tbu",
+            "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW"
+          },
+          "parts": [
+            {
+              "type": "text",
+              "text": "Opening graph context supplied by test fixture",
+              "synthetic": true,
+              "metadata": {
+                "graph_prebuild": true
+              },
+              "id": "prt_13f1e369b001y5xmQmxMDJ1EOs",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3696001ne5rGIzJwl3Tbu"
+            }
+          ]
+        },
+        {
+          "info": {
+            "role": "user",
+            "time": {
+              "created": 1792060308378
+            },
+            "agent": "build_mode",
+            "model": {
+              "providerID": "test",
+              "modelID": "test-model"
+            },
+            "id": "msg_13f1e3b9a001StokdwIsvbm2xW",
+            "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW"
+          },
+          "parts": [
+            {
+              "type": "text",
+              "text": "REGULAR_REQUEST\n\nUTC: 2026-10-15T10:31:48.383Z",
+              "id": "prt_13f1e3b9f001s8i92i17FVWAUS",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3b9a001StokdwIsvbm2xW"
+            },
+            {
+              "type": "text",
+              "text": "<compaction-status>\nowed: no open plan task — the boxes are clear; memory's open list is the remainder (not machine-readable yet)\nmap: no un-ticked box — plans/MASTER_PLAN.md needs no reconciliation today\ncoupling: 0 vector link(s), 0 manifest(s) · 0 findings\nclaims: 0 recorded · 0 unstamped\ncritical risks: 0 in open plans\nmarks: no assistant reply in the window yet — nothing to count\nsv: no assistant reply in the window yet — nothing to check\nYour context window: 10,023 of 100,000 tokens. Model requests before compact: estimate unavailable yet — collecting stable-prefix request growth. Continue the current task. Compact threshold: 80,000 tokens.\nThis is the current window, not a limit on completing the task. Use compact at a completed boundary, then continue from the preserved state.\nctx 10,023/80,000 · headroom 69,977 · layer-1 23/65,536\n</compaction-status>",
+              "synthetic": true,
+              "id": "prt_13f1e4008001krA7jwYFwPNm3A",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3b9a001StokdwIsvbm2xW"
+            }
+          ]
+        },
+        {
+          "info": {
+            "parentID": "msg_13f1e3b9a001StokdwIsvbm2xW",
+            "role": "assistant",
+            "mode": "build_mode",
+            "agent": "build_mode",
+            "path": {
+              "cwd": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-5omgdbcitz",
+              "root": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-5omgdbcitz"
+            },
+            "cost": 0,
+            "tokens": {
+              "total": 0,
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              },
+              "cacheRatio": 0
+            },
+            "modelID": "test-model",
+            "providerID": "test",
+            "time": {
+              "created": 1792060308828,
+              "completed": 1792060309797
+            },
+            "finish": "stop",
+            "id": "msg_13f1e3d5c001pBun1zLgHpJhgb",
+            "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW"
+          },
+          "parts": [
+            {
+              "type": "step-start",
+              "id": "prt_13f1e40fb0019jztg3BHSf0fif",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3d5c001pBun1zLgHpJhgb"
+            },
+            {
+              "type": "text",
+              "text": "REGULAR_REPLY",
+              "time": {
+                "start": 1792060309758,
+                "end": 1792060309764
+              },
+              "id": "prt_13f1e40fe0017EQE60JKpJhyaj",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3d5c001pBun1zLgHpJhgb"
+            },
+            {
+              "contextPrefix": "7944376374071156000:8806205082763794000",
+              "reason": "stop",
+              "rawFinishReason": "stop",
+              "type": "step-finish",
+              "timing": {
+                "requestMs": 705,
+                "commitMs": 69
+              },
+              "tokens": {
+                "input": 0,
+                "output": 0,
+                "reasoning": 0,
+                "cache": {
+                  "write": 0,
+                  "read": 0
+                },
+                "cacheRatio": 0
+              },
+              "cost": 0,
+              "id": "prt_13f1e410b001IqDe5j2L1bPziQ",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e3d5c001pBun1zLgHpJhgb"
+            }
+          ]
+        },
+        {
+          "info": {
+            "role": "user",
+            "time": {
+              "created": 1792060309877
+            },
+            "agent": "build_mode",
+            "model": {
+              "providerID": "test",
+              "modelID": "test-model"
+            },
+            "id": "msg_13f1e4175001BAqd5aHP2Myau1",
+            "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW"
+          },
+          "parts": [
+            {
+              "type": "text",
+              "text": "REGULAR_REQUEST\n\nUTC: 2026-10-15T10:31:49.880Z",
+              "id": "prt_13f1e41770010076T0unsuSV6O",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e4175001BAqd5aHP2Myau1"
+            },
+            {
+              "type": "text",
+              "text": "<compaction-status>\nowed: no open plan task — the boxes are clear; memory's open list is the remainder (not machine-readable yet)\nmap: no un-ticked box — plans/MASTER_PLAN.md needs no reconciliation today\ncoupling: 0 vector link(s), 0 manifest(s) · 0 findings\nclaims: 0 recorded · 0 unstamped\ncritical risks: 0 in open plans\nmarks: NONE in the last reply — REQUIRED FORM: `✓` or `✗` at the end of each assertion, one per claim: ✓ CONFIRMED (naming the instrument that confirms it) · ✗ REFUTED (naming what contradicts it). · 1/1 window replies with none\nsv: ABSENT in the last reply · 1/1 window replies without a vector — @CURRENT_SV requires the @SV_FORMAT block at the END of EVERY reply (Keywords with weights, Semantic dominant, md5/prev-md5/parent-goal-md5)\nYour context window: 10,256 of 100,000 tokens. Model requests before compact: estimate unavailable yet — collecting stable-prefix request growth. Continue the current task. Compact threshold: 80,000 tokens.\nThis is the current window, not a limit on completing the task. Use compact at a completed boundary, then continue from the preserved state.\nctx 10,256/80,000 · headroom 69,744 · layer-1 256/65,536\n</compaction-status>",
+              "synthetic": true,
+              "id": "prt_13f1e419f001v2l4m6ZINEXxXC",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e4175001BAqd5aHP2Myau1"
+            }
+          ]
+        },
+        {
+          "info": {
+            "parentID": "msg_13f1e4175001BAqd5aHP2Myau1",
+            "role": "assistant",
+            "mode": "build_mode",
+            "agent": "build_mode",
+            "path": {
+              "cwd": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-5omgdbcitz",
+              "root": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-5omgdbcitz"
+            },
+            "cost": 0,
+            "tokens": {
+              "total": 0,
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              },
+              "cacheRatio": 0
+            },
+            "modelID": "test-model",
+            "providerID": "test",
+            "time": {
+              "created": 1792060309897,
+              "completed": 1792060309976
+            },
+            "finish": "stop",
+            "id": "msg_13f1e4189001DtrdqmU5LIJF3x",
+            "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW"
+          },
+          "parts": [
+            {
+              "type": "step-start",
+              "id": "prt_13f1e41c1001xs6diCoya2G188",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e4189001DtrdqmU5LIJF3x"
+            },
+            {
+              "type": "text",
+              "text": "ok",
+              "time": {
+                "start": 1792060309955,
+                "end": 1792060309959
+              },
+              "id": "prt_13f1e41c3001xun0i6D6W5AZrL",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e4189001DtrdqmU5LIJF3x"
+            },
+            {
+              "contextPrefix": "7944376374071156000:8806205082763794000",
+              "reason": "stop",
+              "rawFinishReason": "stop",
+              "type": "step-finish",
+              "timing": {
+                "requestMs": 28
+              },
+              "tokens": {
+                "input": 0,
+                "output": 0,
+                "reasoning": 0,
+                "cache": {
+                  "write": 0,
+                  "read": 0
+                },
+                "cacheRatio": 0
+              },
+              "cost": 0,
+              "id": "prt_13f1e41c90015z533F79ESQj2S",
+              "sessionID": "ses_ec0e1c972ffew6u9a53Db8nYyW",
+              "messageID": "msg_13f1e4189001DtrdqmU5LIJF3x"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "finished-repeat",
+      "status": {
+        "type": "idle"
+      }
+    },
+    {
+      "mode": "async",
+      "status": 204,
+      "body": "",
+      "messages": [
+        {
+          "info": {
+            "role": "user",
+            "agent": "build_mode",
+            "model": {
+              "providerID": "test",
+              "modelID": "test-model"
+            },
+            "time": {
+              "created": 1792060310010
+            },
+            "id": "msg_13f1e41fa0010fJHKy384ld6ih",
+            "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7"
+          },
+          "parts": [
+            {
+              "type": "text",
+              "text": "Opening graph context supplied by test fixture",
+              "synthetic": true,
+              "metadata": {
+                "graph_prebuild": true
+              },
+              "id": "prt_13f1e41fc0013zB4uvik99vBe8",
+              "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7",
+              "messageID": "msg_13f1e41fa0010fJHKy384ld6ih"
+            }
+          ]
+        },
+        {
+          "info": {
+            "role": "user",
+            "time": {
+              "created": 1792060310026
+            },
+            "agent": "build_mode",
+            "model": {
+              "providerID": "test",
+              "modelID": "test-model"
+            },
+            "id": "msg_13f1e420a001tqfEqX3m0uz8Og",
+            "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7"
+          },
+          "parts": [
+            {
+              "type": "text",
+              "text": "ASYNC_REQUEST\n\nUTC: 2026-10-15T10:31:50.027Z",
+              "id": "prt_13f1e420b001UhBfcV38NsF20X",
+              "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7",
+              "messageID": "msg_13f1e420a001tqfEqX3m0uz8Og"
+            },
+            {
+              "type": "text",
+              "text": "<compaction-status>\nowed: no open plan task — the boxes are clear; memory's open list is the remainder (not machine-readable yet)\nmap: no un-ticked box — plans/MASTER_PLAN.md needs no reconciliation today\ncoupling: 0 vector link(s), 0 manifest(s) · 0 findings\nclaims: 0 recorded · 0 unstamped\ncritical risks: 0 in open plans\nmarks: no assistant reply in the window yet — nothing to count\nsv: no assistant reply in the window yet — nothing to check\nYour context window: 10,023 of 100,000 tokens. Model requests before compact: estimate unavailable yet — collecting stable-prefix request growth. Continue the current task. Compact threshold: 80,000 tokens.\nThis is the current window, not a limit on completing the task. Use compact at a completed boundary, then continue from the preserved state.\nctx 10,023/80,000 · headroom 69,977 · layer-1 23/65,536\n</compaction-status>",
+              "synthetic": true,
+              "id": "prt_13f1e422e001hg7IchAXau8H2c",
+              "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7",
+              "messageID": "msg_13f1e420a001tqfEqX3m0uz8Og"
+            }
+          ]
+        },
+        {
+          "info": {
+            "parentID": "msg_13f1e420a001tqfEqX3m0uz8Og",
+            "role": "assistant",
+            "mode": "build_mode",
+            "agent": "build_mode",
+            "path": {
+              "cwd": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-5omgdbcitz",
+              "root": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-5omgdbcitz"
+            },
+            "cost": 0,
+            "tokens": {
+              "total": 0,
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              },
+              "cacheRatio": 0
+            },
+            "modelID": "test-model",
+            "providerID": "test",
+            "time": {
+              "created": 1792060310040,
+              "completed": 1792060310118
+            },
+            "finish": "stop",
+            "id": "msg_13f1e4218001WzTFLvqt7mAnsR",
+            "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7"
+          },
+          "parts": [
+            {
+              "type": "step-start",
+              "id": "prt_13f1e424f001rHpgYP13pSAV9m",
+              "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7",
+              "messageID": "msg_13f1e4218001WzTFLvqt7mAnsR"
+            },
+            {
+              "type": "text",
+              "text": "ASYNC_REPLY",
+              "time": {
+                "start": 1792060310098,
+                "end": 1792060310101
+              },
+              "id": "prt_13f1e42520015fV0AXCMab9C4Y",
+              "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7",
+              "messageID": "msg_13f1e4218001WzTFLvqt7mAnsR"
+            },
+            {
+              "contextPrefix": "18122844676738150000:8806205082763794000",
+              "reason": "stop",
+              "rawFinishReason": "stop",
+              "type": "step-finish",
+              "timing": {
+                "requestMs": 27,
+                "commitMs": 23
+              },
+              "tokens": {
+                "input": 0,
+                "output": 0,
+                "reasoning": 0,
+                "cache": {
+                  "write": 0,
+                  "read": 0
+                },
+                "cacheRatio": 0
+              },
+              "cost": 0,
+              "id": "prt_13f1e4257001ilCAjFxa8qmvGV",
+              "sessionID": "ses_ec0e1be07ffe5Cpo03jP7duZU7",
+              "messageID": "msg_13f1e4218001WzTFLvqt7mAnsR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "finished-async",
+      "status": {
+        "type": "idle"
+      }
+    },
+    {
+      "providerCalls": 3
+    }
+  ],
+  "frames": {}
+}

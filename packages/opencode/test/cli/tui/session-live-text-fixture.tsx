@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { expect } from "bun:test"
 import { onMount } from "solid-js"
-import { testRender } from "@opentui/solid"
+import { testRender, useRenderer } from "@opentui/solid"
 import { Bus } from "@/bus"
 import { SDKProvider } from "@tui/context/sdk"
 import { SyncProvider, useSync } from "@tui/context/sync"
@@ -11,7 +11,8 @@ import { ExitProvider } from "@tui/context/exit"
 import { KVProvider } from "@tui/context/kv"
 import { RouteProvider, useRoute } from "@tui/context/route"
 import { TuiConfigProvider } from "@tui/context/tui-config"
-import { ThemeProvider } from "@tui/context/theme"
+import { ThemeProvider, useTheme } from "@tui/context/theme"
+import { setupSlots } from "@tui/plugin/slots"
 import { LocalProvider } from "@tui/context/local"
 import { KeybindProvider } from "@tui/context/keybind"
 import { PromptStashProvider } from "@tui/component/prompt/stash"
@@ -51,6 +52,21 @@ export async function mountLiveSession(input: { url: string; directory: string; 
     const dialog = useDialog()
     const toast = useToast()
     const route = useRoute()
+    // The real runtime installs this registry before rendering Session. Without it,
+    // Slot is empty and the entire prompt (including its progress row) is absent.
+    const theme = useTheme()
+    setupSlots({
+      renderer: useRenderer(),
+      theme: {
+        ...theme,
+        get current() {
+          return theme.theme
+        },
+        async install() {
+          throw new Error("theme.install is only available in plugin context")
+        },
+      },
+    })
     onMount(() => {
       resolve({ sync, dialog, toast, route })
     })
@@ -92,8 +108,10 @@ export async function mountLiveSession(input: { url: string; directory: string; 
                                         <PromptRefProvider>
                                           <EditorContextProvider>
                                             <Toast />
-                                            <Harness />
-                                            <Session />
+                                            <box width="100%" height="100%" flexDirection="column">
+                                              <Harness />
+                                              <Session />
+                                            </box>
                                           </EditorContextProvider>
                                         </PromptRefProvider>
                                       </PromptHistoryProvider>

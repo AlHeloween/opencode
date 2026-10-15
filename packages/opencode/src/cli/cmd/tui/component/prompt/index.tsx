@@ -1561,7 +1561,7 @@ export function Prompt(props: PromptProps) {
                         : (status() as { type: string }).type === "summarizing"
                           ? "writing summary"
                           : status().type === "busy"
-                            ? "working"
+                            ? (status() as { message?: string }).message || "working"
                             : "")}
                     </text>
                   </Show>

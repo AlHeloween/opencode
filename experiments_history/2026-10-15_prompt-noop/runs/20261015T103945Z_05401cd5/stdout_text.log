@@ -1,0 +1,44 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts', 'test/session/graph-prebuild-progress.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts', 'test/session/graph-prebuild-progress.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(pass) ordinary HTTP prompt starts before compact (graph preparation: %s) [5606.19ms]
+(pass) ordinary HTTP prompt starts before compact (graph preparation: %s) [26584.19ms]
+
+test\session\graph-prebuild-progress.test.ts:
+(pass) codegraph sync leaves the event loop available: complete [99.25ms]
+sync interrupted Error: All fibers interrupted without error
+(pass) codegraph sync leaves the event loop available: cancel [510.34ms]
+
+ 4 pass
+ 0 fail
+ 29 expect() calls
+Ran 4 tests across 2 files. [43.49s]

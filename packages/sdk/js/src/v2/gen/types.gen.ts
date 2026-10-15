@@ -370,6 +370,7 @@ export type SessionStatus =
     }
   | {
       type: "busy"
+      message?: string
     }
 
 export type EventSessionStatus = {

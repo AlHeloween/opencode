@@ -1,0 +1,44 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/session/prompt.test.ts', '-t', 'graph pre-build']
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/session/prompt.test.ts', '-t', 'graph pre-build']
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\session\prompt.test.ts:
+(pass) graph pre-build attaches the graph context to the opening turn [6795.59ms]
+(pass) graph pre-build attaches nothing without .codegraph/ [2258.79ms]
+(pass) graph pre-build proceeds when the explore fails [4359.22ms]
+(pass) graph pre-build respects the opt-out env [2816.06ms]
+(pass) graph pre-build builds once per session — a second user turn attaches nothing [8765.01ms]
+(pass) graph pre-build never attaches for a synthetic user message [2225.79ms]
+
+ 6 pass
+ 61 filtered out
+ 0 fail
+ 11 expect() calls
+Ran 6 tests across 1 file. [32.19s]

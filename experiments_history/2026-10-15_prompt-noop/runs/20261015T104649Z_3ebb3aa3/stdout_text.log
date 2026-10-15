@@ -1,0 +1,71 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts', 'test/session/graph-prebuild-progress.test.ts']
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts', 'test/session/graph-prebuild-progress.test.ts']
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+(pass) ordinary HTTP prompt starts before compact (graph preparation: %s) [3912.05ms]
+291 |   if (graph) {
+292 |     const preparing = observations.find((v) => v.phase === "preparing-graph")
+293 |     expect(preparing.status).toEqual({ type: "busy", message: "preparing code graph" })
+294 |     expect(preparing.providerCalls).toBe(0)
+295 |     expect(frames.preparing).toContain("preparing code graph")
+296 |     expect(frames.working).toContain("working")
+                                 ^
+error: expect(received).toContain(expected)Expected to contain: "working"
+Received: "LIVE_TEXT_STAND                                                                                     \n                                                                                                    \n                                                                                                    \n  ┃                                                                                                 \n  ┃  REGULAR_REQUEST                                                                                \n  ┃                                                                                                 \n  ┃  UTC: 2026-10-15T10:47:01.624Z                                                                  \n  ┃                                                                                                 \n                                                                                                    \n     ▣  Build_mode · Test Model                                                                     \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                     
+                                                               \n                                                       
+                                             \n                                                                         
+                           \n                                                                                           
+         \n                                                                                                    \n       
+                                                                                              \n                         
+                                                                           \n                                           
+                                                         \n                                                             
+                                       \n                                                                               
+                     \n                                                                                                 
+   \n  [AGI ○] disabled                                                                                  \n  ┃          
+                                                                                       \n  ┃                            
+                                                                     \n  ┃                                              
+                                                   \n  ┃  Build · GPT-5 Nano OpenCode Zen [👁 🧠 🔧]                     
+                                 \n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀  \n   ■■■■⬝⬝⬝⬝ preparing code graph esc interrupt           agent_cycle agents  command_list commands  \n 
+                                                                                                    \n"
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\server\httpapi-prompt-start.test.ts:296:28)
+(fail) ordinary HTTP prompt starts before compact (graph preparation: %s) [6433.95ms]
+
+test\session\graph-prebuild-progress.test.ts:
+(pass) codegraph sync leaves the event loop available: complete [85.97ms]
+sync interrupted Error: All fibers interrupted without error
+(pass) codegraph sync leaves the event loop available: cancel [306.33ms]
+
+ 3 pass
+ 1 fail
+ 27 expect() calls
+Ran 4 tests across 2 files. [17.19s]

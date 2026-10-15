@@ -1,0 +1,79 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/cli/tui/session-live-text.test.ts', 'test/effect/runner.test.ts', 'test/session/graph-first.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\effect\runner.test.ts:
+(pass) Runner > ensureRunning starts work and returns result [30.85ms]
+(pass) Runner > ensureRunning propagates work failures [3.91ms]
+(pass) Runner > concurrent callers JOIN the running work — it executes once, both get its result [28.41ms]
+(pass) Runner > concurrent callers all receive same error [14.14ms]
+(pass) Runner > ensureRunning can be called again after previous run completes [5.85ms]
+(pass) Runner > a second ensureRunning caller JOINS the running work — its own work is discarded [52.85ms]
+(pass) Runner > supersede interrupts active work and starts replacement immediately [6.13ms]
+(pass) Runner > cancel interrupts running work [18.71ms]
+(pass) Runner > cancel on idle is a no-op [1.53ms]
+(pass) Runner > cancel with onInterrupt resolves callers gracefully [13.66ms]
+(pass) Runner > cancel with queued callers resolves all [25.72ms]
+(pass) Runner > work can be started after cancel [16.24ms]
+(pass) Runner > cancel does not deadlock when replacement work starts before interrupted run exits [262.27ms]
+(pass) Runner > shell runs exclusively [6.34ms]
+(pass) Runner > shell rejects when run is active [499.28ms]
+(pass) Runner > shell rejects when another shell is running [12.99ms]
+(pass) Runner > shell rejects via busy callback and cancel still stops the first shell [13.74ms]
+(pass) Runner > cancel interrupts shell [79.80ms]
+(pass) Runner > cancel does not mask shell defects [20.32ms]
+(pass) Runner > ensureRunning queues behind shell then runs after [109.28ms]
+(pass) Runner > multiple ensureRunning callers share the queued run behind shell [26.45ms]
+(pass) Runner > cancel during shell_then_run cancels both [33.66ms]
+(pass) Runner > onIdle fires when returning to idle from running [1.14ms]
+(pass) Runner > onIdle fires on cancel [15.00ms]
+(pass) Runner > onBusy fires when shell starts [1.66ms]
+(pass) Runner > busy is true during run [13.11ms]
+(pass) Runner > busy is true during shell [12.69ms]
+
+test\session\graph-first.test.ts:
+(pass) session.graph-first > isCodegraphTool covers the MCP prefix and the bare name [0.18ms]
+(pass) session.graph-first > the FIRST scanner call of a session is refused once, with the route [1.09ms]
+(pass) session.graph-first > a codegraph call arms the latch — scanners run freely after it [0.49ms]
+(pass) session.graph-first > non-codegraph calls do NOT arm the latch (control) [0.45ms]
+(pass) session.graph-first > no .codegraph/ in the worktree — the gate is inert (control) [0.79ms]
+(pass) session.graph-first > opt-out env disables the gate (control) [0.09ms]
+(pass) session.graph-first > a non-scanner tool is never gated [0.18ms]
+(pass) session.graph-first > SCANNER_TOOLS is exactly the owner's list [0.08ms]
+(pass) session.graph-first > graphFirstDisabled spellings follow the repo convention [0.19ms]
+
+test\cli\tui\session-live-text.test.ts:
+(pass) selected Revert followed by a new turn streams text without leaving the session [11366.88ms]
+
+ 37 pass
+ 0 fail
+ 104 expect() calls
+Ran 37 tests across 3 files. [23.48s]

@@ -28,7 +28,7 @@ function isHostSlotPlugin(value: unknown): value is HostSlotPlugin<Record<string
   return true
 }
 
-export function setupSlots(api: HostPluginApi): HostSlots {
+export function setupSlots(api: Pick<HostPluginApi, "renderer" | "theme">): HostSlots {
   const reg = createSolidSlotRegistry<RuntimeSlotMap, TuiSlotContext>(
     api.renderer,
     {

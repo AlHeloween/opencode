@@ -44,7 +44,7 @@ type Metadata = {
   jobId?: string
   status?: string
   mode?: string
-  source_stamps?: ReturnType<typeof Constitution.makeSourceStamp>[]
+  source_stamps?: (ReturnType<typeof Constitution.makeSourceStamp> & { scope?: string })[]
 }
 
 export function resolveSearchSource(

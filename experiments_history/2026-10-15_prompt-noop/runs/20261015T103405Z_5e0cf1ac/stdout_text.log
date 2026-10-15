@@ -1,0 +1,130 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts', 'test/session/graph-prebuild-progress.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+(pass) ordinary HTTP prompt starts before compact (graph preparation: %s) [6685.08ms]
+preparation frame failed 32 |     if (fn()) return
+33 |     if (Date.now() >= deadline) throw new Error(`bounded wait expired: ${label}`)
+34 |     await new Promise((done) => setTimeout(done, 20))
+35 |   }
+36 | }
+37 | 
+                                               ^
+error: bounded wait expired: preparation is visible
+      at waitFor (D:\zPython\opencode\packages\opencode\test\cli\tui\session-live-text-fixture.tsx:37:43)
+ LIVE_TEXT_STAND
+
+
+  ┃
+  ┃  REGULAR_REQUEST
+  ┃
+  ┃  UTC: 2026-10-15T10:34:24.039Z
+  ┃
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+266 |   }
+267 |   if (graph) {
+268 |     const preparing = observations.find((v) => v.phase === "preparing-graph")
+269 |     expect(preparing.status).toEqual({ type: "busy", message: "preparing code graph" })
+270 |     expect(preparing.providerCalls).toBe(0)
+271 |     expect(frames.preparing).toContain("preparing code graph")
+                                   ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "preparing code graph"
+Received: "LIVE_TEXT_STAND                                                                                     \n       
+                                                                                              \n                         
+                                                                           \n  ┃                                        
+                                                         \n  ┃  REGULAR_REQUEST                                         
+                                       \n  ┃                                                                            
+                     \n  ┃  UTC: 2026-10-15T10:34:24.039Z                                                               
+   \n  ┃                                                                                                 \n             
+                                                                                       \n                               
+                                                                     \n                                                 
+                                                   \n                                                                   
+                                 \n                                                                                     
+               \n                                                                                                    \n 
+                                                                                                    \n                   
+                                                                                 \n                                     
+                                                               \n                                                       
+                                             \n                                                                         
+                           \n                                                                                           
+         \n                                                                                                    \n       
+                                                                                              \n                         
+                                                                           \n                                           
+                                                         \n                                                             
+                                       \n                                                                               
+                     \n                                                                                                 
+   \n                                                                                                    \n             
+                                                                                       \n                               
+                                                                     \n                                                 
+                                                   \n                                                                   
+                                 \n                                                                                     
+               \n                                                                                                    \n 
+                                                                                                    \n"
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\server\httpapi-prompt-start.test.ts:271:30)
+(fail) ordinary HTTP prompt starts before compact (graph preparation: %s) [19807.39ms]
+
+test\session\graph-prebuild-progress.test.ts:
+(pass) codegraph sync leaves the event loop available for progress and cancellation [283.48ms]
+
+ 2 pass
+ 1 fail
+ 19 expect() calls
+Ran 3 tests across 2 files. [35.97s]

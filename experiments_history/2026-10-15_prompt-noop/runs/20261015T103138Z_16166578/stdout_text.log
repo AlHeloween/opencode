@@ -1,0 +1,126 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(pass) ordinary HTTP prompt starts before compact (graph preparation: %s) [4816.76ms]
+preparation frame failed 30 |   for (;;) {
+31 |     await ui.renderOnce()
+32 |     if (fn()) return
+33 |     if (Date.now() >= deadline) throw new Error(`bounded wait expired: ${label}`)
+34 |     await new Promise((done) => setTimeout(done, 20))
+35 |   }
+                                               ^
+error: bounded wait expired: preparation is visible
+      at waitFor (D:\zPython\opencode\packages\opencode\test\cli\tui\session-live-text-fixture.tsx:35:43)
+ LIVE_TEXT_STAND
+
+
+  ┃
+  ┃  REGULAR_REQUEST
+  ┃
+  ┃  UTC: 2026-10-15T10:31:54.283Z
+  ┃
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+157 |   }
+158 |   if (graph) {
+159 |     const preparing = observations.find((v) => v.phase === "preparing-graph")
+160 |     expect(preparing.status).toEqual({ type: "busy", message: "preparing code graph" })
+161 |     expect(preparing.providerCalls).toBe(0)
+162 |     expect(frames.preparing).toContain("preparing code graph")
+                                   ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "preparing code graph"
+Received: "LIVE_TEXT_STAND                                                                                     \n       
+                                                                                              \n                         
+                                                                           \n  ┃                                        
+                                                         \n  ┃  REGULAR_REQUEST                                         
+                                       \n  ┃                                                                            
+                     \n  ┃  UTC: 2026-10-15T10:31:54.283Z                                                               
+   \n  ┃                                                                                                 \n             
+                                                                                       \n                               
+                                                                     \n                                                 
+                                                   \n                                                                   
+                                 \n                                                                                     
+               \n                                                                                                    \n 
+                                                                                                    \n                   
+                                                                                 \n                                     
+                                                               \n                                                       
+                                             \n                                                                         
+                           \n                                                                                           
+         \n                                                                                                    \n       
+                                                                                              \n                         
+                                                                           \n                                           
+                                                         \n                                                             
+                                       \n                                                                               
+                     \n                                                                                                 
+   \n                                                                                                    \n             
+                                                                                       \n                               
+                                                                     \n                                                 
+                                                   \n                                                                   
+                                 \n                                                                                     
+               \n                                                                                                    \n 
+                                                                                                    \n"
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\server\httpapi-prompt-start.test.ts:162:30)
+(fail) ordinary HTTP prompt starts before compact (graph preparation: %s) [15090.64ms]
+
+ 1 pass
+ 1 fail
+ 16 expect() calls
+Ran 2 tests across 1 file. [27.91s]

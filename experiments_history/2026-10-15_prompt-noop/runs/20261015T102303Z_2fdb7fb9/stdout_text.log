@@ -1,0 +1,28 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+111 |   for (const mode of ["regular", "async"]) {
+112 |     const sample = observations.find((v) => v.mode === mode)
+113 |     expect(sample.messages.some((m: any) => m.info.role === "assistant" && m.parts.some((p: any) =>
+114 |       p.type === "text" && p.text === (mode === "regular" ? "REGULAR_REPLY" : "ASYNC_REPLY")))).toBe(true)
+115 |   }
+116 |   if (graph) expect(observations.find((v) => v.phase === "preparing-graph").status).toEqual({ type: "busy" })
+                                                                                          ^
+error: expect(received).toEqual(expected)
+
+- {
+-   "type": "busy",
+- }
++ null
+
+- Expected  - 3
++ Received  + 1
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\server\httpapi-prompt-start.test.ts:116:85)
+(fail) ordinary HTTP prompt starts inference before any compact command [4616.47ms]
+
+ 0 pass
+ 1 fail
+ 3 expect() calls
+Ran 1 test across 1 file. [11.54s]

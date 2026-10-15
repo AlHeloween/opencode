@@ -1,0 +1,31 @@
+{"mode": "typecheck", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "run", "typecheck"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+{"mode": "typecheck", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "run", "typecheck"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+$ tsgo --noEmit
+test/tool/universalsearch.test.ts(200,49): error TS2339: Property 'scope' does not exist on type 'SourceStamp'.

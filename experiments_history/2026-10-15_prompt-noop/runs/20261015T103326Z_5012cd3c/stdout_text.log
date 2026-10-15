@@ -1,0 +1,36 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'D:\\zPython\\opencode\\node_modules\\prettier\\bin\\prettier.cjs', '--write', 'src/session/graph-prebuild.ts', 'test/server/httpapi-prompt-start.test.ts', 'test/session/graph-prebuild-progress.test.ts', 'test/mcp/fixture/held-graph-server.ts', 'test/mcp/fixture/held-graph-sync.ts', 'test/cli/tui/session-live-text-fixture.tsx']
+src/session/graph-prebuild.tssrc/session/graph-prebuild.ts 252ms
+test/server/httpapi-prompt-start.test.tstest/server/httpapi-prompt-start.test.ts 215ms
+test/session/graph-prebuild-progress.test.tstest/session/graph-prebuild-progress.test.ts 46ms
+test/mcp/fixture/held-graph-server.tstest/mcp/fixture/held-graph-server.ts 27ms
+test/mcp/fixture/held-graph-sync.tstest/mcp/fixture/held-graph-sync.ts 8ms (unchanged)
+test/cli/tui/session-live-text-fixture.tsxtest/cli/tui/session-live-text-fixture.tsx 376ms (unchanged)

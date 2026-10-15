@@ -1573,6 +1573,7 @@ export const layer = Layer.effect(
       function* (sessionID: SessionID) {
         const ctx = yield* InstanceState.context
         const slog = elog.with({ sessionID })
+        yield* status.set(sessionID, { type: "busy" })
         let structured: unknown | undefined
         let step = 0
         /** Cached filterCompactedEffect result — messages are immutable within a
@@ -1626,6 +1627,7 @@ export const layer = Layer.effect(
               .map((part) => part.text)
               .join("\n")
             if (graphPrebuildDecision({ taskText, worktree: ctx.worktree }) === "build") {
+              yield* status.set(sessionID, { type: "busy", message: "preparing code graph" })
               const context = yield* buildGraphContext({ worktree: ctx.worktree, taskText }).pipe(
                 Effect.catchCause((cause) => {
                   elog.error("graph pre-build failed — turn proceeds", { sessionID, error: Cause.squash(cause) })

@@ -19,6 +19,7 @@ export const Info = Schema.Union([
   }),
   Schema.Struct({
     type: Schema.Literal("busy"),
+    message: Schema.optional(Schema.String),
   }),
   Schema.Struct({
     type: Schema.Literal("summarizing"),

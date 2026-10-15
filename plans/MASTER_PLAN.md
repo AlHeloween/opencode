@@ -98,6 +98,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 [Ремонт подтверждённого TUI Revert](../plans_completed/2026-10-14_session-revert-repair.md) — проверка результата выбранного отката в idle/busy и сохранение ввода при отказе; доказательства и границы находятся в плане.
 <!-- sv: session-revert,result-confirmation,regression -->
 
+[Видимая подготовка запроса](../plans_completed/2026-10-15_prompt-noop-http.md) — принятый запрос показывает этап CodeGraph до запуска модели; HTTP, native кадр, отмена и границы проверки находятся в плане.
+<!-- sv: prompt-preparation,visible-progress,cancellation -->
+
 ## Standing rules that outlive any plan
 
 [Живой текст после Revert](../plans_completed/2026-10-15_revert-live-text.md) — воспроизведение исчезающего текста и ремонт полного snapshot/фильтра строк; кадры и границы проверки находятся в плане.

@@ -1,0 +1,61 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts', 'test/session/graph-prebuild-progress.test.ts']
+bun test v1.4.2 (744846f84)['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts', 'test/session/graph-prebuild-progress.test.ts']
+bun test v1.4.2 (744846f84)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+test\server\httpapi-prompt-start.test.ts:
+(pass) ordinary HTTP prompt starts before compact (graph preparation: %s) [5917.05ms]
+73 |               signal: AbortSignal.timeout(45_000),
+74 |             })
+75 |             if (graph && mode === "regular") {
+76 |               const deadline = Date.now() + 10_000
+77 |               while (!existsSync(path.join(control, "entered"))) {
+78 |                 if (Date.now() > deadline) throw new Error("graph fixture never received preparation request")
+                                                          ^
+error: graph fixture never received preparation request
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\server\httpapi-prompt-start.test.ts:78:54)
+(fail) ordinary HTTP prompt starts before compact (graph preparation: %s) [15172.88ms]
+
+test\session\graph-prebuild-progress.test.ts:
+15 |   const binary = path.join(stand.path, process.platform === "win32" ? "codegraph.cmd" : "codegraph")
+16 |   await fs.writeFile(binary, process.platform === "win32"
+17 |     ? `@echo off\r\n"${process.execPath}" "${fixture}"\r\n`
+18 |     : `#!/bin/sh\nexec '${process.execPath}' '${fixture}'\n`, { mode: 0o755 })
+19 |   const env = { ...process.env, PATH: stand.path + path.delimiter + process.env.PATH }
+20 |   expect(resolveCodegraphBin(env)).toBe(binary)
+                                        ^
+error: expect(received).toBe(expected)Expected: "D:\zPython\opencode\.temp\test\opencode-test-1lorty8chy4\codegraph.cmd"
+Received: "D:\zPython\opencode\.temp\test\opencode-test-1lorty8chy4\codegraph.CMD"
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\session\graph-prebuild-progress.test.ts:20:36)
+(fail) codegraph sync leaves the event loop available for progress and cancellation [11.54ms]
+
+ 1 pass
+ 2 fail
+ 7 expect() calls
+Ran 3 tests across 2 files. [29.10s]

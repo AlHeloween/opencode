@@ -1,0 +1,43 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+(pass) ordinary HTTP prompt starts before compact (graph preparation: %s) [6357.56ms]
+TypeError: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()
+  path: "http://127.0.0.1:51260/session/ses_ec0e2ceb1ffeMj1HmcOde1FF4d/message",
+ errno: 0,
+  code: "ECONNRESET"(fail) ordinary HTTP prompt starts before compact (graph preparation: %s) [12603.85ms]
+
+ 1 pass
+ 1 fail
+ 6 expect() calls
+Ran 2 tests across 1 file. [61.40s]

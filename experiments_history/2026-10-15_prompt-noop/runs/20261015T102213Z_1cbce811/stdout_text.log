@@ -1,0 +1,23 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/server/httpapi-prompt-start.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\server\httpapi-prompt-start.test.ts:
+warn: Bun.serve() timed out a request after 10 seconds. Pass `idleTimeout` to configure.
+59 |               metadata: { graph_prebuild: true } }))
+60 |             return sid
+61 |           }
+62 |           for (const mode of ["regular", "async"] as const) {
+63 |             const sid = await inProject(() => seed("HTTP launch control " + mode))
+64 |             const response = await fetch(new URL(`/session/${sid}/${mode === "regular" ? "message" : "prompt_async"}`, server.url), {
+                                        ^
+TypeError: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()
+  path: "http://127.0.0.1:64697/session/ses_ec0ea6fc2ffeSWJT2LkuUplQEa/message",
+ errno: 0,
+  code: "ECONNRESET"
+
+      at async <anonymous> (D:\zPython\opencode\packages\opencode\test\server\httpapi-prompt-start.test.ts:64:36)
+(fail) ordinary HTTP prompt starts inference before any compact command [13696.14ms]
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [19.17s]

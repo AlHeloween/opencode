@@ -1,0 +1,103 @@
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/tool/universalsearch.test.ts']
+bun test v1.4.2 (744846f84)
+
+test\tool\universalsearch.test.ts:
+['C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe', 'test', 'test/tool/universalsearch.test.ts']    
+bun test v1.4.2 (744846f84)
+
+test\tool\universalsearch.test.ts:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(pass) tool.universalsearch > omitted source defaults to hybrid [36.41ms]
+(pass) tool.universalsearch > hybrid timeout clears the measured maximum [23.50ms]
+(pass) tool.universalsearch > researcher_agent with source "code" is no longer refused [1251.78ms]
+(pass) tool.universalsearch > researcher_agent with source "hybrid" is no longer refused [438.27ms]
+(pass) tool.universalsearch > researcher_agent with source "agent" is no longer refused [721.85ms]
+176 |     }
+177 | 
+178 |     test("labels a web hit [Web] and shows its title, description and rung", async () => {
+179 |       using server = fakeService([webHit])
+180 |       const result = await execHybrid(server.url.toString())
+181 |       expect(result.output).toContain("[Web]")
+                                  ^
+error: expect(received).toContain(expected)Expected to contain: "[Web]"
+Received: "# Hybrid Search Results for \"q\"\n\n_Results from local code search (first) and Sourcegraph (second)_\n\n## 1. [Sourcegraph] https://effect.website/docs/requirements-services\n**URL:** https://effect.website/docs/requirements-services\n\n"      at <anonymous> (D:\zPython\opencode\packages\opencode\test\tool\universalsearch.test.ts:181:29)
+(fail) tool.universalsearch > tool.universalsearch hybrid output > labels a web hit [Web] and shows its title, description and rung [385.48ms]
+187 |     })
+188 | 
+189 |     test("labels a sourcegraph hit [Code · Sourcegraph] and prints rung, stamp with scope", async () => {
+190 |       using server = fakeService([sourcegraphHit])
+191 |       const result = await execHybrid(server.url.toString())
+192 |       expect(result.output).toContain("[Code · Sourcegraph]")
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "[Code · Sourcegraph]"
+Received: "# Hybrid Search Results for \"q\"\n\n_Results from local code search (first) and Sourcegraph (second)_\n\n## 
+ 1. [Sourcegraph] src/auth/session.ts\n**Repository:** github.com/example/repo\n\nLine 42: `const session = createSession
+n()`\n\n**URL:** https://github.com/example/repo/blob/main/src/auth/session.ts#L42\n\n"
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\tool\universalsearch.test.ts:192:29)
+(fail) tool.universalsearch > tool.universalsearch hybrid output > labels a sourcegraph hit [Code · Sourcegraph] and pri
+ints rung, stamp with scope [83.98ms]
+201 |     })
+202 |
+203 |     test("prints per-leg counts and a current header", async () => {
+204 |       using server = fakeService([webHit, sourcegraphHit])
+205 |       const result = await execHybrid(server.url.toString())
+206 |       expect(result.output).toContain("sourcegraph_results: 1")
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "sourcegraph_results: 1"
+Received: "# Hybrid Search Results for \"q\"\n\n_Results from local code search (first) and Sourcegraph (second)_\n\n## 
+ 1. [Sourcegraph] https://effect.website/docs/requirements-services\n**URL:** https://effect.website/docs/requirements-se
+ervices\n\n## 2. [Sourcegraph] src/auth/session.ts\n**Repository:** github.com/example/repo\n\nLine 42: `const session = 
+ createSession()`\n\n**URL:** https://github.com/example/repo/blob/main/src/auth/session.ts#L42\n\n"
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\tool\universalsearch.test.ts:206:29)
+(fail) tool.universalsearch > tool.universalsearch hybrid output > prints per-leg counts and a current header [50.77ms]
+209 |     })
+210 |
+211 |     test("a zero on the code leg is visible", async () => {
+212 |       using server = fakeService([webHit])
+213 |       const result = await execHybrid(server.url.toString())
+214 |       expect(result.output).toContain("sourcegraph_results: 0")
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "sourcegraph_results: 0"
+Received: "# Hybrid Search Results for \"q\"\n\n_Results from local code search (first) and Sourcegraph (second)_\n\n## 
+ 1. [Sourcegraph] https://effect.website/docs/requirements-services\n**URL:** https://effect.website/docs/requirements-se
+ervices\n\n"
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\tool\universalsearch.test.ts:214:29)
+(fail) tool.universalsearch > tool.universalsearch hybrid output > a zero on the code leg is visible [45.50ms]
+
+ 5 pass
+ 4 fail
+ 21 expect() calls
+Ran 9 tests across 1 file. [7.54s]

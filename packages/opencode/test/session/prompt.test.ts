@@ -3,6 +3,7 @@ import { FetchHttpClient } from "effect/unstable/http"
 import { expect, setDefaultTimeout } from "bun:test"
 import { Cause, Effect, Exit, Fiber, Layer } from "effect"
 import path from "path"
+import { mkdirSync } from "fs"
 import { fileURLToPath } from "url"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { Agent as AgentSvc } from "../../src/agent/agent"
@@ -209,7 +210,7 @@ const lsp = Layer.succeed(
 const status = SessionStatus.layer.pipe(Layer.provideMerge(Bus.layer))
 const run = SessionRunState.layer.pipe(Layer.provide(status))
 const infra = Layer.mergeAll(NodeFileSystem.layer, CrossSpawnSpawner.defaultLayer)
-function makeHttp(summaryLayer = summary) {
+function makeHttp(summaryLayer = summary, mcpLayer = mcp) {
   const deps = Layer.mergeAll(
     Session.defaultLayer,
     SnapshotFossil.defaultLayer,
@@ -222,7 +223,7 @@ function makeHttp(summaryLayer = summary) {
     Config.defaultLayer,
     ProviderSvc.defaultLayer,
     lsp,
-    mcp,
+    mcpLayer,
     AppFileSystem.defaultLayer,
     status,
   ).pipe(Layer.provideMerge(infra))
@@ -2882,6 +2883,162 @@ it.live("stop-check continues once when the turn declares a blocked outcome with
           msg.parts.some((part) => part.type === "text" && part.metadata?.stop_check === "stop-claim"),
       )
       expect(injected).toHaveLength(1)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
+// ── Graph pre-build (plan 2026-10-15_graph-first-read-not-scan.md T6) ──
+// Owner correction 1: «перед выполнением задачи надо построить граф» — at the start of a task the
+// HOST itself runs the incremental sync + codegraph explore with the task text and attaches the
+// result to the opening turn, before the model's first tool call. The mock answers
+// codegraph_explore so the attach path is exercised without a real MCP server; the default `mcp`
+// mock (callTool hard-fails) is the failing-explore control.
+const GRAPH_TEXT = "# CodeGraph pack (pre-build)\n\n- session/processor.ts: SessionProcessor (3 callers)\n- session/prompt.ts: runLoop (2 callers)\n"
+const graphMcp = Layer.succeed(
+  MCP.Service,
+  MCP.Service.of({
+    status: () => Effect.succeed({}),
+    clients: () => Effect.succeed({}),
+    tools: () => Effect.succeed({}),
+    prompts: () => Effect.succeed({}),
+    resources: () => Effect.succeed({}),
+    add: () => Effect.succeed({ status: { status: "disabled" as const } }),
+    connect: () => Effect.void,
+    disconnect: () => Effect.void,
+    getPrompt: () => Effect.succeed(undefined),
+    readResource: () => Effect.succeed(undefined),
+    startAuth: () => Effect.die("unexpected MCP auth in prompt-effect tests"),
+    authenticate: () => Effect.die("unexpected MCP auth in prompt-effect tests"),
+    finishAuth: () => Effect.die("unexpected MCP auth in prompt-effect tests"),
+    removeAuth: () => Effect.void,
+    supportsOAuth: () => Effect.succeed(false),
+    hasStoredTokens: () => Effect.succeed(false),
+    getAuthStatus: () => Effect.succeed("not_authenticated" as const),
+    callTool: (_server: string, tool: string) =>
+      tool === "codegraph_explore"
+        ? Effect.succeed(GRAPH_TEXT)
+        : Effect.fail(new Error("MCP callTool mock: not connected (hard-fail)")),
+  }),
+)
+const itGraph = testEffect(makeHttp(summary, graphMcp))
+
+function graphPrebuildParts(msgs: any[]) {
+  return msgs
+    .flatMap((m: any) => m.parts)
+    .filter((part: any) => part.type === "text" && part.synthetic === true && part.metadata?.graph_prebuild !== undefined)
+}
+
+itGraph.live("graph pre-build attaches the graph context to the opening turn", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ dir, llm }) {
+      mkdirSync(path.join(dir, ".codegraph"), { recursive: true })
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Prebuild",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "find the turn-start hook" }],
+      })
+      yield* llm.text("world")
+      const result = yield* prompt.loop({ sessionID: chat.id })
+      expect(result.info.role).toBe("assistant")
+
+      const msgs = yield* sessions.messages({ sessionID: chat.id })
+      const attached = graphPrebuildParts(msgs as any)
+      expect(attached).toHaveLength(1)
+      expect((attached[0] as any).text).toContain("CodeGraph pack")
+
+      // The pre-built graph counts as the session's codegraph call: a scanner runs freely.
+      const { scannerGate } = yield* Effect.promise(() => import("../../src/session/graph-first"))
+      expect(scannerGate({ sessionID: chat.id, tool: "grep", worktree: dir })).toBeUndefined()
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
+it.live("graph pre-build attaches nothing without .codegraph/", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ llm }) {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Prebuild no index",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "find the turn-start hook" }],
+      })
+      yield* llm.text("world")
+      yield* prompt.loop({ sessionID: chat.id })
+      const msgs = yield* sessions.messages({ sessionID: chat.id })
+      expect(graphPrebuildParts(msgs as any)).toHaveLength(0)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
+it.live("graph pre-build proceeds when the explore fails", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ dir, llm }) {
+      mkdirSync(path.join(dir, ".codegraph"), { recursive: true })
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Prebuild failing explore",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "find the turn-start hook" }],
+      })
+      yield* llm.text("world")
+      const result = yield* prompt.loop({ sessionID: chat.id })
+      // The turn PROCEEDS: the assistant reply arrives, no part is attached.
+      expect(result.info.role).toBe("assistant")
+      expect(result.parts.some((part) => part.type === "text" && part.text === "world")).toBe(true)
+      const msgs = yield* sessions.messages({ sessionID: chat.id })
+      expect(graphPrebuildParts(msgs as any)).toHaveLength(0)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
+itGraph.live("graph pre-build respects the opt-out env", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ dir, llm }) {
+      mkdirSync(path.join(dir, ".codegraph"), { recursive: true })
+      process.env["OPENCODE_GRAPH_FIRST"] = "0"
+      try {
+        const prompt = yield* SessionPrompt.Service
+        const sessions = yield* Session.Service
+        const chat = yield* sessions.create({
+          title: "Prebuild opt-out",
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        })
+        yield* prompt.prompt({
+          sessionID: chat.id,
+          agent: "build",
+          noReply: true,
+          parts: [{ type: "text", text: "find the turn-start hook" }],
+        })
+        yield* llm.text("world")
+        yield* prompt.loop({ sessionID: chat.id })
+        const msgs = yield* sessions.messages({ sessionID: chat.id })
+        expect(graphPrebuildParts(msgs as any)).toHaveLength(0)
+      } finally {
+        delete process.env["OPENCODE_GRAPH_FIRST"]
+      }
     }),
     { git: true, config: providerCfg },
   ),

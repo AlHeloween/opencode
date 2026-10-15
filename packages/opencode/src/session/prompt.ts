@@ -123,6 +123,8 @@ import { zod } from "@/util/effect-zod"
 import { withStatics } from "@/util/schema"
 import * as EffectLogger from "@opencode-ai/core/effect/logger"
 import { InstanceState } from "@/effect/instance-state"
+import { PREBUILD_KEY, buildGraphContext, graphPrebuildDecision } from "./graph-prebuild"
+import { markPrebuilt } from "./graph-first"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
 import { EffectBridge } from "@/effect/bridge"
@@ -1598,6 +1600,42 @@ export const layer = Layer.effect(
         let titleRequested = false
         const session = yield* sessions.get(sessionID)
 
+
+        // Graph pre-build (plan T6, owner correction 1: «перед выполнением задачи надо построить
+        // граф»): once per turn at the loop's start the HOST builds the graph — incremental sync,
+        // then explore with the task text — and attaches the result to the opening user message as
+        // a synthetic part the model sees before its first tool call. A failure is logged and the
+        // turn proceeds; the pre-built graph counts as the session's codegraph call (graph-first
+        // latch), so the backstop never refuses the session that just received the graph. Hooked
+        // HERE, not in prompt(): the loop is the turn's actual start — a noReply prompt records a
+        // message without opening work, and the harness drives loop() directly.
+        const prebuildUser = yield* sessions.findMessage(sessionID, (m) => m.info.role === "user")
+        if (Option.isSome(prebuildUser)) {
+          const taskText = prebuildUser.value.parts
+            .filter((part): part is MessageV2.TextPart => part.type === "text" && part.synthetic !== true)
+            .map((part) => part.text)
+            .join("\n")
+          if (graphPrebuildDecision({ taskText, worktree: ctx.worktree }) === "build") {
+            const context = yield* buildGraphContext({ worktree: ctx.worktree, taskText }).pipe(
+              Effect.catchCause((cause) => {
+                elog.error("graph pre-build failed — turn proceeds", { sessionID, error: Cause.squash(cause) })
+                return Effect.succeed(undefined)
+              }),
+            )
+            if (context) {
+              yield* sessions.updatePart({
+                id: PartID.ascending(),
+                messageID: prebuildUser.value.info.id,
+                sessionID,
+                type: "text",
+                text: `[graph pre-build] The host built the CodeGraph for this task before your first tool call — files, symbols, call paths, blast radius:\n\n${context}`,
+                synthetic: true,
+                metadata: { [PREBUILD_KEY]: true },
+              })
+              markPrebuilt(sessionID)
+            }
+          }
+        }
         // The capture that used to leave this hook is gone (owner, 2026-09-22:
         // «summary как sidecar не надо генерить вовсе. Совсем.», bff5f50f7a). What
         // the cadence hook still drives is the CHECKPOINT — the model-ready frame

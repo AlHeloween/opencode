@@ -55,6 +55,14 @@ export function noteToolCall(sessionID: string, tool: string): void {
   latch(sessionID).codegraph = true
 }
 
+/**
+ * The host's turn-start graph pre-build (graph-prebuild.ts) counts as the session's codegraph
+ * call — the session that just received the graph is never refused by the scanner backstop.
+ */
+export function markPrebuilt(sessionID: string): void {
+  latch(sessionID).codegraph = true
+}
+
 export function hasCodegraphDir(worktree: string): boolean {
   return existsSync(path.join(worktree, ".codegraph"))
 }

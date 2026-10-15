@@ -40,6 +40,25 @@ Search functionality:
   Fossil's NFA regex engine is safe from ReDoS attacks.
   Results are in reverse chronological order (newest first).
 
+## Comment mode — search the timeline by MEANING
+
+Every snapshot check-in's comment carries the turn's SEMANTIC VECTOR (docs/fossil-snapshot.md §2.0.1):
+
+    auto-snapshot sv:<md5> dominant=<one-line focus> Keywords: topic 0.35, … md5: … prev-md5: …
+
+so the timeline is searchable by MEANING, not only by file content:
+
+- «when did we work on X» → searchComments(repo, "X") over the dominant text
+- «which turn changed Y and why» → the result carries the changed files (mlink) beside the dominant
+- «find the turn with vector <md5>» → search by the 32-hex md5 itself
+
+Measured on this repo's snapshot.fsl (2026-10-15): 418 check-ins, 203 (48.6%) carry the vector,
+215 are bare `auto-snapshot` (undo/redo boundaries and read-only turns write no vector — they
+match only by their literal text). Comment text is read from `event.comment` in full (max 734
+chars measured); `fossil timeline` output truncates it, so the search reads the column itself.
+
+Read-only: `fossil sql -R <repo>` over `event JOIN blob` — never a repo write. A repo that
+cannot be opened is NAMED in the error (an auditable zero, never a silent skip).
 Regex dialect: POSIX extended regular expressions (no backreferences, no lookaround, no backtracking — guaranteed O(nm) complexity).
 
 Limitations:

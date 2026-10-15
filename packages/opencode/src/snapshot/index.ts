@@ -105,6 +105,13 @@ export interface Interface {
    * Hard-fails when the CodeGraph index is missing — never soft-returns an empty success.
    */
   readonly lastImpact: () => Effect.Effect<ImpactSummary>
+  /**
+   * THE PROJECT CELL (plan 2026-10-15_project-fossil-cell.md): the wiki card once (create-if-missing,
+   * self-healing after a reinit), then ONE chat technote per call — the turn-end boundary passes one
+   * per turn. Lives IN the snapshot repo (B1 verdict: the lifecycle never touches wiki/ticket events).
+   * No-op when snapshot is disabled or the repo is absent; failures are logged, never thrown.
+   */
+  readonly cellPost: (input: { sessionID: string; agent?: string; sign?: string }) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Snapshot") {}

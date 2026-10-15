@@ -14,6 +14,7 @@ import { Service as SnapshotService, type Interface, type Patch, type FileDiff, 
 import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
 import { packGraphForFiles, packToImpactFields } from "@/codegraph/sqlite-pack"
 import { composeIgnoreGlob } from "./ignore-glob"
+import * as Cell from "./cell"
 
 const log = Log.create({ service: "snapshot-fossil" })
 
@@ -686,6 +687,29 @@ export const layer = Layer.effect(
             }).pipe(Effect.orDie),
           )
         })
+        /**
+         * THE PROJECT CELL (plan 2026-10-15_project-fossil-cell.md): the wiki card once, then one
+         * chat technote per call. The processor fires it at the turn-end boundary — once per turn,
+         * like the commit above. Gated on snapshot being enabled and the repo existing; the whole
+         * thing runs under the same per-repo semaphore as every other fossil call, and a failure is
+         * logged, never thrown — a cell that cannot be written must not break the turn that tried.
+         */
+        const cellPost = Effect.fnUntraced(function* (input: { sessionID: string; agent?: string; sign?: string }) {
+          if (!(yield* enabled())) return
+          const repoExists = yield* fs.exists(repoPath).pipe(Effect.catch(() => Effect.succeed(false)))
+          if (!repoExists) {
+            log.debug("cell post skipped — no snapshot repo", { repoPath })
+            return
+          }
+          yield* locked(
+            Effect.tryPromise(() => Cell.cellPost(FOSSIL_BIN, repoPath, worktree, input)).pipe(
+              Effect.catch((e) => {
+                log.warn("bug: cell post failed", { repoPath, sessionID: input.sessionID, error: String(e) })
+                return Effect.void
+              }),
+            ),
+          )
+        })
 
         const opId = Effect.fnUntraced(function* () {
           return yield* locked(
@@ -1170,6 +1194,7 @@ export const layer = Layer.effect(
         return {
           cleanup: () => Effect.void,
           track,
+          cellPost,
           opId,
           opRestore,
           checkpoint: opId,
@@ -1196,6 +1221,9 @@ export const layer = Layer.effect(
       }),
       track: Effect.fn("SnapshotFossil.track")(function* (files?: string[], sign?: string) {
         return yield* InstanceState.useEffect(state, (s) => s.track(files, sign))
+      }),
+      cellPost: Effect.fn("SnapshotFossil.cellPost")(function* (input: { sessionID: string; agent?: string; sign?: string }) {
+        return yield* InstanceState.useEffect(state, (s) => s.cellPost(input))
       }),
       checkpoint: Effect.fn("SnapshotFossil.checkpoint")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.opId())

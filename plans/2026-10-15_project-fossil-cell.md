@@ -62,6 +62,51 @@ Owner, 2026-10-15, verbatim: «у нас есть fossil каждого прое
   reinit path) and `src/snapshot/fossil.ts` (ensureInit, checkout, extras cleanup). Wiki/ticket events live in
   the SAME sqlite file the snapshots live in — a reinit DELETES them. Record the verdict in this plan.
   <!-- sv: lifecycle-survival, evidence-first -->
+
+## B1 verdict — measured + read from code (2026-10-15)
+
+**The cell lives IN snapshot.fsl — no sibling repo.** Evidence:
+
+1. ✓ The normal lifecycle never touches non-checkout data: `track()` → `fossil commit` (working-copy
+   files only), `checkoutTo` → `fossil checkout --force <leaf>` (working-copy files only), `revertTo`
+   → same checkout path. No `fossil rebuild`/`prune`/`delete` call exists anywhere in
+   `src/snapshot/**` (grep). Wiki/ticket events live in the same SQLite file and are not checkout
+   state — `docs/fossil-snapshot.md` §3: "History in .fsl is not erased".
+2. ✓ The "silent close+delete" is checkout-marker cleanup only: `fossil close --force` +
+   `clearCheckoutMarkers` remove `_FOSSIL_`/`_fossil` in the worktree (fossil.ts:66-71, 350-351,
+   376-377) — never the repo file.
+3. ✓ The ONE destructive path is corruption reinit (fossil.ts:423-437): backup `snapshot.fsl` →
+   `.bak.<ts>`, remove, reinit, write `HISTORY_INVALID.json`. That destroys cell data — but it is
+   exactly as fragile as the undo timeline itself, it keeps a full backup, and the wiki card is
+   re-derived (create-if-missing at the next cell post), so the card self-heals; chat technotes are
+   historical and lost only on that same corruption event that already loses the timeline.
+4. ✓ Measured headless writes: `fossil wiki -R <repo> create Project <file> --mimetype
+   text/x-markdown` creates, `list` shows it, `export Project -` reads it back (probe on a fixture
+   repo, run 20261015T080148Z_98b51dde). Technotes: `fossil wiki create <name> <file> --technote now
+   --technote-tags chat` — the exact shape org.py's `create_technote` uses in production.
+5. ✓ org.fossil (the organization) already carries its own cell: 183 wiki events, 322 ticket events
+   (read-only count). The per-project cell does not duplicate it: local wiki/chat/tickets stay
+   per-project; cross-project delegation stays in org.
+
+## B2 design — roles, one copy each
+
+- **wiki** — one page `Project` per project in snapshot.fsl. Content: POINTERS ONLY (one-copy
+  rule) — each bullet included only when its target exists on disk at generation time: AGENTS.md,
+  README.md, docs/README.md, plans/MASTER_PLAN.md, plus the chat/tickets read routes. Never
+  restates their content.
+- **chat** — one TECHNOTE per turn (`--technote now --technote-tags chat`), comment
+  `chat <agent>: <dominant ≤80ch | no vector declared> (session <id8>)`, body carries agent,
+  session, time, dominant. Fired by the runtime at the turn-end boundary (processor `turnEnds`,
+  the same place the snapshot commit is forked) — once per turn, background, failures logged never
+  thrown. The dominant comes from the same `vectorSign` the commit already carries. Plan ref:
+  RESIDUAL — the runtime has no session→plan binding to read cheaply; the dominant is the turn's
+  focus and the plan lives in the session transcript.
+- **tickets** — PROPOSAL (owner decides, no build): local tickets live in snapshot.fsl's own ticket
+  table (default fields, `fossil ticket add/set -R`); cross-project delegation stays in org.fossil
+  (its schema already carries root_task/parent_task/lease fields). No second delegation system.
+- **upkeep** — the card is create-if-missing at the first cell post of each process (self-healing
+  after a reinit); the measurable «in order» predicate: the `Project` page exists AND ≥1 chat
+  technote exists. A deeper periodic audit is the orchestrator's check, not a new scheduler.
 - [ ] B2 design (in this plan, before code): roles without a second copy —
   **wiki**: one «Project» card per project pointing to AGENTS.md/README/docs (one-copy rule, never restating);
   **chat**: every robot session posts a short report at turn end AUTOMATICALLY (runtime hook, once per turn,
@@ -72,6 +117,8 @@ Owner, 2026-10-15, verbatim: «у нас есть fossil каждого прое
   <!-- sv: one-copy-rule, turn-granularity, no-second-delegation -->
 - [ ] B3 first slice: the wiki card (one page, markdown, written once per project) + the automatic chat post
   at the turn boundary. <!-- sv: first-slice, wiki-card, chat-post -->
+- [ ] B4 cell tests: fixture repo — card created + idempotent, technote per post, repo-missing no-op. <!-- sv: cell-oracle -->
+- [ ] B5 typecheck + green + commit naming this plan. <!-- sv: oracle, commit -->
 
 ## Phase C — the federation (owner, same day)
 

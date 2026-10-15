@@ -1303,7 +1303,8 @@ export const layer: Layer.Layer<
               // by it (`fossilgrep sv:<md5>`) instead of only by time. A turn that wrote no vector
               // commits unsigned, which reads as unsigned rather than as "the same as always".
               const startedAt = Date.now()
-              yield* snapshot.track(undefined, vectorSign(ctx.textBuilder.toString())).pipe(
+              const sign = vectorSign(ctx.textBuilder.toString())
+              yield* snapshot.track(undefined, sign).pipe(
                 Effect.catch(() => Effect.succeed(undefined as string | undefined)),
                 Effect.flatMap((hash) =>
                   session
@@ -1331,6 +1332,23 @@ export const layer: Layer.Layer<
                 ),
                 Effect.forkDetach,
               )
+              // THE LOCAL CELL (plan 2026-10-15_project-fossil-cell.md B3): the chat report rides
+              // the same turn-end boundary as the commit above — once per turn, forked background,
+              // failures logged never thrown. The dominant is the sign the commit already carries;
+              // a turn whose reply wrote no vector reports exactly that.
+              yield* snapshot
+                .cellPost({ sessionID: ctx.sessionID, agent: input.agentName, sign })
+                .pipe(
+                  Effect.catchCause((cause) =>
+                    Effect.sync(() =>
+                      log.warn("bug: cell post failed", {
+                        sessionID: ctx.sessionID,
+                        error: Cause.squash(cause),
+                      }),
+                    ),
+                  ),
+                  Effect.forkDetach,
+                )
             }
             // Accumulate session-level token/cost totals and publish the fresh
             // cumulative to the TUI (session.updated patch) — without the

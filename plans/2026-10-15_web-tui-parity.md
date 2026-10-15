@@ -85,7 +85,7 @@ Invariant for every status built here (AGENTS.md): a value or `unknown`, never b
 <!-- sv: Keywords: parity-table 0.6, measured-sources 0.4; dominant: the measured table itself is the deliverable; md5: c63fa03082d5c7184e3e60190c8d7163 -->
 - [x] W2 RED then GREEN: web Active Sessions block shows busy/retry sessions with title/agent/model/state/elapsed and `none active` when idle, from the same `session_status` source (RED 20261015T135202Z_64a23729 exit 1 missing module; GREEN 20261015T135251Z_2f836972 8/8; typecheck 20261015T135544Z_8b08cb04 exit 0; parity 20261015T135626Z_d5197a41; layout 20261015T135640Z_8cff4095)
 <!-- sv: Keywords: web-active-sessions-block 0.4, same-status-source 0.3, parity-table 0.3; dominant: web Active Sessions block on the same session.status source with tests first; md5: a41d8e2f70b3a5962d1c4e0f8a6b5941 -->
-- [ ] W3 sidebar status rows in web (protocol, model per agent/scope, plan once pinned, VCS tri-state), value-or-`unknown`
+- [ ] W3 sidebar status rows in web (protocol, model per agent/scope, plan once pinned, VCS tri-state), value-or-`unknown` (landed slice: protocol-facts helper+test 15/15 GREEN 20261015T140432Z_ce62b042, typecheck 20261015T140500Z_d87f167e exit 0; grounded: same bus event, subscribe on global emitter key "global", no server change; UI wiring still open)
 <!-- sv: Keywords: sidebar-status-rows 0.5, value-or-unknown 0.5; dominant: every web status shows a value or unknown, never blank; md5: d74ab14193e6d8295f4f71201d9e8274 -->
 - [ ] W4 agent/model dialog with scopes through the SAME server path (no behind-the-back writes)
 <!-- sv: Keywords: scoped-dialog 0.5, same-write-path 0.5; dominant: web writes go through the TUI's own routes; md5: e85bc25204f7d930606082123e0af9385 -->

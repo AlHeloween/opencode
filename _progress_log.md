@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-15] t49 review-round — binding-only ticket route + cap raises (план plans/2026-10-15_kernel-one-copy-ticket-route.md)
+
+✓ CONFIRMED (review Smit: content PASS 9a13ea8ad8): ирония one-copy устранена — из add-on'ов убран пересказ нормы, остался только host binding «Kernel owner = org login `claude`; ticket route: …» во всех 4 вариантах; тест нормы остался на source.py (INTENTION_RESET), тест binding'а — на add-ons.
+✓ CONFIRMED (python -m pytest prompt_kernel/tests/test_kernel_one_copy.py -q exit0): 16 pass. Full suite: 297 pass / 3 fail — только install-currency гарды (production prompt, cursor receiver, claude installed; STOP перед --install).
+✓ MEASURED (probe через pytest -s): байты product 66651 / claude 66443 / codex 66362 / cursor 66404 — все ≤ 67 000; слова 8887 / 8951 / 8897 / 8973. Капы claude+cursor 8 900 → 9 000 с датированным комментарием (owner standing word: raise, never cut); остальные капы (product, codex, dedup, pre-action) зелёные без поднятия после ужатия binding'а. Проба t49_probe_tmp.py удалена.
+— Остаток: --install (receivers) — Claude/владелец.
+<!-- sv: binding-only 0.35, cap-raise-measured 0.30, review-pass 0.20, install-pending 0.15 -->
 ## [2026-10-15] t49 — kernel one copy + ticket route to kernel owner (план plans/2026-10-15_kernel-one-copy-ticket-route.md)
 
 ✓ CONFIRMED (python -m pytest prompt_kernel/tests/test_kernel_one_copy.py -q exit0): 16 pass — one-copy clause в INTENTION_RESET во всех 4 вариантах, ticket route (org login `claude`, delegate --assignee claude) в G1 VCS_ROLES во всех 4 вариантах, mutation controls (drop never-restate/ticket-route/assignee → fail), qualified-tool clause в G7 product+codex + его mutation control. RED-база зафиксирована до правок (14/14 fail).
@@ -8,6 +15,14 @@
 ✓ MEASURED (python -m prompt_kernel [--codex|--claude|--cursor]): байты product 66749 / codex 66460 / claude 66541 / cursor 66502 — все ≤ 67 000 (бюджет-жёсткий потолок держит, запас 251 B). Токены 8906/8916/8970/8992 против тестовых капов 8900 и pre-action 7886 против 7800 — 5 капов требуют решения владельца (поднять по измерению); тесты НЕ смягчались. Full suite: 292 pass / 8 fail = 3 install-currency (STOP перед --install, Claude ревьюит) + 5 капов.
 — Скратч prompt_kernel/t49_inspect_tmp.py и prompt_kernel/tests/t49_inspect_tmp.py удалены. Остаток: решение по 5 токен-капам + --install — Claude/владелец.
 <!-- sv: kernel-one-copy 0.30, ticket-route 0.25, variant-parity 0.20, tests-first 0.15, cap-measured 0.10 -->
+## [2026-10-15] Видимая подготовка обычного запроса
+
+✓ Воспроизведено невидимое ожидание CodeGraph до первого loop: `20261015T102303Z_2fdb7fb9`, status=null, providerCalls=0; после release HTTP работает. RunLoop теперь сразу busy, Prompt показывает `preparing code graph`. CLI sync асинхронен, timeout/отмена завершает дерево процессов через Shell.killTree.
+✓ После отдельного RED на застрявшей подписи status заменяется reconcile. `20261015T104749Z_22dfd0be`: 4 pass / 31 assertions, HTTP + stdio MCP + native кадры preparing/working/reply, repeat/async/cancel/restart, sync child killed. Регрессии: 37 pass / 104 assertions (`20261015T104750Z_d3f2a2dd`) и 6 pass / 11 assertions (`20261015T103420Z_2de151fa`). Typecheck `20261015T104743Z_d8198efe` exit0. Недостающее optional scope в типе source_stamps описано без ослабления assertion.
+✓ `_build.ps1`: `20261015T104858Z_d9d64687` exit0, candidate10.0.1357, version/embedded-prompt smoke. План: `plans_completed/2026-10-15_prompt-noop-http.md`; доказательства: `experiments_history/2026-10-15_prompt-noop/`.
+Границы: stdio MCP и native TUI/serialized Bus, не живой LLM/SSE; bin и данные XEComponents не менялись. RED baseline параллельного hybrid formatter (5 pass / 4 fail, `20261015T104233Z_6d606fc3`) сохранён и учтён в его активном плане; общий all-tests PASS не заявляется.
+<!-- sv: prompt-preparation,visible-progress,cancellation,independent-oracle -->
+
 ## [2026-10-15] Revert — живой текст без переключения сессии
 
 ✓ Воспроизведено на полном native Session: `20261015T092157Z_515e9085`, сервер очистил revert, клиент сохранил старый курсор, новый text есть в store, кадр пуст; A→B→A показывает тот же ответ. Причина: полный session.updated после JSON ошибочно мёржился, второй JSX Match скрывал все новые id.

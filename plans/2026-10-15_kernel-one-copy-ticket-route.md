@@ -36,7 +36,7 @@ Owner (2026-10-15, verbatim): «надо явно прописать в керн
 - [x] T4 — variant-parity hole (t48 addendum): addons.py TOOL_IMPLEMENT gains the clause (сделано + 2 теста: product+codex GREEN; claude/cursor exempt с причиной)
   addons_codex.py:165 carries — «AST edits need a qualified tool; source-writing scripts are not a
   substitute» — as one clause into the opencode registry, tested per variant.
-- [ ] T5 — GREEN: T1 tests pass ✓ (16/16); full suite → 292 pass / 8 fail = 3 install-currency (by design, STOP перед --install) + 5 токен-капов (нужно решение владельца, тесты НЕ смягчались)
+- [x] T5 — GREEN: T1 16/16 ✓; full suite 297 pass / 3 fail — только install-currency гарды (by design, STOP перед --install). Review-round: binding-only ticket route; капы claude+cursor 8 900 → 9 000 с датированным комментарием (raise, never cut).
   install-currency guards (test_variant_parity `test_claude_kernel_is_installed_current`,
   `test_cursor_rule_receiver_is_current`, `test_codex_artifact_is_current` — the installed
   receivers are deliberately NOT refreshed: STOP before `--install`, Claude reviews).

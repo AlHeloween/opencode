@@ -139,7 +139,8 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 2026-10-15: restored historical reward contract measures 8_750; finite next band.
     # 2026-10-15 (t44 B4/B5): run-limit exit + portfolio completion term measure 8_855 —
     # the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 8_900
+    # 2026-10-15 (t49 review, owner standing word: raise, never cut): one-copy norm in PERSISTED_CRITERION + binding-only ticket route in VCS_ROLES measure 8_951 — the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 9_000
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

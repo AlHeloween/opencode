@@ -49,9 +49,8 @@ TICKET_RULE_PART = (
 
 # The host binding, one place per variant, where the org.fossil line already lives (G1 VCS_ROLES).
 TICKET_ROUTE_CLAUSE = (
-    "Kernel owner = org login `claude`; a kernel or skill defect or gap is filed as a ticket to "
-    "the kernel owner: python $ORG_HOME/genesis/org.py delegate --assignee claude --title <ticket> "
-    "--comment <evidence: reproducer, receipt>"
+    "Kernel owner = org login `claude`; ticket route: python $ORG_HOME/genesis/org.py delegate "
+    "--assignee claude --title <ticket> --comment <evidence: reproducer, receipt>."
 )
 TICKET_ROUTE_PART = (
     "python $ORG_HOME/genesis/org.py delegate --assignee claude --title <ticket>"

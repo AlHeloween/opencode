@@ -120,10 +120,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 248 |
-| plans active | 25 |
-| tasks passed / total | 1088 / 1354 |
-| open boxes | 123 |
+| plans completed | 249 |
+| plans active | 24 |
+| tasks passed / total | 1092 / 1354 |
+| open boxes | 119 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -330,23 +330,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source" · keywords [contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20]
   - TASK-2 [PENDING] · sv [independent-verification 0.6, evidence 0.4] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_universalsearch-hybrid-default.md` — 4 open / 5 box(es) · lifecycle UNKNOWN
-  sv: intention "the tool's default source is `web` and every path shares one 60 s client timeout, so the
-default call is a pure-web call and a real hybrid call (measured up to 64 s) is aborted by our own client -> the default resolves to `hybrid` (owner, 2026-10-15: «давай перейдем на гибрид… из code выборок часто
-вылазят ссылки на научные публикации так что это реально удобно чтобы быстро получить inferred медоиды»)
-and the hybrid path carries its own client timeout derived from the measured baseline plus the service's
-own 50 s upstream bound; web/code timeouts unchanged; SOURCE_ROUTING stays in the description" · keywords [Keywords: hybrid-default 0.30, timeout-derivation 0.25, baseline-measured 0.20, source-routing 0.15, red-first 0.10
-Semantic dominant: universalsearch defaults to hybrid so one call grounds code and papers, and the hybrid path gets a client timeout derived from the measured baseline and the service's own 50 s upstream cap — never a bare number from recall.
-md5: b7e4d29c6a13f85de90b2c4718fa6d3a
-prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000]
-  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 ## The checks
 
-This body names all 27 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 26 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

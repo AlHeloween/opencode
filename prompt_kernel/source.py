@@ -762,7 +762,12 @@ PROTOCOLS = (
             _rule("INTENTION_RESET", "TARGET_RESTATED", "User restates/replaces @DIGITAL_INTENTION.to_state mid-flow = only licensed move. Re-enter G0 with their words, not your reading."),
             _rule("INTENTION_RESET", "SUPERSEDED_TARGET", "Superseded to_state → OUT_OF_SCOPE or bounded @RESIDUAL_GOAL. Stamped evidence survives; only target/plan/geometry re-derived."),
             _rule("INTENTION_RESET", "SELF_DIVERGENCE", "@REASONING_MODE (no tools, perm memory) entered by user call or self on repeat failure (STALL per @LOOP_PROGRESS). Name contradictory self-states from trace (snapshot/diff/session) — not recollection (self-grading @ORACLE forbids). Name criteria that would've caught it, persist, resume G0. Product = durable falsifier, not apology."),
-            _rule("INTENTION_RESET", "PERSISTED_CRITERION", "Persisted criterion carries the @ANTI_CHURN closure record. Never restates protocol (rule in prefix = paid again in fold). Memory = local, measured, unrepeatable. Read at grounding, not only after fail: written never read ≠ memory. Replacing store = @MUTATION — keep replaced revision."),
+            # 2026-10-15 (t49, owner verbatim: «надо явно прописать в кернеле — не дублировать кернел в памяти и
+            # agents.md и отправлять тикеты по доработке кернела и скиллов»): the rule EXTENDED in place, no second
+            # copy — the kernel is the one copy; restatements drift and a session pays for the same rule two or three
+            # times (t48 dedup report), and a local patch is a fix nobody else gets. The host binding (owner login +
+            # ticket route) lives in the add-ons, one place per variant. «rule tag» spelled without @: the reference
+            _rule("INTENTION_RESET", "PERSISTED_CRITERION", "Persisted criterion carries the @ANTI_CHURN closure record. Never restates protocol (rule in prefix = paid again in fold): the kernel is the single copy — memory, AGENTS.md, skills and briefs never restate its rules, they point to the rule tag; a defect or gap found in the kernel or a skill is filed as a ticket to the kernel owner with its evidence (reproducer, receipt), never patched or restated locally. Memory = local, measured, unrepeatable. Read at grounding, not only after fail: written never read ≠ memory. Replacing store = @MUTATION — keep replaced revision."),
         ),
         fsm=INTENTION_RESET_FSM,
     ),

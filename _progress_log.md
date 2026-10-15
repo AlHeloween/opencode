@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-15] t49 — kernel one copy + ticket route to kernel owner (план plans/2026-10-15_kernel-one-copy-ticket-route.md)
+
+✓ CONFIRMED (python -m pytest prompt_kernel/tests/test_kernel_one_copy.py -q exit0): 16 pass — one-copy clause в INTENTION_RESET во всех 4 вариантах, ticket route (org login `claude`, delegate --assignee claude) в G1 VCS_ROLES во всех 4 вариантах, mutation controls (drop never-restate/ticket-route/assignee → fail), qualified-tool clause в G7 product+codex + его mutation control. RED-база зафиксирована до правок (14/14 fail).
+✓ CONFIRMED (source diff): PERSISTED_CRITERION расширено на месте (single copy, point to the rule tag без @ — @NAME отклонил validate как unresolved reference; host binding живёт в add-ons); ticket route — по одному месту на вариант в VCS_ROLES; addons.py TOOL_IMPLEMENT добрал «AST edits need a qualified tool…» (parity hole из t48).
+✓ MEASURED (python -m prompt_kernel [--codex|--claude|--cursor]): байты product 66749 / codex 66460 / claude 66541 / cursor 66502 — все ≤ 67 000 (бюджет-жёсткий потолок держит, запас 251 B). Токены 8906/8916/8970/8992 против тестовых капов 8900 и pre-action 7886 против 7800 — 5 капов требуют решения владельца (поднять по измерению); тесты НЕ смягчались. Full suite: 292 pass / 8 fail = 3 install-currency (STOP перед --install, Claude ревьюит) + 5 капов.
+— Скратч prompt_kernel/t49_inspect_tmp.py и prompt_kernel/tests/t49_inspect_tmp.py удалены. Остаток: решение по 5 токен-капам + --install — Claude/владелец.
+<!-- sv: kernel-one-copy 0.30, ticket-route 0.25, variant-parity 0.20, tests-first 0.15, cap-measured 0.10 -->
 ## [2026-10-15] Revert — живой текст без переключения сессии
 
 ✓ Воспроизведено на полном native Session: `20261015T092157Z_515e9085`, сервер очистил revert, клиент сохранил старый курсор, новый text есть в store, кадр пуст; A→B→A показывает тот же ответ. Причина: полный session.updated после JSON ошибочно мёржился, второй JSX Match скрывал все новые id.

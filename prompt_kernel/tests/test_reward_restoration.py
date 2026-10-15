@@ -33,10 +33,17 @@ HISTORICAL_REWARD_TEXT = (
 )
 
 COMPLETION_TERM = (
-    " Add plan_done_sum/(101 − plan_done_percent)^2 to R: "
-    "plan_done_sum is the sum over oracle-confirmed completed plans, "
-    "plan_done_percent = 100·completed_plans/total_plans, in the same frozen scope. "
-    "Omit an undefined completion term."
+    # 2026-10-15 (t44 B5, owner corrections 1-2): the completion term is PORTFOLIO-wide —
+    # plans_completed/(101 − pct)^2 with pct over completed + in-progress plans — plus a
+    # linear abandoned penalty at the critical-risk weight; postponed plans count in neither.
+    " Add plans_completed/(101 − pct)^2 to R: pct = "
+    "100·plans_completed/(plans_completed + plans_in_progress); in progress = plan "
+    "whose open tasks carry next action + continuation receipt, abandoned = one lacking "
+    "either; completed = acceptance (intention -> to_state) oracle-confirmed, ticked "
+    "boxes alone do not complete it; subtract 0.05·plans_abandoned (critical-risk "
+    "weight), vanishing once the plan finishes, continued with a receipt, or moved by "
+    "its outcome; postponed (owner decision + resume condition) counts in neither; "
+    "finish plans, not open and drop them."
 )
 EXPECTED_REWARD_TEXT = HISTORICAL_REWARD_TEXT + COMPLETION_TERM
 
@@ -69,11 +76,16 @@ CONTRACT_CLAUSES = (
 )
 
 COMPLETION_CLAUSES = (
-    "Add plan_done_sum/(101 − plan_done_percent)^2 to R:",
-    "plan_done_sum is the sum over oracle-confirmed completed plans,",
-    "plan_done_percent = 100·completed_plans/total_plans,",
-    "in the same frozen scope.",
-    "Omit an undefined completion term.",
+    "Add plans_completed/(101 − pct)^2 to R:",
+    "pct = 100·plans_completed/(plans_completed + plans_in_progress);",
+    "in progress = plan whose open tasks carry next action + continuation receipt,",
+    "abandoned = one lacking either;",
+    "completed = acceptance (intention -> to_state) oracle-confirmed,",
+    "ticked boxes alone do not complete it;",
+    "subtract 0.05·plans_abandoned (critical-risk weight),",
+    "vanishing once the plan finishes, continued with a receipt, or moved by its outcome;",
+    "postponed (owner decision + resume condition) counts in neither;",
+    "finish plans, not open and drop them.",
 )
 
 
@@ -141,3 +153,69 @@ def test_reward_restoration_budget_accepts_declared_66000_ceiling() -> None:
 def test_reward_restoration_budget_rejects_66001_above_finite_ceiling() -> None:
     errors = validate_kernel(replace(KERNEL, utf8_budget=66_001))
     assert any("66_000" in error or "66000" in error for error in errors), errors
+
+
+# 2026-10-15 (t44 B5, owner corrections 1-2): the completion term is PORTFOLIO-wide with a
+# linear abandoned penalty. The rejected shapes are mutation controls: a per-plan percentage
+# (correction 1), abandoned plans inside pct, a total that excludes open plans, a penalty
+# weight off the critical-risk weight, and postponed plans counted.
+PER_PLAN_COMPLETION_TERM = (
+    " Add Σ over plans p of done_p/(101 − pct_p)^2 to R: done_p = oracle-confirmed "
+    "completed tasks of plan p, pct_p = 100·done_p/total_p. "
+    "Omit an undefined completion term."
+)
+
+PORTFOLIO_FORMULA = "plans_completed/(101 − pct)^2"
+PCT_DEFINITION = "pct = 100·plans_completed/(plans_completed + plans_in_progress)"
+PENALTY_CLAUSE = "subtract 0.05·plans_abandoned (critical-risk weight)"
+POSTPONED_CLAUSE = "postponed (owner decision + resume condition) counts in neither"
+
+
+def test_completion_guard_rejects_per_plan_percentage() -> None:
+    rendered = _render_reward(KERNEL, "product")
+    assert PORTFOLIO_FORMULA in rendered
+    assert "done_p" not in rendered
+    mutant = _with_reward_text(HISTORICAL_REWARD_TEXT + PER_PLAN_COMPLETION_TERM)
+    with pytest.raises(AssertionError):
+        assert PORTFOLIO_FORMULA in _render_reward(mutant, "product")
+
+
+def test_completion_guard_rejects_abandoned_plans_inside_pct() -> None:
+    assert PCT_DEFINITION in _render_reward(KERNEL, "product")
+    mutant = _with_reward_text(
+        EXPECTED_REWARD_TEXT.replace(
+            PCT_DEFINITION,
+            "pct = 100·plans_completed/(plans_completed + plans_in_progress + plans_abandoned)",
+        )
+    )
+    with pytest.raises(AssertionError):
+        assert PCT_DEFINITION in _render_reward(mutant, "product")
+
+
+def test_completion_guard_rejects_total_excluding_open_plans() -> None:
+    mutant = _with_reward_text(
+        EXPECTED_REWARD_TEXT.replace(PCT_DEFINITION, "pct = 100·plans_completed/plans_completed")
+    )
+    with pytest.raises(AssertionError):
+        assert PCT_DEFINITION in _render_reward(mutant, "product")
+
+
+def test_completion_guard_rejects_penalty_weight_off_the_critical_risk_weight() -> None:
+    assert PENALTY_CLAUSE in _render_reward(KERNEL, "product")
+    mutant = _with_reward_text(
+        EXPECTED_REWARD_TEXT.replace(PENALTY_CLAUSE, "subtract 0.10·plans_abandoned (critical-risk weight)")
+    )
+    with pytest.raises(AssertionError):
+        assert PENALTY_CLAUSE in _render_reward(mutant, "product")
+
+
+def test_completion_guard_rejects_postponed_plans_counted() -> None:
+    assert POSTPONED_CLAUSE in _render_reward(KERNEL, "product")
+    mutant = _with_reward_text(
+        EXPECTED_REWARD_TEXT.replace(
+            POSTPONED_CLAUSE,
+            "postponed (owner decision + resume condition) counts in plans_in_progress",
+        )
+    )
+    with pytest.raises(AssertionError):
+        assert POSTPONED_CLAUSE in _render_reward(mutant, "product")

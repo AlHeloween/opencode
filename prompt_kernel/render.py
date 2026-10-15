@@ -259,7 +259,7 @@ def render_kernel(
         "",
         f"precedence: {' > '.join(kernel.precedence)}",
         "reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name.",
-        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, interrupt, terminal, or protocol return. Terminal ends this run; protocols cannot reopen it.",
+        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, interrupt, terminal, or protocol return. Terminal ends this run; protocols cannot reopen it. A finite run limit also ends the run: at G9 with CLEAN_NEXT_STATE (completed, residual, next action, continuation receipt), the task open — not a terminal, never a WAITING_APPROVAL; a delegated run's budgets come from its delegator's brief.",
         "terms:",
     ])
     for name, description in kernel.terms.items():

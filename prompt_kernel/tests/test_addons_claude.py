@@ -137,7 +137,9 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # R1e mandatory strategy/portfolio inputs: measured 8_547.
     # 2026-10-14 (t42, stop-claim release): measured 8 685 — the next band above the measurement.
     # 2026-10-15: restored historical reward contract measures 8_750; finite next band.
-    assert normalized_token_count(text) <= 8_800
+    # 2026-10-15 (t44 B4/B5): run-limit exit + portfolio completion term measure 8_855 —
+    # the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 8_900
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

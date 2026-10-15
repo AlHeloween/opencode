@@ -185,4 +185,7 @@ def test_compacted_runtime_budget() -> None:
     # R1e mandatory strategy/portfolio inputs: measured 8_470.
     # 2026-10-14 (t42, stop-claim release): measured 8 608 — the next band above the measurement; caps raised,
     # nothing cut (owner: «64 - 65 без разницы, главное чтобы работало»).
-    assert normalized_token_count(text) <= 8_700
+    # 2026-10-15 (t44 B4/B5): the run-limit exit in control_flow_rule (owner verbatim) and the
+    # portfolio completion term + abandoned penalty (owner corrections 1-2) measure 8_778 —
+    # the next band above the measurement; caps raised, nothing cut.
+    assert normalized_token_count(text) <= 8_800

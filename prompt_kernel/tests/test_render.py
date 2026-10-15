@@ -7,6 +7,10 @@ import pytest
 
 from prompt_kernel import KERNEL, kernel_digest, render_kernel, render_review, write_artifacts
 from prompt_kernel.render import _named_rule_ids
+from prompt_kernel.addons import GATE_ADDONS
+from prompt_kernel.addons_claude import CLAUDE_GATE_ADDONS
+from prompt_kernel.addons_codex import CODEX_GATE_ADDONS
+from prompt_kernel.addons_cursor import CURSOR_GATE_ADDONS
 
 
 def test_runtime_is_map_first_and_progressively_refined() -> None:
@@ -22,6 +26,44 @@ def test_runtime_is_map_first_and_progressively_refined() -> None:
     offsets = tuple(text.index(section) for section in sections)
     assert offsets == tuple(sorted(offsets))
     assert text[: offsets[0]].strip() == ""
+
+# 2026-10-15 (t44 B4, owner: «Давай закроем дырку»): the run-limit exit is RENDERED law in
+# control_flow_rule — the one place the deviation grammar speaks. A finite run limit ends the
+# RUN at G9 with CLEAN_NEXT_STATE, the task open; it is not a terminal and never a
+# WAITING_APPROVAL (the audit's F1 dead end), and a delegated run's budgets come from its
+# delegator's brief. No copy lives in the G9 rules, @LOOP_PROGRESS or the interrupt edge.
+RUN_LIMIT_SENTENCE = (
+    "A finite run limit also ends the run: at G9 with CLEAN_NEXT_STATE "
+    "(completed, residual, next action, continuation receipt), the task open — "
+    "not a terminal, never a WAITING_APPROVAL; a delegated run's budgets come "
+    "from its delegator's brief."
+)
+
+VARIANTS = {
+    "product": (GATE_ADDONS, None),
+    "claude": (CLAUDE_GATE_ADDONS, ()),
+    "codex": (CODEX_GATE_ADDONS, ()),
+    "cursor": (CURSOR_GATE_ADDONS, ()),
+}
+
+
+def _control_flow_rule_line(rendered: str) -> str:
+    return next(line for line in rendered.splitlines() if line.startswith("control_flow_rule:"))
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_control_flow_rule_carries_run_limit_exit(variant) -> None:
+    assert RUN_LIMIT_SENTENCE in _control_flow_rule_line(render_kernel(KERNEL, *VARIANTS[variant]))
+
+
+def test_run_limit_exit_guard_rejects_dropped_clauses() -> None:
+    line = _control_flow_rule_line(render_kernel(KERNEL))
+    assert RUN_LIMIT_SENTENCE in line
+    for dropped in ("not a terminal, never a WAITING_APPROVAL; ", "the task open — "):
+        mutant_line = line.replace(dropped, "")
+        assert mutant_line != line
+        with pytest.raises(AssertionError):
+            assert RUN_LIMIT_SENTENCE in mutant_line
 
 
 def test_identity_headings_are_entity_names_not_host_slugs() -> None:

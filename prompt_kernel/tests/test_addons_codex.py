@@ -119,7 +119,9 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 8_500 -> 8_600 (2026-10-13, exit audit cases C/D): the symmetric testimony clause + the effect-receipt slot in the shared ASSERTION_STATUS binding; measured 8_509 — the next band above the measurement.
     # 2026-10-14 (t42, stop-claim release): measured 8 631 — the next band above the measurement.
     # 2026-10-15: reward restoration plus task-completion term measures 8_723; finite next band.
-    assert normalized_token_count(text) <= 8_800
+    # 2026-10-15 (t44 B4/B5): run-limit exit + portfolio completion term measure 8_801 —
+    # the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 8_900
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

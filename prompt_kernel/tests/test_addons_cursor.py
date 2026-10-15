@@ -92,7 +92,9 @@ def test_cursor_variant_stays_within_explicit_budget() -> None:
     # R1d structural MCP precedes scanners: measured 8_405, bounded next band.
     # R1e mandatory strategy/portfolio inputs: measured 8_569.
     # 2026-10-14 (t42, stop-claim release): measured 8 707 — the next band above the measurement.
-    assert normalized_token_count(text) <= 8_800
+    # 2026-10-15 (t44 B4/B5): run-limit exit + portfolio completion term measure 8_877 —
+    # the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 8_900
 
 
 def test_cursor_addon_render_is_deterministic_lf() -> None:

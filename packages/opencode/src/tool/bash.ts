@@ -34,6 +34,7 @@ import {
 } from "./shell-constitution"
 import { cmdRunnerTailBlock } from "./cmd-runner-tail"
 import { CMD_FILES, CMD_SAFE, CWD, FILES, POWERSHELL_FILES, POWERSHELL_SAFE, SAFE } from "./shell-sets"
+import { docReadBlock } from "@/session/doc-read"
 import { commands, getParser, hasRedirection, parseShell, parts, source, unquote as tsUnquote } from "@/shell/tree-sitter"
 export { invalidatePermissionCache } from "./permission-cache"
 
@@ -721,6 +722,10 @@ export const BashTool = Tool.define<
               if (cmdRunnerPayload) {
                 yield* enforceBrutalDestructiveOnly(cmdRunnerPayload, ctx, params.description)
               }
+              // Docs are read, not scanned (plans/2026-10-15_graph-first-read-not-scan.md T4):
+              // a python/node script over a doc's TEXT is refused with the route to `read`.
+              const docBlock = docReadBlock(scanCommand)
+              if (docBlock) throw new Error(docBlock)
               const scan = yield* collect(root, cwd, ps, shell, isCmd)
               if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
 

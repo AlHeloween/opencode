@@ -3,6 +3,7 @@ import { Schema } from "effect"
 import { Effect, Option } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
+import { scannerGate } from "@/session/graph-first"
 import { Ripgrep } from "../file/ripgrep"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import DESCRIPTION from "./grep.txt"
@@ -92,6 +93,10 @@ export const GrepTool = Tool.define(
             output: "No matches found",
           }
 
+          const ins = yield* InstanceState.context
+          const gate = scannerGate({ sessionID: ctx.sessionID, tool: "grep", worktree: ins.worktree })
+          if (gate) throw new Error(gate.message)
+
           yield* ctx.ask({
             permission: "grep",
             patterns: [pattern],
@@ -103,7 +108,6 @@ export const GrepTool = Tool.define(
             },
           })
 
-          const ins = yield* InstanceState.context
           const search = AppFileSystem.resolve(
             path.isAbsolute(params.path ?? ins.directory)
               ? (params.path ?? ins.directory)

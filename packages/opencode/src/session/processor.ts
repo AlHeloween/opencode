@@ -50,6 +50,7 @@ import { SessionSummary } from "./summary"
 import type { Provider } from "@/provider/provider"
 import { Question } from "@/question"
 import { Constitution } from "./constitution"
+import { noteToolCall as noteGraphFirstCall } from "./graph-first"
 import { errorMessage } from "@/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { isRecord } from "@/util/record"
@@ -711,6 +712,9 @@ export const layer: Layer.Layer<
           output: output.output,
           metadata: output.metadata,
         })
+        // Graph-first latch: a completed codegraph call marks the session graph-aware
+        // (plans/2026-10-15_graph-first-read-not-scan.md T3).
+        noteGraphFirstCall(ctx.sessionID, match.part.tool)
         const nudge = Constitution.epistemicNudge({
           tool: match.part.tool,
           evidenceFloor: ctx.evidenceFloor,

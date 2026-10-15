@@ -27,6 +27,7 @@ import {
   splitCmdRunnerSend,
 } from "./shell-constitution"
 import { cmdRunnerTailBlock } from "./cmd-runner-tail"
+import { docReadBlock } from "@/session/doc-read"
 import { getParser, parseShell } from "@/shell/tree-sitter"
 import { CMD_FILES, CMD_SAFE, CWD, POWERSHELL_FILES, POWERSHELL_SAFE } from "./shell-sets"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
@@ -517,6 +518,10 @@ export const CmdTool = Tool.define<
           // Eliminates regex false positives from commit messages, quoted strings, etc.
           // isCmd=true for cmd.exe batch grammar, isCmd=false for PowerShell grammar.
           yield* enforceDestructiveShellFromAst(root, !ps, ctx, params.description)
+          // Docs are read, not scanned (plans/2026-10-15_graph-first-read-not-scan.md T4):
+          // a python/node script over a doc's TEXT is refused with the route to `read`.
+          const docBlock = docReadBlock(scanCommand)
+          if (docBlock) throw new Error(docBlock)
           if (cmdRunnerPayload) {
             yield* enforceBrutalDestructiveOnly(cmdRunnerPayload, ctx, params.description)
           }

@@ -2,6 +2,7 @@ import path from "path"
 import { Effect, Schema } from "effect"
 import * as Stream from "effect/Stream"
 import { InstanceState } from "@/effect/instance-state"
+import { scannerGate } from "@/session/graph-first"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Ripgrep } from "../file/ripgrep"
 import { assertExternalDirectoryEffect } from "./external-directory"
@@ -74,6 +75,8 @@ export const ListTool = Tool.define(
         Effect.gen(function* () {
           const ins = yield* InstanceState.context
           const searchPath = path.resolve(ins.directory, params.path || ".")
+          const gate = scannerGate({ sessionID: ctx.sessionID, tool: "list", worktree: ins.worktree })
+          if (gate) throw new Error(gate.message)
           yield* assertExternalDirectoryEffect(ctx, searchPath, { kind: "directory" })
 
           yield* ctx.ask({

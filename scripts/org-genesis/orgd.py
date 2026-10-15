@@ -277,8 +277,21 @@ def wake(uuid: str, kind: str, key: str, session_id: str, worktree: str, text: s
     return "sent"
 
 
+def maintenance_marker() -> Path:
+    """Bin-promotion drain gate (t55): promote_bin.py writes this file while a promotion runs.
+    While it exists orgd withholds every wake — dispatchers send nothing new mid-swap."""
+    return HOME / "maintenance"
+
+
+def in_maintenance() -> bool:
+    return maintenance_marker().exists()
+
+
 def tick() -> list[str]:
     actions: list[str] = []
+    if in_maintenance():
+        log_once("maintenance", "maintenance marker present — wakes withheld (bin promotion in progress)")
+        return actions
     now_s = int(time.time())
     for t in tickets():
         state = str(t["agent_state"] or "").upper()

@@ -122,8 +122,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 246 |
 | plans active | 24 |
-| tasks passed / total | 1064 / 1324 |
-| open boxes | 117 |
+| tasks passed / total | 1066 / 1325 |
+| open boxes | 116 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -312,9 +312,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_kernel-continuation-without-blocked.md` — 2 open / 6 box(es) · lifecycle ACTIVE
+- `plans/2026-10-15_kernel-continuation-without-blocked.md` — 1 open / 6 box(es) · lifecycle ACTIVE
   sv: intention "Unknown и чужая ответственность превращаются в BLOCKED и остановку -> пробел ведёт к проверке/декомпозиции, чужой исполнитель к тикету/наблюдению/follow-up, родитель остаётся открыт до проверенного done" · keywords [task-continuation 0.45, unknown-decomposition 0.30, verified-delegation 0.25]
-  - TASK-2 [PENDING] · sv [oracle 0.6, generated-parity 0.4] · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv [pct-denominator 0.35, receipt-readback 0.30, quoted-postpone 0.20, budget-67000 0.15] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-15_kernel-undefined-contract-audit.md` — 1 open / 2 box(es) · lifecycle ACTIVE

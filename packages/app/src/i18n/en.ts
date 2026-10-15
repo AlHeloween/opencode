@@ -675,6 +675,8 @@ export const dict = {
   "sidebar.project.viewAllSessions": "View all sessions",
   "sidebar.project.clearNotifications": "Clear notifications",
   "sidebar.empty.title": "No projects open",
+  "sidebar.activeSessions.title": "Active Sessions",
+  "sidebar.activeSessions.none": "none active",
   "sidebar.empty.description": "Open a project to get started",
 
   "debugBar.ariaLabel": "Development performance diagnostics",

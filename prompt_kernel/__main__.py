@@ -9,11 +9,9 @@ from .addons_cursor import CURSOR_GATE_ADDONS, render_cursor_rule
 from .artifacts import DIST, DIST_CLAUDE, DIST_CODEX, DIST_CURSOR, write_artifacts
 from .cutover import (
     CLAUDE_KERNEL_PATH,
-    CODEX_KERNEL_PATH,
     CURSOR_KERNEL_PATH,
     PRODUCTION_PROMPT,
     install_claude_kernel,
-    install_codex_kernel,
     install_cursor_kernel,
     install_production,
 )
@@ -24,11 +22,12 @@ from .source import KERNEL
 def _codex_global() -> int:
     """ADID as Codex's global developer-instruction layer (spec §1, §7).
 
-    Not the same operation as `--codex --install`: that writes the kernel to
-    ~/.codex/AGENTS.md as a project document, subject to project_doc_max_bytes.
-    This writes `developer_instructions` to the USER config, which codex applies
-    as a developer-role message with no such cap and which project config cannot
-    shadow (it ignores that key).
+    The ONLY channel (t54, owner 2026-10-15): the former second writer
+    (`--codex --install` → ~/.codex/AGENTS.md) is retired — Codex loads that file
+    too, and two instruction sources conflict with the system prompt. This writes
+    `developer_instructions` to the USER config, which codex applies as a
+    developer-role message with no project_doc_max_bytes cap and which project
+    config cannot shadow (it ignores that key).
     """
     from . import codex_install as ci
 
@@ -81,12 +80,16 @@ def main() -> int:
         print(f"utf8_bytes={len(render_kernel(KERNEL, CODEX_GATE_ADDONS, ()).encode('utf-8'))}")
         print(f"sha256={kernel_digest(KERNEL, CODEX_GATE_ADDONS, ())}")
         print(f"dist={DIST_CODEX}")
+        # t54 (owner 2026-10-15, plans/2026-10-15_codex-one-channel-toml.md): the
+        # kernel reaches Codex ONLY through ADID's developer_instructions in
+        # config.toml — Codex 0.159.3 loads ~/.codex/AGENTS.md too, and two
+        # instruction sources conflict with the system prompt. The render above is
+        # the canon ADID consumes; `--codex-global` installs it.
         if "--install" in sys.argv:
-            digest = install_codex_kernel(kernel_path=CODEX_KERNEL_PATH, dist=DIST_CODEX)
-            print(f"codex_kernel={CODEX_KERNEL_PATH}")
-            print(f"installed={digest}")
+            print("codex_kernel=not_installed; the ~/.codex/AGENTS.md channel is retired (t54)")
+            print("codex_kernel_channel=ADID developer_instructions; python -m prompt_kernel --codex-global install")
             return 0
-        print(f"codex_kernel=not_updated; python -m prompt_kernel --codex --install to refresh {CODEX_KERNEL_PATH}")
+        print("codex_kernel=not_updated; ADID channel: python -m prompt_kernel --codex-global install")
         return 0
 
     if "--claude" in sys.argv:

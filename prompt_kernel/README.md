@@ -158,20 +158,21 @@ spends that many tokens up front. If that is not wanted, remove the
 python -m prompt_kernel --codex
 ```
 
-Artifacts are stamped under `prompt_kernel/dist_codex/`. Install the Codex host
-variant into the active global receiver with:
+Artifacts are stamped under `prompt_kernel/dist_codex/`. Codex receives the
+kernel ONLY through ADID's `developer_instructions` in `~/.codex/config.toml`
+(t54, owner 2026-10-15: the `~/.codex/AGENTS.md` channel is retired — Codex
+loads that file too, and two instruction sources conflict with the system
+prompt). ADID consumes the canon this render stamps; install it with:
 
 ```powershell
-python -m prompt_kernel --codex --install
+python -m prompt_kernel --codex-global install
 ```
 
-The receiver is `${CODEX_HOME}/AGENTS.md`, falling back to
-`~/.codex/AGENTS.md` when `CODEX_HOME` is unset. It is renderer-only generated
-content and is written atomically after kernel and migration validation plus a
-stamped-artifact equality check. A running Codex task keeps the prefix it
-started with; the installed variant becomes active for the next task.
+`--codex --install` writes no receiver any more: it prints the pointer to the
+ADID channel. A running Codex task keeps the prefix it started with; the
+installed variant becomes active for the next task.
 
-Re-render and install it in the same motion as product `--install` and Claude
+Re-render it in the same motion as product `--install` and Claude
 `--claude --install`, and check `addons_codex.py` whenever a sibling registry
 gains a host binding — a shared mechanism with no instrument named on this host
 is the defect the reverse-reachability check catches inside the graph and

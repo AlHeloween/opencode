@@ -140,12 +140,25 @@ def test_codex_cli_writes_artifacts_without_installing(tmp_path: Path, monkeypat
     assert {path.suffix for path in tmp_path.iterdir()} == {".json", ".mdc", ".txt"}
 
 
-def test_codex_cli_installs_renderer_output(tmp_path: Path, monkeypatch) -> None:
+# t54 (2026-10-15): test_codex_cli_installs_renderer_output is superseded — the
+# ~/.codex/AGENTS.md install target is retired (owner: the kernel reaches Codex
+# ONLY through ADID's developer_instructions in config.toml; a second channel
+# conflicts with the system instructions Codex loads). The render it pinned is
+# covered by test_codex_addons_render_host_tool_bindings and the pin below.
+
+
+def test_codex_install_writes_no_agents_md(tmp_path: Path, monkeypatch) -> None:
+    """t54 (owner 2026-10-15): the kernel reaches Codex ONLY through ADID's
+    developer_instructions in config.toml — a second channel in ~/.codex/AGENTS.md
+    conflicts with the system instructions Codex already loads (measured t47:
+    Codex 0.159.3 loads BOTH). No install path writes that file; the codex render
+    stays (ADID consumes the canon from dist_codex/).
+    """
     import prompt_kernel.__main__ as cli
 
     target = tmp_path / ".codex" / "AGENTS.md"
     monkeypatch.setattr(cli, "DIST_CODEX", tmp_path / "dist_codex")
-    monkeypatch.setattr(cli, "CODEX_KERNEL_PATH", target)
     monkeypatch.setattr(sys, "argv", ["prompt_kernel", "--codex", "--install"])
     assert cli.main() == 0
-    assert target.read_text(encoding="utf-8") == render_kernel(KERNEL, CODEX_GATE_ADDONS, ())
+    assert not target.exists()
+    assert {path.suffix for path in (tmp_path / "dist_codex").iterdir()} == {".json", ".mdc", ".txt"}

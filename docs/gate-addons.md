@@ -119,9 +119,12 @@ harness to `Read`/`Glob`/`Grep`, `Edit`/`Write`, LSP, AST Edit, Hub, Eval
 Browser access, Todo, Task, and mounted `codegraph_explore`.
 
 `python -m prompt_kernel --codex` writes reviewed/runtime artifacts to
-`prompt_kernel/dist_codex/`. `--codex --install` writes `$CODEX_HOME/AGENTS.md`
-(default `~/.codex/AGENTS.md`) — measured 2026-09-29, installed `b1c963e2…`; this
-paragraph used to say the command fails, which the code no longer does.
+`prompt_kernel/dist_codex/`. `--codex --install` no longer writes a receiver:
+the `~/.codex/AGENTS.md` channel it used to feed is retired (t54, 2026-10-15 —
+owner: the kernel reaches Codex ONLY through ADID's `developer_instructions` in
+`~/.codex/config.toml`, because Codex 0.159.3 loads both and two instruction
+sources conflict with the system prompt). The command prints the pointer to
+`--codex-global install`.
 
 Divergences from the ADID methodology (deliberate): `makeups/` is not bound —
 opencode bans mocks/stubs in tests; RAG indexing and the adm XML pipeline are

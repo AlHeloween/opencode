@@ -17,8 +17,7 @@ from prompt_kernel import (
     validate_migration,
     write_artifacts,
 )
-from prompt_kernel.cutover import cutover, install_claude_kernel, install_codex_kernel, install_production
-
+from prompt_kernel.cutover import cutover, install_claude_kernel, install_production
 
 ROOT = Path(__file__).resolve().parents[2]
 PRODUCTION = ROOT / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.txt"
@@ -128,12 +127,9 @@ def test_install_claude_kernel_writes_claude_addon_renderer_output(tmp_path: Pat
     assert expected != render_kernel()
 
 
-def test_install_codex_kernel_writes_codex_addon_renderer_output(tmp_path: Path) -> None:
-    from prompt_kernel.addons_codex import CODEX_GATE_ADDONS
-
-    target = tmp_path / ".codex" / "AGENTS.md"
-    digest = install_codex_kernel(kernel_path=target, dist=tmp_path / "dist_codex")
-    expected = render_kernel(KERNEL, CODEX_GATE_ADDONS, ())
-    assert target.read_text(encoding="utf-8") == expected
-    assert digest == hashlib.sha256(expected.encode("utf-8")).hexdigest()
-    assert expected != render_kernel()
+# t54 (2026-10-15): test_install_codex_kernel_writes_codex_addon_renderer_output
+# is superseded — install_codex_kernel and its ~/.codex/AGENTS.md receiver are
+# retired (owner: the kernel reaches Codex ONLY through ADID's
+# developer_instructions in config.toml). The codex render stays for ADID to
+# consume; its parity is pinned in test_addons_codex.py
+# (test_codex_addons_render_host_tool_bindings) and test_variant_parity.py.

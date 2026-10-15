@@ -1602,37 +1602,48 @@ export const layer = Layer.effect(
 
 
         // Graph pre-build (plan T6, owner correction 1: «перед выполнением задачи надо построить
-        // граф»): once per turn at the loop's start the HOST builds the graph — incremental sync,
-        // then explore with the task text — and attaches the result to the opening user message as
+        // граф»): once per SESSION, on the OPENING turn, the HOST builds the graph — incremental
+        // sync, then explore with the task text — and attaches the result to that user message as
         // a synthetic part the model sees before its first tool call. A failure is logged and the
         // turn proceeds; the pre-built graph counts as the session's codegraph call (graph-first
         // latch), so the backstop never refuses the session that just received the graph. Hooked
         // HERE, not in prompt(): the loop is the turn's actual start — a noReply prompt records a
         // message without opening work, and the harness drives loop() directly.
-        const prebuildUser = yield* sessions.findMessage(sessionID, (m) => m.info.role === "user")
-        if (Option.isSome(prebuildUser)) {
-          const taskText = prebuildUser.value.parts
-            .filter((part): part is MessageV2.TextPart => part.type === "text" && part.synthetic !== true)
-            .map((part) => part.text)
-            .join("\n")
-          if (graphPrebuildDecision({ taskText, worktree: ctx.worktree }) === "build") {
-            const context = yield* buildGraphContext({ worktree: ctx.worktree, taskText }).pipe(
-              Effect.catchCause((cause) => {
-                elog.error("graph pre-build failed — turn proceeds", { sessionID, error: Cause.squash(cause) })
-                return Effect.succeed(undefined)
-              }),
-            )
-            if (context) {
-              yield* sessions.updatePart({
-                id: PartID.ascending(),
-                messageID: prebuildUser.value.info.id,
-                sessionID,
-                type: "text",
-                text: `[graph pre-build] The host built the CodeGraph for this task before your first tool call — files, symbols, call paths, blast radius:\n\n${context}`,
-                synthetic: true,
-                metadata: { [PREBUILD_KEY]: true },
-              })
-              markPrebuilt(sessionID)
+        //
+        // Once per SESSION (owner review of b463c82d07): a session that already carries a
+        // graph_prebuild part never builds again — without this guard every further user turn
+        // (every correction, every stop-check continuation) paid sync+explore and attached
+        // another ~20-26 KB. Later turns that need structure call codegraph themselves (the
+        // backstop latch is already satisfied).
+        const built = yield* sessions.findMessage(sessionID, (m) =>
+          m.parts.some((part) => part.type === "text" && part.metadata?.[PREBUILD_KEY] !== undefined),
+        )
+        if (Option.isNone(built)) {
+          const prebuildUser = yield* sessions.findMessage(sessionID, (m) => m.info.role === "user")
+          if (Option.isSome(prebuildUser)) {
+            const taskText = prebuildUser.value.parts
+              .filter((part): part is MessageV2.TextPart => part.type === "text" && part.synthetic !== true)
+              .map((part) => part.text)
+              .join("\n")
+            if (graphPrebuildDecision({ taskText, worktree: ctx.worktree }) === "build") {
+              const context = yield* buildGraphContext({ worktree: ctx.worktree, taskText }).pipe(
+                Effect.catchCause((cause) => {
+                  elog.error("graph pre-build failed — turn proceeds", { sessionID, error: Cause.squash(cause) })
+                  return Effect.succeed(undefined)
+                }),
+              )
+              if (context) {
+                yield* sessions.updatePart({
+                  id: PartID.ascending(),
+                  messageID: prebuildUser.value.info.id,
+                  sessionID,
+                  type: "text",
+                  text: `[graph pre-build] The host built the CodeGraph for this task before your first tool call — files, symbols, call paths, blast radius:\n\n${context}`,
+                  synthetic: true,
+                  metadata: { [PREBUILD_KEY]: true },
+                })
+                markPrebuilt(sessionID)
+              }
             }
           }
         }

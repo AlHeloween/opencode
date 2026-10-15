@@ -3043,3 +3043,75 @@ itGraph.live("graph pre-build respects the opt-out env", () =>
     { git: true, config: providerCfg },
   ),
 )
+
+itGraph.live("graph pre-build builds once per session — a second user turn attaches nothing", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ dir, llm }) {
+      mkdirSync(path.join(dir, ".codegraph"), { recursive: true })
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Prebuild once",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+      // Opening turn: the graph is built and attached.
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "first task" }],
+      })
+      yield* llm.text("one")
+      yield* prompt.loop({ sessionID: chat.id })
+      // Second user turn: NO second build — the session already carries the graph.
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "second task" }],
+      })
+      yield* llm.text("two")
+      yield* prompt.loop({ sessionID: chat.id })
+      const msgs = yield* sessions.messages({ sessionID: chat.id })
+      expect(graphPrebuildParts(msgs as any)).toHaveLength(1)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
+it.live("graph pre-build never attaches for a synthetic user message", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ dir, llm }) {
+      mkdirSync(path.join(dir, ".codegraph"), { recursive: true })
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Prebuild synthetic",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+      // The stop-check continuation shape: a synthetic user message only — no real prompt.
+      const injected = yield* sessions.updateMessage({
+        id: MessageID.ascending(),
+        role: "user",
+        sessionID: chat.id,
+        agent: "build",
+        model: ref,
+        time: { created: Date.now() },
+      })
+      yield* sessions.updatePart({
+        id: PartID.ascending(),
+        messageID: injected.id,
+        sessionID: chat.id,
+        type: "text",
+        text: "continuation reason",
+        synthetic: true,
+        metadata: { stop_check: "question" },
+      })
+      yield* llm.text("world")
+      yield* prompt.loop({ sessionID: chat.id })
+      const msgs = yield* sessions.messages({ sessionID: chat.id })
+      expect(graphPrebuildParts(msgs as any)).toHaveLength(0)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)

@@ -33,17 +33,17 @@ HISTORICAL_REWARD_TEXT = (
 )
 
 COMPLETION_TERM = (
-    # 2026-10-15 (t44 B5, owner corrections 1-2): the completion term is PORTFOLIO-wide —
-    # plans_completed/(101 − pct)^2 with pct over completed + in-progress plans — plus a
-    # linear abandoned penalty at the critical-risk weight; postponed plans count in neither.
+    # 2026-10-15 (t44 B6, Claude's review of a0e15e87b5): abandoned plans ENTER the pct
+    # denominator (the abandon-exploit closed), the continuation receipt is read back from a
+    # result, the postpone decision is QUOTED.
     " Add plans_completed/(101 − pct)^2 to R: pct = "
-    "100·plans_completed/(plans_completed + plans_in_progress); in progress = plan "
-    "whose open tasks carry next action + continuation receipt, abandoned = one lacking "
-    "either; completed = acceptance (intention -> to_state) oracle-confirmed, ticked "
-    "boxes alone do not complete it; subtract 0.05·plans_abandoned (critical-risk "
-    "weight), vanishing once the plan finishes, continued with a receipt, or moved by "
-    "its outcome; postponed (owner decision + resume condition) counts in neither; "
-    "finish plans, not open and drop them."
+    "100·plans_completed/(plans_completed + plans_in_progress + plans_abandoned); in progress "
+    "= plan whose open tasks carry next action + a continuation receipt read back from a result "
+    "(ticket, dispatch or run id — a note is not a receipt), abandoned = one lacking either; "
+    "completed = acceptance (intention -> to_state) oracle-confirmed, ticked boxes alone do not "
+    "complete it; subtract 0.05·plans_abandoned (critical-risk weight), vanishing once the plan "
+    "finishes, is continued with such a receipt, or is moved by its outcome; postponed (a QUOTED "
+    "owner decision + resume condition) counts in neither; finish plans, not open and drop them."
 )
 EXPECTED_REWARD_TEXT = HISTORICAL_REWARD_TEXT + COMPLETION_TERM
 
@@ -77,14 +77,15 @@ CONTRACT_CLAUSES = (
 
 COMPLETION_CLAUSES = (
     "Add plans_completed/(101 − pct)^2 to R:",
-    "pct = 100·plans_completed/(plans_completed + plans_in_progress);",
-    "in progress = plan whose open tasks carry next action + continuation receipt,",
+    "pct = 100·plans_completed/(plans_completed + plans_in_progress + plans_abandoned);",
+    "in progress = plan whose open tasks carry next action + a continuation receipt read back from a result",
+    "(ticket, dispatch or run id — a note is not a receipt),",
     "abandoned = one lacking either;",
     "completed = acceptance (intention -> to_state) oracle-confirmed,",
     "ticked boxes alone do not complete it;",
     "subtract 0.05·plans_abandoned (critical-risk weight),",
-    "vanishing once the plan finishes, continued with a receipt, or moved by its outcome;",
-    "postponed (owner decision + resume condition) counts in neither;",
+    "vanishing once the plan finishes, is continued with such a receipt, or is moved by its outcome;",
+    "postponed (a QUOTED owner decision + resume condition) counts in neither;",
     "finish plans, not open and drop them.",
 )
 
@@ -146,19 +147,22 @@ def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> N
         assert clause in _render_reward(mutant, "product")
 
 
-def test_reward_restoration_budget_accepts_declared_66000_ceiling() -> None:
-    assert validate_kernel(replace(KERNEL, utf8_budget=66_000)) == []
+def test_reward_restoration_budget_accepts_declared_67000_ceiling() -> None:
+    # 2026-10-15 (t44 B6, Claude's review): the B6 fixes need ~+100 B; utf8_budget AND the
+    # validate.py hard ceiling step to the next band, 67 000 (owner standing word: «64 - 65 без
+    # разницы, главное чтобы работало»; the cap is a bloat guard, never a cut).
+    assert validate_kernel(replace(KERNEL, utf8_budget=67_000)) == []
 
 
-def test_reward_restoration_budget_rejects_66001_above_finite_ceiling() -> None:
-    errors = validate_kernel(replace(KERNEL, utf8_budget=66_001))
-    assert any("66_000" in error or "66000" in error for error in errors), errors
+def test_reward_restoration_budget_rejects_67001_above_finite_ceiling() -> None:
+    errors = validate_kernel(replace(KERNEL, utf8_budget=67_001))
+    assert any("67_000" in error or "67000" in error for error in errors), errors
 
 
-# 2026-10-15 (t44 B5, owner corrections 1-2): the completion term is PORTFOLIO-wide with a
-# linear abandoned penalty. The rejected shapes are mutation controls: a per-plan percentage
-# (correction 1), abandoned plans inside pct, a total that excludes open plans, a penalty
-# weight off the critical-risk weight, and postponed plans counted.
+# 2026-10-15 (t44 B6, Claude's review of a0e15e87b5): the rejected shapes are mutation controls:
+# a per-plan percentage (correction 1), a pct denominator WITHOUT plans_abandoned (the
+# abandon-exploit), a receipt not read back from a result, an unquoted owner decision, a total
+# that excludes open plans, a penalty weight off the critical-risk weight, postponed counted.
 PER_PLAN_COMPLETION_TERM = (
     " Add Σ over plans p of done_p/(101 − pct_p)^2 to R: done_p = oracle-confirmed "
     "completed tasks of plan p, pct_p = 100·done_p/total_p. "
@@ -166,9 +170,10 @@ PER_PLAN_COMPLETION_TERM = (
 )
 
 PORTFOLIO_FORMULA = "plans_completed/(101 − pct)^2"
-PCT_DEFINITION = "pct = 100·plans_completed/(plans_completed + plans_in_progress)"
+PCT_DEFINITION = "pct = 100·plans_completed/(plans_completed + plans_in_progress + plans_abandoned)"
+RECEIPT_CLAUSE = "a continuation receipt read back from a result (ticket, dispatch or run id — a note is not a receipt)"
 PENALTY_CLAUSE = "subtract 0.05·plans_abandoned (critical-risk weight)"
-POSTPONED_CLAUSE = "postponed (owner decision + resume condition) counts in neither"
+POSTPONED_CLAUSE = "postponed (a QUOTED owner decision + resume condition) counts in neither"
 
 
 def test_completion_guard_rejects_per_plan_percentage() -> None:
@@ -180,12 +185,16 @@ def test_completion_guard_rejects_per_plan_percentage() -> None:
         assert PORTFOLIO_FORMULA in _render_reward(mutant, "product")
 
 
-def test_completion_guard_rejects_abandoned_plans_inside_pct() -> None:
+def test_completion_guard_rejects_pct_denominator_without_abandoned() -> None:
+    # Claude's review finding 1: leaving abandoned plans out of the denominator lets abandoning an
+    # in-progress plan LIFT pct (9 completed + 1 in progress → abandon the one: 9/(101−100)² −
+    # 0.05 = 8.95). SUPERSEDES test_completion_guard_rejects_abandoned_plans_inside_pct, whose
+    # premise (abandoned excluded from pct) the review refuted.
     assert PCT_DEFINITION in _render_reward(KERNEL, "product")
     mutant = _with_reward_text(
         EXPECTED_REWARD_TEXT.replace(
             PCT_DEFINITION,
-            "pct = 100·plans_completed/(plans_completed + plans_in_progress + plans_abandoned)",
+            "pct = 100·plans_completed/(plans_completed + plans_in_progress)",
         )
     )
     with pytest.raises(AssertionError):
@@ -209,12 +218,32 @@ def test_completion_guard_rejects_penalty_weight_off_the_critical_risk_weight() 
         assert PENALTY_CLAUSE in _render_reward(mutant, "product")
 
 
+def test_completion_guard_rejects_a_receipt_not_read_back_from_a_result() -> None:
+    # Claude's review finding 2: a one-line «resuming later» note must not erase the penalty —
+    # the continuation receipt is READ BACK from a result (ticket, dispatch or run id).
+    assert RECEIPT_CLAUSE in _render_reward(KERNEL, "product")
+    mutant = _with_reward_text(EXPECTED_REWARD_TEXT.replace(RECEIPT_CLAUSE, "a continuation receipt"))
+    with pytest.raises(AssertionError):
+        assert RECEIPT_CLAUSE in _render_reward(mutant, "product")
+
+
+def test_completion_guard_rejects_an_unquoted_owner_decision() -> None:
+    # Claude's review finding 3: a vague remark is not the owner decision — it is QUOTED, like
+    # OUT_OF_SCOPE's quoted exclusion.
+    assert POSTPONED_CLAUSE in _render_reward(KERNEL, "product")
+    mutant = _with_reward_text(
+        EXPECTED_REWARD_TEXT.replace(POSTPONED_CLAUSE, "postponed (an owner decision + resume condition) counts in neither")
+    )
+    with pytest.raises(AssertionError):
+        assert POSTPONED_CLAUSE in _render_reward(mutant, "product")
+
+
 def test_completion_guard_rejects_postponed_plans_counted() -> None:
     assert POSTPONED_CLAUSE in _render_reward(KERNEL, "product")
     mutant = _with_reward_text(
         EXPECTED_REWARD_TEXT.replace(
             POSTPONED_CLAUSE,
-            "postponed (owner decision + resume condition) counts in plans_in_progress",
+            "postponed (a QUOTED owner decision + resume condition) counts in plans_in_progress",
         )
     )
     with pytest.raises(AssertionError):

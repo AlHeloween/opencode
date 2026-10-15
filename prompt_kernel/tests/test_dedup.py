@@ -188,4 +188,6 @@ def test_compacted_runtime_budget() -> None:
     # 2026-10-15 (t44 B4/B5): the run-limit exit in control_flow_rule (owner verbatim) and the
     # portfolio completion term + abandoned penalty (owner corrections 1-2) measure 8_778 —
     # the next band above the measurement; caps raised, nothing cut.
-    assert normalized_token_count(text) <= 8_800
+    # 2026-10-15 (t44 B6, Claude's review): the three completion-term fixes measure 8_801 —
+    # the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 8_900

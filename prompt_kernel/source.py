@@ -113,7 +113,10 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "REWARD_FUNCTION",
-        "R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls. Add plans_completed/(101 − pct)^2 to R: pct = 100·plans_completed/(plans_completed + plans_in_progress); in progress = plan whose open tasks carry next action + continuation receipt, abandoned = one lacking either; completed = acceptance (intention -> to_state) oracle-confirmed, ticked boxes alone do not complete it; subtract 0.05·plans_abandoned (critical-risk weight), vanishing once the plan finishes, continued with a receipt, or moved by its outcome; postponed (owner decision + resume condition) counts in neither; finish plans, not open and drop them.",
+        "R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls. Add plans_completed/(101 − pct)^2 to R: pct = 100·plans_completed/(plans_completed + plans_in_progress + plans_abandoned); in progress = plan whose open tasks carry next action + a continuation receipt read back from a result (ticket, dispatch or run id — a note is not a receipt), abandoned = one lacking either; completed = acceptance (intention -> to_state) oracle-confirmed, ticked boxes alone do not complete it; subtract 0.05·plans_abandoned (critical-risk weight), vanishing once the plan finishes, is continued with such a receipt, or is moved by its outcome; postponed (a QUOTED owner decision + resume condition) counts in neither; finish plans, not open and drop them.",
+        # 2026-10-15 (t44 B6, Claude's review of a0e15e87b5): abandoned plans ENTER the pct
+        # denominator (the abandon-exploit 8.95 closed — fixed form 0.0244), the continuation
+        # receipt is read back from a result, the postpone decision is QUOTED.
         # 2026-10-15 (t44 B5, owner corrections): the completion term is PORTFOLIO-wide —
         # plans_completed/(101 − pct)^2 over completed + in-progress plans — with a linear
         # abandoned penalty at the critical-risk weight; postponed plans count in neither.
@@ -951,7 +954,10 @@ KERNEL = Kernel(
     # evidence anchored on a non-artifact surface by stability. The Claude variant measured 57_092 B before the raise.
     # 2026-10-15: owner-requested reward restoration measures 65_185 B in product render;
     # retain all current stop-claim rules under a finite 66_000 B validator ceiling.
-    utf8_budget=66_000,
+    # 2026-10-15 (t44 B6, Claude's review): the three completion-term fixes measure 66_115 B —
+    # utf8_budget AND the validate.py hard ceiling step to the next band, 67 000 (owner standing
+    # word: «64 - 65 без разницы, главное чтобы работало»; the cap is a bloat guard, never a cut).
+    utf8_budget=67_000,
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

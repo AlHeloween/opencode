@@ -72,9 +72,7 @@ parent-goal-md5: bb33c8057b8b8034611310aae9bb9f85
   Semantic dominant: The change is proven by the new file green, the shared-path neighbor green, and typecheck clean.
   md5: c3d4e5f60718293a4b5c6d7e8f90123
   -->
-- [ ] T4 — Close: commit naming the plan (own paths only), one `_progress_log.md` entry
-  (shared file — keep BOTH on conflict), mandatory `_build.ps1` receipt. Untried named in the
-  final message.
+- [x] T4 — Close: commit `033b785673` naming the plan (own 5 paths only: plan + validation-guard.ts + tool.ts + guard test + progress log); `_progress_log.md` entry kept at top; `_build.ps1` receipt `20261015T110552Z_914a39f8` exit 0 (candidate 10.0.1359, version + embedded-prompt smoke passed — this host now runs on it). Untried named in the final message.
   <!-- sv:
   Keywords: commit 0.40, progress-log 0.30, build-receipt 0.30
   Semantic dominant: The work lands as one named commit with a shared-log entry and a build receipt, or the gap is named.

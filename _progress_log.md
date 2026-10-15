@@ -12,7 +12,7 @@
 ✓ CONFIRMED (bun test test/tool/tool-validation-guard.test.ts): RED `20261015T105412Z_c1b911e4` exit 1 (2 fail on predicted assertions) → GREEN `20261015T105707Z_ff82028d` exit 0 (3 pass) after the fix.
 ✓ CONFIRMED (shared-path regression): test/tool/tool-define.test.ts `20261015T105750Z_ab9ce1ce` 5 pass; test/tool/svm.test.ts `20261015T105830Z_28619a37` 8 pass (the one consumer matching the error prefix); bun typecheck `20261015T105907Z_fd761b38` exit 0.
 ✓ CONFIRMED (source diff): new src/tool/validation-guard.ts — schema-derived minimal example + received-vs-required keys in the shared wrap() error (tool.ts:126-137), session-scoped consecutive-identical tracker (N=3, mirrors DOOM_LOOP_THRESHOLD, two orders below the shortest measured run 47), 3rd identical rejection → STALL via the existing error-part path. Wire schemas / KV prefix untouched. Absorbs the queued «repeat-failure-guard» item.
-— Остаток: commit naming the plan; `_build.ps1` receipt.
+— Остаток закрыт: commit `033b785673` naming the plan (5 own paths); `_build.ps1` receipt `20261015T110552Z_914a39f8` exit 0, candidate 10.0.1359, version + embedded-prompt smoke passed. Stale `.git/index.lock` (2.3 h, no git.exe running — verified via tasklist through cmd_runner) removed as crash recovery, then staged by path only.
 <!-- sv: schema-loop 0.35, actionable-error 0.25, validation-guard 0.25, cross-turn-stall 0.15 -->
 ## [2026-10-15] t56 — universalsearch hybrid output: show what the service returns (план plans/2026-10-15_hybrid-output-formatter.md)
 

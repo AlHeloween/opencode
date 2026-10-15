@@ -6,13 +6,16 @@ param(
 
     [switch] $SkipTests = $false,
 
-    [switch] $SkipTypecheck = $false
+    [switch] $SkipTypecheck = $false,
+
+    [switch] $ForceBuild = $false
 )
 
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $DistDir = Join-Path $Root "dist"
 $OpencodePkg = Join-Path (Join-Path $Root "packages") "opencode"
+. (Join-Path $Root "scripts\build-lock.ps1")
 
 # ── Prerequisites (run separately before build) ──
 #   python -m prompt_kernel --install  # kernel assembly (optional)
@@ -406,6 +409,15 @@ function Invoke-Release {
 # ═══════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════
+# t58: one build at a time, enforced here — not by a brief line. The lock is taken before
+# anything touches .temp/test/ or dist/ and released on every exit path (try/finally).
+$BuildLockHeld = $false
+if ($Task -in @("check", "build", "release")) {
+    $lockCode = Acquire-BuildLock -ForceBuild:$ForceBuild
+    if ($lockCode -ne 0) { exit $lockCode }
+    $BuildLockHeld = $true
+}
+try {
 switch ($Task) {
     "check" {
         Invoke-Check
@@ -428,6 +440,7 @@ switch ($Task) {
         Write-Host "  -Version <version>  Override version for release (default: from package.json)"
         Write-Host "  -SkipTests          Skip test execution"
         Write-Host "  -SkipTypecheck      Skip typecheck"
+        Write-Host "  -ForceBuild         Bypass the t55 maintenance marker (printed OVERRIDE; the exclusive lock still applies)"
         Write-Host ""
         Write-Host "Prerequisites (run before build):" -ForegroundColor Yellow
         Write-Host "  python -m prompt_kernel --install — kernel assembly"
@@ -440,4 +453,7 @@ switch ($Task) {
         Write-Host "  .\_build.ps1                      # compile opencode + collect dist/"
         exit 1
     }
+}
+} finally {
+    if ($BuildLockHeld) { Release-BuildLock }
 }

@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t67 S2+S3 — M1 mint rule + contest verb (план plans/2026-10-16_org-reconcile-m1-contest.md, оба бокса закрыты)
+
+✓ CONFIRMED (RED→GREEN): V1 адаптирован под --receipt; MintTest V4-V6 + ContestTest C1-C4 — 8 failed как предсказано (нет флага/глагола/колонок) → 8/8 GREEN; весь layout: queue 15/15, cross 12/12, slugs 8/8 (t2/t3 сопряжены с M1 — два вызова verify + receipt, asserts слагов не тронуты), wiki 15/15, forum 11/11.
+✓ CONFIRMED (M1): verify требует --receipt и пишет verify_receipt (read-back); self-delegated verify отказан для доверия, cancel закрывает. Contest: только assignee, только READY + knowledge_ref; пишет contest_ref-техноут с task-тегом, READY не меняется, attempt не тратится; ответ — вердикт с квитанцией (C4); спор уходит CONTEST-строкой в chat (best-effort).
+✓ CONFIRMED (схема+установка): verify_receipt + contest_ref в ticket-schema.sql и ensure_ticket_fields; installed == repo sha256 (4 файла); init.py rc 0, fields upgraded, колонки read-back True True; orgd pid 36072 не тронут — рестарт за владельцем.
+— Следующее: запрос рестарта orgd через Claude; бэклог вердиктов — в trust-плане до появления квитанций.
+<!-- sv: mint-rule 0.40, contest-route 0.30, schema-install 0.20, restart-pending 0.10 -->
 ## [2026-10-16] t67 S1 — org delivery reconciled into git on Go/xhigh, gate kept (plan plans/2026-10-16_org-reconcile-m1-contest.md, S1 closed)
 
 ✓ CONFIRMED (B1 RED→R1 GREEN): new S9/S10/mirror RED pre-change (3 failed as predicted) → 12/12 PASS (11.02 s); regressions run isolated per-file — the whole-dir run is a HARNESS error (each module pins its own ORG_HOME fixture at import): queue 8/8, slugs 8/8, wiki-put 15/15, forum-post 11/11.

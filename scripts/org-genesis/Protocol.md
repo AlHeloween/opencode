@@ -85,10 +85,12 @@ instead of copying it.
 - DONE / ESCALATE — `org.py done <uuid> --epoch N [--report NAME]` | `org.py escalate <uuid> --epoch N --code "why"` — DONE or BLOCKED
   (+`failure_code`); both reset `woken_state` to `-` so the heartbeat wakes the delegator for the new state (`-` is the reset
   marker — fossil silently ignores EMPTY field values, measured 2026-10-08).
-- VERIFY / REJECT / CANCEL — `org.py verify <uuid>` | `org.py reject <uuid> --title NAME (--file f.md | --text "…")` |
-  `org.py cancel <uuid> --code "why"` — the DELEGATOR's verdict on a DONE ticket: VERIFIED closes it; REJECTED sends
-  it back to READY with the findings as a technote and wakes the assignee to rework; CANCELLED abandons it. Only the
-  delegator (`delegated_by`) may pass a verdict; verify/reject require DONE.
+- VERIFY / REJECT / CANCEL / CONTEST — `org.py verify <uuid> --receipt RUN_ID` | `org.py reject <uuid> --title NAME (--file f.md | --text "…")` |
+  `org.py contest <uuid> --title NAME (--file f.md | --text "…")` | `org.py cancel <uuid> --code "why"` — the DELEGATOR's verdict on a DONE ticket: VERIFIED closes it
+  (requires the verifier's own receipt — run id / digest — recorded as `verify_receipt`; a self-delegated ticket's verify is refused for trust,
+  it stays closable with `cancel`); REJECTED sends it back to READY with the findings as a technote and wakes the assignee to rework;
+  CONTESTED is the assignee's dispute of a reject with evidence (READY stays READY, recorded as `contest_ref`) and the next verdict answers with a receipt;
+  CANCELLED abandons it. Only the delegator (`delegated_by`) may pass a verdict (verify/reject require DONE); only the assignee may contest (READY + findings).
 - INBOX — `org.py inbox [--user X] [--json] [--no-presence]` — lists your READY/WORKING/BLOCKED tickets. Text
   mode **registers this session for wakes** (a `PRESENCE <you> <session> <worktree>` chat line) — run it when you
   start work. `--json --no-presence` is the read-only poll: one JSON document, no PRESENCE, no session needed.

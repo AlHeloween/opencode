@@ -290,21 +290,22 @@ class VerdictTest(unittest.TestCase):
     def test_v1_verify_is_delegator_only_and_done_only(self):
         uuid = delegate("v1 verify")
 
-        out = run_cli("verify", uuid, "--user", BOSS)  # READY: nothing to verify
+        out = run_cli("verify", uuid, "--user", BOSS, "--receipt", "run-v1-ready")  # READY: nothing to verify (the receipt is present, so the refusal is about DONE)
         self.assertNotEqual(out.returncode, 0)
         self.assertIn("DONE", out.stdout + out.stderr)
 
         self.assertEqual(claim(uuid, W1).returncode, 0)
         self.assertEqual(done(uuid, W1, epoch=1).returncode, 0)
 
-        out = run_cli("verify", uuid, "--user", W1)  # not the delegator
+        out = run_cli("verify", uuid, "--user", W1, "--receipt", "run-v1-stranger")  # not the delegator
         self.assertNotEqual(out.returncode, 0)
         self.assertIn(BOSS, out.stdout + out.stderr, "the refusal must name the delegator")
         self.assertEqual(field(uuid, "agent_state"), "DONE", "a refused verdict must not touch the state")
 
-        out = run_cli("verify", uuid, "--user", BOSS)
+        out = run_cli("verify", uuid, "--user", BOSS, "--receipt", "run-v1-ok")
         self.assertEqual(out.returncode, 0, (out.stdout, out.stderr))
         self.assertEqual(field(uuid, "agent_state"), "VERIFIED")
+        self.assertEqual(field(uuid, "verify_receipt"), "run-v1-ok", "the verifier's receipt must be read back from the ticket")
 
         self.assertNotEqual(claim(uuid, W2).returncode, 0, "a VERIFIED ticket is not claimable")
 
@@ -383,5 +384,108 @@ class WakeEffectTest(unittest.TestCase):
         self.assertNotIn(f"woke {SESSION}", out.stdout, "nothing may be sent while the outcome is unknown")
 
 
+class MintTest(unittest.TestCase):
+    """V4-V6 (M1) — VERIFIED is minted only on the verifier's receipt; a self-delegated verify is refused
+    for trust (the ticket stays closable)."""
+    maxDiff = None
+
+    def test_v4_verify_without_a_receipt_is_refused_and_records_nothing(self):
+        uuid = delegate("v4 no receipt")
+        self.assertEqual(claim(uuid, W1).returncode, 0)
+        self.assertEqual(done(uuid, W1, epoch=1).returncode, 0)
+        out = run_cli("verify", uuid, "--user", BOSS)
+        self.assertNotEqual(out.returncode, 0, "a VERIFIED without the verifier's receipt must be refused")
+        self.assertIn("receipt", out.stdout + out.stderr)
+        self.assertEqual(field(uuid, "agent_state"), "DONE", "a refused verify must not touch the state")
+        self.assertEqual(field(uuid, "verify_receipt"), "", "a refused verify must record no receipt")
+
+    def test_v5_verify_with_a_receipt_closes_and_records_it(self):
+        uuid = delegate("v5 receipt")
+        self.assertEqual(claim(uuid, W1).returncode, 0)
+        self.assertEqual(done(uuid, W1, epoch=1).returncode, 0)
+        out = run_cli("verify", uuid, "--user", BOSS, "--receipt", "run-v5-rerun-ok")
+        self.assertEqual(out.returncode, 0, (out.stdout, out.stderr))
+        self.assertEqual(field(uuid, "agent_state"), "VERIFIED")
+        self.assertEqual(field(uuid, "verify_receipt"), "run-v5-rerun-ok",
+                         "the verifier's receipt must be read back, not trusted from the output")
+
+    def test_v6_self_delegated_verify_is_refused_for_trust_but_cancel_still_closes(self):
+        out = run_cli("delegate", "--title", "v6 self", "--slug", "v6-self",
+                      "--assignee", BOSS, "--user", BOSS, "--no-wake")
+        self.assertEqual(out.returncode, 0, (out.stdout, out.stderr))
+        uuid = out.stdout.strip()
+        self.assertEqual(claim(uuid, BOSS).returncode, 0)
+        self.assertEqual(done(uuid, BOSS, epoch=1).returncode, 0)
+        refused = run_cli("verify", uuid, "--user", BOSS, "--receipt", "run-v6-self")
+        self.assertNotEqual(refused.returncode, 0, "a self-delegated verify mints no trust")
+        self.assertIn("self-delegat", refused.stdout + refused.stderr)
+        self.assertEqual(field(uuid, "agent_state"), "DONE")
+        closed = run_cli("cancel", uuid, "--user", BOSS, "--code", "self-delegated: nothing independent to verify")
+        self.assertEqual(closed.returncode, 0, (closed.stdout, closed.stderr))
+        self.assertEqual(field(uuid, "agent_state"), "CANCELLED", "a refused self-verify must stay closable")
+
+
+class ContestTest(unittest.TestCase):
+    """C1-C4 — the worker contests a reject with evidence: the ticket keeps the dispute (READY +
+    contest_ref) and the delegator's next verdict carries a receipt."""
+    maxDiff = None
+
+    def _rejected(self, title: str) -> str:
+        """A READY ticket carrying reject findings: delegate -> claim -> done -> reject."""
+        uuid = delegate(title)
+        self.assertEqual(claim(uuid, W1).returncode, 0)
+        self.assertEqual(done(uuid, W1, epoch=1).returncode, 0)
+        out = run_cli("reject", uuid, "--user", BOSS,
+                      "--title", f"{title} findings", "--text", "## findings\nredo X")
+        self.assertEqual(out.returncode, 0, (out.stdout, out.stderr))
+        self.assertEqual(field(uuid, "agent_state"), "READY")
+        self.assertTrue(field(uuid, "knowledge_ref"), "a reject must leave its findings ref")
+        return uuid
+
+    def test_c1_contest_records_the_dispute_and_leaves_the_ticket_ready(self):
+        uuid = self._rejected("c1 contest")
+        out = run_cli("contest", uuid, "--user", W1,
+                      "--title", "c1 evidence", "--text", "## evidence\nX was already redone")
+        self.assertEqual(out.returncode, 0, (out.stdout, out.stderr))
+        self.assertEqual(field(uuid, "agent_state"), "READY", "a contest is a dispute, not a state change")
+        dispute = field(uuid, "contest_ref")
+        self.assertTrue(dispute.startswith("c1 evidence"), dispute)
+        self.assertEqual(field(uuid, "attempt"), "1", "a contest must not consume an attempt")
+        ledger = fossil("timeline", "-t", "e", "-n", "80").stdout
+        self.assertIn(dispute, ledger, "the dispute evidence must exist as a technote")
+        self.assertIn(f"task-{uuid[:10]}", ledger, "the dispute technote must carry the task tag")
+
+    def test_c2_stranger_and_never_rejected_contests_are_refused(self):
+        uuid = self._rejected("c2 stranger")
+        out = run_cli("contest", uuid, "--user", W2,
+                      "--title", "c2 meddling", "--text", "not mine")
+        self.assertNotEqual(out.returncode, 0, "only the assignee may contest")
+        self.assertEqual(field(uuid, "contest_ref"), "", "a refused contest must record no dispute")
+        fresh = delegate("c2 never rejected")
+        out = run_cli("contest", fresh, "--user", W1,
+                      "--title", "c2 nothing", "--text", "no reject to answer")
+        self.assertNotEqual(out.returncode, 0, "a ticket that was never rejected has nothing to contest")
+        self.assertIn("reject", out.stdout + out.stderr)
+
+    def test_c3_contest_outside_ready_is_refused(self):
+        uuid = delegate("c3 wrong state")
+        self.assertEqual(claim(uuid, W1).returncode, 0)
+        out = run_cli("contest", uuid, "--user", W1,
+                      "--title", "c3 early", "--text", "still working")
+        self.assertNotEqual(out.returncode, 0, "a WORKING ticket carries no reject to contest")
+        self.assertEqual(field(uuid, "contest_ref"), "")
+
+    def test_c4_after_contest_the_delegator_answers_with_a_receipt(self):
+        uuid = self._rejected("c4 answer")
+        out = run_cli("contest", uuid, "--user", W1,
+                      "--title", "c4 evidence", "--text", "## evidence\nreworked")
+        self.assertEqual(out.returncode, 0, (out.stdout, out.stderr))
+        self.assertEqual(claim(uuid, W1).returncode, 0, (out.stdout, out.stderr))
+        epoch = int(field(uuid, "lease_epoch"))
+        self.assertEqual(done(uuid, W1, epoch=epoch).returncode, 0)
+        answered = run_cli("verify", uuid, "--user", BOSS, "--receipt", "run-c4-recheck-ok")
+        self.assertEqual(answered.returncode, 0, (answered.stdout, answered.stderr))
+        self.assertEqual(field(uuid, "agent_state"), "VERIFIED")
+        self.assertEqual(field(uuid, "verify_receipt"), "run-c4-recheck-ok")
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -39,6 +39,8 @@ CREATE TABLE ticket(
   sv TEXT,
   idempotency_key TEXT,
   failure_code TEXT,
+  verify_receipt TEXT,
+  contest_ref TEXT,
   title TEXT,
   slug TEXT,
   comment TEXT

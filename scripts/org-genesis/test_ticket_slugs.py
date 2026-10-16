@@ -208,7 +208,7 @@ class SlugRequiredTest(unittest.TestCase):
         self.assertEqual(run_cli("claim", "t2-dup", "--user", W1).returncode, 0)
         epoch = field(uuid1, "lease_epoch")
         self.assertEqual(run_cli("done", "t2-dup", "--user", W1, "--epoch", epoch).returncode, 0)
-        self.assertEqual(run_cli("verify", "t2-dup", "--user", BOSS).returncode, 0)
+        self.assertEqual(run_cli("verify", "t2-dup", "--user", BOSS, "--receipt", "run-t2-ok").returncode, 0)
         self.assertEqual(field(uuid1, "agent_state"), "VERIFIED")
 
         again = delegate("t2 again", slug="t2-dup")
@@ -240,7 +240,7 @@ class SlugResolutionTest(unittest.TestCase):
         self.assertEqual(field(uuid, "agent_state"), "DONE")
 
         # the id still works beside the slug
-        self.assertEqual(run_cli("verify", uuid, "--user", BOSS).returncode, 0)
+        self.assertEqual(run_cli("verify", uuid, "--user", BOSS, "--receipt", "run-t3-ok").returncode, 0)
 
         child = delegate("t3 child", slug="t3-child", extra=("--parent", "t3-cycle"))
         self.assertEqual(child.returncode, 0, (child.stdout, child.stderr))

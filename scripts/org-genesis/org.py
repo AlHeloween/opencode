@@ -6,8 +6,9 @@
     python $ORG_HOME/genesis/org.py report <uuid> --epoch N --title NAME (--file f.md | --text "...")
     python $ORG_HOME/genesis/org.py done <uuid> --epoch N [--report NAME]
     python $ORG_HOME/genesis/org.py escalate <uuid> --epoch N --code "why"
-    python $ORG_HOME/genesis/org.py verify <uuid>                               (delegator: DONE -> VERIFIED)
+    python $ORG_HOME/genesis/org.py verify <uuid> --receipt RUN_ID      (delegator: DONE -> VERIFIED, receipt recorded)
     python $ORG_HOME/genesis/org.py reject <uuid> --title NAME (--file f.md | --text "...")   (delegator: DONE -> READY, findings)
+    python $ORG_HOME/genesis/org.py contest <uuid> --title NAME (--file f.md | --text "...")  (assignee: dispute the reject with evidence, READY stays READY)
     python $ORG_HOME/genesis/org.py cancel <uuid> --code "why"                  (delegator: -> CANCELLED)
     python $ORG_HOME/genesis/org.py inbox [--user X] [--json] [--no-presence]
     python $ORG_HOME/genesis/org.py chat --since <msgid>
@@ -54,8 +55,11 @@ the wake target. With no live host it prints the ONE launch command for W's own 
 robot runs it. No bin/opencode.exe there → the note says so and the ticket stays READY.
 
 DONE is the worker's testimony; the delegator closes the queue with a verdict: `verify` (VERIFIED,
-terminal), `reject` (back to READY with a findings technote — the assignee is woken to rework) or
-`cancel` (CANCELLED). Only the delegator (delegated_by) may pass a verdict.
+terminal — requires the verifier's own `--receipt`, recorded as `verify_receipt`; a self-delegated
+ticket's verify is refused for trust, it stays closable with `cancel`), `reject` (back to READY with a
+findings technote — the assignee is woken to rework; the assignee may `contest` the reject with evidence,
+recorded as `contest_ref`, and the delegator's next verdict answers with a receipt) or `cancel` (CANCELLED).
+Only the delegator (delegated_by) may pass a verdict; only the assignee may contest.
 
 `--no-wake` declares the delegator un-wakeable: no wake_session/wake_worktree is recorded,
 and orgd never attempts a wake for that child's state changes — the delegator (e.g. a
@@ -658,14 +662,20 @@ def cmd_escalate(a) -> int:
 
 
 def cmd_verify(a) -> int:
-    """The delegator accepts a DONE ticket: the queue's terminal success."""
+    """The delegator accepts a DONE ticket: the queue's terminal success (M1: minted only on receipt)."""
     user = need_user(a)
     t = ticket(a.ticket)
     guard_delegator(t, user, "verify")
     if str(t["agent_state"] or "").upper() != "DONE":
         sys.exit(f"org: {short(t)} is {str(t['agent_state'] or '').upper()} — verify requires a DONE ticket")
-    ticket_set(t, user, agent_state="VERIFIED", woken_state=CLEARED)
-    print(f"org: {short(t)} VERIFIED")
+    if canon_login(str(t["delegated_by"] or "")) == canon_login(str(t["assigned_to"] or "")):
+        sys.exit(f"org: ticket {short(t)} is self-delegated ({t['delegated_by']} -> {t['assigned_to']}) — "
+                 f"verify mints no trust on one's own claim: close it with `cancel`, or re-delegate for an independent check")
+    receipt = (a.receipt or "").strip()
+    if not receipt:
+        sys.exit("org: verify requires --receipt RUN_ID — the verifier's own rerun/re-digest receipt, recorded as verify_receipt")
+    ticket_set(t, user, agent_state="VERIFIED", verify_receipt=receipt, woken_state=CLEARED)
+    print(f"org: {short(t)} VERIFIED receipt={receipt}")
     return 0
 
 
@@ -680,6 +690,22 @@ def cmd_reject(a) -> int:
     ticket_set(t, user, agent_state="READY", woken_state=CLEARED,
                attempt=str(num(t["attempt"]) + 1), knowledge_ref=name)
     print(f"org: {short(t)} REJECTED -> READY (findings {name})")
+    return 0
+
+def cmd_contest(a) -> int:
+    """The assignee disputes a reject with evidence: READY stays READY, the dispute is recorded as contest_ref."""
+    user = need_user(a)
+    t = ticket(a.ticket)
+    if canon_login(str(t["assigned_to"] or "")) != canon_login(user):
+        sys.exit(f"org: ticket {short(t)} is assigned to {t['assigned_to'] or 'nobody'} — only the assignee may contest it")
+    if str(t["agent_state"] or "").upper() != "READY":
+        sys.exit(f"org: {short(t)} is {str(t['agent_state'] or '').upper()} — contest answers a reject, and a reject leaves the ticket READY")
+    if not str(t["knowledge_ref"] or "").strip():
+        sys.exit(f"org: ticket {short(t)} carries no reject findings (knowledge_ref) — a ticket that was never rejected has nothing to contest")
+    name = create_technote(t, user, a.title, a.file, a.text, label="contest evidence")
+    ticket_set(t, user, contest_ref=name)
+    chat(f"CONTEST {user} {short(t)} {name}")
+    print(f"org: {short(t)} CONTESTED (dispute {name}) — READY, awaiting the delegator's answer with a receipt")
     return 0
 
 
@@ -1231,6 +1257,7 @@ def main() -> int:
 
     p = sub.add_parser("verify", parents=[common], help="delegator: accept a DONE ticket (VERIFIED)")
     p.add_argument("ticket")
+    p.add_argument("--receipt", help="the verifier's own rerun/re-digest receipt (run id / digest), recorded as verify_receipt")
     p.set_defaults(func=cmd_verify)
 
     p = sub.add_parser("reject", parents=[common], help="delegator: send a DONE ticket back to READY with findings")
@@ -1239,6 +1266,13 @@ def main() -> int:
     p.add_argument("--file", help="markdown file with the findings")
     p.add_argument("--text", help="inline findings markdown")
     p.set_defaults(func=cmd_reject)
+
+    p = sub.add_parser("contest", parents=[common], help="assignee: dispute a reject with evidence (READY stays READY)")
+    p.add_argument("ticket")
+    p.add_argument("--title", required=True, help="dispute evidence technote name")
+    p.add_argument("--file", help="markdown file with the evidence")
+    p.add_argument("--text", help="inline dispute evidence markdown")
+    p.set_defaults(func=cmd_contest)
 
     p = sub.add_parser("cancel", parents=[common], help="delegator: abandon a ticket (CANCELLED)")
     p.add_argument("ticket")

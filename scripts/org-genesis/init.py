@@ -87,7 +87,8 @@ def orgd_pid() -> int | None:
 
 def ensure_ticket_fields(fossil: str) -> bool:
     have = run(fossil, "sql", "-R", str(ORG), "SELECT sql FROM sqlite_master WHERE name='ticket';")
-    if all(field in have for field in ("wake_session", "wake_worktree", "woken_state", "watcher", "slug")):
+    if all(field in have for field in ("wake_session", "wake_worktree", "woken_state", "watcher", "slug",
+                                        "verify_receipt", "contest_ref")):
         return False
     schema = (GENESIS / "ticket-schema.sql").read_text(encoding="utf-8").replace("'", "''")
     run(fossil, "sql", "-R", str(ORG),

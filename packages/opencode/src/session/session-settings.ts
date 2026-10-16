@@ -4,6 +4,8 @@ import { Filesystem } from "@/util/filesystem"
 import * as Log from "@opencode-ai/core/util/log"
 import { parse as parseJsonc, type ParseError } from "jsonc-parser"
 import { modelSampling, modelSamplingKey, type ModelSampling } from "./model-sampling"
+import { firstUp } from "@/provider/model-chain/chain"
+import type { ChainHealth, ChainMember } from "@/provider/model-chain/chain"
 
 
 /**
@@ -276,6 +278,31 @@ export async function resolveAgentModel(
 
   // 3. No override — caller should fall through to global config / default
   return undefined
+}
+
+/**
+ * Chain assignment (t68, C5): the dispatched agent reads its chain from
+ * ONE key — this session's layer — and takes the first UP member.
+ * No parent walk: an empty session layer is a fill defect (warn `bug:`,
+ * one-time backfill by the caller), and the caller falls through to the
+ * legacy `resolveAgentModel` below. `health` is the caller's in-memory
+ * failover state; missing entries read as UP (see `firstUp`).
+ */
+export function resolveChainAgentModel(
+  agentName: string,
+  sessionID: string,
+  health: ReadonlyMap<string, ChainHealth>,
+  opts?: {
+    /** Pre-loaded session-layer chain (avoids a redundant store read). */
+    chain?: ChainMember[] | undefined
+  },
+): ChainMember | undefined {
+  const chain = opts?.chain
+  if (chain === undefined || chain.length === 0) {
+    Log.Default.warn("bug: session chain layer left unfilled", { sessionID, agentName })
+    return undefined
+  }
+  return firstUp(chain, health)
 }
 
 /**

@@ -1,6 +1,15 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t68 slice 2 — ревью R1–R4 + C1 store + C5 core (план plans/2026-10-16_model-chain-failover.md, боксы не тронуты)
+
+✓ CONFIRMED (R1 fill-once): `fillChain` read-walk удалён; `fillChainForNewLayer` + `readChainLayer` (один ключ) + `shouldBackfill`; пустой слой — `bug:`-warn + legacy-fallback. Failover-тест 25/25 (20261016T051512Z_07af3598 exit 0).
+✓ CONFIRMED (R2 namespace): LMDB не развёрнут (код + нет в package.json) → `model_chain(scope,agent,data)` в `storage/db.ts` + `chain.sql.ts` + `store.ts` (epistemic fallback-контракт), ключ `session:<id>:agent:<name>:chain`. Store-тест 8/8 (20261016T051525Z_7b196c72 exit 0, incl. :memory: round-trip + C5-кейсы).
+✓ CONFIRMED (R3 одна ось): новый `gateway.ts` мапит категории `recordError` (429/5xx/conn_reset/read_timeout + статус) на вход классификатора; цепочка не считает — считают HealthWindow/CircuitBreaker.
+✓ MEASURED (R4): opencode.db read-only, user→assistant: free n=33 p50 23 594/p95 50 761 мс; Go n=5 p50 41 009/max 50 819 мс → `FIRST_TOKEN_FLOOR_MS = 120 000` с источником у константы (30 с резал бы живые: Go-OK 37 с).
+✓ CONFIRMED (C5 core + регрессии): `resolveChainAgentModel` читает ТОЛЬКО session-ключ + first UP; session-settings-persist 28/28 (20261016T051744Z_470c2e24), smoke 6/6 (20261016T051758Z_c5df807f). Мелочь: `displayHealth` (missing → `unknown`), md5 плана 32 hex.
+— Остаток: server route TUI/web (t59), prompt_async/task wiring, dispatch unpin, live free→Go, DDL-зеркало теста vs db.ts сверить прод-стартом.
+<!-- sv: model-chain 0.35, failover-classification 0.25, health-probe 0.20, assignment 0.12, tui-recents 0.08 -->
 ## [2026-10-16] t65 D-S1 fix + A7 S5 chain (план plans/2026-10-16_reasoning-lossless-replay.md)
 
 ✓ CONFIRMED (D-S1 RED→GREEN): new test/provider/copilot/copilot-empty-reasoning-report.test.ts RED 20261016T045743Z_52b8b876 exit 1 (3 pass / 1 fail — только report-assert) → GREEN 20261016T050908Z_3c656d54 exit 0 (4/4). Fix: `convert-to-openai-compatible-chat-messages.ts` — пустые reasoning-части без текста и без собственного opaque считаются, reportCut `sdk.copilot-chat` когда на wire вообще ничего reasoning не едет; opaque binding едет как раньше, байты не выдумываются. Регрессии: convert-to-copilot-messages 19/19, typecheck exit 0. KV-cache: bytes меняются только для ходов с пустым reasoning (добавляется report-лог, не wire).

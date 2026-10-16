@@ -20,9 +20,21 @@ export interface ChainErrorInput {
   field?: string
 }
 
-/** Floor so a healthy-but-slow model is never cut by noise. */
-export const FIRST_TOKEN_FLOOR_MS = 30_000
-/** Multiple of the measured p50-TTFT that defines "hung". */
+/**
+ * Floor for the hung-stream threshold, MEASURED 2026-10-16 (read-only,
+ * `.opencode/data/opencode.db`, user→assistant latency over
+ * `message.time_created`, window 1 s–60 min):
+ * - `opencode/muse-spark-1.3-contributor-free`, n=33: p50 = 23 594 ms, p95 = 50 761 ms;
+ * - `opencode-go/muse-spark-1.3-contributor`, n=5: p50 = 41 009 ms, max = 50 819 ms.
+ * The metric is response latency, not wire TTFT (it covers the run up to the
+ * first assistant message) — so the threshold must clear the slowest LIVE
+ * answer (~51 s), not the median: FLOOR = 120 000 ms (~2.4× observed max).
+ * A 30 s floor would cut live answers (today: Go OK in 37 s, free p50 23.6 s).
+ * Re-measure with the same query when the model set changes; a floor below
+ * the observed max is a defect, not tuning.
+ */
+export const FIRST_TOKEN_FLOOR_MS = 120_000
+/** Multiple of the measured p50 that defines "hung" (see FLOOR comment for provenance). */
 export const FIRST_TOKEN_P50_MULTIPLE = 3
 
 const PRIVACY_GATE = /train.*request data|privacy settings|allow paid endpoints/i
@@ -50,6 +62,9 @@ export function classifyChainError(input: ChainErrorInput): ChainErrorClass {
   if (RATE.test(message)) return "transient"
   if (OVERLOADED.test(message)) return "transient"
   if (input.code === "FIRST_TOKEN_TIMEOUT") return "transient"
+  if (input.code === "429" || input.code === "rate_or_rejection") return "transient"
+  if (input.code === "5xx" || input.code === "server_5xx") return "transient"
+  if (input.code === "conn_reset" || input.code === "read_timeout") return "transient"
   return "transient"
 }
 

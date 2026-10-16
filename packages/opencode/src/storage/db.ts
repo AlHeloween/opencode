@@ -314,6 +314,18 @@ CREATE TABLE IF NOT EXISTS "provider_fact" (
   time_updated integer NOT NULL
 );
 
+-- Explicit model chains (t68): one row per (scope, agent) — the key namespace
+-- 'global' | 'worktree:<id>' | 'session:<id>' x canonical agent. Filled once
+-- at layer creation, read as a plain lookup of its own key. Takes the place
+-- LMDB would hold when the fast plane lands (then this table goes with it).
+CREATE TABLE IF NOT EXISTS "model_chain" (
+  scope text NOT NULL,
+  agent text NOT NULL,
+  data text NOT NULL,
+  time_created integer NOT NULL,
+  time_updated integer NOT NULL,
+  PRIMARY KEY (scope, agent)
+);
 CREATE TABLE IF NOT EXISTS "server_host" (
   id text PRIMARY KEY NOT NULL,
   url text NOT NULL,

@@ -1,13 +1,18 @@
 import { describe, expect, setDefaultTimeout, test } from "bun:test"
 import {
   HEALTH_CHECK_INTERVAL_MS,
-  fillChain,
+  chainKey,
+  displayHealth,
+  fillChainForNewLayer,
   firstUp,
   memberKey,
+  readChainLayer,
+  shouldBackfill,
   validateChain,
 } from "@/provider/model-chain/chain"
 import { FIRST_TOKEN_FLOOR_MS, classifyChainError, firstTokenTimeoutMs } from "@/provider/model-chain/classify"
 import { runWithFailover } from "@/provider/model-chain/failover"
+import { classifyGatewayError, gatewayErrorToChainInput } from "@/provider/model-chain/gateway"
 import { probeDownMembers } from "@/provider/model-chain/health-check"
 import type { ChainHealth, ChainMember } from "@/provider/model-chain/chain"
 
@@ -52,10 +57,11 @@ describe("classifyChainError", () => {
 })
 
 describe("firstTokenTimeoutMs", () => {
-  test("derived from measured p50-TTFT, never a guessed constant", () => {
+  test("derived from measured response latency, never a guessed constant", () => {
     expect(firstTokenTimeoutMs(0)).toBe(FIRST_TOKEN_FLOOR_MS)
-    expect(firstTokenTimeoutMs(10_000)).toBe(30_000)
-    expect(firstTokenTimeoutMs(20_000)).toBe(60_000)
+    expect(firstTokenTimeoutMs(10_000)).toBe(120_000)
+    expect(firstTokenTimeoutMs(20_000)).toBe(120_000)
+    expect(firstTokenTimeoutMs(50_000)).toBe(150_000)
   })
 })
 
@@ -67,11 +73,35 @@ describe("chain order and fill", () => {
     ])
     expect(validateChain([])).toEqual([])
   })
-  test("fill: session wins, then worktree, then global — never merged", () => {
-    expect(fillChain([go], [free], undefined)).toEqual([go])
-    expect(fillChain(undefined, [free], undefined)).toEqual([free])
-    expect(fillChain(undefined, undefined, [free])).toEqual([free])
-    expect(fillChain(undefined, undefined, undefined)).toBeUndefined()
+  test("fill-once: a new layer gets a copy of the parent, then owns it", () => {
+    const filled = fillChainForNewLayer([free, go])
+    expect(filled).toEqual([free, go])
+    expect(filled).not.toBe([free, go])
+    expect(fillChainForNewLayer(undefined)).toBeUndefined()
+    expect(fillChainForNewLayer([])).toBeUndefined()
+  })
+  test("readChainLayer reads ONE key: no parent is ever consulted", () => {
+    expect(readChainLayer([free])).toEqual([free])
+    expect(readChainLayer([])).toBeUndefined()
+    expect(readChainLayer(undefined)).toBeUndefined()
+    expect(readChainLayer([{ providerID: "", modelID: "x" }])).toBeUndefined()
+  })
+  test("shouldBackfill is true only when the layer holds nothing", () => {
+    expect(shouldBackfill(undefined)).toBe(true)
+    expect(shouldBackfill([])).toBe(true)
+    expect(shouldBackfill([free])).toBe(false)
+  })
+  test("chainKey names the key namespace", () => {
+    expect(chainKey("global", "build_mode")).toBe("global:agent:build_mode:chain")
+    expect(chainKey("session:abc", "build_mode")).toBe("session:abc:agent:build_mode:chain")
+  })
+  test("displayHealth: absent oracle reads as unknown, never blank", () => {
+    const health = healthOf()
+    expect(displayHealth(free, health)).toBe("unknown")
+    health.set(memberKey(free), { status: "UP" })
+    expect(displayHealth(free, health)).toBe("UP")
+    health.set(memberKey(free), { status: "DOWN", downAt: 0, reason: "402" })
+    expect(displayHealth(free, health)).toBe("DOWN")
   })
   test("firstUp skips DOWN members", () => {
     const health = healthOf()
@@ -244,5 +274,26 @@ describe("probeDownMembers (10-minute check)", () => {
     expect(probes).toBe(1)
     expect(health.get(memberKey(free))?.status).toBe("DOWN")
     expect(firstUp([free, go], health)).toEqual(go)
+  })
+})
+
+describe("classifyGatewayError (one signal source)", () => {
+  test("every gateway recordError category is transient for the chain", () => {
+    expect(classifyGatewayError("429", 429)).toBe("transient")
+    expect(classifyGatewayError("5xx", 503)).toBe("transient")
+    expect(classifyGatewayError("server_5xx", 500)).toBe("transient")
+    expect(classifyGatewayError("conn_reset")).toBe("transient")
+    expect(classifyGatewayError("read_timeout")).toBe("transient")
+  })
+  test("terminal status still wins through the gateway adapter", () => {
+    expect(classifyGatewayError("read_timeout", 402, "Insufficient Balance")).toBe("terminal")
+    expect(classifyGatewayError("5xx", 401, "Unauthorized")).toBe("terminal")
+  })
+  test("gatewayErrorToChainInput preserves the refusal for both consumers", () => {
+    expect(gatewayErrorToChainInput("429", 429, "Too Many Requests")).toEqual({
+      statusCode: 429,
+      message: "Too Many Requests",
+      code: "429",
+    })
   })
 })

@@ -2,15 +2,22 @@
  * Explicit ordered model chain (t68).
  *
  * The chain is the ordered form of "recents": per agent AND scope
- * (global / worktree / session, filled not resolved) the user names
- * `[primary, backup1, backup2…]`. Failover walks this order and never
- * invents a model outside it.
+ * (global / worktree / session) the user names `[primary, backup1, backup2…]`.
+ * Failover walks this order and never invents a model outside it.
  *
- * Persistence lives in the EXISTING shapes the TUI already writes
- * (`model.json` worktree state, session `.jsonc`, global config) — this
- * module holds the pure order/fill/selection helpers so they are pinned
- * by tests. FS wiring reuses the TUI server path (never a new JSON file,
- * never a behind-the-back edit).
+ * FILL, never resolve (AGENTS.md § Storage Paradigm, rule 4): a layer that
+ * comes into existence gets its chain COPIED from the layer above exactly
+ * once (`fillChainForNewLayer`); every later read addresses ONE key
+ * (`readChainLayer`). There is no parent walk on read — an empty layer is
+ * a fill defect (one-time backfill, then lookup), never a silent hole.
+ *
+ * Persistence is a key namespace in the relational plane
+ * (`model_chain` table, `chain.sql.ts`, `store.ts`) — the same
+ * single-row-blob split `session_epistemic` uses. LMDB is not deployed yet
+ * (`learned-facts.ts:17`, `epistemic-store.ts:10-12` — measured 2026-10-16,
+ * not even in package.json); when the fast plane lands, this namespace
+ * moves and the table goes with it. Never a new JSON file, never a write
+ * behind the TUI's back.
  */
 
 export interface ChainMember {
@@ -20,6 +27,12 @@ export interface ChainMember {
 }
 
 export type MemberStatus = "UP" | "DOWN"
+
+/** Health as the UI must render it: absent oracle reads as `unknown`, never blank. */
+export type ChainDisplayStatus = "UP" | "DOWN" | "unknown"
+
+/** Layer scope: global, one worktree, or one session. */
+export type ChainScope = string
 
 export interface ChainHealth {
   status: MemberStatus
@@ -54,28 +67,59 @@ export function validateChain(chain: unknown): ChainMember[] {
 }
 
 /**
- * Fill, never resolve: session wins, then worktree, then global.
- * Each layer is an explicit chain or absent — layers are never merged,
- * so the order the user named stays the order failover walks.
+ * Copy the parent layer's chain into a layer that comes into existence.
+ * Runs exactly once per layer (creation, or one-time backfill for layers
+ * born before chains); afterwards the layer owns its copy and the parent
+ * is never consulted again. `undefined` stays `undefined` — an unfilled
+ * layer is a defect to backfill, not a value to inherit on read.
  */
-export function fillChain(
-  sessionChain: ChainMember[] | undefined,
-  worktreeChain: ChainMember[] | undefined,
-  globalChain: ChainMember[] | undefined,
-): ChainMember[] | undefined {
-  if (sessionChain !== undefined && sessionChain.length > 0) return sessionChain
-  if (worktreeChain !== undefined && worktreeChain.length > 0) return worktreeChain
-  if (globalChain !== undefined && globalChain.length > 0) return globalChain
-  return undefined
+export function fillChainForNewLayer(parent: ChainMember[] | undefined): ChainMember[] | undefined {
+  if (parent === undefined || parent.length === 0) return undefined
+  return parent.map((member) => ({ ...member }))
 }
 
-/** First UP member in chain order. Missing health reads as UP. */
+/**
+ * Read ONE layer's key. Validates and returns the stored chain, or
+ * `undefined` when the layer holds nothing — no parent is consulted.
+ */
+export function readChainLayer(stored: unknown): ChainMember[] | undefined {
+  const members = validateChain(stored)
+  if (members.length === 0) return undefined
+  return members
+}
+
+/** True when the layer holds no chain and is due its one-time backfill. */
+export function shouldBackfill(stored: ChainMember[] | undefined): boolean {
+  return stored === undefined || stored.length === 0
+}
+
+/** Storage key for one agent's chain in one layer: `session:<id>:agent:<name>:chain`. */
+export function chainKey(scope: ChainScope, agentName: string): string {
+  return `${scope}:agent:${agentName}:chain`
+}
+
+/**
+ * First UP member in chain order. Missing health reads as UP for ROUTING
+ * (a member with no signal is tried, not skipped) — for DISPLAY use
+ * `displayHealth`, where the same absence reads as `unknown`.
+ */
 export function firstUp(chain: ChainMember[], health: ReadonlyMap<string, ChainHealth>): ChainMember | undefined {
   for (const member of chain) {
     if (health.get(memberKey(member))?.status === "DOWN") continue
     return member
   }
   return undefined
+}
+
+/**
+ * Health for DISPLAY: a member with no recorded signal reads as `unknown`
+ * (absence of an oracle reads as FALSE to the user — never blank, never
+ * silently UP). Routing (`firstUp`) tries it; the screen says `unknown`.
+ */
+export function displayHealth(member: ChainMember, health: ReadonlyMap<string, ChainHealth>): ChainDisplayStatus {
+  const entry = health.get(memberKey(member))
+  if (entry === undefined) return "unknown"
+  return entry.status
 }
 
 /** True when a DOWN member is due its 10-minute probe. */

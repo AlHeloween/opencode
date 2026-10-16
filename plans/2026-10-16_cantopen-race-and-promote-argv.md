@@ -53,7 +53,7 @@ parent-goal-md5: 00000000000000000000000000000000
 - [x] L2-tests <!-- sv: fixture-tests,promote-argv-oracle,no-bin-touch -->
   Фикстурные тесты в существующем layout (новый `packages/opencode/test/promote-bin-argv.test.ts`, стиль t55/t60 —
   вызовы `parse_cmdline_args`/`relaunch_command` через `python`, только fixture-пути). Receipt: RED до фикса, GREEN после.
-- [ ] L9-close <!-- sv: progress-log,private-index-commit,build-smoke -->
+- [x] L9-close <!-- sv: progress-log,private-index-commit,build-smoke -->
   `_progress_log.md` (append, keep BOTH при конфликте), коммиты только своих путей через `scripts/commit_own.py`,
   `_build.ps1` через cmd_runner + `state.json`, финал: что менялось (пути+хэши), что запускалось (команда/run id/exit),
   что не закрыто.

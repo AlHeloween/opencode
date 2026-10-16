@@ -44,6 +44,14 @@ is an honest consequence before the choice (measured: «this breaks push», «pa
 may break the service's terms»). One line stays ours, not the user's: the product does not ship features whose
 purpose is to defeat payment or anti-fraud checks — privacy is the goal, not fraud.
 
+The owner's refinement for financial apps: «если чел пользует финансовое приложение - он подписывает оферту - но если
+приложение собирает чуть больше чем в оферте - то мы сообщаем об этом пользователю и предлагаем показать кукиш.» —
+the boundary is the CONTRACT, not the app category: what the signed offer / privacy policy covers (the payment, the
+checks the user agreed to) flows; what the app collects BEYOND it is reported to the user with the evidence (the
+offer's clause vs the observed payload) and offered allow / block / spoof. This is a consent-compliance auditor: the
+offer text is the declared intent, the traffic is the observation, the gap is a falsifiable finding — the same
+discipline as the rest of DAIS.
+
 ## The idea in our terms
 
 The pain is not writing rules once — it is that rules are a REPRESENTATION that breaks when the OS changes (new

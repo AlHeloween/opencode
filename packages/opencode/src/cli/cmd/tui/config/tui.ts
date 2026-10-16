@@ -78,6 +78,7 @@ async function resolvePlugins(config: Info, configFilepath: string) {
 
 async function mergeFile(acc: Acc, file: string, ctx: { directory: string }) {
   const data = await loadFile(file)
+  if (data && Object.keys(data).length > 0) log.info("loading tui config", { path: file })
   acc.result = mergeDeep(acc.result, data)
   if (!data.plugin?.length) return
 
@@ -90,13 +91,14 @@ async function mergeFile(acc: Acc, file: string, ctx: { directory: string }) {
   acc.result.plugin_origins = plugins
 }
 
-const loadState = Effect.fn("TuiConfig.loadState")(function* (ctx: { directory: string }) {
-  // Every config dir we may read from: global config dir, any `.opencode`
-  // folders between cwd and home, and OPENCODE_CONFIG_DIR.
-  const directories = yield* ConfigPaths.directories(ctx.directory)
+const loadState = Effect.fn("TuiConfig.loadState")(function* (ctx: { directory: string; worktree?: string }) {
+  // Portable hermetic (t78): never walk above the opened project (directory..worktree).
+  // No worktree = the launch directory itself is the stop — dist/bin never sees repo .opencode.
+  const stop = ctx.worktree ?? ctx.directory
+  const directories = yield* ConfigPaths.directories(ctx.directory, stop)
   yield* Effect.promise(() => migrateTuiConfig({ directories, cwd: ctx.directory }))
 
-  const projectFiles = Flag.OPENCODE_DISABLE_PROJECT_CONFIG ? [] : yield* ConfigPaths.files("tui", ctx.directory)
+  const projectFiles = Flag.OPENCODE_DISABLE_PROJECT_CONFIG ? [] : yield* ConfigPaths.files("tui", ctx.directory, stop)
 
   const acc: Acc = {
     result: {},

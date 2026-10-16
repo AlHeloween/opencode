@@ -230,11 +230,33 @@ export function chosenVariant(value: string | undefined): string | undefined {
  * Read the workspace-level model state from disk (model.json).
  * Returns the raw state object or undefined on any error.
  */
+export async function ensureModelState(): Promise<Record<string, unknown>> {
+  const filePath = path.join(Global.Path.state, "model.json")
+  try {
+    if (!(await Filesystem.exists(filePath))) {
+      // Fill, do not warn (t78): a fresh data root has no model.json yet — create the
+      // layer shape instead of ENOENT-warning on every boot. No model choice is invented.
+      await Filesystem.write(filePath, "{}\n")
+      return {}
+    }
+    const raw = await Filesystem.readText(filePath)
+    const parsed = JSON.parse(raw) as unknown
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, unknown>
+    return {}
+  } catch {
+    return {}
+  }
+}
+
 export async function readModelState(): Promise<Record<string, unknown> | undefined> {
   const filePath = path.join(Global.Path.state, "model.json")
   try {
     const exists = await Filesystem.exists(filePath)
-    if (!exists) return undefined
+    if (!exists) {
+      // Fill-once: create the layer so the next read finds it (see ensureModelState).
+      await ensureModelState()
+      return undefined
+    }
     const raw = await Filesystem.readText(filePath)
     return JSON.parse(raw) as Record<string, unknown>
   } catch {

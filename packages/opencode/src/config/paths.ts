@@ -15,22 +15,28 @@ export const files = Effect.fn("ConfigPaths.projectFiles")(function* (
   worktree?: string,
 ) {
   const afs = yield* AppFileSystem.Service
+  // Portable hermetic default (t78): no worktree/stop means no parent walk.
+  // Callers that own a project pass its worktree explicitly (directory..worktree).
+  const stop = worktree ?? directory
   return (yield* afs.up({
     targets: [`${name}.jsonc`, `${name}.json`],
     start: directory,
-    stop: worktree,
+    stop,
   })).toReversed()
 })
 
 export const directories = Effect.fn("ConfigPaths.directories")(function* (directory: string, worktree?: string) {
   const afs = yield* AppFileSystem.Service
+  // Portable hermetic default (t78): see files() above — unbounded up() reached the repo root
+  // from dist/bin and loaded foreign .opencode sources. Default stop is the start directory.
+  const stop = worktree ?? directory
   return unique([
     Global.Path.config,
     ...(!Flag.OPENCODE_DISABLE_PROJECT_CONFIG
       ? yield* afs.up({
           targets: [".opencode"],
           start: directory,
-          stop: worktree,
+          stop,
         })
       : []),
     ...(yield* afs.up({

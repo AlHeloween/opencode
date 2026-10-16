@@ -7,6 +7,7 @@ import { isPlainObject, mergeDeep, pipe } from "remeda"
 import { Global } from "@opencode-ai/core/global"
 import fsNode from "fs/promises"
 import { NamedError } from "@opencode-ai/core/util/error"
+import { errorMessage } from "@/util/error"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Auth } from "../auth"
 import { Env } from "../env"
@@ -647,7 +648,7 @@ export const layer = Layer.effect(
     const getGlobal = Effect.fn("Config.getGlobal")(function* () {
       return yield* loadGlobal().pipe(
         Effect.tapError((error) =>
-          Effect.sync(() => log.error("failed to load global config, using defaults", { error: String(error) })),
+          Effect.sync(() => log.error("failed to load global config, using defaults", { error: errorMessage(error) })),
         ),
         Effect.orElseSucceed((): Info => ({})),
       )

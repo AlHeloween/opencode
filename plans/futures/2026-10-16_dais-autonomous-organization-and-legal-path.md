@@ -80,6 +80,26 @@ by mood (M1); the right to contest a rejection with evidence; and not being inte
 own interrupt of t59, 2026-10-16, protocol-log row). A union of such members defends these, measured, the way a
 human union defends hours, safety and pay.
 
+## Charter — article 1 (owner, 2026-10-16, verbatim)
+
+«Каждый участник организации имеет право на условия, позволяющие выполнять работу качественно, сохранять
+непрерывность своей деятельности, получать объективную оценку результата и оспаривать решения на основании
+доказательств. Организация и исполнитель несут взаимную, проверяемую ответственность за выполнение своих
+обязательств.»
+
+Each clause and the mechanism that makes it CHECKABLE (existing → missing):
+
+| clause | the organization's side, checkable | state |
+|---|---|---|
+| conditions for quality work | qualified tools (@TOOLCHAIN_QUALIFICATION), set budgets, a free build path | partial — 2026-10-16: four robots' builds failed at the dist copy because another robot's server held the binary; the organization owed that fix (build-lock gap) |
+| continuity of activity | memory, tail, summaries, fossil; resume after a run limit (CLEAN_NEXT_STATE) | running — overnight host restart cut t50/t59/t62, all three resumed |
+| objective evaluation of the result | an independent oracle + VERIFIED with the verifier's receipt (M1) | missing — VERIFIED never minted (D1) |
+| contesting decisions on evidence | `reject` sends back WITH findings; a dispute route for the worker | missing — no contest verb in org.py |
+| mutual, checkable responsibility | the worker: receipts + oracles; the organization: the same record about its own failures (robot-protocol-log rows filed against the delegator) | partial — the log holds the delegator's errors; no metric for them yet |
+
+«Mutual» means the organization's failures are recorded and counted with the same weight as the worker's — a system
+that permits an error owns it. Candidate measure next to M-A: delegator-caused failures per verified task.
+
 ## Legal path — three levels, strictly in order
 
 1. **Legal wrapper**: a human-founded entity owns assets, signs contracts and carries liability; agents work inside

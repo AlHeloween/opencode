@@ -7101,3 +7101,4 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ CONFIRMED (source diff, own paths only): protocol-cell.ts (pure turn mapping + describe), protocol-cell-view.tsx (global-emitter "global" subscription + boundary guard + 128-facts cap + always-a-value span data-component=protocol-cell; BADGE OMITTED by design, stated in the file), session-header.tsx toolbar mount beside StatusPopover (sessionID=params.id). Basename collision fixed by rename (test resolved the .tsx over the .ts).
 ✓ CONFIRMED (regression): bun run typecheck 20261016T014459Z_61bdb566 exit 0 (earlier LSP errors on the new tsx were wrong-package noise).
 <!-- sv: protocol-cell 0.40, same-bus-event 0.30, no-fake-badge 0.15, red-green 0.15 -->
+— Build receipt (mandatory post-change): `_build.ps1` run 20261016T014718Z_fe20bd03 exit 0 — lock acquired/released, smoke 10.0.1366 + reasoning_prompt embedded PASS, artifacts in dist/.

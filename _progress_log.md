@@ -1,5 +1,12 @@
 ﻿# Progress Log
 
+## [2026-10-16] Zoekt / SCIP — Full Access проверен, Z1 выполнен
+
+✗ REFUTED: отказ wrapper-вызовов ранее ошибочно обобщён до запрета cloning. `codex execpolicy check` для прямого Git не нашёл matching rules; точная причина wrapper refusal неизвестна, policies не менялись.
+✓ CONFIRMED: прямой exec_command/git clone exit 0 у обоих; `external/zoekt` HEAD `74e1e85839697c4c4eb8a6223cc3971e6c26da45`, `external/scip` HEAD `e26a0b0fc83424dbfe6c703c0437d4703aec4aa0`; origin правильные, status пуст, fsck exit0, absent-path cat-file EXPECTED_FAIL. Receipts: `experiments_history/2026-10-16_zoekt-fossil/RECEIPTS.md`.
+— Z1 подтверждён, исторические denials сохранены. Следующий лист Z2 — изолированный build/index/query Fossil/SV oracle; production migration остаётся открытой.
+<!-- sv: clone-integrity 0.50, policy-diagnosis 0.30, continuation 0.20 -->
+
 ## [2026-10-16] Zoekt / SCIP / Fossil / SV — Z3 grounded design; cloning отклонён
 
 ✓ CONFIRMED (readback): план `plans/2026-10-16_zoekt-scip-fossil-sv.md`, отчёт `experiments_history/2026-10-16_zoekt-fossil/REPORT.md`; explorer `/root/search_architecture`, 7 source hashes независимо совпали. Z3 подтверждён; replacement inventory частичный.

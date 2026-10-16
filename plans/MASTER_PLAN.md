@@ -137,8 +137,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 268 |
 | plans active | 32 |
-| tasks passed / total | 1259 / 1547 |
-| open boxes | 145 |
+| tasks passed / total | 1260 / 1547 |
+| open boxes | 144 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -406,13 +406,12 @@ parent-goal-md5: 00000000000000000000000000000000]
   sv: intention "agent sees its own previous-message error and cannot remove it, window copies it forward by attention -> agent emits bounded self-edit directive (cut ranges + errata) addressed by message md5, stored original untouched, replay narrowed; error stopped at next step" · keywords [self-edit-directive, reasoning-hygiene, error-recurrence, fault-tolerance, keep-machinery]
   - P2 [PENDING] · sv [robot-runs 0.45, error-recurrence 0.35, owner-decision 0.20] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_zoekt-scip-fossil-sv.md` — 4 open / 5 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-16_zoekt-scip-fossil-sv.md` — 3 open / 5 box(es) · lifecycle UNKNOWN
   sv: intention "CodeGraph остаётся обязательной зависимостью поиска и impact -> локальная навигация по коду через Zoekt/SCIP, связанная с Fossil diff и SV, с проверенной заменой потребителей CodeGraph" · keywords [Keywords: fossil-diff 0.30, zoekt-search 0.25, scip-navigation 0.20, sv-provenance 0.15, codegraph-migration 0.10
 Semantic dominant: Поиск и навигация получают проверяемые адреса версий Fossil и SV до замены потребителей CodeGraph.
 md5: e8a16f092bce49a5b9f4130dd7c26e84
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000]
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is

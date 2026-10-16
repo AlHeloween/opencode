@@ -65,7 +65,7 @@ EXPECTED_FAIL; после переиндексации — PASS. Пока инс
 
 ## Задачи
 
-- [ ] Z1 — клонировать и проверить оба upstream checkout, записать HEAD и receipts.
+- [x] Z1 — клонировать и проверить оба upstream checkout, записать HEAD и receipts.
   <!-- sv: source-acquisition, integrity, upstream-pins -->
 - [ ] Z2 — квалифицировать Zoekt build/index/query и Fossil diff/SV на изолированном fixture;
   сохранить команды, полные логи, реальные результаты и проигрывающие controls.
@@ -105,16 +105,22 @@ read-only explorer `/root/search_architecture`, независимое совп�
 CONFIRMED ✓ readonly SQLite: 496 check-ins, 272 signed на момент чтения,
 последний signed check-in `cf64f467b5b2d6deed2bcb38d88740397a3dd32aa794f3f93a60f4bd5ca19b7a`,
 полный SV и 3 mlink rows. Primitive control `absent_control` → EXPECTED_FAIL.
-CONFIRMED ✓ Z1: оба клонирования отклонены runtime automatic policy до запуска;
-подробное основание не возвращено. [Receipt](../experiments_history/2026-10-16_zoekt-fossil/RECEIPTS.md).
-fs.stat после отказов: обе цели отсутствуют. Z1 и Z2 остаются открытыми.
+CONFIRMED ✓ первоначальные wrapper-вызовы были отклонены до запуска;
+подробное основание не возвращено. Вывод о запрете самого cloning REFUTED:
+обычный `git clone` через exec_command успешно создал оба checkout.
+CONFIRMED ✓ Z1: Zoekt HEAD `74e1e85839697c4c4eb8a6223cc3971e6c26da45`,
+SCIP HEAD `e26a0b0fc83424dbfe6c703c0437d4703aec4aa0`; origin совпадает с запросом,
+git status --porcelain пуст, git fsck --full --no-reflogs exit 0 у обоих;
+absent-path cat-file control exit 1 EXPECTED_FAIL.
+[Receipts](../experiments_history/2026-10-16_zoekt-fossil/RECEIPTS.md).
+Z1 закрыт, Z2 остаётся открытым. Настройки политик не менялись.
 
 ## CLEAN_NEXT_STATE
 
 План ACTIVE, целевая замена CodeGraph не выполнена. Z3 закрыт как read/design
-deliverable, actual_diff production = none. Z1/Z2: получить разрешённый runtime
-маршрут cloning, затем проверить клоны и запустить изолированный Zoekt/Fossil/SV
-oracle. Z4/Z5 следуют только после этих доказательств. Receipt отказа сохранён;
+deliverable, actual_diff production = none. Z1 выполнен прямым Git CLI.
+Следующий шаг Z2: изолированный Zoekt/Fossil/SV oracle на полученных исходниках.
+Z4/Z5 следуют только после этих доказательств. Исторический receipt отказа сохранён;
 никакой фоновый clone/job не работает. Полный portfolio audit не выполнялся;
-SUCCESS по целому плану не заявляется. Следующий маршрут: G6 для разрешённого
-получения исходников, затем G8 integrity, либо G2 permitted-executor qualification.
+SUCCESS по целому плану не заявляется. Следующий маршрут: G6 qualification
+build/index/query instruments для Z2; Full Access не является открытым blocker.

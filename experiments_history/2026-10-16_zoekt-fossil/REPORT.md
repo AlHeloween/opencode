@@ -11,7 +11,23 @@ parent-goal-md5: e8a16f092bce49a5b9f4130dd7c26e84
 
 План: `plans/2026-10-16_zoekt-scip-fossil-sv.md`. Дата: 2026-10-16.
 
-## Результат и границы
+## Актуальное состояние после проверки Full Access
+
+✓ CONFIRMED, прямой `git clone` через exec_command завершился exit 0 у обоих
+репозиториев. Zoekt: `external/zoekt`, HEAD `74e1e85839697c4c4eb8a6223cc3971e6c26da45`.
+SCIP: `external/scip`, HEAD `e26a0b0fc83424dbfe6c703c0437d4703aec4aa0`.
+Оба origin правильные, рабочие деревья чистые, `git fsck --full --no-reflogs`
+вернул 0. Отсутствующий path в `git cat-file -e HEAD:<path>` дал exit 1 у обоих
+(EXPECTED_FAIL). Подробные [receipts](RECEIPTS.md).
+
+✗ REFUTED: общий вывод «policy запрещает cloning» был чрезмерным обобщением
+отказа конкретных wrapper-вызовов. Full Access присутствует; local rules check
+не нашёл совпадающего правила для прямого Git clone. Точная причина отказа
+wrapper-вызовов неизвестна. Политики/настройки не менялись, обходов через скрытый
+launcher или скрипт не применялось: выполнена открытая команда Git штатным tool.
+Z1 закрыт. Сборка/index/query и замена CodeGraph по-прежнему не проверены.
+
+## Исторический результат первого прохода
 
 ✓ CONFIRMED, `exec_command` receipts: два вызова `cmd_runner start ... git clone`
 отклонены автоматической политикой до запуска: `rejected: blocked by policy`.
@@ -189,7 +205,8 @@ C2 существующего impact-decoupling и незавершённая pr
 
 ✓ CONFIRMED, document oracle: explorer review выявил и исправлены text diagram,
 два адреса и stale plan state. Parent readback: smoke section существует;
-Z3 `[x]`, Z1/Z2/Z4/Z5 `[ ]`; семь SHA256 остались прежними.
+Исторический readback до повторного clone: Z3 `[x]`, Z1/Z2/Z4/Z5 `[ ]`;
+после прямого clone актуально Z1/Z3 `[x]`, Z2/Z4/Z5 `[ ]`. Семь SHA256 остались прежними.
 
 ✓ CONFIRMED, штатный `SVM.applyRender`, run `20261016T095122Z_68af993e`:
 exit 0, bytes_written 1184, bytes_dropped 0, truncated false. Полный журнал прочитан.
@@ -218,10 +235,10 @@ Data root — `D:/zPython/opencode/.opencode/data`. Missing-marker EXPECTED_FAIL
 hand-owned head сохранён, 7 manifests восстановлены (missingManifests 145 → 138).
 Это документальный PASS после исправления harness, не Zoekt/SCIP acceptance.
 
-Следующий эффект: разрешённое получение двух репозиториев в указанные external/
-пути; затем Z1 integrity → Z2 build/index/query fixture с дифференциальными controls.
-Текущий отказ относится к effect cloning; runtime отказ не обойдён.
-Continuation receipt: [сохранённый ответ отказа](RECEIPTS.md),
-readback `targets[].exists=false`; исследование `/root/search_architecture`
-завершено с independently matched source hashes. Это receipt остановки, не PASS
-клонирования и не активный background follow-up. План остаётся открытым.
+Следующий эффект: Z2 build/index/query fixture с дифференциальными controls.
+Z1 после исправления общего вывода выполнен и подтверждён Git readback.
+Continuation receipt: [история отказов и успешные clone/integrity receipts](RECEIPTS.md);
+исторический readback `targets[].exists=false` заменён актуальными Git HEAD/status/fsck;
+исследование `/root/search_architecture`
+завершено с independently matched source hashes. Clone integrity — PASS;
+активного background follow-up нет. Полная миграция остаётся открытой.

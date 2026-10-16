@@ -36,4 +36,37 @@ Policy не предоставила подробную причину и не �
 ✓ CONFIRMED, независимый explorer `/root/search_architecture` повторил проверку:
 оба external target отсутствуют, ENOENT. Его completion receipt — read-only
 исследование и review, не выполнение cloning. Разрешённый runtime маршрут
-клонирования остаётся prerequisite; повтор через иной launcher не выполнялся.
+клонирования оставался prerequisite на границе первого прохода.
+
+## Актуальные clone / integrity receipts
+
+✓ CONFIRMED: после замечания владельца о Full Access выполнены обычные команды
+через exec_command, без изменения policies и без wrapper:
+
+```text
+cwd: D:/zPython/opencode
+git clone https://github.com/sourcegraph/zoekt.git external/zoekt
+chunk_id=a98f7e exit_code=0
+Cloning into 'external/zoekt'...
+
+git clone https://github.com/scip-code/scip.git external/scip
+chunk_id=deb1ad exit_code=0
+Cloning into 'external/scip'...
+```
+
+✓ CONFIRMED, независимый Git readback в каждом новом checkout:
+
+| проверка | zoekt | scip |
+|---|---|---|
+| `git log -1 --format=%H` | `74e1e85839697c4c4eb8a6223cc3971e6c26da45` | `e26a0b0fc83424dbfe6c703c0437d4703aec4aa0` |
+| `git remote get-url origin` | `https://github.com/sourcegraph/zoekt.git` | `https://github.com/scip-code/scip.git` |
+| `git status --porcelain` | empty, exit 0 | empty, exit 0 |
+| `git fsck --full --no-reflogs` | empty, exit 0; chunk `5d34b9` | empty, exit 0; chunk `49d895` |
+| `git cat-file -e HEAD:__codex_expected_absent_control_8b7e941c__` | EXPECTED_FAIL exit 1 | EXPECTED_FAIL exit 1 |
+
+✗ REFUTED: первоначальный отказ wrapper-вызовов не доказывал запрета cloning.
+Read-only `codex execpolicy check --rules .../default.rules -- git clone ...`
+вернул `{"matchedRules":[]}` (chunk `562838`). Точная причина wrapper refusal
+не установлена; подтверждён только контраст wrapper-denied / direct-Git-accepted.
+Официальный rule contract: https://learn.chatgpt.com/docs/agent-configuration/rules .
+Z1 принят; Z2 и full migration не доказаны этим receipt.

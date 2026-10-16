@@ -30,6 +30,13 @@ part: the leak rides LEGITIMATE channels (push, platform services, sync, crash r
 the same endpoint as the function. A domain block list cannot separate them; the intent record must be per PURPOSE,
 and the trade-off per service («block this and push dies») is shown with its measured consequence, never silent.
 
+And the third answer: «Если без сообщения никак - его можно просто спуфанут - откуда - из антарктиды, утрирую.» —
+so a decision per purpose is allow / block / SPOOF: the channel stays alive, the payload carries a substitute (a
+coarse or fixed location, a reset ad ID, an empty contact list) the app accepts. Constraints to design for: the
+substitute is consistent over time (a jumping fake is itself a fingerprint), the service-health oracle still decides
+whether it broke something, and spoofing stays on data the app does not need for what the owner uses it for — never
+on payments, identity checks or anti-fraud signals (owner's ethics toward services: no evasion where it harms them).
+
 ## The idea in our terms
 
 The pain is not writing rules once — it is that rules are a REPRESENTATION that breaks when the OS changes (new

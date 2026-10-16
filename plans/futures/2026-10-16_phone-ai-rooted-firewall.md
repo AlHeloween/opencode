@@ -37,6 +37,13 @@ substitute is consistent over time (a jumping fake is itself a fingerprint), the
 whether it broke something, and spoofing stays on data the app does not need for what the owner uses it for — never
 on payments, identity checks or anti-fraud signals (owner's ethics toward services: no evasion where it harms them).
 
+The owner's ruling on who decides: «пусть пользователь решает, как он хочет быть - это его частное пространство, мы
+обеспечиваем его реальную неприкосновенность на сколько это вообще возможно.» — the phone is the user's private space;
+the product executes the user's choice per purpose and makes it real, it does not override it. What the product owes
+is an honest consequence before the choice (measured: «this breaks push», «payments from this app will fail», «this
+may break the service's terms»). One line stays ours, not the user's: the product does not ship features whose
+purpose is to defeat payment or anti-fraud checks — privacy is the goal, not fraud.
+
 ## The idea in our terms
 
 The pain is not writing rules once — it is that rules are a REPRESENTATION that breaks when the OS changes (new

@@ -17,6 +17,7 @@ import { EventPaths } from "./httpapi/event"
 import { ExperimentalPaths } from "./httpapi/experimental"
 import { FilePaths } from "./httpapi/file"
 import { McpPaths } from "./httpapi/mcp"
+import { ChainPaths } from "./httpapi/chain"
 import { SessionPaths } from "./httpapi/session"
 import { SyncPaths } from "./httpapi/sync"
 import { TuiPaths } from "./httpapi/tui"
@@ -175,6 +176,8 @@ export const InstanceRoutes = (): Hono => {
   app.patch(SessionPaths.updatePart, (c) => handler(c.req.raw, context))
   app.get(SessionPaths.backups, (c) => handler(c.req.raw, context))
   app.post(SessionPaths.restore, (c) => handler(c.req.raw, context))
+  app.get(ChainPaths.get, (c) => handler(c.req.raw, context))
+  app.put(ChainPaths.set, (c) => handler(c.req.raw, context))
   app.post(TuiPaths.appendPrompt, (c) => handler(c.req.raw, context))
   app.post(TuiPaths.openHelp, (c) => handler(c.req.raw, context))
   app.post(TuiPaths.openSessions, (c) => handler(c.req.raw, context))

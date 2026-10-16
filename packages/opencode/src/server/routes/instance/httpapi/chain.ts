@@ -7,6 +7,11 @@ import { Authorization } from "./auth"
 
 const root = "/chain"
 
+export const ChainPaths = {
+  get: `${root}/:scope/:agent`,
+  set: `${root}/:scope/:agent`,
+}
+
 const ChainMemberSchema = Schema.Struct({
   providerID: Schema.String,
   modelID: Schema.String,

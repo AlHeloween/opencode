@@ -5,6 +5,7 @@
 
 ✓ CONFIRMED (роут): `GET/PUT /chain/:scope/:agent` (`httpapi/chain.ts`, регистрация `public.ts`/`server.ts`); PUT валидирует (пусто → 400), GET отдаёт мемберы + статусы/reasons — источник для заметки и web-формы t59.
 ✓ CONFIRMED (wiring): `promptAsync` без модели подставляет first UP (`assign.ts` + `health-registry.ts`); `task`/`pipeline` берут цепочку первыми, switch — `chain switch`-заметкой в лог; пустой слой → legacy-путь. Store-тест 11/11 (20261016T053335Z_1ef1efbd), failover 25/25, task 14/14 (20261016T053557Z_5fdcc091).
+✓ MEASURED (стенд): experimental HttpApi-дерево serve НЕ монтирует на свои пути (server.ts:66-74 — только WorkspacePaths) — живой GET /chain вернул SPA; добавлен hono-бридж `ChainPaths` в `InstanceRoutes` (как у session). `promptAsync`-wiring живёт, т.к. хендлер общий.
 — Остаток: свежий dist → изолированный стенд free→Go; in-session баннер (новый event-type) — C6; dispatch unpin — owner.
 <!-- sv: chain-route 0.35, prompt-wiring 0.30, switch-note 0.20, isolated-stand 0.15 -->
 ## [2026-10-16] t68 slice 2 — ревью R1–R4 + C1 store + C5 core (план plans/2026-10-16_model-chain-failover.md, боксы не тронуты)

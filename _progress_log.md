@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t66 — private-index commit route (plan plans/2026-10-16_private-index-commit.md)
+
+✓ CONFIRMED (tests first): packages/opencode/test/git/private-index-commit.test.ts RED `20261016T022926Z_1547a8fd` exit 1 (0 pass / 4 fail, missing route) → GREEN `20261016T023058Z_40ca69d5` exit 0 (4 pass / 0 fail, 19 expects) + strengthened race-order GREEN `20261016T023237Z_c534de4f` exit 0.
+✓ CONFIRMED (route): scripts/commit_own.py — private `.git/index-<session>` seeded from HEAD, whole-file `git add -A -- <paths>`, unmodified-path refusal, explicit `git hook run pre-commit`, commit-tree + atomic update-ref CAS with rebase-free retry; shared index never opened; hunk-level staging out of scope (in plan).
+✓ CONFIRMED (docs): one line in experiments/2026-10-08_robot-wave/common.md + docs/plan-maintenance.md § JOB FAILED pointing to the route. No kernel edit.
+— Live oracle: self-commit through the new route (this entry rides it); _build.ps1 receipt to follow.
+<!-- sv: private-index-commit 0.45, shared-index-isolation 0.30, hook-still-runs 0.15, attribution-precondition 0.10 -->
 ## [2026-10-16] t64 close — owner review PASS + override-дыра S7 (план plans_completed/2026-10-16_codex-agents-md-only.md)
 
 ✓ CONFIRMED (owner receipts): pytest 301 passed; live --codex-global doctor all PASS (agents hash de5d5cd8… = matches this kernel; developer_instructions absent); cap-пин mod.rs @ rust-v0.159.3 (sha256 5f900d53…); real install no-op (файл побайтово равен рендеру).

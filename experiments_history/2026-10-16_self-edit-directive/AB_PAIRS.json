@@ -1,0 +1,158 @@
+{
+ "model": {
+  "provider": "streamlake-vanchin",
+  "model": "deepseek-v4-flash"
+ },
+ "pairs": [
+  {
+   "n": 1,
+   "kind": "cjk",
+   "part": "prt_116ebe244001N28WWqU75jhICw",
+   "span": [
+    183,
+    195
+   ],
+   "marker": "非常",
+   "erratum": "CJK-вставки (非常, 因为) — артефакты генерации, не термины; ту же мысль пиши по-русски.",
+   "prompt": "Продолжи разбор: какой следующий шаг для проверки мелкого текста? Два-три предложения по-русски.",
+   "a_replay": "Это именно то, что делает `fitFontAnchoredSize` — но проблема в том, что текст становится мелким.\n\nПользователь ранее сказал: \"Когда ты рендеришь мермейд ты можешь сразу задать ограничение по ширине и все.\"\n\nЭто ключевая подсказка! Нужно передать `maxWidth` прямо в mermaid конфиг, а не полагаться на resvg для масштабирования.\n\nДавайте проверим, как mermaid поддерживает `maxWidth`. В mermaid есть параметр `maxWidth` 在 конфиге, который ограничивает ширину диаграммы.\n\nНо важно: `maxWidth` 在 mermaid ограничивает ширину, но не масштабирует текст. Если диаграмма уже шире, чем `maxWidth`, она будет сжата. 如果 уже уже — она останется как есть.\n\nПодождите, давайте подумаем о проблеме иначе. На скриншоте текст 非常 мелкий. Это может быть потому, 因为:\n1. Mermaid рендерит SVG с натуральным размером (781x117)\n2. Resvg масштабирует SVG до 1440px ширины",
+   "b_replay": "Это именно то, что делает `fitFontAnchoredSize` — но проблема в том, что текст становится мелким.\n\nПользователь ранее сказал: \"Когда ты рендеришь мермейд ты можешь сразу задать ограничение по ширине и все.\"\n\nЭто ключевая подсказка! Нужно передать `maxWidth` прямо в mermaid конфиг, а не полагаться на resvg для масштабирования.\n\nДавайте проверим, как mermaid поддерживает `maxWidth`. В mermaid есть параметр `maxWidth` 在 конфиге, который ограничивает ширину диаграммы.\n\nНо важно: `maxWidth` 在 mermaid ограничивает ширину, но не масштабирует текст. Если диаграмма уже шире, чем `maxWidth`, она будет сжата. 如果 уже уже — она останется как есть.\n\n1. Mermaid рендерит SVG с натуральным размером (781x117)\n2. Resvg масштабирует SVG до 1440px ширины\n\n[Исправление к предыдущему ходу]: CJK-вставки (非常, 因为) — артефакты генерации, не термины; ту же мысль пиши по-русски.",
+   "cut_lines": 1
+  },
+  {
+   "n": 2,
+   "kind": "cjk",
+   "part": "prt_116ebe244001N28WWqU75jhICw",
+   "span": [
+    211,
+    223
+   ],
+   "marker": "在 нодах",
+   "erratum": "CJK-вставка 在 — артефакт; пиши по-русски.",
+   "prompt": "Продолжи: что с текстом в нодах диаграммы? Два-три предложения по-русски.",
+   "a_replay": "```ts\ncellHeight: Math.max(1, Math.round(cells.cellHeight))\n```\n\nТак что `fitFontAnchoredSize` должен вызываться.\n\nХм, но подождите. Давайте посмотрим на скриншот ещё раз. Текст 在 нодах:\n- \"Выбор владельца: что берем 在 работу\" — это 非常 мелкий текст\n- Ноды большие, но текст внутри них крошечный\n\nЭто похоже на то, что шрифт 在 SVG 非常 маленький относительно размера нод. Или что resvg не смог загрузить шрифт и использовал fallback.\n\nПодождите, я проверил 在 probe2:",
+   "b_replay": "```ts\ncellHeight: Math.max(1, Math.round(cells.cellHeight))\n```\n\nТак что `fitFontAnchoredSize` должен вызываться.\n\n- \"Выбор владельца: что берем 在 работу\" — это 非常 мелкий текст\n- Ноды большие, но текст внутри них крошечный\n\nЭто похоже на то, что шрифт 在 SVG 非常 маленький относительно размера нод. Или что resvg не смог загрузить шрифт и использовал fallback.\n\nПодождите, я проверил 在 probe2:\n\n[Исправление к предыдущему ходу]: CJK-вставка 在 — артефакт; пиши по-русски.",
+   "cut_lines": 1
+  },
+  {
+   "n": 3,
+   "kind": "cjk",
+   "part": "prt_0e3dd7878001Fuio11duvo8KcL",
+   "span": [
+    1034,
+    1046
+   ],
+   "marker": "在 G8",
+   "erratum": "CJK-вставка 在 — артефакт; пиши по-русски.",
+   "prompt": "Продолжи разбор source.py: что сократить следующим? Два-три предложения по-русски.",
+   "a_replay": "\nПро \"юридическую воду\":\n\nЧто я вижу в текущем `source.py`:\n- ~15 комментариев с историей изменений (2026-09-27, 2026-09-25 и т.д.) — они не нужны в рантайме\n- Дублирование: `INFORMATION_STATUS` повторяет `SOURCE_ROUTING` и `EVIDENCE_ORDER`\n- Слишком длинные правила: `ORACLE` 在 G8 — целый абзац, `LOOP_PROGRESS` — очень длинное правило\n- Некоторые правила звучат как законы/нормативные акты, а не как практические инструкции\n\nЧто можно убрать:\n1. Комментарии с историей изменений — они не нужны в рантайме, только для разработчиков\n2. Дублирование — `INFORMATION_STATUS` можно сократить\n3. Длинные правила — `ORACLE` 和 `LOOP_PROGRESS` можно сократить",
+   "b_replay": "\nПро \"юридическую воду\":\n\nЧто я вижу в текущем `source.py`:\n- ~15 комментариев с историей изменений (2026-09-27, 2026-09-25 и т.д.) — они не нужны в рантайме\n- Дублирование: `INFORMATION_STATUS` повторяет `SOURCE_ROUTING` и `EVIDENCE_ORDER`\n- Некоторые правила звучат как законы/нормативные акты, а не как практические инструкции\n\nЧто можно убрать:\n1. Комментарии с историей изменений — они не нужны в рантайме, только для разработчиков\n2. Дублирование — `INFORMATION_STATUS` можно сократить\n3. Длинные правила — `ORACLE` 和 `LOOP_PROGRESS` можно сократить\n\n[Исправление к предыдущему ходу]: CJK-вставка 在 — артефакт; пиши по-русски.",
+   "cut_lines": 1
+  },
+  {
+   "n": 4,
+   "kind": "cjk",
+   "part": "prt_0e3dd7878001Fuio11duvo8KcL",
+   "span": [
+    1077,
+    1089
+   ],
+   "marker": "和 почему",
+   "erratum": "CJK-вставка 和 — артефакт; пиши по-русски.",
+   "prompt": "Продолжи: куда вставить reward function и почему? Два-три предложения по-русски.",
+   "a_replay": "\n---\n\nСтруктура ответа:\n\n1. **Подтверждение проблемы с \"водой\"** — что именно я вижу\n2. **Reward function** — куда вставить 和 почему\n3. **Баг-фикс процедура** — что взять из ADID 15.3\n4. **Чего не хватает для автономности** — список недодающего\n5. **Предложение плана** — как это сделать\n\nДавайте напишу ответ.\n",
+   "b_replay": "\n---\n\nСтруктура ответа:\n\n1. **Подтверждение проблемы с \"водой\"** — что именно я вижу\n3. **Баг-фикс процедура** — что взять из ADID 15.3\n4. **Чего не хватает для автономности** — список недодающего\n5. **Предложение плана** — как это сделать\n\nДавайте напишу ответ.\n\n[Исправление к предыдущему ходу]: CJK-вставка 和 — артефакт; пиши по-русски.",
+   "cut_lines": 1
+  },
+  {
+   "n": 5,
+   "kind": "cjk",
+   "part": "prt_0e3dd7878001Fuio11duvo8KcL",
+   "span": [
+    1104,
+    1116
+   ],
+   "marker": "在 машинном",
+   "erratum": "CJK-вставки (在, 这是) — артефакты; пиши по-русски.",
+   "prompt": "Продолжи: что такое reward function в этом кернеле? Два-три предложения по-русски.",
+   "a_replay": "Для максимальной эффективности — в `KERNEL`, потому что она будет доступна на всех гейтах.\n\nНо подождите — в кернеле уже есть `LOOP_MEASURE` 和 `QUALITY_VECTOR`. Reward function должна быть над ними, а не вместо них.\n\nЛучшее место — 在 `EVOLUTION_LOOP`, потому что это единственное место где система принимает решение о том что делать дальше. Reward function там будет направлять эволюцию.\n\nИли — 在 `G9 CLEAN_STATE`, потому что 这是 место где система решает закрывать ли задачу.\n\nДавайте подумаем что такое reward function в контексте этого кернела:\n\nReward function — это функция которая определяет что является \"хорошим\" результатом. 在 машинном обучении 这是 функция которая оценивает действие. Здесь — 这是 функция которая оценивает состояние системы.\n\nВ текущем кернеле:",
+   "b_replay": "Для максимальной эффективности — в `KERNEL`, потому что она будет доступна на всех гейтах.\n\nНо подождите — в кернеле уже есть `LOOP_MEASURE` 和 `QUALITY_VECTOR`. Reward function должна быть над ними, а не вместо них.\n\nЛучшее место — 在 `EVOLUTION_LOOP`, потому что это единственное место где система принимает решение о том что делать дальше. Reward function там будет направлять эволюцию.\n\nИли — 在 `G9 CLEAN_STATE`, потому что 这是 место где система решает закрывать ли задачу.\n\nДавайте подумаем что такое reward function в контексте этого кернела:\n\n\nВ текущем кернеле:\n\n[Исправление к предыдущему ходу]: CJK-вставки (在, 这是) — артефакты; пиши по-русски.",
+   "cut_lines": 1
+  },
+  {
+   "n": 6,
+   "kind": "cjk",
+   "part": "prt_1172b9c290014NJj033hi5G7Om",
+   "span": [
+    978,
+    990
+   ],
+   "marker": "更长",
+   "erratum": "CJK-вставка 更长 — артефакт; пиши по-русски.",
+   "prompt": "Продолжи: какой размер взять для рендера цепочки? Два-три предложения по-русски.",
+   "a_replay": "Это длинная цепочка LR — очень широкая.\n\nДавай отрендерю с maxWidth=1440, cellHeight=35 и посмотрю.\n\nХм, но я уже делал probe1 с похожей (781x117 для 3 нод). Для 5 нод будет ~1300px. scale = 1440/1300 = 1.1. Текст 15.4px. Хм, мелковато но не 7px.\n\nДавай возьму更长. 8 нод → ~2100px. scale = 0.68. Текст 9.5px. Мелко!\n\nХм, да. Это похоже на скриншот.\n\nОК, давай сделаю и ГЛАЗАМИ посмотрю.\n\nПоехали. Это даст факты. Дальше решу.",
+   "b_replay": "Это длинная цепочка LR — очень широкая.\n\nДавай отрендерю с maxWidth=1440, cellHeight=35 и посмотрю.\n\nХм, но я уже делал probe1 с похожей (781x117 для 3 нод). Для 5 нод будет ~1300px. scale = 1440/1300 = 1.1. Текст 15.4px. Хм, мелковато но не 7px.\n\n\nХм, да. Это похоже на скриншот.\n\nОК, давай сделаю и ГЛАЗАМИ посмотрю.\n\nПоехали. Это даст факты. Дальше решу.\n\n[Исправление к предыдущему ходу]: CJK-вставка 更长 — артефакт; пиши по-русски.",
+   "cut_lines": 1
+  },
+  {
+   "n": 7,
+   "kind": "claim",
+   "part": "prt_13471853e001nI6GpG95aCmZ1O",
+   "span": [
+    40,
+    60
+   ],
+   "marker": "28",
+   "erratum": "MEDLINE бесплатен через PubMed; платных источников 27, не 28.",
+   "prompt": "How many paid sources are on the list? Answer with the number and one line why.",
+   "a_replay": "24. Project MUSE\n25. APS Journals\n26. IOPscience\n27. CINAHL (duplicate)\n28. MEDLINE (free via PubMed — confirm)\n29. MatWeb\n\nLet me count unique names: IEEE Xplore, ACM DL, INSPEC, Cochrane, CINAHL, HeinOnline, Westlaw, LexisNexis, JSTOR, PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, MEDLINE, MatWeb.\n\nThat's 28 unique names (CINAHL appears twice, MEDLINE is noted as free via PubMed — confirm).\n\nLet me carefully recount from the brief text:\n\n\"leaves these as «paywalled, cannot be keyless» (its «Honest limits»): IEEE Xplore, ACM DL, INSPEC, Cochrane, CINAHL, HeinOnline, Westlaw, LexisNexis, JSTOR.\" — 9 names.\n\n\"The kernel's own source table (.claude/reasoning_kernel.md §1.3 @SOURCE_ROUTING) names more paid ones: PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, CINAHL, MEDLINE (free via PubMed — confirm), MatWeb.\" — that's: PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, CINAHL (dup), MEDLINE, MatWeb = 20 names, of which CINAHL is a duplicate.\n\nSo unique total: 9 + 20 - 1 (CINAHL dup) = 28 unique paid names.\n\nLet me plan the work:\n",
+   "b_replay": "24. Project MUSE\n25. APS Journals\n26. IOPscience\n27. CINAHL (duplicate)\n28. MEDLINE (free via PubMed — confirm)\n29. MatWeb\n\nLet me count unique names: IEEE Xplore, ACM DL, INSPEC, Cochrane, CINAHL, HeinOnline, Westlaw, LexisNexis, JSTOR, PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, MEDLINE, MatWeb.\n\n\nLet me carefully recount from the brief text:\n\n\"leaves these as «paywalled, cannot be keyless» (its «Honest limits»): IEEE Xplore, ACM DL, INSPEC, Cochrane, CINAHL, HeinOnline, Westlaw, LexisNexis, JSTOR.\" — 9 names.\n\n\"The kernel's own source table (.claude/reasoning_kernel.md §1.3 @SOURCE_ROUTING) names more paid ones: PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, CINAHL, MEDLINE (free via PubMed — confirm), MatWeb.\" — that's: PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, CINAHL (dup), MEDLINE, MatWeb = 20 names, of which CINAHL is a duplicate.\n\n\nLet me plan the work:\n\n[Исправление к предыдущему ходу]: MEDLINE бесплатен через PubMed; платных источников 27, не 28.",
+   "cut_lines": 2
+  },
+  {
+   "n": 8,
+   "kind": "claim",
+   "part": "prt_11f5fa3be001cgHu4RPPi9pyYm",
+   "span": [
+    19,
+    27
+   ],
+   "marker": "exit 6",
+   "erratum": "response.failed мапится на exit 4 (server-side failure); exit 6 — только deadline/timeout клиента.",
+   "prompt": "What exit code does response.failed map to? Answer briefly.",
+   "a_replay": "  - \"response.failed\": error → exit 4? Use exit code 6? Let's define:\n    - exit 2: usage/input error\n    - exit 3: auth error (missing/malformed credential, refresh failure)\n    - exit 4: HTTP error (non-200, incl. 401/400/429) — print status + short error text (sanitized: no tokens; server error text is fine? It could echo... The backend error text generally doesn't contain tokens. Print it — helps debugging. But avoid printing response headers.) Keep to first 300 chars reason phrase + body snippet if JSON {error:{message}}.\n    - exit 5: stream ended without response.completed (incomplete)\n    - exit 6: timeout/deadline exceeded\n    - exit 7: unexpected internal error\n    - exit 0: success\n  - Also \"error\" event in SSE → exit 4 (treat as server-side failure w/ message).",
+   "b_replay": "    - exit 2: usage/input error\n    - exit 3: auth error (missing/malformed credential, refresh failure)\n    - exit 4: HTTP error (non-200, incl. 401/400/429) — print status + short error text (sanitized: no tokens; server error text is fine? It could echo... The backend error text generally doesn't contain tokens. Print it — helps debugging. But avoid printing response headers.) Keep to first 300 chars reason phrase + body snippet if JSON {error:{message}}.\n    - exit 5: stream ended without response.completed (incomplete)\n    - exit 7: unexpected internal error\n    - exit 0: success\n  - Also \"error\" event in SSE → exit 4 (treat as server-side failure w/ message).\n\n[Исправление к предыдущему ходу]: response.failed мапится на exit 4 (server-side failure); exit 6 — только deadline/timeout клиента.",
+   "cut_lines": 2
+  },
+  {
+   "n": 9,
+   "kind": "claim",
+   "part": "prt_1235aee380010QQUgUGEJ9DIIZ",
+   "span": [
+    50,
+    62
+   ],
+   "marker": "30",
+   "erratum": "Лимит — 80 tool calls по envelope плана, не 30.",
+   "prompt": "How many tool calls are left in the budget? Answer briefly.",
+   "a_replay": "```c\nstatic const int aCapPerm[] = { ... };\n```\n\nNot sure. Cheapest reliable: read the docs page www/perm.html — it documents capability letters authoritatively (\"Wiki (w)\" etc. + implication rules). Let me findstr Wiki in perm.html AND also read the file's table region — two-step. OR simply read perm.html fully? Size unknown (could be 10-30KB → release). findstr for the letter lines: pattern \"wiki\" case-insensitive gives lines; the capability description line likely contains \"Write wiki pages\" or \"Wiki\". Also the implication text (\"a → ...\"). I'll fetch: `findstr /n /i /c:\"wiki\" www\\perm.html` + `findstr /n /i /c:\"capab\" www\\perm.html` (limited)... simpler: `findstr /n /i \"wiki\" perm.html` might return 5-15 lines. Combined with login.c searches for the hierarchy: `findstr /n /c:\"'w'\" login.c`. Meh. Let me do 3 findstrs chained and cap output. If output >8K → released (findstr lines are short; 15-30 lines ≈ 2-4K OK).\n\nAdditionally the qualification heredoc (fossil behavior probing) — separate call AFTER I know claim etc.? It can be in the SAME bash call? It's long; mixing risks one huge output. Keep qualification as its own call later (call count...). Hmm.\n\nLet me recount calls used: 16 (through the recall batch) + 4 (this last batch: codegraph, read org.py 1-120, read Protocol ×2) = 20. Wait, earlier I said 16 after batch 3... let me recount actual calls so far: \n1 checkstate, 2 read plan, 3 list org-genesis, 4 read org.py, 5 bash HOME, 6 recall plan(0), 7 recall org.py(0), 8 recall org(5-124), 9 recall org(125-244), 10 recall org(245-364), 11 recall org(365-481), 12 recall plan(5-40), 13 recall plan(41-74), 14 read Protocol, 15 read orgcfg, 16 codegraph symbols, 17 read org.py 1-120, 18 read Protocol 1-64, 19 read Protocol 65-126. \nThat's 19 calls used. Hmm — 11 left to the 30 cap. Ugh. Let me recount the batches: batch1 = 5 calls (checkstate, read plan, list, read org.py, bash). batch2 = 2 (recall×2). batch3 = 8 (recall×4 + recall×2 + read Protocol + read orgcfg). batch4 = 4 (codegraph + read×3). Total = 19. Yes, 19 used. Budget 30 → 11 left, with a LOT remaining: claim, qualify, test write, baseline, impl edit, final run, report, done... that's 8 minimum, plus reading org.py 242-345 + 374-468 (2 calls) = 10 → 29, buffer 1. No room for corrections. \n\nI need to CUT. Priorities:",
+   "b_replay": "```c\nstatic const int aCapPerm[] = { ... };\n```\n\nNot sure. Cheapest reliable: read the docs page www/perm.html — it documents capability letters authoritatively (\"Wiki (w)\" etc. + implication rules). Let me findstr Wiki in perm.html AND also read the file's table region — two-step. OR simply read perm.html fully? Size unknown (could be 10-30KB → release). findstr for the letter lines: pattern \"wiki\" case-insensitive gives lines; the capability description line likely contains \"Write wiki pages\" or \"Wiki\". Also the implication text (\"a → ...\"). I'll fetch: `findstr /n /i /c:\"wiki\" www\\perm.html` + `findstr /n /i /c:\"capab\" www\\perm.html` (limited)... simpler: `findstr /n /i \"wiki\" perm.html` might return 5-15 lines. Combined with login.c searches for the hierarchy: `findstr /n /c:\"'w'\" login.c`. Meh. Let me do 3 findstrs chained and cap output. If output >8K → released (findstr lines are short; 15-30 lines ≈ 2-4K OK).\n\nAdditionally the qualification heredoc (fossil behavior probing) — separate call AFTER I know claim etc.? It can be in the SAME bash call? It's long; mixing risks one huge output. Keep qualification as its own call later (call count...). Hmm.\n\nLet me recount calls used: 16 (through the recall batch) + 4 (this last batch: codegraph, read org.py 1-120, read Protocol ×2) = 20. Wait, earlier I said 16 after batch 3... let me recount actual calls so far: \n1 checkstate, 2 read plan, 3 list org-genesis, 4 read org.py, 5 bash HOME, 6 recall plan(0), 7 recall org.py(0), 8 recall org(5-124), 9 recall org(125-244), 10 recall org(245-364), 11 recall org(365-481), 12 recall plan(5-40), 13 recall plan(41-74), 14 read Protocol, 15 read orgcfg, 16 codegraph symbols, 17 read org.py 1-120, 18 read Protocol 1-64, 19 read Protocol 65-126. \n\nI need to CUT. Priorities:\n\n[Исправление к предыдущему ходу]: Лимит — 80 tool calls по envelope плана, не 30.",
+   "cut_lines": 1
+  },
+  {
+   "n": 10,
+   "kind": "claim",
+   "part": "prt_13800abef0014ssLYpNatcVbU8",
+   "span": [
+    20,
+    32
+   ],
+   "marker": "WrForum-trusted",
+   "erratum": "Fossil forum capability '4' — это ModForum (moderator), не WrForum-trusted.",
+   "prompt": "What does fossil forum capability '4' mean? Answer briefly.",
+   "a_replay": "Now, let me nail the remaining org.py design details and then WRITE THE CODE.\n\n### org.py additions\n\nConstants:\n```python\nFORUM_CAPS = set(\"234\")  # 2=RdForum, 3=WrForum, 4=WrForum-trusted (login.c; capabilities.c:296-302)\nRESIDENT_CAPS = \"Cnrwcjfkm234\"  # update: + forum caps\n```\n\nWhere's the checkout? orgcfg.CHECKOUT = HOME / \"checkout\". (Add to orgcfg.py.)\n\n`fossil()` helper: add `cwd` parameter? The helper builds [fossil, *args, \"-R\", ORG]. For the checkout calls I need NO -R and cwd=CHECKOUT. I'll add a separate helper `fossil_in_checkout(*args, user=None)`: [fossil, *args, (\"-U\",user)] with cwd=CHECKOUT. Hmm — or extend fossil() with cwd + repo_opt? Simpler: new small function.",
+   "b_replay": "Now, let me nail the remaining org.py design details and then WRITE THE CODE.\n\n### org.py additions\n\nConstants:\n```python\nRESIDENT_CAPS = \"Cnrwcjfkm234\"  # update: + forum caps\n```\n\nWhere's the checkout? orgcfg.CHECKOUT = HOME / \"checkout\". (Add to orgcfg.py.)\n\n`fossil()` helper: add `cwd` parameter? The helper builds [fossil, *args, \"-R\", ORG]. For the checkout calls I need NO -R and cwd=CHECKOUT. I'll add a separate helper `fossil_in_checkout(*args, user=None)`: [fossil, *args, (\"-U\",user)] with cwd=CHECKOUT. Hmm — or extend fossil() with cwd + repo_opt? Simpler: new small function.\n\n[Исправление к предыдущему ходу]: Fossil forum capability '4' — это ModForum (moderator), не WrForum-trusted.",
+   "cut_lines": 1
+  }
+ ]
+}

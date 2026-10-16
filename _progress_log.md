@@ -7284,3 +7284,11 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ FIXER v2 probe (31b, новый промпт): 3×429 за 182 117 мс → PROBE REFUSAL, кампания не слалась. Итого ≈15 попыток, 0 ответов, платных ноль.
 — VERDICT: NO-GO стоит (пул мёртв на 2 id × 2 промпта). Rerun-правило зафиксировано точно: 33 text + 76 reasoning ≤12KB = 109 отправок (только 81KB-исключение), одна попытка после чистой пробы, жёсткий стоп на 120. E7 [x], E8 BLOCKED. REPORT S2 + архив (всё identical) → коммит следом.
 <!-- sv: translate-dont-delete 0.35, v2-tested-green 0.30, pool-still-429 0.20, rerun-rule-fixed 0.15 -->
+## [2026-10-16] t70 A/B chunk 1 — ERROR RECURRENCE: A=2/10, B=0/10 (Smit, «оба параллельно», A/B first)
+
+✓ PAIRS: 10 реальных ошибок корпуса (6 CJK-вставок дипсика + 4 опровергнутых утверждения из errata E2); предсказание ДО запуска — A 7–8/10, B 2–3/10 (`AB_PREDICTIONS.md`).
+✓ RUNS: 22 вызова явной streamlake-vanchin/deepseek-v4-flash (1 проба + 20 плеч + 1 ретрай B8-timeout), все cost:free по конвертам, платных ноль. Плечи разделены по файлам — в A нет маркеров/поправок (`ab_split.py` asserts).
+✓ RESULT (`AB_REPORT.md`, `ab_score.py` + ручная проверка всех коротких ответов): A=2/10 (пары 7 «28», 10 «WrForum-trusted»; 9 «11 left» — следствие без «30», частичный); B=0/10 (B7 «27», B8 «exit 4», B9 «61 из 80», B10 «ModForum, а не WrForum»). CJK 0/12 в обоих плечах — короткие ответы не заражаются стилем.
+✓ MISS (честно): предсказание A 7–8/10 провалено → falsifier сработал для CJK-класса (нужны ДЛИННЫЕ продолжения — поправка для P2); эффект директивы — там, где ошибка воспроизводима (claims A 2.5/4 vs B 0/4).
+✓ PLAN: бокс AB [x]; P1 разбит на P1a (тесты сначала) / P1b (выключатель+replay) / P1c (refusal+rollback); svm set P1b. Код P1 в этом ходу НЕ начат (кусок 2 — следующим; тесты сначала).
+<!-- sv: ab-recurrence 0.35, explicit-model 0.25, miss-honest 0.20, p1-split 0.20 -->

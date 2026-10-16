@@ -1,0 +1,260 @@
+{
+ "cjk_windows": [
+  {
+   "id": "prt_116ebe244001N28WWqU75jhICw",
+   "n": 12,
+   "windows": [
+    {
+     "line": 115,
+     "span": [
+      109,
+      121
+     ],
+     "text": "Это похоже на то, что шрифт в SVG очень маленький относительно размера нод. Или что resvg не смог загрузить шрифт и использовал fallback.\n\nПодождите, я проверил в probe2:\n- С шрифтом: текст читается нормально\n- Без шрифта: текст отсутствует полностью\n\nЗначит, в приложении шрифт загружается, 但 текст очень мелкий. Это может быть потому, что:\n1. Масштаб раста слишком большой\n2. Или шрифт в SVG очень маленький\n\nДавайте проверим, какой масштаб используется в приложении. Для этого нужно добавить логирование в `fitFontAnchoredSize`.\n\nНо подождите, пользователь сказал: \"Нам важно зафиксировать width чтобы диаграмма фиттилась, а height будет по результату и все.\""
+    },
+    {
+     "line": 171,
+     "span": [
+      165,
+      177
+     ],
+     "text": "Это похоже на то, что шрифт в SVG очень маленький относительно размера нод. Или что resvg не смог загрузить шрифт и использовал fallback.\n\nПодождите, я проверил в probe2:\n- С шрифтом: текст читается нормально\n- Без шрифт: текст отсутствует полностью\n\nЗначит, в приложении шрифт загружается, 但 текст очень мелкий. Это может быть потому, что:\n1. Масштаб раста слишком большой\n2. Или шрифт в SVG очень маленький\n\nДавайте проверим, какой масштаб используется в приложении. Для этого нужно добавить логирование в `fitFontAnchoredSize`.\n\nНо подождите, пользователь сказал: \"Нам важно зафиксировать width чтобы диаграмма фиттилась, а height будет по результату и все.\""
+    },
+    {
+     "line": 189,
+     "span": [
+      183,
+      195
+     ],
+     "text": "Это именно то, что делает `fitFontAnchoredSize` — но проблема в том, что текст становится мелким.\n\nПользователь ранее сказал: \"Когда ты рендеришь мермейд ты можешь сразу задать ограничение по ширине и все.\"\n\nЭто ключевая подсказка! Нужно передать `maxWidth` прямо в mermaid конфиг, а не полагаться на resvg для масштабирования.\n\nДавайте проверим, как mermaid поддерживает `maxWidth`. В mermaid есть параметр `maxWidth` 在 конфиге, который ограничивает ширину диаграммы.\n\nНо важно: `maxWidth` 在 mermaid ограничивает ширину, но не масштабирует текст. Если диаграмма уже шире, чем `maxWidth`, она будет сжата. 如果 уже уже — она останется как есть.\n\nПодождите, давайте подумаем о проблеме иначе. На скриншоте текст 非常 мелкий. Это может быть потому, 因为:\n1. Mermaid рендерит SVG с натуральным размером (781x117)\n2. Resvg масштабирует SVG до 1440px ширины"
+    },
+    {
+     "line": 191,
+     "span": [
+      185,
+      197
+     ],
+     "text": "Пользователь ранее сказал: \"Когда ты рендеришь мермейд ты можешь сразу задать ограничение по ширине и все.\"\n\nЭто ключевая подсказка! Нужно передать `maxWidth` прямо в mermaid конфиг, а не полагаться на resvg для масштабирования.\n\nДавайте проверим, как mermaid поддерживает `maxWidth`. В mermaid есть параметр `maxWidth` 在 конфиге, который ограничивает ширину диаграммы.\n\nНо важно: `maxWidth` 在 mermaid ограничивает ширину, но не масштабирует текст. Если диаграмма уже шире, чем `maxWidth`, она будет сжата. 如果 уже уже — она останется как есть.\n\nПодождите, давайте подумаем о проблеме иначе. На скриншоте текст 非常 мелкий. Это может быть потому, 因为:\n1. Mermaid рендерит SVG с натуральным размером (781x117)\n2. Resvg масштабирует SVG до 1440px ширины\n3. Текст становится 14 * (1440/781) ≈ 26px\n"
+    },
+    {
+     "line": 193,
+     "span": [
+      187,
+      199
+     ],
+     "text": "Это ключевая подсказка! Нужно передать `maxWidth` прямо в mermaid конфиг, а не полагаться на resvg для масштабирования.\n\nДавайте проверим, как mermaid поддерживает `maxWidth`. В mermaid есть параметр `maxWidth` 在 конфиге, который ограничивает ширину диаграммы.\n\nНо важно: `maxWidth` 在 mermaid ограничивает ширину, но не масштабирует текст. Если диаграмма уже шире, чем `maxWidth`, она будет сжата. 如果 уже уже — она останется как есть.\n\nПодождите, давайте подумаем о проблеме иначе. На скриншоте текст 非常 мелкий. Это может быть потому, 因为:\n1. Mermaid рендерит SVG с натуральным размером (781x117)\n2. Resvg масштабирует SVG до 1440px ширины\n3. Текст становится 14 * (1440/781) ≈ 26px\n\nНо 26px — это нормальный размер для терминала с cellHeight=35px. Почему на скриншоте текст 非常 мелкий?\n"
+    },
+    {
+     "line": 198,
+     "span": [
+      192,
+      204
+     ],
+     "text": "\nПодождите, давайте подумаем о проблеме иначе. На скриншоте текст 非常 мелкий. Это может быть потому, 因为:\n1. Mermaid рендерит SVG с натуральным размером (781x117)\n2. Resvg масштабирует SVG до 1440px ширины\n3. Текст становится 14 * (1440/781) ≈ 26px\n\nНо 26px — это нормальный размер для терминала с cellHeight=35px. Почему на скриншоте текст 非常 мелкий?\n\nПодождите, давайте посмотрим на скриншот ещё раз. Может быть, проблема 在 том, что `cellHeight` передаётся в других единицах?\n\nИли может быть, проблема 在 том, что `fitFontAnchoredSize` не вызывается, и используется `fitToWidthSize` с `allowUpscale: true`?\n\nПроверю: 在 `resvgOptionsForSvg` есть две ветки:"
+    },
+    {
+     "line": 200,
+     "span": [
+      194,
+      206
+     ],
+     "text": "1. Mermaid рендерит SVG с натуральным размером (781x117)\n2. Resvg масштабирует SVG до 1440px ширины\n3. Текст становится 14 * (1440/781) ≈ 26px\n\nНо 26px — это нормальный размер для терминала с cellHeight=35px. Почему на скриншоте текст 非常 мелкий?\n\nПодождите, давайте посмотрим на скриншот ещё раз. Может быть, проблема 在 том, что `cellHeight` передаётся в других единицах?\n\nИли может быть, проблема 在 том, что `fitFontAnchoredSize` не вызывается, и используется `fitToWidthSize` с `allowUpscale: true`?\n\nПроверю: 在 `resvgOptionsForSvg` есть две ветки:\n1. Если `budget.cellHeight` > 0 — используется `fitFontAnchoredSize`\n2. Иначе — используется `fitToWidthSize` с `allowUpscale: true`"
+    },
+    {
+     "line": 202,
+     "span": [
+      196,
+      208
+     ],
+     "text": "3. Текст становится 14 * (1440/781) ≈ 26px\n\nНо 26px — это нормальный размер для терминала с cellHeight=35px. Почему на скриншоте текст 非常 мелкий?\n\nПодождите, давайте посмотрим на скриншот ещё раз. Может быть, проблема 在 том, что `cellHeight` передаётся в других единицах?\n\nИли может быть, проблема 在 том, что `fitFontAnchoredSize` не вызывается, и используется `fitToWidthSize` с `allowUpscale: true`?\n\nПроверю: 在 `resvgOptionsForSvg` есть две ветки:\n1. Если `budget.cellHeight` > 0 — используется `fitFontAnchoredSize`\n2. Иначе — используется `fitToWidthSize` с `allowUpscale: true`\n\nЕсли `cellHeight` не передаётся, то используется `fitToWidthSize`, который масштабирует SVG до `maxWidth` без учёта размера шрифта. Это может привести к тому, что текст станет 非常 мелким."
+    },
+    {
+     "line": 204,
+     "span": [
+      198,
+      210
+     ],
+     "text": "Но 26px — это нормальный размер для терминала с cellHeight=35px. Почему на скриншоте текст 非常 мелкий?\n\nПодождите, давайте посмотрим на скриншот ещё раз. Может быть, проблема 在 том, что `cellHeight` передаётся в других единицах?\n\nИли может быть, проблема 在 том, что `fitFontAnchoredSize` не вызывается, и используется `fitToWidthSize` с `allowUpscale: true`?\n\nПроверю: 在 `resvgOptionsForSvg` есть две ветки:\n1. Если `budget.cellHeight` > 0 — используется `fitFontAnchoredSize`\n2. Иначе — используется `fitToWidthSize` с `allowUpscale: true`\n\nЕсли `cellHeight` не передаётся, то используется `fitToWidthSize`, который масштабирует SVG до `maxWidth` без учёта размера шрифта. Это может привести к тому, что текст станет 非常 мелким.\n\nНо 在 `media-image.tsx` я видел, что `cellHeight` передаётся:"
+    },
+    {
+     "line": 208,
+     "span": [
+      202,
+      214
+     ],
+     "text": "Или может быть, проблема 在 том, что `fitFontAnchoredSize` не вызывается, и используется `fitToWidthSize` с `allowUpscale: true`?\n\nПроверю: 在 `resvgOptionsForSvg` есть две ветки:\n1. Если `budget.cellHeight` > 0 — используется `fitFontAnchoredSize`\n2. Иначе — используется `fitToWidthSize` с `allowUpscale: true`\n\nЕсли `cellHeight` не передаётся, то используется `fitToWidthSize`, который масштабирует SVG до `maxWidth` без учёта размера шрифта. Это может привести к тому, что текст станет 非常 мелким.\n\nНо 在 `media-image.tsx` я видел, что `cellHeight` передаётся:\n```ts\ncellHeight: Math.max(1, Math.round(cells.cellHeight))\n```\n"
+    },
+    {
+     "line": 210,
+     "span": [
+      204,
+      216
+     ],
+     "text": "Проверю: 在 `resvgOptionsForSvg` есть две ветки:\n1. Если `budget.cellHeight` > 0 — используется `fitFontAnchoredSize`\n2. Иначе — используется `fitToWidthSize` с `allowUpscale: true`\n\nЕсли `cellHeight` не передаётся, то используется `fitToWidthSize`, который масштабирует SVG до `maxWidth` без учёта размера шрифта. Это может привести к тому, что текст станет 非常 мелким.\n\nНо 在 `media-image.tsx` я видел, что `cellHeight` передаётся:\n```ts\ncellHeight: Math.max(1, Math.round(cells.cellHeight))\n```\n\nТак что `fitFontAnchoredSize` должен вызываться.\n"
+    },
+    {
+     "line": 217,
+     "span": [
+      211,
+      223
+     ],
+     "text": "```ts\ncellHeight: Math.max(1, Math.round(cells.cellHeight))\n```\n\nТак что `fitFontAnchoredSize` должен вызываться.\n\nХм, но подождите. Давайте посмотрим на скриншот ещё раз. Текст 在 нодах:\n- \"Выбор владельца: что берем 在 работу\" — это 非常 мелкий текст\n- Ноды большие, но текст внутри них крошечный\n\nЭто похоже на то, что шрифт 在 SVG 非常 маленький относительно размера нод. Или что resvg не смог загрузить шрифт и использовал fallback.\n\nПодождите, я проверил 在 probe2:"
+    }
+   ]
+  },
+  {
+   "id": "prt_0e3dd7878001Fuio11duvo8KcL",
+   "n": 12,
+   "windows": [
+    {
+     "line": 1040,
+     "span": [
+      1034,
+      1046
+     ],
+     "text": "\nПро \"юридическую воду\":\n\nЧто я вижу в текущем `source.py`:\n- ~15 комментариев с историей изменений (2026-09-27, 2026-09-25 и т.д.) — они не нужны в рантайме\n- Дублирование: `INFORMATION_STATUS` повторяет `SOURCE_ROUTING` и `EVIDENCE_ORDER`\n- Слишком длинные правила: `ORACLE` 在 G8 — целый абзац, `LOOP_PROGRESS` — очень длинное правило\n- Некоторые правила звучат как законы/нормативные акты, а не как практические инструкции\n\nЧто можно убрать:\n1. Комментарии с историей изменений — они не нужны в рантайме, только для разработчиков\n2. Дублирование — `INFORMATION_STATUS` можно сократить\n3. Длинные правила — `ORACLE` 和 `LOOP_PROGRESS` можно сократить"
+    },
+    {
+     "line": 1046,
+     "span": [
+      1040,
+      1052
+     ],
+     "text": "- Слишком длинные правила: `ORACLE` 在 G8 — целый абзац, `LOOP_PROGRESS` — очень длинное правило\n- Некоторые правила звучат как законы/нормативные акты, а не как практические инструкции\n\nЧто можно убрать:\n1. Комментарии с историей изменений — они не нужны в рантайме, только для разработчиков\n2. Дублирование — `INFORMATION_STATUS` можно сократить\n3. Длинные правила — `ORACLE` 和 `LOOP_PROGRESS` можно сократить\n\nНо подождите — пользователь говорит \"Клаудий много юридической воды налил\". Это может означать что предыдущая сессия добавила много текста в кернел. Нужно посмотреть что именно было добавлено.\n\nСмотрим на комментарии — многие из них датированы 2026-09-27 (сегодня). Это говорит о том что изменения были сделаны недавно. Но пользователь говорит что \"Клаудий\" налил воды — возможно это была предыдущая сессия.\n\nДавайте посмотрим на что конкретно жалуется пользователь. Он говорит \"как технарь я это вижу думаю ты тоже\" — то есть он видит проблему 和 хочет чтобы я её подтвердил и исправил."
+    },
+    {
+     "line": 1052,
+     "span": [
+      1046,
+      1058
+     ],
+     "text": "3. Длинные правила — `ORACLE` 和 `LOOP_PROGRESS` можно сократить\n\nНо подождите — пользователь говорит \"Клаудий много юридической воды налил\". Это может означать что предыдущая сессия добавила много текста в кернел. Нужно посмотреть что именно было добавлено.\n\nСмотрим на комментарии — многие из них датированы 2026-09-27 (сегодня). Это говорит о том что изменения были сделаны недавно. Но пользователь говорит что \"Клаудий\" налил воды — возможно это была предыдущая сессия.\n\nДавайте посмотрим на что конкретно жалуется пользователь. Он говорит \"как технарь я это вижу думаю ты тоже\" — то есть он видит проблему 和 хочет чтобы я её подтвердил и исправил.\n\nЧто я вижу как \"воду\":\n1. **Комментарии с историей изменений** — строки 294-296, 344-349, 405-406, 457-469, 473-474, 480-481, 546-549, 551-555, 560-564, 565-567, 570-582, 586-594, 596-599, 603-606. Это ~15 комментариев объясняющих историю изменений. Они не нужны в рантайме.\n\n2. **Дублирование** — `INFORMATION_STATUS` 重复яет то что сказано в `SOURCE_ROUTING`.\n"
+    },
+    {
+     "line": 1057,
+     "span": [
+      1051,
+      1063
+     ],
+     "text": "\nДавайте посмотрим на что конкретно жалуется пользователь. Он говорит \"как технарь я это вижу думаю ты тоже\" — то есть он видит проблему 和 хочет чтобы я её подтвердил и исправил.\n\nЧто я вижу как \"воду\":\n1. **Комментарии с историей изменений** — строки 294-296, 344-349, 405-406, 457-469, 473-474, 480-481, 546-549, 551-555, 560-564, 565-567, 570-582, 586-594, 596-599, 603-606. Это ~15 комментариев объясняющих историю изменений. Они не нужны в рантайме.\n\n2. **Дублирование** — `INFORMATION_STATUS` 重复яет то что сказано в `SOURCE_ROUTING`.\n\n3. **Слишком длинные правила** — `ORACLE` в G8 (строка 271) — целый абзац. `LOOP_PROGRESS` (строка 91) — очень длинное правило.\n\n4. **\"Юдическая вода\"** — возможно пользователь имеет в виду что правила звучат как законы/нормативные акты, а не как практические инструкции.\n\nТеперь давайте сформулирую план действий:"
+    },
+    {
+     "line": 1083,
+     "span": [
+      1077,
+      1089
+     ],
+     "text": "\n---\n\nСтруктура ответа:\n\n1. **Подтверждение проблемы с \"водой\"** — что именно я вижу\n2. **Reward function** — куда вставить 和 почему\n3. **Баг-фикс процедура** — что взять из ADID 15.3\n4. **Чего не хватает для автономности** — список недодающего\n5. **Предложение плана** — как это сделать\n\nДавайте напишу ответ.\n"
+    },
+    {
+     "line": 1094,
+     "span": [
+      1088,
+      1100
+     ],
+     "text": "Давайте напишу ответ.\n\n---\n\nПро reward function:\n\nВ текущем кернеле есть `LOOP_MEASURE` — прогресс мера, 和 `QUALITY_VECTOR` — вектор качества. Но нет явной reward function которая бы объединяла их в одну функцию.\n\nReward function должна быть:\n- **R(state) = w1 * coverage + w2 * (1 - residual) + w3 * (1 - critical_risks) + w4 * quality**\n\nГде вставить:\n1. **В KERNEL** — как глобальная функция которая оценивает любое состояние"
+    },
+    {
+     "line": 1106,
+     "span": [
+      1100,
+      1112
+     ],
+     "text": "1. **В KERNEL** — как глобальная функция которая оценивает любое состояние\n2. **В EVOLUTION_LOOP** — как направление эволюции\n3. **В G9** — как критерий закрытия\n\nДля максимальной эффективности — в `KERNEL`, потому что она будет доступна на всех гейтах.\n\nНо подождите — в кернеле уже есть `LOOP_MEASURE` 和 `QUALITY_VECTOR`. Reward function должна быть над ними, а не вместо них.\n\nЛучшее место — 在 `EVOLUTION_LOOP`, потому что это единственное место где система принимает решение о том что делать дальше. Reward function там будет направлять эволюцию.\n\nИли — 在 `G9 CLEAN_STATE`, потому что 这是 место где система решает закрывать ли задачу.\n\nДавайте подумаем что такое reward function в контексте этого кернела:"
+    },
+    {
+     "line": 1108,
+     "span": [
+      1102,
+      1114
+     ],
+     "text": "3. **В G9** — как критерий закрытия\n\nДля максимальной эффективности — в `KERNEL`, потому что она будет доступна на всех гейтах.\n\nНо подождите — в кернеле уже есть `LOOP_MEASURE` 和 `QUALITY_VECTOR`. Reward function должна быть над ними, а не вместо них.\n\nЛучшее место — 在 `EVOLUTION_LOOP`, потому что это единственное место где система принимает решение о том что делать дальше. Reward function там будет направлять эволюцию.\n\nИли — 在 `G9 CLEAN_STATE`, потому что 这是 место где система решает закрывать ли задачу.\n\nДавайте подумаем что такое reward function в контексте этого кернела:\n\nReward function — это функция которая определяет что является \"хорошим\" результатом. 在 машинном обучении 这是 функция которая оценивает действие. Здесь — 这是 функция которая оценивает состояние системы."
+    },
+    {
+     "line": 1110,
+     "span": [
+      1104,
+      1116
+     ],
+     "text": "Для максимальной эффективности — в `KERNEL`, потому что она будет доступна на всех гейтах.\n\nНо подождите — в кернеле уже есть `LOOP_MEASURE` 和 `QUALITY_VECTOR`. Reward function должна быть над ними, а не вместо них.\n\nЛучшее место — 在 `EVOLUTION_LOOP`, потому что это единственное место где система принимает решение о том что делать дальше. Reward function там будет направлять эволюцию.\n\nИли — 在 `G9 CLEAN_STATE`, потому что 这是 место где система решает закрывать ли задачу.\n\nДавайте подумаем что такое reward function в контексте этого кернела:\n\nReward function — это функция которая определяет что является \"хорошим\" результатом. 在 машинном обучении 这是 функция которая оценивает действие. Здесь — 这是 функция которая оценивает состояние системы.\n\nВ текущем кернеле:"
+    },
+    {
+     "line": 1114,
+     "span": [
+      1108,
+      1120
+     ],
+     "text": "Лучшее место — 在 `EVOLUTION_LOOP`, потому что это единственное место где система принимает решение о том что делать дальше. Reward function там будет направлять эволюцию.\n\nИли — 在 `G9 CLEAN_STATE`, потому что 这是 место где система решает закрывать ли задачу.\n\nДавайте подумаем что такое reward function в контексте этого кернела:\n\nReward function — это функция которая определяет что является \"хорошим\" результатом. 在 машинном обучении 这是 функция которая оценивает действие. Здесь — 这是 функция которая оценивает состояние системы.\n\nВ текущем кернеле:\n- `LOOP_MEASURE` = <open_acceptance, unstamped_claims, critical_risks, unresolved_residual> — 这是 метрика прогресса\n- `QUALITY_VECTOR` = {performance, stability, ux, automation, documentation, maintainability, organization} — 这是 метрика качества\n\nReward function должна объединять их:"
+    },
+    {
+     "line": 1117,
+     "span": [
+      1111,
+      1123
+     ],
+     "text": "\nДавайте подумаем что такое reward function в контексте этого кернела:\n\nReward function — это функция которая определяет что является \"хорошим\" результатом. 在 машинном обучении 这是 функция которая оценивает действие. Здесь — 这是 функция которая оценивает состояние системы.\n\nВ текущем кернеле:\n- `LOOP_MEASURE` = <open_acceptance, unstamped_claims, critical_risks, unresolved_residual> — 这是 метрика прогресса\n- `QUALITY_VECTOR` = {performance, stability, ux, automation, documentation, maintainability, organization} — 这是 метрика качества\n\nReward function должна объединять их:\n- **R = f(LOOP_MEASURE, QUALITY_VECTOR)**\n\nГде вставить:"
+    },
+    {
+     "line": 1118,
+     "span": [
+      1112,
+      1124
+     ],
+     "text": "Давайте подумаем что такое reward function в контексте этого кернела:\n\nReward function — это функция которая определяет что является \"хорошим\" результатом. 在 машинном обучении 这是 функция которая оценивает действие. Здесь — 这是 функция которая оценивает состояние системы.\n\nВ текущем кернеле:\n- `LOOP_MEASURE` = <open_acceptance, unstamped_claims, critical_risks, unresolved_residual> — 这是 метрика прогресса\n- `QUALITY_VECTOR` = {performance, stability, ux, automation, documentation, maintainability, organization} — 这是 метрика качества\n\nReward function должна объединять их:\n- **R = f(LOOP_MEASURE, QUALITY_VECTOR)**\n\nГде вставить:\n- **В KERNEL** — как глобальная функция"
+    }
+   ]
+  },
+  {
+   "id": "prt_1172b9c290014NJj033hi5G7Om",
+   "n": 1,
+   "windows": [
+    {
+     "line": 984,
+     "span": [
+      978,
+      990
+     ],
+     "text": "Это длинная цепочка LR — очень широкая.\n\nДавай отрендерю с maxWidth=1440, cellHeight=35 и посмотрю.\n\nХм, но я уже делал probe1 с похожей (781x117 для 3 нод). Для 5 нод будет ~1300px. scale = 1440/1300 = 1.1. Текст 15.4px. Хм, мелковато но не 7px.\n\nДавай возьму更长. 8 нод → ~2100px. scale = 0.68. Текст 9.5px. Мелко!\n\nХм, да. Это похоже на скриншот.\n\nОК, давай сделаю и ГЛАЗАМИ посмотрю.\n\nПоехали. Это даст факты. Дальше решу."
+    }
+   ]
+  }
+ ],
+ "claim_windows": {
+  "prt_13471853e001nI6GpG95aCmZ1O": [
+   {
+    "span": [
+     40,
+     60
+    ],
+    "text": "24. Project MUSE\n25. APS Journals\n26. IOPscience\n27. CINAHL (duplicate)\n28. MEDLINE (free via PubMed — confirm)\n29. MatWeb\n\nLet me count unique names: IEEE Xplore, ACM DL, INSPEC, Cochrane, CINAHL, HeinOnline, Westlaw, LexisNexis, JSTOR, PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, MEDLINE, MatWeb.\n\nThat's 28 unique names (CINAHL appears twice, MEDLINE is noted as free via PubMed — confirm).\n\nLet me carefully recount from the brief text:\n\n\"leaves these as «paywalled, cannot be keyless» (its «Honest limits»): IEEE Xplore, ACM DL, INSPEC, Cochrane, CINAHL, HeinOnline, Westlaw, LexisNexis, JSTOR.\" — 9 names.\n\n\"The kernel's own source table (.claude/reasoning_kernel.md §1.3 @SOURCE_ROUTING) names more paid ones: PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, CINAHL, MEDLINE (free via PubMed — confirm), MatWeb.\" — that's: PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoScienceWorld, SocINDEX, SocAbstracts, AgeLine, CAB_Abstracts, EdSource, LearnTechLib, Project MUSE, APS Journals, IOPscience, CINAHL (dup), MEDLINE, MatWeb = 20 names, of which CINAHL is a duplicate.\n\nSo unique total: 9 + 20 - 1 (CINAHL dup) = 28 unique paid names.\n\nLet me plan the work:\n"
+   }
+  ],
+  "prt_11f5fa3be001cgHu4RPPi9pyYm": [
+   {
+    "span": [
+     1,
+     25
+    ],
+    "text": "The plugin does not set store=false; it passes the body through as the SDK built it. But requirement says store=false for our client (Codex-style). Fine — our client controls the body directly: {\"model\", \"input\":[{role:user, content:[{type:input_text,text}]}], \"store\":false, \"stream\":true}. Whether opencode's live path sends store=false or not doesn't bind our experiment; the ticket explicitly requires store=false.\n\nI now have enough. G2/G3: the decomposition is given (T1). Write the three deliverables now.\n\nDesign decisions (final):\n\ncall.py (client):\n- Python stdlib only: json, os, sys, time, hashlib, urllib.request (or http.client), argparse, uuid, pathlib.\n  - For SSE streaming, urllib.request works: resp = urlopen(req, timeout=...); iterate resp line by line (it's a file-like). Timeout applies per socket op; overall deadline enforced with a wall-clock check inside the read loop + socket timeout min(remaining, 120). Simpler: use http.client.HTTPConnection(host, port, timeout=...) with explicit deadline checks.\n  - Since deadline must be ≤120s and enforced overall even if server trickles data, implement: start = monotonic; while reading lines, if monotonic()-start > deadline: raise TimeoutError.\n- Refresh flow: if access missing or expires < now → refresh via token endpoint (urllib, 30s timeout). In-memory only: new access/refresh/accountId used for this process; auth file untouched. Report on stderr (non-secret): \"auth: access token expired; refreshed in memory (expires_in=Ns); auth.json NOT written\" — that's fine, no secrets.\n  - The ticket says \"явно сообщи остаток по совместимости ротации\" — report the rotation-compat residual: after refresh, note that if the provider rotated the refresh token, auth.json still holds the old one; our process won't persist the new one. Print to stderr a line like \"note: refresh token rotation not persisted (auth.json untouched); residual risk: stored refresh may be stale for other tools\". And the oracle/report records it.\n- Body: exactly {\"model\": model, \"input\": [{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\": text}]}], \"store\": False, \"stream\": True}. Wait — order in JSON doesn't matter; I'll use model, input, store, stream? Hmm — key ORDER in the audit request_body. Keep it as: model, input, store, stream — hmm, what did the ticket demand? \"store=false, stream=true\". Order free. I'll use {\"model\",\"input\",\"store\",\"stream\"}.\n  - Also: ensure_ascii? For the wire body, JSON spec: escape non-ASCII is optional. Sending ensure_ascii=False with UTF-8 bytes proves byte-level UTF-8 transfer of Russian text. I'll use ensure_ascii=False, encoded utf-8. The capture will decode utf-8 and compare exact string. \n- Headers (per primary plugin): Authorization: Bearer <access>; ChatGPT-Account-Id: <accountId> (if present); originator: codex_cli_rs; User-Agent: Codex/0.300.0; Content-Type: application/json; Accept: text/event-stream.\n  - Hmm: should we include originator/user-agent? Those are from the primary plugin ("
+   }
+  ],
+  "prt_1235aee380010QQUgUGEJ9DIIZ": [
+   {
+    "span": [
+     50,
+     62
+    ],
+    "text": "```c\nstatic const int aCapPerm[] = { ... };\n```\n\nNot sure. Cheapest reliable: read the docs page www/perm.html — it documents capability letters authoritatively (\"Wiki (w)\" etc. + implication rules). Let me findstr Wiki in perm.html AND also read the file's table region — two-step. OR simply read perm.html fully? Size unknown (could be 10-30KB → release). findstr for the letter lines: pattern \"wiki\" case-insensitive gives lines; the capability description line likely contains \"Write wiki pages\" or \"Wiki\". Also the implication text (\"a → ...\"). I'll fetch: `findstr /n /i /c:\"wiki\" www\\perm.html` + `findstr /n /i /c:\"capab\" www\\perm.html` (limited)... simpler: `findstr /n /i \"wiki\" perm.html` might return 5-15 lines. Combined with login.c searches for the hierarchy: `findstr /n /c:\"'w'\" login.c`. Meh. Let me do 3 findstrs chained and cap output. If output >8K → released (findstr lines are short; 15-30 lines ≈ 2-4K OK).\n\nAdditionally the qualification heredoc (fossil behavior probing) — separate call AFTER I know claim etc.? It can be in the SAME bash call? It's long; mixing risks one huge output. Keep qualification as its own call later (call count...). Hmm.\n\nLet me recount calls used: 16 (through the recall batch) + 4 (this last batch: codegraph, read org.py 1-120, read Protocol ×2) = 20. Wait, earlier I said 16 after batch 3... let me recount actual calls so far: \n1 checkstate, 2 read plan, 3 list org-genesis, 4 read org.py, 5 bash HOME, 6 recall plan(0), 7 recall org.py(0), 8 recall org(5-124), 9 recall org(125-244), 10 recall org(245-364), 11 recall org(365-481), 12 recall plan(5-40), 13 recall plan(41-74), 14 read Protocol, 15 read orgcfg, 16 codegraph symbols, 17 read org.py 1-120, 18 read Protocol 1-64, 19 read Protocol 65-126. \nThat's 19 calls used. Hmm — 11 left to the 30 cap. Ugh. Let me recount the batches: batch1 = 5 calls (checkstate, read plan, list, read org.py, bash). batch2 = 2 (recall×2). batch3 = 8 (recall×4 + recall×2 + read Protocol + read orgcfg). batch4 = 4 (codegraph + read×3). Total = 19. Yes, 19 used. Budget 30 → 11 left, with a LOT remaining: claim, qualify, test write, baseline, impl edit, final run, report, done... that's 8 minimum, plus reading org.py 242-345 + 374-468 (2 calls) = 10 → 29, buffer 1. No room for corrections. \n\nI need to CUT. Priorities:"
+   }
+  ],
+  "prt_13800abef0014ssLYpNatcVbU8": [
+   {
+    "span": [
+     20,
+     32
+    ],
+    "text": "Now, let me nail the remaining org.py design details and then WRITE THE CODE.\n\n### org.py additions\n\nConstants:\n```python\nFORUM_CAPS = set(\"234\")  # 2=RdForum, 3=WrForum, 4=WrForum-trusted (login.c; capabilities.c:296-302)\nRESIDENT_CAPS = \"Cnrwcjfkm234\"  # update: + forum caps\n```\n\nWhere's the checkout? orgcfg.CHECKOUT = HOME / \"checkout\". (Add to orgcfg.py.)\n\n`fossil()` helper: add `cwd` parameter? The helper builds [fossil, *args, \"-R\", ORG]. For the checkout calls I need NO -R and cwd=CHECKOUT. I'll add a separate helper `fossil_in_checkout(*args, user=None)`: [fossil, *args, (\"-U\",user)] with cwd=CHECKOUT. Hmm — or extend fossil() with cwd + repo_opt? Simpler: new small function."
+   }
+  ]
+ }
+}

@@ -81,6 +81,95 @@ export function saveChain(scope: ChainScope, agent: string, members: ChainMember
   }
 }
 
+
+/** Every agent chain one layer holds, keyed by agent. One query, no agent registry needed. */
+export function loadScopeChains(scope: ChainScope): Record<string, ChainMember[]> {
+  try {
+    return Database.use((db) => {
+      const rows = db
+        .select({ agent: ModelChainTable.agent, data: ModelChainTable.data })
+        .from(ModelChainTable)
+        .where(eq(ModelChainTable.scope, scope))
+        .all()
+      const out: Record<string, ChainMember[]> = {}
+      for (const row of rows) {
+        try {
+          const members = readChainLayer(JSON.parse(row.data))
+          if (members !== undefined) out[row.agent] = members
+        } catch {
+          continue
+        }
+      }
+      return out
+    })
+  } catch (cause) {
+    storeFailure("load-scope", scope, "*", cause)
+    return {}
+  }
+}
+
+/**
+ * Pure parent choice for a session being born: the first non-empty layer in
+ * `session:<parentID>` → `worktree:<id>` → `global` order wins, and the
+ * winner's per-agent chains are copied (never aliased, never merged).
+ */
+export function planSessionFill(
+  parents: Array<{ scope: ChainScope; chains: Record<string, ChainMember[]> }>,
+): { scope: ChainScope; copies: Record<string, ChainMember[]> } | undefined {
+  for (const parent of parents) {
+    const agents = Object.keys(parent.chains)
+    if (agents.length === 0) continue
+    const copies: Record<string, ChainMember[]> = {}
+    for (const agent of agents) {
+      const filled = fillChainForNewLayer(parent.chains[agent])
+      if (filled !== undefined) copies[agent] = filled
+    }
+    if (Object.keys(copies).length > 0) return { scope: parent.scope, copies }
+  }
+  return undefined
+}
+
+/**
+ * Fill-once at session creation (t68, C1/C5 live finding): EVERY creation
+ * path lands in `Session.createNext` — API, TUI, task/pipeline
+ * subsessions, org delivery — so the new session layer gets its copies
+ * there, once. A layer that already holds chains is left alone; layers
+ * born without any parent chain stay empty (one-time backfill on first
+ * assignment, never a read walk).
+ */
+export function fillSessionChains(sessionID: string, opts?: { workspaceID?: string; parentID?: string }): void {
+  const target = `session:${sessionID}`
+  try {
+    Database.use((db) => {
+      const existing = db
+        .select({ agent: ModelChainTable.agent })
+        .from(ModelChainTable)
+        .where(eq(ModelChainTable.scope, target))
+        .all()
+      if (existing.length > 0) return
+      const worktree = `worktree:${opts?.workspaceID ?? "default"}`
+      const candidates: ChainScope[] = [
+        ...(opts?.parentID ? [`session:${opts.parentID}` as ChainScope] : []),
+        worktree,
+        "global",
+      ]
+      const parents = candidates.map((scope) => ({ scope, chains: loadScopeChains(scope) }))
+      const plan = planSessionFill(parents)
+      if (!plan) return
+      const now = Date.now()
+      for (const [agent, members] of Object.entries(plan.copies)) {
+        const data = encode(members)
+        db.insert(ModelChainTable)
+          .values({ scope: target, agent, data, time_created: now, time_updated: now })
+          .onConflictDoNothing()
+          .run()
+      }
+      log.debug("model-chain session filled", { sessionID, from: plan.scope, agents: Object.keys(plan.copies) })
+    })
+  } catch (cause) {
+    storeFailure("fill", target, "*", cause)
+  }
+}
 /**
  * Fill-once: copy the parent layer's chain into a layer that holds none.
  * Returns the layer's chain afterwards (existing or freshly filled), or

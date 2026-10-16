@@ -13,6 +13,7 @@ import {
 import type { ChainHealth, ChainMember } from "@/provider/model-chain/chain"
 import { resolveChainAgentModel } from "@/session/session-settings"
 import { assignChainModel } from "@/provider/model-chain/assign"
+import { planSessionFill } from "@/provider/model-chain/store"
 
 setDefaultTimeout(20_000)
 
@@ -149,5 +150,48 @@ describe("assignChainModel (prompt_async wiring)", () => {
       noteUse: () => undefined,
     })
     expect(assignment?.model).toEqual({ providerID: "opencode-go", modelID: "muse-spark-1.3-contributor" })
+  })
+})
+
+describe("planSessionFill (fill-once at session creation)", () => {
+  const free: ChainMember = { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" }
+  const go: ChainMember = { providerID: "opencode-go", modelID: "muse-spark-1.3-contributor", variant: "xhigh" }
+  test("parent session wins over worktree over global", () => {
+    const plan = planSessionFill([
+      { scope: "session:parent", chains: { build_mode: [go] } },
+      { scope: "worktree:default", chains: { build_mode: [free] } },
+      { scope: "global", chains: { build_mode: [free, go] } },
+    ])
+    expect(plan?.scope).toBe("session:parent")
+    expect(plan?.copies).toEqual({ build_mode: [go] })
+  })
+  test("empty parent falls through to worktree, then global", () => {
+    expect(
+      planSessionFill([
+        { scope: "session:parent", chains: {} },
+        { scope: "worktree:default", chains: {} },
+        { scope: "global", chains: { build_mode: [free] } },
+      ])?.scope,
+    ).toBe("global")
+    expect(
+      planSessionFill([
+        { scope: "worktree:default", chains: { build_mode: [free] } },
+        { scope: "global", chains: { build_mode: [go] } },
+      ])?.copies,
+    ).toEqual({ build_mode: [free] })
+  })
+  test("no parent chain anywhere stays empty (backfill later, never a walk)", () => {
+    expect(
+      planSessionFill([
+        { scope: "worktree:default", chains: {} },
+        { scope: "global", chains: {} },
+      ]),
+    ).toBeUndefined()
+  })
+  test("copies never alias the parent", () => {
+    const parent = { build_mode: [free] }
+    const plan = planSessionFill([{ scope: "global", chains: parent }])
+    plan!.copies["build_mode"]![0]!.modelID = "mutated"
+    expect(parent["build_mode"]![0]!.modelID).toBe("muse-spark-1.3-contributor-free")
   })
 })

@@ -12,6 +12,7 @@ import { Database } from "@/storage/db"
 import { isPeakWindow } from "@/provider/tariff"
 import { NotFoundError } from "@/storage/storage"
 import { Checkpoint } from "./checkpoint"
+import { fillSessionChains } from "@/provider/model-chain/store"
 import { RequestDiff } from "./request-diff"
 import { use as projectDb } from "@/storage/project-db"
 import { eq, sql } from "drizzle-orm"
@@ -815,6 +816,14 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
           info: result,
         })
       }
+      // Chain fill-once (t68, C1/C5 live finding): EVERY creation path lands
+      // here — API, TUI, task/pipeline subsessions, org delivery — so the new
+      // session layer gets its copies now, once. Best-effort like the sync
+      // event above: a store miss leaves the layer empty (one-time backfill
+      // on first assignment), never a failure of creation itself.
+      yield* Effect.sync(() =>
+        fillSessionChains(result.id, { workspaceID: input.workspaceID, parentID: input.parentID }),
+      ).pipe(Effect.catch(() => Effect.succeed(undefined)))
 
       return result
     })

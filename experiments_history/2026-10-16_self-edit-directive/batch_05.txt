@@ -1,0 +1,252 @@
+### EXCERPT prt_135509d2e001Q91psjo52X4feZ (327 lines total, showing 60)
+1  9e3779b1: Now I have the front matter fully mapped. Constraints items (L33-109):
+2  3c6ef362: - L34: See prompt_kernel — keep.
+3  daa66d13: - L35: Default branch — keep.
+4  78dde6c4: - L36: Never expose secrets — keep.
+5  17156075: - L37: Silent catch — keep.
+6  b54cda26: - L38: Plan-to-code gaps — keep.
+7  538453d7: - L39: When behavior moves, its test suite moves — keep (medium, has quote; ~300 chars).
+8  f1bbcd88: - L40: KV cache byte-stable — keep.
+9  8ff34739: - L41-47: Never run neural networks on CPU (7 lines, ~600 chars incl. quote) — keep or move? It's a constraint with owner quote + rationale. Keep? Hmm. It's a RULE (constraint) — keep. But its rationa
+10  2e2ac0ea: - L48-96: Never edit source with unverifiable script (+codegraph-before-edit + ADM dissertation) — ~49 lines, ~4.7KB. This is the monster. Move whole to docs (a new doc: docs/source-edit-constraints.m
+11  cc623a9b: - L97: No .opencode/plans/ — keep.
+12  6a99b44c: - L98: JOB FAILED constraint — keep (it's short, points to § Plan Maintenance).
+13  08d12dfd: - L99: After plan changes, run explore agent — keep.
+14  a708a7ae: - L100: Tests cannot run from repo root — keep.
+15  4540215f: - L101: Avoid mocks — keep.
+16  e3779b10: - L102: Run _build.ps1 — keep (medium ~300, quote inline).
+17  81af14c1: - L103: Never run full package suite — keep (medium ~350, has measured note inline; § ref). Keep whole (it's the rule with measurement compressed; move would break "see § Full package test suite"? no,
+18  1fe68e72: - L104: Don't litter .opencode — keep (~450, quote inline).
+19  be1e0823: - L105: measure/threshold SPACE+SCOPE — keep.
+20  5c5581d4: - L106: skipped test must state why — keep.
+21  fa8cfb85: - L107: heavy test files FILE-level timeout — keep.
+22  98c47536: - L108: Reach every provider from HIGHEST — keep.
+23  36fbeee7: - L109: Tool names ARE wire ids — keep (~800 with WHY + SCOPE!). Hmm — long. It's a rule with rationale (WHY it is a prohibition...). Atomic. Keep or move? Moving it to docs/... where? Tool naming → d
+24  d5336898: 
+25  736ae249: Wait, but careful — if I move it, the OLD item text must exist verbatim in docs. Fine. And the AGENTS.md front matter constraints list now has a compact new item. But hold on: the oracle checks EVERY 
+26  11a25bfa: 
+27  afd9d5ab: Alternatively KEEP the item in AGENTS.md (it's a constraint — owner said front matter keeps). 4.7KB of 96.9KB... AGENTS.md target: let me estimate keeping all front matter (~15.2KB incl. separators) +
+28  4e114f5c: 
+29  ec48c90d: Sections (L160-1303 = ~82KB):
+30  8a8042be: - Language (L160-172): keep P008 (rule), P009 (consequence), P011, P012; move P010 (why, 643). Headings kept. Est keep: ~900B.
+31  28b7bc6f: - STOP upstream (174-255): move ALL (P015-P031) to docs/upstream-relation.md; keep heading + a NEW 2-line rule ("closed; run the diff; conclusions in docs") — but heading must stay for refs? No refs t
+32  c6ef3620:   Actually wait: acceptance_tests L153-158 ("This is not a branch of anything...") references the same; keep that item (it's acceptance). It contains the measured line too — keep whole (it's the rule;
+33  6526afd1: - Project Paradigm (257-300): keep P034 (ship behavior...), P035 (flow diagram code block — this is THE paradigm — keep), P036 (no big untestable jobs)? P037 (layer table 688 — hmm, table; is it rule 
+34  035e2982: - Storage Paradigm (302-391): keep heading + P047 (the Rule paragraph, 734) + P049 heading + maybe short version of four rules?? P050 is items 1-4 (1475): item 1 (two planes) is the LAW; items have me
+35  a195a333:   Est keep: 86+734+18+1475 ≈ 2.3KB; move ~4.3KB.
+36  3fcd1ce4: - Debugging Paradigm (393-430): keep heading + P065 (The rule) + P066 (items 1-3 of what logs may record) + P067 (everything else is STATE); move P060 (owner quote), P061 (measured), P062 (evidence), 
+37  de049695: - Hashing (432-469): move P070-P075 (owner quote, table, instrument, arithmetic, general rule, excluded list) ALL to docs/debugging-paradigm.md? The section is fundamentally "measured, do not re-litig
+38  7c3c1046: - Granularity (471-494): keep heading + P078 (the scale statement) + P079 items 1-4 (1256 rules, they're the four binding rules — keep? Each item has rationale inside... e.g. item 2 contains fossil ex
+39  1a7389f7:   Actually hold on — should I keep the whole § Granularity rules (1256) or move and summarize? The four rules ARE rules → keep. Est keep ~1.35KB; move ~0.4KB + heading of section stays.
+40  b8ab03a8:   Hmm wait, if I move P077 to docs, docs/granularity.md — do I need a new doc or fold into docs/architecture.md? Granularity relates to mechanism cadence — architecture. I'll decide docs set below.
+41  56e27d59: - Content Lifecycle (496-538): docs/content-lifecycle.md EXISTS (canonical). Keep heading + P082 (verb table? it's a table of 4 verbs — compact and rule-like) + short; move P081 (owner quote), P083-P0
+42  f519f70a:   Wait — but instruction 1 says "per section, the rule itself in a few lines + one pointer". A NEW few-lines rule is expected. But "never paraphrased" — the moved paragraphs are verbatim in docs; the 
+43  935170bb:   For Content Lifecycle: P084 items 1-5 (814) — these are the invariants; keep? "invariants" are rules. Keep P084? It's 814 chars. Hmm. I'll keep: heading, P082? Let me instead keep: heading + P081-no
+44  3188ea6c:   
+45  cfc0641d:   ARGH. I keep going back and forth. Let me set a DECISION FRAMEWORK (and write it in the plan):
+46  6df7ddce:   For each section: KEEP (verbatim) the paragraphs/items whose normalized length ≤ 400 chars AND that are imperative rules; MOVE everything else (rationale, quotes, tables > small, measurements, histo
+47  0c2f577f:   Exceptions: front matter (keep as per owner, with one monster item moved: no-script, 4.7KB) and tables that are pure operational references (Shell Command Restrictions table — keep? It's 1059 chars 
+48  aa66d130:   
+49  489e4ae1:   Let me just set section-by-section keep/move with sizes and compute the total. Then adjust to hit a good target (~35-45KB? The smaller the better while keeping rules usable). Let me estimate the kee
+50  e6d5c492: 
+51  850d3e43: KEEP (my current plan):
+52  2344b7f4: Front matter: intent 146 + state 482 + scope 318 + constraints ~(9460-4700 moved no-script + maybe move nothing else) ≈ 4800 + forbidden 2714 + invariants 869 + acceptance 1053 ≈ 10.4KB.
+53  c17c31a5: Hmm wait, also I might move some other long constraint items: L104 (don't litter, 450) — keep; L109 tool names (800) — keep? It's a naming law for agents; keep. OK constraints after moving no-script ≈
+54  5fb3ab56: 
+55  fdeb2507: Sections:
+56  9c229eb8: 1. Language: keep heading + P008+P009+P011+P012 (284+316+190+114=904) + pointer→ (move P010 643). Keep ~0.9KB.
+57  3a5a1869: 2. STOP: keep heading + new 2-liner (~150B?) + move all (~3.4KB). Keep ~0.2KB.
+58  d891921a: 3. Project Paradigm: keep heading + P034 (249) + P035 (107 code) + P036 (165) + P044 (475) + P038 pointer (146) = 1.14KB; move rest (~2.6KB incl P037 table 688, P039-P042 ~1.07KB, P040 209, P041 315, 
+59  76c90bcb: 4. Storage: keep P046 (86) + P047 (734) + P049 (18) + P050 (1475) = 2.31KB; move P048,P051-P058 (~4.6KB).
+60  1500857c:    Hmm — or slim further: move even the four rules? No — they're the canon. Keep.
+
+### EXCERPT prt_116ebe244001N28WWqU75jhICw (1426 lines total, showing 60)
+1  9e3779b1: 
+2  3c6ef362: Пользователь подтверждает подход: фиксируем width, height будет по результату. Это именно то, что делает `fitFontAnchoredSize` — но проблема в том, что текст становится мелким.
+3  daa66d13: 
+4  78dde6c4: Пользователь ранее сказал: "Когда ты рендеришь мермейд ты можешь сразу задать ограничение по ширине и все." — это ключевая подсказка. Mermaid сам поддерживает `maxWidth` в конфиге, и это более правиль
+5  17156075: 
+6  b54cda26: Сейчас пайплайн:
+7  538453d7: 1. mermaid рендерит SVG с натуральным размером (781x117, font-size=14)
+8  f1bbcd88: 2. resvg масштабирует SVG до 1440px ширины
+9  8ff34739: 3. Текст становится 14 * (1440/781) ≈ 26px
+10  2e2ac0ea: 
+11  cc623a9b: Правильный подход:
+12  6a99b44c: 1. mermaid рендерит SVG с `maxWidth: 1440` — он сам масштабирует диаграмму, сохраняя читаемость текста
+13  08d12dfd: 2. resvg рендерит SVG без дополнительного масштабирования
+14  a708a7ae: 3. Текст будет нужного размера
+15  4540215f: 
+16  e3779b10: Но подождите, я проверил `maxWidth` в конфиге mermaid — но результат не был показан (bash-1 завершился с ошибкой). Нужно проверить, поддерживает ли mermaid-wasm-renderer параметр `maxWidth`.
+17  81af14c1: 
+18  1fe68e72: На самом деле, в mermaid есть несколько способов задать размер:
+19  be1e0823: 1. `config.maxWidth` — максимальная ширина диаграммы
+20  5c5581d4: 2. `config.width` — фиксированная ширина диаграммы
+21  fa8cfb85: 3. `config.themeVariables.fontSize` — размер шрифта
+22  98c47536: 
+23  36fbeee7: Но важно: `maxWidth` в mermaid ограничивает ширину, но не масштабирует текст. Если диаграмма уже шире, чем `maxWidth`, она будет сжата. Если уже уже — она останется как есть.
+24  d5336898: 
+25  736ae249: Подождите, давайте подумаем о проблеме иначе. На скриншоте текст очень мелкий. Это может быть потому, что:
+26  11a25bfa: 1. Mermaid рендерит SVG с натуральным размером (781x117)
+27  afd9d5ab: 2. Resvg масштабирует SVG до 1440px ширины
+28  4e114f5c: 3. Текст становится 14 * (1440/781) ≈ 26px
+29  ec48c90d: 
+30  8a8042be: Но 26px — это нормальный размер для терминала с cellHeight=35px. Почему на скриншоте текст очень мелкий?
+31  28b7bc6f: 
+32  c6ef3620: Подождите, давайте посмотрим на скриншот ещё раз. Может быть, проблема в том, что `cellHeight` передаётся в других единицах?
+33  6526afd1: 
+34  035e2982: Или может быть, проблема в том, что `fitFontAnchoredSize` не вызывается, и используется `fitToWidthSize` с `allowUpscale: true`?
+35  a195a333: 
+36  3fcd1ce4: Проверю: в `resvgOptionsForSvg` есть две ветки:
+37  de049695: 1. Если `budget.cellHeight` > 0 — используется `fitFontAnchoredSize`
+38  7c3c1046: 2. Иначе — используется `fitToWidthSize` с `allowUpscale: true`
+39  1a7389f7: 
+40  b8ab03a8: Если `cellHeight` не передаётся, то используется `fitToWidthSize`, который масштабирует SVG до `maxWidth` без учёта размера шрифта. Это может привести к тому, что текст станет очень мелким.
+41  56e27d59: 
+42  f519f70a: Но в `media-image.tsx` я видел, что `cellHeight` передаётся:
+43  935170bb: ```ts
+44  3188ea6c: cellHeight: Math.max(1, Math.round(cells.cellHeight))
+45  cfc0641d: ```
+46  6df7ddce: 
+47  0c2f577f: Так что `fitFontAnchoredSize` должен вызываться.
+48  aa66d130: 
+49  489e4ae1: Хм, но подождите. Давайте посмотрим на скриншот ещё раз. Текст в нодах:
+50  e6d5c492: - "Выбор владельца: что берем в работу" — это очень мелкий текст
+51  850d3e43: - Ноды большие, но текст внутри них крошечный
+52  2344b7f4: 
+53  c17c31a5: Это похоже на то, что шрифт в SVG очень маленький относительно размера нод. Или что resvg не смог загрузить шрифт и использовал fallback.
+54  5fb3ab56: 
+55  fdeb2507: Подождите, я проверил в probe2:
+56  9c229eb8: - С шрифтом: текст читается нормально
+57  3a5a1869: - Без шрифта: текст отсутствует полностью
+58  d891921a: 
+59  76c90bcb: Значит, в приложении шрифт загружается, но текст очень мелкий. Это может быть потому, что:
+60  1500857c: 1. Масштаб раста слишком большой
+
+### EXCERPT prt_14133d71a001J6G1UihhFkWJlU (2 lines total, showing 2)
+1  9e3779b1: (empty reasoning text)
+2  3c6ef362: metadata: anthropic:{signature} signature=68884chars CAQSxpMDChAIEhgCOAFCCHRoaW5raW5nEgz184c3Xz26afqCg2QaDAJpaErVNB0aHZJy4yIwjIdThTbg
+
+### EXCERPT prt_13800abef0014ssLYpNatcVbU8 (653 lines total, showing 60)
+1  9e3779b1: **ROUTE C IS FULLY VERIFIED (Exact):**
+2  3c6ef362: 
+3  daa66d13: 1. `fossil test-content-put <file> -U claude` (cwd=checkout) → rc=0, "inserted as record 513".
+4  78dde6c4: 2. `fossil test-crosslink <sha3-256>` → rc=0.
+5  17156075: 3. `fossil test-forumthread` shows: thread 513, count=2, chronological rows with hashes (25c3249e, 7efe0fc4), display hierarchy (513 → 514 nested).
+6  b54cda26: 4. `fossil artifact <hash>`: cwd form AND `-R` form both work, byte-equal TRUE (164 bytes).
+7  538453d7: 5. SQLite: forumpost rows with froot/fert correct; event.user = claude/codex; comments "Post: title"/"Reply: title".
+8  f1bbcd88: 6. **The web thread page (scratch server) renders the thread: title, unicode body, both authors, the reply body — ALL TRUE. 200 OK.**
+9  8ff34739: 
+10  2e2ac0ea: So: posts authored by claude/codex via the CLI route appear CORRECTLY in the web forum. This is the route. DECISION LOCKED (with evidence).
+11  cc623a9b: 
+12  6a99b44c: Note: `count` in test-forumthread for the reply thread = 2, froot=513. And `firt`=513 for the reply (in reply to the root).
+13  08d12dfd: 
+14  a708a7ae: Now — one more detail for the READER verb: uuid prefixes. The `forum <id>` resolver: match `blob.uuid LIKE 'id%'` among forumpost rows.
+15  4540215f: 
+16  e3779b10: Also hmm — one thing I notice: `fossil test-forumthread` prints the SID/rev table. For org.py's read-back I'll parse: `froot = <int>`, `count = <int>`, and the hash column contains our 8-char prefix. 
+17  81af14c1: 
+18  1fe68e72: Let me now also double-check the "inserted as record N" — is that OUTPUT GUARANTEED? If content_put found the artifact ALREADY in the DB (identical bytes), it returns the existing rid — same output. I
+19  be1e0823: 
+20  5c5581d4: Now, let me nail the remaining org.py design details and then WRITE THE CODE.
+21  fa8cfb85: 
+22  98c47536: ### org.py additions
+23  36fbeee7: 
+24  d5336898: Constants:
+25  736ae249: ```python
+26  11a25bfa: FORUM_CAPS = set("234")  # 2=RdForum, 3=WrForum, 4=WrForum-trusted (login.c; capabilities.c:296-302)
+27  afd9d5ab: RESIDENT_CAPS = "Cnrwcjfkm234"  # update: + forum caps
+28  4e114f5c: ```
+29  ec48c90d: 
+30  8a8042be: Where's the checkout? orgcfg.CHECKOUT = HOME / "checkout". (Add to orgcfg.py.)
+31  28b7bc6f: 
+32  c6ef3620: `fossil()` helper: add `cwd` parameter? The helper builds [fossil, *args, "-R", ORG]. For the checkout calls I need NO -R and cwd=CHECKOUT. I'll add a separate helper `fossil_in_checkout(*args, user=N
+33  6526afd1: 
+34  035e2982: Artifact building:
+35  a195a333: 
+36  3fcd1ce4: ```python
+37  de049695: def _forum_fossilize(value: str) -> str: ...  # \ -> \\, space -> \s, \n -> \n, \t, \r, \f, \v, \0
+38  7c3c1046: 
+39  1a7389f7: def _forum_artifact(body: bytes, user: str, title: str | None, root_uuid: str | None, parent_uuid: str | None) -> bytes:
+40  b8ab03a8:     parts = [f"D {_forum_date()}\n".encode()]
+41  56e27d59:     if root_uuid: parts.append(f"G {root_uuid}\n".encode())
+42  f519f70a:     if title is not None: parts.append(f"H {_forum_fossilize(title)}\n".encode())
+43  935170bb:     if parent_uuid: parts.append(f"I {parent_uuid}\n".encode())
+44  3188ea6c:     parts.append(b"N text/x-markdown\n")
+45  cfc0641d:     parts.append(f"U {_forum_fossilize(user)}\n".encode())
+46  6df7ddce:     parts.append(f"W {len(body)}\n".encode() + body + b"\n")
+47  0c2f577f:     x = b"".join(parts)
+48  aa66d130:     return x + b"Z " + hashlib.md5(x).hexdigest().encode("ascii") + b"\n"
+49  489e4ae1: ```
+50  e6d5c492: 
+51  850d3e43: Date: `datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.") + f"{microsecond//1000:03d}"` — same as fossil's strftime('%Y-%m-%dT%H:%M:%f'). ✓ (verified byte-identical style vs the web artifact).
+52  2344b7f4: 
+53  c17c31a5: Hmm — wait, one important thing: the D card date — fossil's `%f` in SQLite = "SS.SSS" seconds with milliseconds. My format matches. ✓ (probe: D 2026-10-14T01:19:37.632 — 3 digits.)
+54  5fb3ab56: 
+55  fdeb2507: Hash: sha3_256; accept sha1 fallback? For the org (shun-sha1 → sha3). For robustness: compute both; after content-put, resolve rid→uuid via SQLite; verify uuid == sha3 OR sha1 of our bytes; use the re
+56  9c229eb8: 
+57  3a5a1869: Wait — subtlety: content-put prints "inserted as record N" — parse N (int). If the parse fails → error. Then SELECT uuid FROM blob WHERE rid=N. If no row → error. Then check uuid in (sha3, sha1) → if 
+58  d891921a: 
+59  76c90bcb: Hmm — actually, hmm: for the wrong-checkout case, should org.py ALSO verify the rid landed in THE ORG's blob table? The `rows()` helper reads ORG (sqlite ro) — resolving rid→uuid via rows() reads THE 
+60  1500857c: 
+
+### EXCERPT prt_118f6cb85001cemQUQVixP7xzs (292 lines total, showing 60)
+1  9e3779b1: So:
+2  3c6ef362: - For a PRIMARY mode identity (build_mode etc.): banner = `[session: ses_<id>:<model>]` — the session id IS in the banner the model sees.
+3  daa66d13: - For subagents (coder etc.): banner = ses:model:identity — still starts with the session id.
+4  78dde6c4: - For CHILD TASKS with a cacheLease (subagent-in-task): providerCacheKey override — banner may be a lease key, not the session id. Edge case; note it.
+5  17156075: 
+6  b54cda26: So T3 measured answer (in-context): **The model sees `[session: <session-id>:<model>]` — the first `:`-separated field is the session id** (for the main robot session; a `task` child may show a lease 
+7  538453d7: 
+8  f1bbcd88: Hmm wait, but actually — I want to double-check whether the banner is sent to the provider as part of the system prompt. assembleSystemMessages({..., banner, ...}) → system[]; then collapseSystemMessa
+9  8ff34739: 
+10  2e2ac0ea: So the "measured" part for T3:
+11  cc623a9b: 1. Inside a tool call env: OPENCODE=1, OPENCODE_PID, OPENCODE_PROCESS_ROLE, OPENCODE_RUN_ID, OPENCODE_API_KEY — NO session id. (measured just now, command `set OPENCODE`).
+12  6a99b44c: 2. The session id IS visible to the model in its own system context: banner `[session: ses_…:model]` (llm.ts:569, buildProviderCacheKey llm.ts:364-378; observed in this session's context).
+13  08d12dfd: 3. Worktree: the tool call's cwd (shell runs in worktree) + `OPENCODE_PID` matches the host record (`server_host.pid`) in the worktree DB → the worktree can be self-identified from the DB by pid! Actu
+14  a708a7ae: 
+15  4540215f: Also, alternative auto-discovery for org.py (zero model effort): scan the worktree DB `part` table for its own running tool call. Hmm — is this robust enough to put in the verb CLI as the DEFAULT? Let
+16  e3779b10: 
+17  81af14c1: Actually, wait. Let me reconsider. There's an even cleaner discovery: **the `part` table data contains the tool call's input including the full command**. org.py is invoked BY the command. The command
+18  1fe68e72: 
+19  be1e0823: What about this: `message` table has session_id; `part` has callID and session_id. The tool call that spawned us is the UNIQUE running part whose input command contains the exact script path AND whose
+20  5c5581d4: 
+21  fa8cfb85: Alternative: derive candidate then VERIFY: we know our parent process (cmd.exe) → its parent should be opencode.exe pid == OPENCODE_PID; that doesn't disambiguate session.
+22  98c47536: 
+23  36fbeee7: OK — what about matching on the VERB + the exact textual form of the command including our script path as invoked? sys.argv[0] is how the script was invoked (e.g., `scripts/org-genesis/org.py` or full
+24  d5336898: 
+25  736ae249: Time-based tiebreak: our process start time vs part.time.start; the part we belong to started BEFORE us by < timeout... Both would satisfy.
+26  11a25bfa: 
+27  afd9d5ab: Hmm, honestly, I think the honest v1: default = explicit `--session` (robot reads banner); auto-discovery attempted as convenience with strict uniqueness, else error listing candidates. Actually — hmm
+28  4e114f5c: 
+29  ec48c90d: Actually! What about the **fossil snapshot** angle: at turn start, the runtime snapshots and the commit message carries sv:<md5>... no session.
+30  8a8042be: 
+31  28b7bc6f: Hmm, what about `session` table having a `parent_id` or "directory" and the CURRENT session being... the one whose latest message part matches our command — same problem.
+32  c6ef3620: 
+33  6526afd1: OK here's yet another idea — **the run's logical "wave"**: Actually no. Stop. DECISION:
+34  035e2982: 
+35  a195a333: org.py discovery contract:
+36  3fcd1ce4: - `--session ID` explicit flag (highest confidence; Protocol teaches where to read the id: your own banner `[session: ses_…:model]`).
+37  de049695: - If omitted: auto-discover from the worktree DB: exactly ONE running tool part whose command mentions `org.py` (or this script's name) AND whose session's directory == cwd → that session. If zero or 
+38  7c3c1046: 
+39  1a7389f7: Wait, wait. Actually — hmm, hold on, one more idea, and I think this one is The One: **the `jobs` table is for background bash; but foreground tools... what about `callID`?** We don't know our callID.
+40  b8ab03a8: 
+41  56e27d59: FINE. But actually, is auto-discovery even needed for the SMOKES and for the design? Re-read the plan once more...
+42  f519f70a: 
+43  935170bb: "`delegate` records who to wake: `wake_session` + `wake_worktree` (the delegator's opencode session id and worktree)."
+44  3188ea6c: 
+45  cfc0641d: For the smoke S2: "two sessions on the bin/ host of D:\zPython\opencode; parent's ticket with wake_session = parent; org.py done on it → within 30s the parent session has a new user message carrying t
+46  6df7ddce: 
+47  0c2f577f: For production use, the DELEGATOR robot needs its session id. The Protocol (T4) will teach: "your session id is the first field of the `[session: …]` banner in your own context; pass it via `--wake-se
+48  aa66d130: 
+49  489e4ae1: Hmm... but hold on, let me reconsider auto-discovery once more, because I want the UX: "robot delegates and leaves its loop; no human touches." The robot's model would have to include its session id i
+50  e6d5c492: 
+51  850d3e43: Solid variant: **org.py consults the DB for a running part in ANY session of this worktree whose input command string, after normalization, EQUALS the actual command line of the current process** (whi
+52  2344b7f4: 
+53  c17c31a5: Alternative solid variant: **PID-based**: does any table record the PID of tool subprocesses? `job` table! Let me check the jobs.db / job table schema — "jobs (background jobs)". For background bash j
+54  5fb3ab56: 
+55  fdeb2507: Hmm OK — actually, let me look at this from the DB side: what does the CURRENT running part of a `cmd` call look like when the command itself is `python ...org.py delegate ...`. The part.data.input.co
+56  9c229eb8: 
+57  3a5a1869: Match heuristic v2: candidate parts = running tool parts in sessions of this worktree where data LIKE '%org.py%'. Then disambiguate by comparing the part's input.command tail (after 'org.py') against 
+58  d891921a: 
+59  76c90bcb: Add another separator: time.start of the part must be BEFORE our process start (>= start-100ms) and within, say, 120 s (tool calls can run long; org.py is fast, so part.time.start should be within sec
+60  1500857c: 
+

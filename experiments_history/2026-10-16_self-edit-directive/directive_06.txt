@@ -1,0 +1,44 @@
+EXCERPT prt_138028f1e0014sDxH49nYXfaRR
+CUT lines: 12-16
+CUT tags: 6a99b44c-e3779b10
+CUT start: "Let me start per the gate protocol. G0: U"
+CUT end: "Let me think about what needs to happen:"
+REASON: Language-choice vacillation (Russian vs English reasoning) plus a transitional re-listing of the task that is fully superseded by the concrete G0/G1 breakdown at lines 18-26.
+SIGNED: cut
+ERRATUM after 40: Claude Code has no PostCompact hook — post-compact re-injection rides SessionStart(source=compact); PreCompact (matcher manual|auto) fires before compaction.
+
+EXCERPT prt_11eb0bde4001wDQ54Toz5nzC3o
+CUT lines: 28-34
+CUT tags: 4e114f5c-035e2982
+CUT start: "Wait — check: for a span replacing lines"
+CUT end: "Also — `resolveEdits` wrapper passes thr"
+REASON: Self-check asides around the already-written code block (second-guessing of indexing, wrapper pass-through note) — verification chatter duplicating the plan substance in lines 5-27 and 36+.
+SIGNED: cut
+ERRATUM after 13: `AppliedSpan` is declared as `{ start: number; end: number }` but used as readonly in `Resolution` — declare `readonly AppliedSpan[]` element fields consistently.
+
+EXCERPT prt_11f1e293d0018rAB9n2i1cFxQJ
+CUT lines: 34-38
+CUT tags: 035e2982-7c3c1046
+CUT start: "Wait — but should I keep it on the shelf"
+CUT end: "Hmm, but actually — let me think about wh"
+REASON: Procedural vacillation about whether to mark/shelve G3 and whether a citation could close it — meta-deliberation superseded by the concrete repo-state re-check list that begins at line 40.
+SIGNED: cut
+ERRATUM after 6: Baseline says 5677 pass / 1 fail and the fix run says 5679 pass — +2 tests appeared from a triage fix; the counts only reconcile if two new tests were added, which the entry fails to state.
+
+EXCERPT prt_1350165f9001tHyAWAZQdoIwBr
+CUT lines: 1-7
+CUT tags: 9e3779b1-538453d7
+CUT start: "The recall results themselves were relea"
+CUT end: "This is the standard mechanics: large too"
+REASON: Working through replay/recall placeholder and keep:true mechanics — tool-infrastructure chatter fully superseded by the chunked-read strategy decided at line 9.
+SIGNED: cut
+ERRATUM after 7: keep:true replays the original part only while its size fits the release gate — expecting a 31.4 KB part to replay permanently contradicts the 8 KB gate described at line 9.
+
+EXCERPT prt_11eae553f001TSF2wpoyVKLG5y
+CUT lines: 39-45
+CUT tags: 1a7389f7-cfc0641d
+CUT start: "Think: what would make Python edits robus"
+CUT end: "So NO re-basing scheme fixes an internal"
+REASON: Idea X (tool re-bases a dedented newString fragment) is walked through and then refuted in-line — a superseded dead-end design whose only surviving takeaway (fragment inconsistency is the model's slip) is restated by the (iii) direction at lines 47-48.
+SIGNED: cut
+ERRATUM after 43: The refuted example's arithmetic is right, but the conclusion overreaches — re-basing also breaks CONSISTENTLY-written fragments whose base is non-zero, not only internally inconsistent ones.

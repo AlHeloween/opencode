@@ -7252,3 +7252,11 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ WIRE (E5, researcher `ses_ebccd6dbeffele21qBQt8fZlfb`): 11 официальных фетчей + хэши — Anthropic/Bedrock требуют verbatim-replay signed-блоков последнего хода (400 иначе), ранние ходы опускаемы; минимальное отклонение для P1 зафиксировано.
 ✓ REPORT (E6): `experiments/2026-10-16_self-edit-directive/REPORT.md` — GO P1 (за свитчем, OFF) с условиями, NO-GO default. Token-saving 60–75% → 15.6% медианы по показанному окну: прогноз ПРОМАХНУТ (якорь капа 5–20 строк), full-message и per-tool — Unknown с причиной, не провал. Вопрос владельцу: CUT на свой reasoning или ERRATUM-only.
 <!-- sv: self-edit-phase-e 0.35, addressing-measured 0.30, errata-specific 0.20, go-p1-conditional 0.15 -->
+## [2026-10-16] t70 fixes — 4 правки ревью: tail-rule RESOLVED, cost UNKNOWN, архив, shared-маршрут
+
+✓ DECIDED (правка 1): вопрос CUT/ERRATUM снят — решение владельца: на представлении разрешены и срез, и поправка (AGENTS.md § Continuity п.4, bbd76ba319 + «пусть у всех будет … решает модель»); signed-блок последнего хода — дословно, решение модели вступает на следующей границе (E5). Вопрос убран из плана, решение вписано со ссылками.
+✓ COST (правка 3): 6 aicall шли через session-default openrouter/auto-beta (Auto Router) — реальная цена UNKNOWN, не free (дефект инструмента, docs/robot-protocol-log.md). REPORT.md и E2-receipt поправлены на «cost UNKNOWN (router)»; дальше модель всегда явно (free/contributor).
+✓ ARCHIVE (правка 4): experiments_history/2026-10-16_self-edit-directive/ — 17 файлов, все identical (sha256 попарно через archive.py). REPORT теперь закоммичен; supersede: строка «6 free-вызовов» в entry ниже — читать с этой поправкой.
+✓ SHARED (правка 4): cdbea9c27c унёс _progress_log.md целиком (t65 зафиксировал: контент цел, 9bd5ecac74) — историю не переписываю; этот entry идёт маршрутом --shared/--apply-patch (только свой ханк).
+— P1 НЕ начат: GO — решение владельца (правка 2). Residual: svm render для MASTER_PLAN-mapping (план пока не в карте) — вместе с P1 по слову владельца.
+<!-- sv: t70-fixes 0.35, tail-decided 0.25, cost-unknown 0.20, archive-shared 0.20 -->

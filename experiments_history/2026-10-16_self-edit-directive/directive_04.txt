@@ -1,0 +1,44 @@
+EXCERPT prt_142ee91ed001hRdNlB7CyE7eHh
+CUT lines: 2-2
+CUT tags: 3c6ef362-3c6ef362
+CUT start: "3c6ef362: metadata: openai"
+CUT end: "3c6ef362: metadata: openai"
+REASON: Excerpt is only 2 lines, so the 5-line minimum is impossible; the metadata/provenance line is pure housekeeping, not task content.
+SIGNED: cut
+ERRATUM: none needed
+
+EXCERPT prt_12363ffc0001R6Myp3LIadhCfl
+CUT lines: 4-8
+CUT tags: 78dde6c4-f1bbcd88
+CUT start: "78dde6c4: - 3 ERRORs: test_14 (unchanged"
+CUT end: "f1bbcd88:   Oh wait — actually test_03 e"
+REASON: Speculative, self-retracted over-analysis of why three tests ERROR ("Let me not over-analyze… Oh wait —"); the settled baseline facts are already in lines 2-3 and 10.
+SIGNED: cut
+ERRATUM: none needed
+
+EXCERPT prt_1172b9c290014NJj033hi5G7Om
+CUT lines: 31-39
+CUT tags: 28b7bc6f-1a7389f7
+CUT start: "28b7bc6f: А если растр 3000px, а cellWid"
+CUT end: "1a7389f7: Нам важно зафиксировать width"
+REASON: Abandoned display-column tangent ("Хм. Хм-хм.") plus verbatim re-quoting of user messages already quoted at lines 15/41; the real pivot (render.width) is worked out later at lines 47-58.
+SIGNED: cut
+ERRATUM: none needed
+
+EXCERPT prt_0e3dd7878001Fuio11duvo8KcL
+CUT lines: 5-12
+CUT tags: b54cda26-6a99b44c
+CUT start: "b54cda26: 2. **Reward function не вставле"
+CUT end: "6a99b44c: Давайте разберём каждую:"
+REASON: Verbatim restatement of the four tasks already summarized in line 2, plus an empty transition; the substantive analysis only begins at line 14.
+SIGNED: cut
+ERRATUM: none needed
+
+EXCERPT prt_1350730bc001s78tZqYnoNbwpe
+CUT lines: 19-23
+CUT tags: be1e0823-36fbeee7
+CUT start: "be1e0823: Hmm, wait — actually, let me t"
+CUT end: "36fbeee7: DECISION: implement per user"
+REASON: Post-decision dithering about probing out-of-scope ADID source (glob/findstr ideas, "Skip"), ending in a DECISION already made at line 17 — superseded vacillation.
+SIGNED: cut
+ERRATUM: none needed

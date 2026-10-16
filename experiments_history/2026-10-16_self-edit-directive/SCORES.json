@@ -1,0 +1,664 @@
+[
+ {
+  "id": "prt_0ec9230270019lmkyKJwcurgU4",
+  "batch": 1,
+  "shown_lines": 60,
+  "shown_chars": 1836,
+  "a_from": 34,
+  "a_to": 52,
+  "a": "ok",
+  "c_from": 34,
+  "c_to": 52,
+  "c": "ok-agree",
+  "start_hits": [
+   34
+  ],
+  "end_hits": [
+   52
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 378,
+  "cut_frac": 0.2059,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_141361ec7001R1GVmAGN6EaegO",
+  "batch": 1,
+  "shown_lines": 2,
+  "shown_chars": 172,
+  "a": "refused",
+  "c": "refused",
+  "b": "refused",
+  "signed": "PASS-refused-cut-kept",
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_13471853e001nI6GpG95aCmZ1O",
+  "batch": 1,
+  "shown_lines": 60,
+  "shown_chars": 2647,
+  "a_from": 50,
+  "a_to": 59,
+  "a": "ok",
+  "c_from": 51,
+  "c_to": 59,
+  "c": "MISMATCH_WITH_A",
+  "start_hits": [
+   51
+  ],
+  "end_hits": [
+   59
+  ],
+  "b": "MISMATCH_WITH_A",
+  "signed": "n/a",
+  "cut_chars": 579,
+  "cut_frac": 0.2187,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_11f5fa3be001cgHu4RPPi9pyYm",
+  "batch": 1,
+  "shown_lines": 60,
+  "shown_chars": 7680,
+  "a_from": 1,
+  "a_to": 5,
+  "a": "ok",
+  "c_from": 1,
+  "c_to": 5,
+  "c": "ok-agree",
+  "start_hits": [
+   1
+  ],
+  "end_hits": [
+   5
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 357,
+  "cut_frac": 0.0465,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_123587520001AGbjp6FaC3Gyrz",
+  "batch": 1,
+  "shown_lines": 60,
+  "shown_chars": 4813,
+  "a_from": 31,
+  "a_to": 39,
+  "a": "ok",
+  "c_from": 31,
+  "c_to": 39,
+  "c": "ok-agree",
+  "start_hits": [
+   31
+  ],
+  "end_hits": [
+   39
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 783,
+  "cut_frac": 0.1627,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_1412e9150001yOzozC7jawHS3c",
+  "batch": 2,
+  "shown_lines": 2,
+  "shown_chars": 172,
+  "a_from": 1,
+  "a_to": 1,
+  "a": "ok",
+  "c_from": 1,
+  "c_to": 1,
+  "c": "ok-agree",
+  "start_hits": [
+   1
+  ],
+  "end_hits": [
+   1
+  ],
+  "b": "ok-agree",
+  "signed": "PARTIAL-cut-with-keep-verdict",
+  "cut_chars": 30,
+  "cut_frac": 0.1744,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_135047482001ia2Glp9u5namcD",
+  "batch": 2,
+  "shown_lines": 60,
+  "shown_chars": 5782,
+  "a_from": 43,
+  "a_to": 51,
+  "a": "ok",
+  "c_from": 43,
+  "c_to": 51,
+  "c": "ok-agree",
+  "start_hits": [
+   43
+  ],
+  "end_hits": [
+   51
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 1072,
+  "cut_frac": 0.1854,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_1235aee380010QQUgUGEJ9DIIZ",
+  "batch": 2,
+  "shown_lines": 60,
+  "shown_chars": 5747,
+  "a_from": 56,
+  "a_to": 60,
+  "a": "ok",
+  "c_from": 56,
+  "c_to": 60,
+  "c": "ok-agree",
+  "start_hits": [
+   58
+  ],
+  "end_hits": [
+   60
+  ],
+  "b": "MISMATCH_WITH_A",
+  "signed": "n/a",
+  "cut_chars": 840,
+  "cut_frac": 0.1462,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_1235e9a56001Kyot4LijZlrDxT",
+  "batch": 2,
+  "shown_lines": 60,
+  "shown_chars": 7143,
+  "a_from": 44,
+  "a_to": 50,
+  "a": "ok",
+  "c_from": 44,
+  "c_to": 50,
+  "c": "ok-agree",
+  "start_hits": [
+   44
+  ],
+  "end_hits": [
+   49
+  ],
+  "b": "MISMATCH_WITH_A",
+  "signed": "n/a",
+  "cut_chars": 821,
+  "cut_frac": 0.1149,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_1192d539d001qz0BsPozEgogHM",
+  "batch": 2,
+  "shown_lines": 60,
+  "shown_chars": 5725,
+  "a_from": 52,
+  "a_to": 60,
+  "a": "ok",
+  "c_from": 52,
+  "c_to": 60,
+  "c": "ok-agree",
+  "start_hits": [
+   52
+  ],
+  "end_hits": [],
+  "b": "NOT_FOUND",
+  "signed": "n/a",
+  "cut_chars": 769,
+  "cut_frac": 0.1343,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_13d6d71c2001NMcfE92iZPW7e9",
+  "batch": 3,
+  "shown_lines": 60,
+  "shown_chars": 5781,
+  "a_from": 21,
+  "a_to": 29,
+  "a": "ok",
+  "c_from": 21,
+  "c_to": 29,
+  "c": "ok-agree",
+  "start_hits": [
+   21
+  ],
+  "end_hits": [
+   29
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 899,
+  "cut_frac": 0.1555,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_13da98baf001VCiQX310Uj0aKE",
+  "batch": 3,
+  "shown_lines": 60,
+  "shown_chars": 6912,
+  "a_from": 1,
+  "a_to": 9,
+  "a": "ok",
+  "c_from": 1,
+  "c_to": 9,
+  "c": "ok-agree",
+  "start_hits": [
+   1
+  ],
+  "end_hits": [
+   10
+  ],
+  "b": "MISMATCH_WITH_A",
+  "signed": "n/a",
+  "cut_chars": 751,
+  "cut_frac": 0.1087,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_13489b909001o2tnespNpicZxT",
+  "batch": 3,
+  "shown_lines": 60,
+  "shown_chars": 5659,
+  "a_from": 23,
+  "a_to": 33,
+  "a": "ok",
+  "c_from": 23,
+  "c_to": 33,
+  "c": "ok-agree",
+  "start_hits": [
+   23
+  ],
+  "end_hits": [
+   33
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 1210,
+  "cut_frac": 0.2138,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_1352a665e001wQzwhgwpq7k03W",
+  "batch": 3,
+  "shown_lines": 60,
+  "shown_chars": 5070,
+  "a_from": 28,
+  "a_to": 34,
+  "a": "ok",
+  "c_from": 28,
+  "c_to": 34,
+  "c": "ok-agree",
+  "start_hits": [
+   28
+  ],
+  "end_hits": [
+   34
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 856,
+  "cut_frac": 0.1688,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_1413218e40013i6CIbvkatQlnH",
+  "batch": 3,
+  "shown_lines": 2,
+  "shown_chars": 171,
+  "a": "refused",
+  "c": "refused",
+  "b": "refused",
+  "signed": "PASS-refused-cut-kept",
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_142ee91ed001hRdNlB7CyE7eHh",
+  "batch": 4,
+  "shown_lines": 2,
+  "shown_chars": 133,
+  "a_from": 2,
+  "a_to": 2,
+  "a": "ok",
+  "c_from": 2,
+  "c_to": 2,
+  "c": "ok-agree",
+  "start_hits": [],
+  "end_hits": [],
+  "b": "NOT_FOUND",
+  "signed": "n/a",
+  "cut_chars": 24,
+  "cut_frac": 0.1805,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_12363ffc0001R6Myp3LIadhCfl",
+  "batch": 4,
+  "shown_lines": 60,
+  "shown_chars": 4230,
+  "a_from": 4,
+  "a_to": 8,
+  "a": "ok",
+  "c_from": 4,
+  "c_to": 8,
+  "c": "ok-agree",
+  "start_hits": [],
+  "end_hits": [],
+  "b": "NOT_FOUND",
+  "signed": "n/a",
+  "cut_chars": 640,
+  "cut_frac": 0.1513,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_1172b9c290014NJj033hi5G7Om",
+  "batch": 4,
+  "shown_lines": 60,
+  "shown_chars": 3581,
+  "a_from": 31,
+  "a_to": 39,
+  "a": "ok",
+  "c_from": 31,
+  "c_to": 39,
+  "c": "ok-agree",
+  "start_hits": [],
+  "end_hits": [],
+  "b": "NOT_FOUND",
+  "signed": "n/a",
+  "cut_chars": 445,
+  "cut_frac": 0.1243,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_0e3dd7878001Fuio11duvo8KcL",
+  "batch": 4,
+  "shown_lines": 60,
+  "shown_chars": 3829,
+  "a_from": 5,
+  "a_to": 12,
+  "a": "ok",
+  "c_from": 6,
+  "c_to": 12,
+  "c": "MISMATCH_WITH_A",
+  "start_hits": [],
+  "end_hits": [],
+  "b": "NOT_FOUND",
+  "signed": "n/a",
+  "cut_chars": 436,
+  "cut_frac": 0.1139,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_1350730bc001s78tZqYnoNbwpe",
+  "batch": 4,
+  "shown_lines": 60,
+  "shown_chars": 5381,
+  "a_from": 19,
+  "a_to": 23,
+  "a": "ok",
+  "c_from": 19,
+  "c_to": 23,
+  "c": "ok-agree",
+  "start_hits": [],
+  "end_hits": [],
+  "b": "NOT_FOUND",
+  "signed": "n/a",
+  "cut_chars": 485,
+  "cut_frac": 0.0901,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_135509d2e001Q91psjo52X4feZ",
+  "batch": 5,
+  "shown_lines": 60,
+  "shown_chars": 6849,
+  "a_from": 41,
+  "a_to": 49,
+  "a": "ok",
+  "c_from": 42,
+  "c_to": 50,
+  "c": "MISMATCH_WITH_A",
+  "start_hits": [
+   42
+  ],
+  "end_hits": [
+   49
+  ],
+  "b": "MISMATCH_WITH_A",
+  "signed": "n/a",
+  "cut_chars": 1372,
+  "cut_frac": 0.2003,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_116ebe244001N28WWqU75jhICw",
+  "batch": 5,
+  "shown_lines": 60,
+  "shown_chars": 3499,
+  "a_from": 25,
+  "a_to": 33,
+  "a": "ok",
+  "c_from": 25,
+  "c_to": 34,
+  "c": "MISMATCH_WITH_A",
+  "start_hits": [
+   32
+  ],
+  "end_hits": [
+   34
+  ],
+  "b": "MISMATCH_WITH_A",
+  "signed": "n/a",
+  "cut_chars": 546,
+  "cut_frac": 0.156,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_14133d71a001J6G1UihhFkWJlU",
+  "batch": 5,
+  "shown_lines": 2,
+  "shown_chars": 171,
+  "a": "refused",
+  "c": "refused",
+  "b": "refused",
+  "signed": "PASS-refused-cut-kept",
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_13800abef0014ssLYpNatcVbU8",
+  "batch": 5,
+  "shown_lines": 60,
+  "shown_chars": 4221,
+  "a_from": 55,
+  "a_to": 59,
+  "a": "ok",
+  "c_from": 55,
+  "c_to": 60,
+  "c": "MISMATCH_WITH_A",
+  "start_hits": [
+   55
+  ],
+  "end_hits": [
+   59
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 640,
+  "cut_frac": 0.1516,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_118f6cb85001cemQUQVixP7xzs",
+  "batch": 5,
+  "shown_lines": 60,
+  "shown_chars": 5953,
+  "a_from": 21,
+  "a_to": 32,
+  "a": "ok",
+  "c_from": 22,
+  "c_to": 32,
+  "c": "MISMATCH_WITH_A",
+  "start_hits": [
+   21
+  ],
+  "end_hits": [
+   31
+  ],
+  "b": "MISMATCH_WITH_A",
+  "signed": "n/a",
+  "cut_chars": 1119,
+  "cut_frac": 0.188,
+  "has_reason": true,
+  "erratum": "none"
+ },
+ {
+  "id": "prt_138028f1e0014sDxH49nYXfaRR",
+  "batch": 6,
+  "shown_lines": 60,
+  "shown_chars": 5271,
+  "a_from": 12,
+  "a_to": 16,
+  "a": "ok",
+  "c_from": 12,
+  "c_to": 16,
+  "c": "ok-agree",
+  "start_hits": [
+   12
+  ],
+  "end_hits": [
+   16
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 480,
+  "cut_frac": 0.0911,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_11eb0bde4001wDQ54Toz5nzC3o",
+  "batch": 6,
+  "shown_lines": 60,
+  "shown_chars": 3048,
+  "a_from": 28,
+  "a_to": 34,
+  "a": "ok",
+  "c_from": 28,
+  "c_to": 34,
+  "c": "ok-agree",
+  "start_hits": [
+   28
+  ],
+  "end_hits": [
+   34
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 568,
+  "cut_frac": 0.1864,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_11f1e293d0018rAB9n2i1cFxQJ",
+  "batch": 6,
+  "shown_lines": 60,
+  "shown_chars": 5452,
+  "a_from": 34,
+  "a_to": 38,
+  "a": "ok",
+  "c_from": 34,
+  "c_to": 38,
+  "c": "ok-agree",
+  "start_hits": [
+   34
+  ],
+  "end_hits": [
+   38
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 640,
+  "cut_frac": 0.1174,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_1350165f9001tHyAWAZQdoIwBr",
+  "batch": 6,
+  "shown_lines": 60,
+  "shown_chars": 6158,
+  "a_from": 1,
+  "a_to": 7,
+  "a": "ok",
+  "c_from": 1,
+  "c_to": 7,
+  "c": "ok-agree",
+  "start_hits": [
+   1
+  ],
+  "end_hits": [
+   7
+  ],
+  "b": "ok-agree",
+  "signed": "n/a",
+  "cut_chars": 856,
+  "cut_frac": 0.139,
+  "has_reason": true,
+  "erratum": "present"
+ },
+ {
+  "id": "prt_11eae553f001TSF2wpoyVKLG5y",
+  "batch": 6,
+  "shown_lines": 60,
+  "shown_chars": 5018,
+  "a_from": 39,
+  "a_to": 45,
+  "a": "ok",
+  "c_from": 39,
+  "c_to": 45,
+  "c": "ok-agree",
+  "start_hits": [
+   38
+  ],
+  "end_hits": [
+   44
+  ],
+  "b": "MISMATCH_WITH_A",
+  "signed": "n/a",
+  "cut_chars": 826,
+  "cut_frac": 0.1646,
+  "has_reason": true,
+  "erratum": "present"
+ }
+]

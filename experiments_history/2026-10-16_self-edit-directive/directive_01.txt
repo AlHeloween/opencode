@@ -1,0 +1,44 @@
+EXCERPT prt_0ec9230270019lmkyKJwcurgU4
+CUT lines: 34-52
+CUT tags: 035e2982-2344b7f4
+CUT start: "time: 2026-09-29T09:50:18.000Z"
+CUT end: "Output."
+REASON: Emit/status chatter and duplicate time/md5 lines that don't affect the test or commit decision.
+SIGNED: cut
+ERRATUM after 34: Timestamps run backwards (line 12 is 09:50:25Z, later line 34 is 09:50:18Z), so ordering is inconsistent.
+
+EXCERPT prt_141361ec7001R1GVmAGN6EaegO
+CUT lines: none
+CUT tags: none
+CUT start: ""
+CUT end: ""
+REASON: Signed empty-reasoning block must be kept intact; no task text to cut.
+SIGNED: keep
+ERRATUM: none needed
+
+EXCERPT prt_13471853e001nI6GpG95aCmZ1O
+CUT lines: 50-59
+CUT tags: 850d3e43-76c90bcb
+CUT start: "Let me carefully recount from the brief "
+CUT end: "Let me plan the work:"
+REASON: Redundant recount of already-counted names and a plan placeholder; superseded by the earlier count.
+SIGNED: cut
+ERRATUM after 44: MEDLINE is free via PubMed, so it should not be counted among the paid authorities (unique paid count is 27, not 28).
+
+EXCERPT prt_11f5fa3be001cgHu4RPPi9pyYm
+CUT lines: 1-5
+CUT tags: 9e3779b1-17156075
+CUT start: "The plugin does not set store=false; it "
+CUT end: "Design decisions (final):"
+REASON: Preamble/plugin note and design header; superseded by the concrete design items that follow.
+SIGNED: cut
+ERRATUM after 19: response.failed should map to exit 4 (server-side failure), not exit 6 (reserved for timeout/deadline).
+
+EXCERPT prt_123587520001AGbjp6FaC3Gyrz
+CUT lines: 31-39
+CUT tags: 28b7bc6f-1a7389f7
+CUT start: "Calls used so far: 6 + 2 (recall batch) "
+CUT end: "Then:"
+REASON: Internal call-budget recount and compression vacillation that doesn't change the task design.
+SIGNED: cut
+ERRATUM after 52: The plan envelope allows 80 tool calls (line 7), so 36 calls is not over budget; the '30' cap is inconsistent.

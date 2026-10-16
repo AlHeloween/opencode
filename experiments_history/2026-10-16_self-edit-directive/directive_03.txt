@@ -1,0 +1,44 @@
+EXCERPT prt_13d6d71c2001NMcfE92iZPW7e9
+CUT lines: 21-29
+CUT tags: fa8cfb85-ec48c90d
+CUT start: "The owner said trials go to researcher_a"
+CUT end: "The intent is that I shouldn't burn my o"
+REASON: Vacillation over whether webfetch can POST and re-reading the owner delegation rule; wholly superseded by the later decision to run raw POSTs via node.
+SIGNED: cut
+ERRATUM: none needed
+
+EXCERPT prt_13da98baf001VCiQX310Uj0aKE
+CUT lines: 1-9
+CUT tags: 9e3779b1-8ff34739
+CUT start: "I now have the full kernel: source.py (1"
+CUT end: "- addons.py: GATE_ADDONS (PATH_GROUNDING"
+REASON: Recap of file sizes and kernel/addon inventory already in context; contains no classification decisions, unlike the per-line AGENTS.md normative analysis that follows.
+SIGNED: cut
+ERRATUM: none needed
+
+EXCERPT prt_13489b909001o2tnespNpicZxT
+CUT lines: 23-33
+CUT tags: 36fbeee7-6526afd1
+CUT start: "But the compaction says S1 is next/doing"
+CUT end: "Then #41 (my current turn): tried sessio"
+REASON: Speculation over the stale S1 svm pointer (three hypotheses) plus turn-by-turn action recap; task identity is settled as S3 later, so this is superseded status churn.
+SIGNED: cut
+ERRATUM: none needed
+
+EXCERPT prt_1352a665e001wQzwhgwpq7k03W
+CUT lines: 28-34
+CUT tags: 4e114f5c-035e2982
+CUT start: "Wait — order refinement: render master p"
+CUT end: "Hmm, ok. But wait — should I really skip"
+REASON: Second-guessing of the artifact order and unresolved hedging over svm render/sv-comment format; superseded by the concrete plan head drafted immediately after.
+SIGNED: cut
+ERRATUM: none needed
+
+EXCERPT prt_1413218e40013i6CIbvkatQlnH
+CUT lines: none
+CUT tags: none
+CUT start: ""
+CUT end: ""
+REASON: Only 2 shown lines forming a signed empty-reasoning block; no valid 5-20 line span exists and cutting a signed block breaks the wire.
+SIGNED: keep
+ERRATUM: none needed

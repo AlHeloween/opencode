@@ -1,0 +1,252 @@
+### EXCERPT prt_0ec9230270019lmkyKJwcurgU4 (38409 lines total, showing 60)
+1  9e3779b1: Test: 8 pass / 0 fail ✓ (was 6 tests before — now 8).
+2  3c6ef362: Typecheck running.
+3  daa66d13: 
+4  78dde6c4: Let me wait for typecheck, then also run the wider test/tui to be safe.
+5  17156075: 
+6  b54cda26: Let me wait for the typecheck job.
+7  538453d7: 
+8  f1bbcd88: Then commit.
+9  8ff34739: 
+10  2e2ac0ea: Let me jobwait.
+11  cc623a9b: 
+12  6a99b44c: time: 2026-09-29T09:50:25Z
+13  08d12dfd: 
+14  a708a7ae: Emit jobwait for 20260929T094949Z_1e36c6e5.
+15  4540215f: 
+16  e3779b10: Let me do it.
+17  81af14c1: 
+18  1fe68e72: Also in parallel start `bun test test/tui` as a broader regression? Might be heavy (200 tests). Earlier it ran fine. Let me run it — the change touches the sidebar + adaptive-client. Hmm, adaptive-cli
+19  be1e0823: 
+20  5c5581d4: Actually, I already have a green adaptive-client test from the earlier work; my emit change adds a field — shouldn't break. But let me run both to be safe.
+21  fa8cfb85: 
+22  98c47536: Let me batch: jobwait(typecheck) + start(test/tui + adaptive).
+23  36fbeee7: 
+24  d5336898: Hmm, jobwait blocks. Let me instead: start the test job + jobwait on both.
+25  736ae249: 
+26  11a25bfa: Let me do: start test job (with both paths), then jobwait both.
+27  afd9d5ab: 
+28  4e114f5c: Two steps. Let me issue start first? Or combine: I can't chain jobwait with a start whose ID I don't know.
+29  ec48c90d: 
+30  8a8042be: Let me issue: start test job. Then in the next message: jobwait on [test job, typecheck job].
+31  28b7bc6f: 
+32  c6ef3620: Go.
+33  6526afd1: 
+34  035e2982: time: 2026-09-29T09:50:18.000Z
+35  a195a333: md5: b14c7e3f608d259b132f8c6b0e4a1358
+36  3fcd1ce4: 
+37  de049695: Emit the start.
+38  7c3c1046: 
+39  1a7389f7: </reasoning>
+40  b8ab03a8: 
+41  56e27d59: Let me output the call.
+42  f519f70a: 
+43  935170bb: time: 2026-09-29T09:50:21.000Z
+44  3188ea6c: md5: c25d8f4a719e36ac243a9d7c1f5b2469
+45  cfc0641d: 
+46  6df7ddce: Emitting.
+47  0c2f577f: 
+48  aa66d130: Producing now.
+49  489e4ae1: 
+50  e6d5c492: </reasoning>
+51  850d3e43: 
+52  2344b7f4: Output.
+53  c17c31a5: 
+54  5fb3ab56: time: 2026-09-29T09:50:24.000Z
+55  fdeb2507: md5: d36e905b82af47bd354b0e8d2f6c357a
+56  9c229eb8: 
+57  3a5a1869: OK — call:
+58  d891921a: 
+59  76c90bcb: </reasoning>
+60  1500857c: 
+
+### EXCERPT prt_141361ec7001R1GVmAGN6EaegO (2 lines total, showing 2)
+1  9e3779b1: (empty reasoning text)
+2  3c6ef362: metadata: anthropic:{signature} signature=154516chars CAQSp4kHChAIEhgCOAFCCHRoaW5raW5nEgxM4xzVHI/myT3/7WgaDF8oOeFk/wN9E92TbiIwIB+lQIFD
+
+### EXCERPT prt_13471853e001nI6GpG95aCmZ1O (1027 lines total, showing 60)
+1  9e3779b1: Let me understand the task. The owner wants me to:
+2  3c6ef362: 
+3  daa66d13: 1. Write `plans/2026-10-13_free-authority-map.md` first (intention line, sv, `## Smoke Tests`, a box per source group), and name it in `plans/MASTER_PLAN.md` via `svm render`.
+4  78dde6c4: 2. For EVERY paid name listed, find the best FREE authoritative substitute.
+5  17156075: 3. Record sources in `experiments/2026-10-13_free-authorities/sources.json` AND a human table in REPORT.md.
+6  b54cda26: 4. Keyless first; tier 2 for free registration.
+7  538453d7: 5. Ground each claim: documentation page = Hypothetical; provider's own docs = Inferred; live call = Exact. Live calls through researcher_agent.
+8  f1bbcd88: 6. Gaps honest.
+9  8ff34739: 
+10  2e2ac0ea: Oracle: REPORT.md has a row for every paid name (count them against the brief), every row either has Exact live call or UNMEASURED + why; sources.json parses; commit own paths; final message with coun
+11  cc623a9b: 
+12  6a99b44c: Let me list the paid names from the brief:
+13  08d12dfd: 
+14  a708a7ae: From universal-search's plan «Honest limits»:
+15  4540215f: 1. IEEE Xplore
+16  e3779b10: 2. ACM DL
+17  81af14c1: 3. INSPEC
+18  1fe68e72: 4. Cochrane
+19  be1e0823: 5. CINAHL
+20  5c5581d4: 6. HeinOnline
+21  fa8cfb85: 7. Westlaw
+22  98c47536: 8. LexisNexis
+23  36fbeee7: 9. JSTOR
+24  d5336898: 
+25  736ae249: From the kernel's source table (§1.3 @SOURCE_ROUTING):
+26  11a25bfa: 10. PsycINFO
+27  afd9d5ab: 11. PsycArticles
+28  4e114f5c: 12. Compendex
+29  ec48c90d: 13. Engineering Village
+30  8a8042be: 14. Reaxys
+31  28b7bc6f: 15. SpringerMaterials
+32  c6ef3620: 16. GeoRef
+33  6526afd1: 17. GeoScienceWorld
+34  035e2982: 18. SocINDEX
+35  a195a333: 19. SocAbstracts
+36  3fcd1ce4: 20. AgeLine
+37  de049695: 21. CAB_Abstracts
+38  7c3c1046: 22. EdSource
+39  1a7389f7: 23. LearnTechLib
+40  b8ab03a8: 24. Project MUSE
+41  56e27d59: 25. APS Journals
+42  f519f70a: 26. IOPscience
+43  935170bb: 27. CINAHL (duplicate)
+44  3188ea6c: 28. MEDLINE (free via PubMed — confirm)
+45  cfc0641d: 29. MatWeb
+46  6df7ddce: 
+47  0c2f577f: Let me count unique names: IEEE Xplore, ACM DL, INSPEC, Cochrane, CINAHL, HeinOnline, Westlaw, LexisNexis, JSTOR, PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, Geo
+48  aa66d130: 
+49  489e4ae1: That's 28 unique names (CINAHL appears twice, MEDLINE is noted as free via PubMed — confirm).
+50  e6d5c492: 
+51  850d3e43: Let me carefully recount from the brief text:
+52  2344b7f4: 
+53  c17c31a5: "leaves these as «paywalled, cannot be keyless» (its «Honest limits»): IEEE Xplore, ACM DL, INSPEC, Cochrane, CINAHL, HeinOnline, Westlaw, LexisNexis, JSTOR." — 9 names.
+54  5fb3ab56: 
+55  fdeb2507: "The kernel's own source table (.claude/reasoning_kernel.md §1.3 @SOURCE_ROUTING) names more paid ones: PsycINFO, PsycArticles, Compendex, Engineering Village, Reaxys, SpringerMaterials, GeoRef, GeoSc
+56  9c229eb8: 
+57  3a5a1869: So unique total: 9 + 20 - 1 (CINAHL dup) = 28 unique paid names.
+58  d891921a: 
+59  76c90bcb: Let me plan the work:
+60  1500857c: 
+
+### EXCERPT prt_11f5fa3be001cgHu4RPPi9pyYm (1921 lines total, showing 60)
+1  9e3779b1: The plugin does not set store=false; it passes the body through as the SDK built it. But requirement says store=false for our client (Codex-style). Fine — our client controls the body directly: {"mode
+2  3c6ef362: 
+3  daa66d13: I now have enough. G2/G3: the decomposition is given (T1). Write the three deliverables now.
+4  78dde6c4: 
+5  17156075: Design decisions (final):
+6  b54cda26: 
+7  538453d7: call.py (client):
+8  f1bbcd88: - Python stdlib only: json, os, sys, time, hashlib, urllib.request (or http.client), argparse, uuid, pathlib.
+9  8ff34739:   - For SSE streaming, urllib.request works: resp = urlopen(req, timeout=...); iterate resp line by line (it's a file-like). Timeout applies per socket op; overall deadline enforced with a wall-clock 
+10  2e2ac0ea:   - Since deadline must be ≤120s and enforced overall even if server trickles data, implement: start = monotonic; while reading lines, if monotonic()-start > deadline: raise TimeoutError.
+11  cc623a9b: - Refresh flow: if access missing or expires < now → refresh via token endpoint (urllib, 30s timeout). In-memory only: new access/refresh/accountId used for this process; auth file untouched. Report o
+12  6a99b44c:   - The ticket says "явно сообщи остаток по совместимости ротации" — report the rotation-compat residual: after refresh, note that if the provider rotated the refresh token, auth.json still holds the 
+13  08d12dfd: - Body: exactly {"model": model, "input": [{"role":"user","content":[{"type":"input_text","text": text}]}], "store": False, "stream": True}. Wait — order in JSON doesn't matter; I'll use model, input,
+14  a708a7ae:   - Also: ensure_ascii? For the wire body, JSON spec: escape non-ASCII is optional. Sending ensure_ascii=False with UTF-8 bytes proves byte-level UTF-8 transfer of Russian text. I'll use ensure_ascii=
+15  4540215f: - Headers (per primary plugin): Authorization: Bearer <access>; ChatGPT-Account-Id: <accountId> (if present); originator: codex_cli_rs; User-Agent: Codex/0.300.0; Content-Type: application/json; Accep
+16  e3779b10:   - Hmm: should we include originator/user-agent? Those are from the primary plugin (lines 470-471) — "Identify as Codex CLI for first-party model access". Yes, include; they're headers, not content. 
+17  81af14c1: - SSE parse: response lines; support "event: ..." and "data: ...". data "[DONE]" ignore/mark. Parse JSON on data lines. Event types handled:
+18  1fe68e72:   - "response.completed": data.response → id, model, output. completed=True. break (can stop reading; server may close after).
+19  be1e0823:   - "response.failed": error → exit 4? Use exit code 6? Let's define:
+20  5c5581d4:     - exit 2: usage/input error
+21  fa8cfb85:     - exit 3: auth error (missing/malformed credential, refresh failure)
+22  98c47536:     - exit 4: HTTP error (non-200, incl. 401/400/429) — print status + short error text (sanitized: no tokens; server error text is fine? It could echo... The backend error text generally doesn't cont
+23  36fbeee7:     - exit 5: stream ended without response.completed (incomplete)
+24  d5336898:     - exit 6: timeout/deadline exceeded
+25  736ae249:     - exit 7: unexpected internal error
+26  11a25bfa:     - exit 0: success
+27  afd9d5ab:   - Also "error" event in SSE → exit 4 (treat as server-side failure w/ message).
+28  4e114f5c: - Output text extraction: from completed response: response.get("output") list; items with type=="message" and content parts type=="output_text" → concat text (strip? no — raw). Print to stdout exactl
+29  ec48c90d: - Audit: write JSON to audit_dir with name f"{utc_compact}_{pid}_audit.json". Contents:
+30  8a8042be:   {"schema":"codex-oauth-call-audit/1", "endpoint", "token_endpoint" (no tokens), "target_model" (=arg), "request_body" (full), "request_body_sha256", "auth_source" (path), "auth":{"expired_before":bo
+31  28b7bc6f:   No headers, no tokens, no accountId value.
+32  c6ef3620:   - Also the ticket: "Аудит сохраняет ... целевую/фактическую модель" — target_model and response_model.
+33  6526afd1: - Never print tokens; when errors, the message must not include the Authorization/headers; do not print request headers at all.
+34  035e2982: - Also support `--endpoint` and `--token-endpoint` overrides (defaults = primary). These exist for the oracle's local capture. Default values exactly the primary ones. This is acceptable: the default 
+35  a195a333: - `--timeout` default 120, max allowed 120 (clamp with error if >120? "Deadline <=120 s" — enforce: if >120 → exit 2 with message). Allow smaller for tests.
+36  3fcd1ce4: - Input: `--input-file` or stdin. Read binary, decode strict utf-8; on error exit 2 with message. If text empty → allowed? Keep allowed (one user input with empty text?). Better require non-empty → ex
+37  de049695: 
+38  7c3c1046: - model required? default "gpt-6.1-sol". `--model` to override (oracle uses same default for real call; capture uses default fine).
+39  1a7389f7: 
+40  b8ab03a8: oracle.py:
+41  56e27d59: - Starts a capture HTTP server (http.server.ThreadingHTTPServer on 127.0.0.1:0 → ephemeral port) with paths:
+42  f519f70a:   - /backend-api/codex/responses : scenarios driven by a request header? The client doesn't send scenario headers. Instead: the oracle runs the capture server per-scenario: run capture with scenario S
+43  935170bb:   - /oauth/token : returns fixture token JSON (for refresh test).
+44  3188ea6c: - For client runs: subprocess [sys.executable, call.py, --input-file fixture, --auth fake_auth.json, --endpoint capture, --token-url capture/oauth/token, --audit-dir temp_audit, --timeout N]. Env: pas
+45  cfc0641d: - Fake auth file: written to a temp dir: {"openai":{"type":"oauth","access":"capture-access-fake","refresh":"capture-refresh-fake","expires": <now+1h>,"accountId":"capture-account-fake"}}.
+46  6df7ddce: - Scenarios:
+47  0c2f577f:   1. ok_multiline: SSE fixture with completed; input fixture = Russian multiline text (with emoji, quotes, dashes, and arithmetic line?). Assert: exit 0; stdout contains "FIXTURE-ANSWER-437" (fixture 
+48  aa66d130:      Also assert audit file: parsed; request_body == captured body (deep equal); request_body_sha256 == sha256 of raw captured bytes?? careful: our client computes sha of its serialized body before se
+49  489e4ae1:      Also assert answer in audit == stdout text; response_id matches fixture id; completed true; no token strings in audit raw text ("capture-" strings must not appear? Wait — audit contains "account_
+50  e6d5c492:   2. http_error: server responds 500 {"error":{"message":"fixture-http-error"}}; with access fresh. Assert exit == 4; stdout empty; stderr mentions fixture error / status; no token strings anywhere in
+51  850d3e43:   3. incomplete_stream: server sends 2 SSE events (response.created, response.output_text.delta) then closes without completed. Assert exit == 5.
+52  2344b7f4:   4. slow: server delays first byte > client timeout (client --timeout 3). Assert exit == 6. (Server sleeps 8s; client must abort by ~3s; oracle measures duration < 8s to prove client-side deadline, t
+53  c17c31a5:   5. refresh_in_memory: fake auth with expires in past; token endpoint /oauth/token returns fixture new tokens (access "capture-access-refreshed", refresh "capture-refresh-rotated", expires_in 3600); 
+54  5fb3ab56:   6. real call: input fixture with arithmetic probe (Russian, multiline): 
+55  fdeb2507:      "Ответь одним числом без пояснений: сколько будет 19 умножить на 23?"
+56  9c229eb8:      Expect stdout to contain 437. Actually let me make the real probe have an independently computed result: 19*23=437 (computed in the oracle via Python arithmetic, not hard-coded... assert str(19*2
+57  3a5a1869:      Auth file hash before == after.
+58  d891921a:      Also assert audit has completed true and answer equals stdout.
+59  76c90bcb:   7. hash pinning: sha256 of call.py recorded in evidence.
+60  1500857c: - Evidence: write results/ dir under experiment: results/oracle_<stamp>.json with all scenario outcomes (booleans, exit codes, response_ids, model strings, payload key sets, request bytes received, el
+
+### EXCERPT prt_123587520001AGbjp6FaC3Gyrz (556 lines total, showing 60)
+1  9e3779b1: Good progress. I have:
+2  3c6ef362: 
+3  daa66d13: 1. Plan W1 details (lines from recall): W1 — resident smit-opencode implements wiki-put and focused tests. Binding: scripts/org-genesis/org.py, Protocol.md, test_wiki_put.py; reuse fossil(argv,user), 
+4  78dde6c4: 
+5  17156075: Oracle: stdlib unittest on real isolated Fossil without launching services; create/readback Unicode, update/readback, unchanged, stale expectation, existing/absent conflict, malformed name/option inje
+6  b54cda26: 
+7  538453d7: Also plan line 25: envelope: 36 steps, 80 tool calls, 2 corrections per problem, depth1, 1800000 ms.
+8  f1bbcd88: 
+9  8ff34739: Line 23 (plan): ✓ CONFIRMED org.py:387–395, 456–461 wiki only reads. Protocol:35,64–69,107,111–115 defines object roles and access rules.
+10  2e2ac0ea: 
+11  cc623a9b: 2. orgcfg.py: HOME = ORG_HOME env or ~/.org; ORG = HOME/org.fossil; PORT; GENESIS = dir of script; find_fossil(explicit). Note: orgcfg reads env at IMPORT time. For tests: set ORG_HOME before importin
+12  6a99b44c: 
+13  08d12dfd: Actually careful: ORG path is computed at import of orgcfg (`ORG = HOME / "org.fossil"`). org.py probably does `from orgcfg import ...` or `import orgcfg as cfg`. Either way, if ORG_HOME is set before
+14  a708a7ae: 
+15  4540215f: Hmm, but also org.py maybe uses `ORG` at call time — still fixed path. One module-level fixture is fine.
+16  e3779b10: 
+17  81af14c1: 3. org.py structure so far:
+18  1fe68e72: - Lines ~107-130: now(), need_user(a) — takes args object with .user or ORG_USER env; exits if missing.
+19  be1e0823: - ticket_set(t, user, **fields) — fossil("ticket","set", uuid, key,value...)
+20  5c5581d4: - discover_session/resolve_session/need_session — session discovery.
+21  fa8cfb85: - chat(text) — chat send via fossil chat with --remote http://127.0.0.1:PORT --unsafe -R ORG.
+22  98c47536: - cmd_delegate — creates tickets.
+23  36fbeee7: - parse_ticket_uuid.
+24  d5336898: 
+25  736ae249: I still need: top part (lines 1-105: imports, fossil(), rows(), connect(), ticket(), orgcfg import etc.), middle (245-364: rest of verbs), end (365-475: wiki read + main).
+26  11a25bfa: 
+27  afd9d5ab: The two middle recalls got released (8.1, 7.9, 8.7 KB > 8K threshold — damn, just over). The plan recalls came through inline (because ≤ ~8K each). And the first org.py slice got released too (8.1KB).
+28  4e114f5c: 
+29  ec48c90d: So far inline: org.py lines 125-244 (120 lines). Missing: 1-124, 245-475. Plus Protocol.md (122 lines, 10.5KB → need slices).
+30  8a8042be: 
+31  28b7bc6f: Calls used so far: 6 + 2 (recall batch) + 8 (this batch) = 16. Hmm, that's higher than planned. 14 left. Need: 3 more recall slices (org.py 1-124 in two ~60-line slices, 245-480 in two slices) = 4 sli
+32  c6ef3620: 
+33  6526afd1: MUST COMPRESS. Alternative: read org.py directly with the read tool in slices — but same call count. Hmm.
+34  035e2982: 
+35  a195a333: Wait — rethink. The recall slices that got released can be re-recalled with SMALLER ranges — but each is a call. Total calls for full org.py read: ~5-6. Protocol ~2. That's how it is. Unless... I use 
+36  3fcd1ce4: 
+37  de049695: Compression strategy: I'll grab org.py in just TWO more recall chunks (245-364, 365-480) + ONE for 1-124 (that's 3 calls) — accepting possible release on one. And Protocol.md in 2 slices. Total 5 call
+38  7c3c1046: 
+39  1a7389f7: Then: 
+40  b8ab03a8: - codegraph impact: 1 call (22)
+41  56e27d59: - ticket claim + init: 1-2 calls (23-24)
+42  f519f70a: - qualify primitives: could FOLD into the test suite itself (the tests do real fossil ops; first run = baseline which also qualifies — if primitives broken, tests fail with clear error). The brief say
+43  935170bb: - write test file: 1 call (write) (25)
+44  3188ea6c: - baseline run: 1 (26)
+45  cfc0641d: - edit org.py: 1 call (edit) (27) — needs hashes for edited region: I'll have read org.py lines via recall (no hashes) — PROBLEM. Need read-hash for anchor lines. Options: read just the region I edit 
+46  6df7ddce: - Protocol.md edit: 1 (30) — needs hashes for Protocol.md region; if I read Protocol slices via recall (no hashes), need a direct read of the region before edit → +1 (31) → edit (32).
+47  0c2f577f: - rerun oracle: 1 (33)
+48  aa66d130: - report: 1 (34) — hmm, how? org.py report verb? Need to check Protocol.md for usage. Also claim. Both need Protocol knowledge.
+49  489e4ae1: - done: 1 (35)
+50  e6d5c492: - heartbeat: 1 (36)
+51  850d3e43: 
+52  2344b7f4: That's 36 > 30. Over budget. Need cuts.
+53  c17c31a5: 
+54  5fb3ab56: Options:
+55  fdeb2507: a) Skip codegraph? — The brief explicitly requires "До изменений codegraph impact". Could count via codegraph tool = 1 call. Keep but... maybe fold: codegraph impact + consumers check in ONE call? "От
+56  9c229eb8: 
+57  3a5a1869: b) The claim/heartbeat/report/done: maybe combine claim into ONE call that also does init.py (chain: python init.py; python org.py claim...). Could be 1-2 calls. Report similarly. Done similarly. Mayb
+58  d891921a: 
+59  76c90bcb: c) Read org.py via read tool slices instead of recall — same count, but gives hashes AND I might skip a later re-read. E.g., read lines 245-475 (230 lines ≈ 13KB → released → useless). Slices ≤8KB nee
+60  1500857c: 
+

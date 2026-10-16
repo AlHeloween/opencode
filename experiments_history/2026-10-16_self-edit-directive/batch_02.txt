@@ -1,0 +1,252 @@
+### EXCERPT prt_1412e9150001yOzozC7jawHS3c (2 lines total, showing 2)
+1  9e3779b1: (empty reasoning text)
+2  3c6ef362: metadata: anthropic:{signature} signature=100552chars CAQSjc0EChAIEhgCOAFCCHRoaW5raW5nEgzbCEo1NB7PYZEmVUwaDM6oKFtCxazDk/pABiIwPLjvg5mX
+
+### EXCERPT prt_135047482001ia2Glp9u5namcD (479 lines total, showing 60)
+1  9e3779b1: Now I understand the full picture. Key facts:
+2  3c6ef362: 
+3  daa66d13: 1. **Queue format** (`queue.md`): sections `## next` and `## dispatched`. Lines start with `- <token> — ...`. In `## next`:
+4  78dde6c4:    - `- t30-fleet-verify-harness — brief ready: t30-fleet-verify-harness.md (...)`
+5  17156075:    - `- t16-kernel-review-fixes — HELD (owner ...) — residual...`
+6  b54cda26:    - `- t19-lane-sessions — write the brief: ...`
+7  538453d7:    - `- t9-samply-manifest — kernel half HELD...; brief ready: t9-samply-manifest.md (...)`
+8  f1bbcd88:    
+9  8ff34739: 2. **`cmd_next()`** semantics: iterate `## next` lines in order; skip those with unmet deps (AFTER/waits → tX not verified in `## dispatched`); pick the FIRST non-blocked line; print `skipped:` for de
+10  2e2ac0ea: 
+11  cc623a9b:    Note: `cmd_next` does NOT skip HELD lines! Wait — the hourly prompt says "it reads «AFTER tX» against the verified marks and skips HELD lines". But looking at the code: `blocked = [d for d in dict.
+12  6a99b44c: 
+13  08d12dfd:    Actually the requirement says: «lines that need a brief written («write the brief») are skipped and printed, never improvised» and smoke says «1 HELD line» is one of the two skips. So autorefill mu
+14  a708a7ae: 
+15  4540215f:    Wait — "two skips": one skip = «write the brief» line (reason: needs brief written), one skip = HELD line (reason: HELD). Hmm, but which is "the 1 HELD"? If HELD line is in `## next` and not dep-bl
+16  e3779b10: 
+17  81af14c1:    So the autorefill loop's semantics:
+18  1fe68e72:    - Compute `next` (the first non-dep-blocked line in `## next`).
+19  be1e0823:    - Classify the line: dispatchable (brief file exists) vs. needs-brief vs. HELD.
+20  5c5581d4:    - If dispatchable → dispatch (unless dry-run).
+21  fa8cfb85:    - If needs-brief → skip, print, log.
+22  98c47536:    - If HELD → skip, print, log.
+23  36fbeee7:    - Continue until slot busy or no more lines? "every interval run the `next` logic; while a slot is free and `next` yields a dispatchable line whose brief file EXISTS, dispatch it" — so it loops: af
+24  d5336898: 
+25  736ae249:    But careful: `next` yields ONE line per call (the first non-blocked). After dispatching it, it moves to `## dispatched` and the next call yields the following line. So the loop: while free slots > 
+26  11a25bfa: 
+27  afd9d5ab:    The smoke: «3 free slots → `--dry-run --once` prints exactly one dispatch and two skips with reasons». With 3 free slots and fixture lines [dispatchable, write-the-brief, HELD]:
+28  4e114f5c:    - Round 1: next = line1 (dispatchable) → dispatch (dry-run: print "would dispatch"), slot stays free in dry-run... but then round 2: next yields line2 → skip (write the brief) → print skip; round 3
+29  ec48c90d:    - Output: exactly one dispatch + two skips with reasons. ✓
+30  8a8042be: 
+31  28b7bc6f:    But wait: in dry-run, after "dispatching" line1, does the next iteration re-read the line1? In dry-run nothing is written, so `next` would still yield line1 → infinite loop. So the dry-run must acc
+32  c6ef3620: 
+33  6526afd1:    Also with `--once`: one pass; presumably it means: run one interval and exit (no loop with sleep). For the smoke: `--dry-run --once`.
+34  035e2982: 
+35  a195a333:    Semantics detail: `--once` = single pass; autorefill without `--once` = loop every `--interval-s` seconds until... forever (Ctrl+C). Also with `--once`, "while a slot is free and next yields dispat
+36  3fcd1ce4: 
+37  de049695: 3. **Slots**: `MAX_ROBOTS = 3`; busy = robots in sessions.json whose `/session/status` type == "busy". `cmd_next` already prints slots. For autorefill, it needs slot count programmatically. Note: afte
+38  7c3c1046: 
+39  1a7389f7:    Actually careful: the loop "while a slot is free ... dispatch it". If we dispatch a robot and its /session/status doesn't report busy yet, we might dispatch again in the same pass, up to 3 slots an
+40  b8ab03a8: 
+41  56e27d59: 4. **Host**: host_and_state() → (Host, state, record). Autorefill must require a live host, since the queue semantics demand slot status from the API. If host is not live: print + log + (in loop mode)
+42  f519f70a: 
+43  935170bb:    The smoke spec: «1 dispatchable + 1 «write the brief» + 1 HELD line and 3 free slots». "3 free slots" — how does the fixture express free slots? The slots come from the host API (/session/status ov
+44  3188ea6c: 
+45  cfc0641d:    Alternatively, autorefill could accept `--slots` override for dry-run/smoke? The task says "with a fixture queue in a temp copy (FLEET_QUEUE env or a flag)". Only the queue is overridden. So slots 
+46  6df7ddce: 
+47  0c2f577f:    The smoke requirement: with the fixture queue, `--dry-run --once` prints exactly one dispatch and two skips with reasons. If the real host currently has 2 busy robots, free slots = 1 → exactly one 
+48  aa66d130: 
+49  489e4ae1:    Actually, wait. There's a subtlety: in dry-run, should the slot check use the live host at all? For the smoke to print "exactly one dispatch", the slot count just needs ≥1 free. Let me also print t
+50  e6d5c492: 
+51  850d3e43:    Alternatively, support `--slots N` for dry-run only to pin the fixture's "3 free slots". I think adding a `--slots` flag is defensible and useful for the smoke's determinism: the smoke says "3 free
+52  2344b7f4: 
+53  c17c31a5:    Let me re-read: «Smoke: with a fixture queue in a temp copy (FLEET_QUEUE env or a flag) — 1 dispatchable + 1 «write the brief» + 1 HELD line and 3 free slots → `--dry-run --once` prints exactly one
+54  5fb3ab56: 
+55  fdeb2507:    The condition "3 free slots" is part of the fixture state. If slots come from the live host, then the fixture state is only partially controlled by the fixture queue. To make the smoke honest, eith
+56  9c229eb8:    (a) run it when 3 slots are actually free (observable via fleet.py next), or
+57  3a5a1869:    (b) support a slots override (e.g. `--slots 3` or env FLEET_SLOTS) for dry-run.
+58  d891921a: 
+59  76c90bcb:    Option (b) risks "invented knob". But as a testing knob it's small and clearly labeled. Hmm. Actually — maybe better: in `--dry-run`, when the host is not live, treat slots as MAX_ROBOTS? No; silen
+60  1500857c: 
+
+### EXCERPT prt_1235aee380010QQUgUGEJ9DIIZ (601 lines total, showing 60)
+1  9e3779b1: Now I have a lot. Let me consolidate.
+2  3c6ef362: 
+3  daa66d13: **org.py structure** (468 lines total — the earlier read said 475; this read says 468. Slight mismatch — file changed? No wait, first read said "475 line(s)" and this one "468". Hmm! The first read wa
+4  78dde6c4: 
+5  17156075: Hmm — risk: line hashes from the OLD read are stale for edit anchors. I must re-read regions before editing anyway (edit uses hashes; stale → fail). I'll re-read the target regions fresh right before 
+6  b54cda26: 
+7  538453d7: Wait, actually, let me compare: is it possible the two reads differ because the FIRST read was from... the first read happened at the start of MY session (01:03:49). The compaction status says my wind
+8  f1bbcd88: 
+9  8ff34739: **Key knowledge from org.py 1-120:**
+10  2e2ac0ea: - Header docstring: usage lines — I must ADD a usage line for wiki-put (line 11 area: `org.py wiki <page>`... I'll add `org.py wiki-put PAGE --file UTF8.md --expect-sha256 HASH|absent --user LOGIN` ne
+11  cc623a9b: 
+12  6a99b44c: - `HOME = orgcfg.HOME`, `ORG = orgcfg.ORG`, `LOCKS = HOME / "locks"`, `PORT`, `LEASE_S = 600`, `CLEARED = "-"`.
+13  08d12dfd: - find_fossil() → orgcfg.find_fossil() or exit.
+14  a708a7ae: - `fossil(*args, user=None, check=True) -> str`: cmd = [fossil, *args, "-R", ORG]; if user: += ["-U", user]; subprocess.run(text=True, encoding utf8, errors replace); on nonzero and check → sys.exit("
+15  4540215f: 
+16  e3779b10: - IMPORTANT: `-U user` global option placement: cmd = [fossil, *args, "-R", ORG, "-U", user] — fossil accepts global options anywhere? Apparently yes (fossil parses -R and -U as global opts). Good.
+17  81af14c1: - connect(db) → sqlite3 readonly via URI. rows(). ticket(prefix). short(), num(), now().
+18  1fe68e72: - need_user(a): a.user or $ORG_USER else exit.
+19  be1e0823: - ticket_set(t, user, **fields): fossil("ticket","set", tkt_uuid, key, value...).
+20  5c5581d4: - cmd_claim at 242, cmd_heartbeat 270, cmd_report 283, cmd_done 311, cmd_escalate 322, cmd_inbox 333, cmd_chat 374, cmd_wiki 387, main 398. Total 468 lines.
+21  fa8cfb85: - LOCKS = HOME/"locks" — LOCK CONVENTION EXISTS for claims: "exclusive-create lock file ($ORG_HOME/locks/<uuid>.<epoch>)". My wiki lock: `LOCKS / f"wiki-{...}.lock"`. Test computes path via same helpe
+22  98c47536: 
+23  36fbeee7: - The claim lock format: `<uuid>.<epoch>` — for wiki I'll use `<page-hash>.lock`? To fit convention: LOCKS / f"wiki-{slug}.lock". Test: `org.wiki_lock_path(page)` helper — I'll name it `wiki_lock_path
+24  d5336898: 
+25  736ae249: **Protocol.md knowledge:**
+26  11a25bfa: - Verb CLI: `python $ORG_HOME/genesis/org.py <verb>`.
+27  afd9d5ab: - CLAIM: `org.py claim <uuid> [--lease 600]`; lease epoch lock `$ORG_HOME/locks/<uuid>.<epoch>`.
+28  4e114f5c: - HEARTBEAT: `org.py heartbeat <uuid> [--lease 600] [--what "..."]`.
+29  ec48c90d: - REPORT: `org.py report <uuid> --title NAME (--file f.md | --text "…")` — technote tagged `task-<id10>` → pins report_ref.
+30  8a8042be: - DONE: `org.py done <uuid> [--report NAME]`.
+31  28b7bc6f: - WIKI: `org.py wiki <page>` prints page; `org.py protocol` == wiki Protocol.
+32  c6ef3620: - Reads only via org.py (no fossil sql / wiki export).
+33  6526afd1: - Presence: `org.py inbox` registers PRESENCE. Brief: "не регистрировать Codex presence" — so DON'T run inbox in a way that registers Codex; I can use `--json --no-presence` if needed. For my own clai
+34  035e2982: 
+35  a195a333: Wait — which org.py should I run? `python $ORG_HOME/genesis/org.py` = the INSTALLED copy at C:\Users\Alexander\.org\genesis\. Let me check whether it has claim/report/done (it's the installed edition 
+36  3fcd1ce4: 
+37  de049695: Hmm wait — but which org.py does `$ORG_HOME/genesis/` hold — the installed copy would ALSO be replaced in W3 by Codex. Not my concern.
+38  7c3c1046: 
+39  1a7389f7: Also — should I run init.py? Rule 4: "No org.fossil → run init.py. Server not answering or orgd not alive → the same script raises them". org.fossil exists; server.log exists; orgd.state exists — orgd
+40  b8ab03a8: ```
+41  56e27d59: echo '== git status org.py =='; git status --porcelain scripts/org-genesis; echo '== where cmd_runner =='; where.exe cmd_runner; echo '== fossil version =='; & "external\fossil\fossil.exe" version; ec
+42  f519f70a: ```
+43  935170bb: Hmm — the findstr on perm.html: I want the capability LETTERS table. Also possibly login.c. Let me instead findstr the fossil docs file www/perm.html for lines containing "Wiki" — get the sentence map
+44  3188ea6c: ```
+45  cfc0641d: findstr /n /c:"Wiki" external\fossil\fossil-src-2.28\www\perm.html
+46  6df7ddce: findstr /n /c:"perm.Wiki" external\fossil\fossil-src-2.28\src\login.c
+47  0c2f577f: ```
+48  aa66d130: Wait — findstr patterns are regex; /c:"..." literal. "Wiki" as pattern matches substring ✓. login.c might not contain "perm.Wiki" if the field is named differently (e.g., `g.perm.Wiki` appears in wiki
+49  489e4ae1: 
+50  e6d5c492: ```c
+51  850d3e43: static const int aCapPerm[] = { ... };
+52  2344b7f4: ```
+53  c17c31a5: 
+54  5fb3ab56: Not sure. Cheapest reliable: read the docs page www/perm.html — it documents capability letters authoritatively ("Wiki (w)" etc. + implication rules). Let me findstr Wiki in perm.html AND also read th
+55  fdeb2507: 
+56  9c229eb8: Additionally the qualification heredoc (fossil behavior probing) — separate call AFTER I know claim etc.? It can be in the SAME bash call? It's long; mixing risks one huge output. Keep qualification a
+57  3a5a1869: 
+58  d891921a: Let me recount calls used: 16 (through the recall batch) + 4 (this last batch: codegraph, read org.py 1-120, read Protocol ×2) = 20. Wait, earlier I said 16 after batch 3... let me recount actual call
+59  76c90bcb: 1 checkstate, 2 read plan, 3 list org-genesis, 4 read org.py, 5 bash HOME, 6 recall plan(0), 7 recall org.py(0), 8 recall org(5-124), 9 recall org(125-244), 10 recall org(245-364), 11 recall org(365-4
+60  1500857c: That's 19 calls used. Hmm — 11 left to the 30 cap. Ugh. Let me recount the batches: batch1 = 5 calls (checkstate, read plan, list, read org.py, bash). batch2 = 2 (recall×2). batch3 = 8 (recall×4 + rec
+
+### EXCERPT prt_1235e9a56001Kyot4LijZlrDxT (991 lines total, showing 60)
+1  9e3779b1: EXCELLENT qualification results! Critical findings:
+2  3c6ef362: 
+3  daa66d13: 1. **Claim SUCCESS**: "org: claim won: 81309f5cfa epoch 1 by smit-opencode (lease 1800s)" ✓ rc=0. Inbox: state WORKING, lease_owner smit-opencode, lease_until 1791596561 ✓.
+4  78dde6c4: 
+5  17156075: 2. **Baseline**: repo org.py: wiki-put invalid choice, rc=2 ✓ (captured).
+6  b54cda26: 
+7  538453d7: 3. **Qualification**:
+8  f1bbcd88:    - fossil 2.28 [52445a27f1] ✓
+9  8ff34739:    - `fossil init` output: project-id, server-id, admin-user: Alexander (initial password — SECRET! It printed a password "zPmstkTDcj" — that's the FIXTURE's admin password in a throwaway temp repo, n
+10  2e2ac0ea:    - `user new` — reads password from stdin prompt?? It printed "password: / Retype new password:" but rc=0 — since I passed password as arg?? Wait: `run("user", "new", "smit-q", "s3cret")` — args: us
+11  cc623a9b:      FIXTURE FIX: `fossil user new smit-q` (no extra args) — or keep contact... Let me simplify: `fossil user new <login> <contact>`? hmm the second arg became CONTACT. For tests: `user new smit-q` th
+12  6a99b44c:      Hmm — also caps-read-empty returned 'u' — the DEFAULT capabilities for a new user = "u" (inherits reader). So new users inherit reader caps by default. reader's caps? (default "reader" user — cap
+13  08d12dfd:    - `wiki list` empty → rc=0, empty out ✓. After create → "Probe-A\n" (names, sorted) ✓ membership check works.
+14  a708a7ae:    - **LINE ENDINGS: fossil CONVERTS LF→CRLF on export!** 
+15  4540215f:      - create-A with b"Hello\n" → export: b'Hello\r\n' !!
+16  e3779b10:      - create-B with b"no trailing newline" → export: b'no trailing newline\r\n' — fossil ADDED a newline AND converted to CRLF!
+17  81af14c1:      - create-C with CRLF input "Privet 🌍\r\nline2\r\n" → export: b'Privet \xf0\x9f\x8c\x8d\r\nline2\r\n' — unchanged (CRLF in → CRLF out).
+18  1fe68e72:      So on Windows, fossil's wiki content pipeline treats text as LINES and exports with CRLF line endings (the export writes lines joined by \r\n, adding a trailing newline if missing? Probe-B: input
+19  be1e0823:      Wait — does it really ADD a newline to "no trailing newline"? Export: b'no trailing newline\r\n'. Yes!
+20  5c5581d4:      Hmm — is this fossil normalizing on INPUT (create reads stdin, splits lines) or on EXPORT (CRLF translation at output)? Likely: fossil stores artifacts as TEXT (artifact content ends with... foss
+21  fa8cfb85:      Which is it? Doesn't matter much — what matters for MY contract: the canonical content must account for the roundtrip. Let me define canonical := text with LFs; and the readback export bytes = co
+22  98c47536:      Robust canonicalization: decode strict utf-8 → normalize \r\n → \n AND \r → \n → then... To make digest consistent: 
+23  36fbeee7:      - stored content: on create fossil may append final "\n" if missing (Probe-B). 
+24  d5336898:      - export output: CRLF per line + trailing newline.
+25  736ae249:      Canonical form MUST equal on both sides. Let me define canonical(text): LF-normalize; then **ensure exactly one trailing "\n" if text is non-empty**? Hmm — Probe-B: "no trailing newline" → stored
+26  11a25bfa:      And empty content? Not tested; define: empty stays empty (no \n added). What does fossil do with empty content? Unknown — edge case; the tests won't cover empty content (or... hmm, should I? Not 
+27  afd9d5ab:      
+28  4e114f5c:      Hmm wait — but actually, let me reconsider: is it cleaner to canonicalize as "join(splitlines()) + '\n'"? For "a\n\n": splitlines gives ["a",""] → join → "a\n" hmm — that COLLAPSES. No. My rule: 
+29  ec48c90d:      
+30  8a8042be:      BUT — also consider: what if fossil TRUNCATES or normalizes something else (trailing spaces? no). And what about a content that ends with "\r" alone? normalize to \n. OK.
+31  28b7bc6f:      
+32  c6ef3620:      AND what about the WRITE side: should I send canonical bytes (LF + ensured trailing newline)? If I send "Hello\n" → stored → export "Hello\r\n" → canonical(export) = "Hello\n" ✓. If I send "abc" 
+33  6526afd1:      So: **canonical(text): LF-normalize; ensure trailing \n (if non-empty); encode utf-8. Digest = sha256(canonical). Write bytes = canonical (send LF + trailing newline). Readback: canonical(export 
+34  035e2982:      
+35  a195a333:      IMPORTANT EDGE: what if the user FILE has CRLF and we send canonical (LF)? Stored LF; export CRLF; canonical readback = LF ✓. And fossil doesn't care. ✓ Idempotence: re-running with the same CRLF
+36  3fcd1ce4:      
+37  de049695:    - **create-A-again** → rc=1 "wiki page Probe-A already exists" ✓ (my impl branches on existence anyway).
+38  7c3c1046:    - **commit-A** → rc=0 "Updated wiki page Probe-A.\n" ✓ commit works on existing via stdin.
+39  1a7389f7:    - **commit-missing** → rc=1 "no such wiki page: Probe-Missing" ✓.
+40  b8ab03a8:    - **export-missing** → rc=1 "wiki page [Probe-Missing] not found" ✓.
+41  56e27d59:    - **CAPABILITY ENFORCEMENT: NOT enforced by CLI** — create-D-as-rop (user reader-q with caps "o") rc=0 CREATED the page; commit-A-as-rop rc=0 too. CONFIRMED: the CLI does not enforce wiki capabilit
+42  f519f70a:    - **Unicode page name** ✓ works: "Юни-Тест" created, listed, timeline shows it. So tests MAY use a Unicode page name — the contract allows it (page validated only for controls/option-like). I'll in
+43  935170bb:    - **timeline -t w** works: format `01:12:42 [40ed6a2f39] Add wiki page "Юни-Тест" (user: smit-q)` — has artifact hash in brackets + user! So "address" IS obtainable: I can get the artifact address 
+44  3188ea6c:      Let me simplify: the plan's W3 acceptance: "Повторно прочитать каждую через org.py wiki и сравнить полные UTF8 bytes/hash" — W3 compares BYTES/HASH via read — no artifact address needed. The "dig
+45  cfc0641d:      Actually hmm, let me reconsider — do I add the extra fossil call (timeline) on every write? Cost: one more subprocess (~40ms) — fine. OK include.
+46  6df7ddce:      
+47  0c2f577f:      Hmm, actually — WAIT. Let me keep it LEANER: the digest IS the content address; the plan says "digest/адрес" — I'll interpret as "digest (i.e., address)" and print `sha256=...`. Adding timeline p
+48  aa66d130:      
+49  489e4ae1:      Hmm, one more thought — simpler alternative for address WITHOUT timeline: `fossil wiki export` doesn't give hash... What about `fossil sha1sum`?? no. OK timeline it is. Actually — hmm, hold on: m
+50  e6d5c492:      
+51  850d3e43:      Let me define parse: lines like `HH:MM:SS [10hex] Add/Edit to wiki page "PAGE" (user: X)`. regex: `\[([0-9a-f]{6,40})\][^\n]* wiki page "` + re.escape(page) + `"`. Search over decoded stdout. Tak
+52  2344b7f4: 
+53  c17c31a5:    - Also `help wiki`: create takes `WikiName`/PAGENAME ✓.
+54  5fb3ab56:    - Note: `user new` prompt behavior — in tests, pass input=b"pw\npw\n" and expect rc=0. Also `user capabilities LOGIN CAPS` — wait, the caps-set returned 'kf' — CONFIRM: `caps-set-kf` out='kf\n' — t
+55  fdeb2507:    - `fossil init` output "admin-user: Alexander (initial remote-access password is "...")" — the fixture's initial password printed. It's ephemeral/throwaway; I'll avoid citing the value in the repor
+56  9c229eb8:    - **timeline -t w on empty?** n/a.
+57  3a5a1869: 
+58  d891921a: 4. Also — the `where fossil` shows `C:\Windows\fossil.exe` exists on PATH too (some other fossil version? — for production org.py resolution). For TESTS I explicitly set FOSSIL to external\fossil\foss
+59  76c90bcb: 
+60  1500857c: NOW — WRITE THE TEST FILE. Let me carefully compose it.
+
+### EXCERPT prt_1192d539d001qz0BsPozEgogHM (658 lines total, showing 60)
+1  9e3779b1: Let me understand the task.
+2  3c6ef362: 
+3  daa66d13: The owner (via Smit role-play) wants:
+4  78dde6c4: 1. A research task handed to `researcher_agent` sub-agent.
+5  17156075: 2. Intention: an outside reviewer running in Canva's AI chat that reviews our kernel/artifacts as testimony. Question: which official documented routes exist to send text/file to Canva's AI and get an
+6  b54cda26: 3. For each route: what it can do, auth model, cost/plan tier, rate limits, ToU constraints on automated use, primary source (official docs URL). Name what is NOT possible clearly.
+7  538453d7: 4. Addition: Canva as presentation producer — autofill brand templates, design import, export PDF/PPTX, AI side — what each needs (plan tier, brand template, auth), limits, whether result can be fetch
+8  f1bbcd88: 5. Output: experiments/2026-10-08_canva-review-channel/REPORT.md — routes table, recommended route (or none), smallest qualification fixture for first run. Gitignored, no commit needed. Final message 
+9  8ff34739: 6. Rules: research through Universal Search service at 127.0.0.1:3005 (search, browser, sourcegraph); official docs outrank blogs; READ ONLY — no account creation, no login, no sending anything to Can
+10  2e2ac0ea: 7. Trials/probes go to researcher_agent sub-agent.
+11  cc623a9b: 
+12  6a99b44c: The session says "hand the research to your `researcher_agent` sub-agent". So I should delegate to researcher_agent.
+13  08d12dfd: 
+14  a708a7ae: Note: The task says work in D:\zPython\opencode on branch Local_Development, but this is a research task that writes only to experiments/ (gitignored). The report goes to experiments/2026-10-08_canva-
+15  4540215f: 
+16  e3779b10: Wait — there's a subtlety: the rules say "Commit nothing except that file is gitignored — no commit needed". So final deliverable is REPORT.md in experiments/ (gitignored). Also "final message = the r
+17  81af14c1: 
+18  1fe68e72: The instruction explicitly: "hand the research to your `researcher_agent` sub-agent." So I should launch a task with subagent_type researcher_agent. The researcher agent is Internet-only research via 
+19  be1e0823: 
+20  5c5581d4: But wait — can the researcher_agent write files? Its tools list: checkstate, cua, imagerender, jobreset, memory, planstatus, recall, svm, tempdisable, tempenable, todowrite, universalsearch, webfetch.
+21  fa8cfb85: 
+22  98c47536: Hmm. Let me re-check the identity contract:
+23  36fbeee7: 
+24  d5336898: ```
+25  736ae249: ### RESEARCHER_AGENT
+26  11a25bfa: kind: subagent
+27  afd9d5ab: scope: Internet-only research via webfetch and universalsearch source web.
+28  4e114f5c: tools: checkstate, cua, imagerender, jobreset, memory, planstatus, recall, svm, tempdisable, tempenable, todowrite, universalsearch, webfetch.
+29  ec48c90d: ```
+30  8a8042be: 
+31  28b7bc6f: So no write tool. The researcher returns its report as text; I (BUILD_MODE) then write REPORT.md myself. That fits: "hand the research to your researcher_agent sub-agent" — the researcher does the res
+32  c6ef3620: 
+33  6526afd1: Alternatively, I could do research myself, but the owner's rule says "Trials — profiling, measurements, probes, model checks — go to your `researcher_agent` sub-agent (owner, 2026-10-08)." and the tas
+34  035e2982: 
+35  a195a333: Also note: the runtime inventory for task tool lists researcher_agent: "Specialized agent (researcher_agent) for Internet information gathering only. Uses webfetch or universalsearch with source: 'web
+36  3fcd1ce4: 
+37  de049695: Now the gates: This is a research deliverable (G0-G3 planning, then delegate; then write report; then verify). Let me think about what the workflow should be.
+38  7c3c1046: 
+39  1a7389f7: G0: Understand — the request in user's language. The user speaks English here (Smit... the message is in English). Wait, the AGENTS.md says answer in user's language. The original conversation appears
+40  b8ab03a8: 
+41  56e27d59: Note there are two parts: (a) research Canva AI review channel routes; (b) research Canva as presentation producer. Both into the same REPORT.md, separate sections.
+42  f519f70a: 
+43  935170bb: Plan:
+44  3188ea6c: 1. G0: Restate intention briefly.
+45  cfc0641d: 2. G1: Ground — check the environment: does experiments/2026-10-08_canva-review-channel exist? Check universalsearch service health. Maybe check messagesearch for the Canva testimony from 2026-10-08 (
+46  6df7ddce: 3. G2: Decompose — enumerate the routes to research: Connect API (apps, autofill, export), Apps SDK, MCP server, connectors (Claude/ChatGPT), webhooks, exports, AI chat reachability; plus presentation
+47  0c2f577f: 4. G3: Plan — the real work: launch researcher_agent with a detailed brief; it returns findings with rungs and URLs; then I write REPORT.md; maybe verify a few key claims via webfetch myself (or ask r
+48  aa66d130: 5. G6/G7: Write the report file (I have write access; experiments/ is where instruments live; the rules say experiments are born in experiments/ (gitignored)).
+49  489e4ae1: 6. G8: Oracle — the report is a read-only deliverable; oracle = the claims in the report have official doc URLs, rung-marked; verify by fetching at least the primary sources myself to confirm URLs res
+50  e6d5c492: 7. G9: closure — final message = recommendation + report path.
+51  850d3e43: 
+52  2344b7f4: Budget: keep it tight. The task is bounded. Let me plan tool use.
+53  c17c31a5: 
+54  5fb3ab56: Important: researcher_agent may run long. Should I run it in background? The task tool supports run_in_background. I'll run it in the foreground maybe with a timeout... Actually task tool: default is 
+55  fdeb2507: 
+56  9c229eb8: But careful: both researcher agents are "Internet-only research via webfetch and universalsearch source web" — good.
+57  3a5a1869: 
+58  d891921a: Hmm, but the owner rule says: "Trials — profiling, measurements, probes, model checks — go to your researcher_agent sub-agent". This is a research task; delegation to researcher_agent is explicitly re
+59  76c90bcb: 
+60  1500857c: Let me also consider: the researcher_agent tool list includes aicall? No. It has universalsearch and webfetch. Good.
+

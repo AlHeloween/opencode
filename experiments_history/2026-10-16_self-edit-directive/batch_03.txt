@@ -1,0 +1,252 @@
+### EXCERPT prt_13d6d71c2001NMcfE92iZPW7e9 (696 lines total, showing 60)
+1  9e3779b1: Service is up. Now run the 5 hybrid baseline queries. Per owner rule, trials (probes, measurements) go to researcher_agent sub-agent. The owner explicitly said: "Trials — profiling, measurements, prob
+2  3c6ef362: 
+3  daa66d13: So I should delegate the 5-query baseline to researcher_agent. The researcher_agent has webfetch and universalsearch tools. Hmm, but the universalsearch tool available to the researcher agent calls th
+4  78dde6c4: 
+5  17156075: Wait — but the researcher_agent's universalsearch tool would be the CURRENT binary's tool (from bin/ or dist/), which uses DEFAULT_TIMEOUT=60000. A 64s query would abort. Hmm. But actually the tool re
+6  b54cda26: 
+7  538453d7: Actually, the researcher_agent could use webfetch to POST to :3005/hybrid directly? webfetch does GET requests typically... The webfetch tool fetches a URL — POST may not be supported. Hmm.
+8  f1bbcd88: 
+9  8ff34739: Alternative: the researcher_agent can use bash/cmd? No — researcher_agent tools: checkstate, cua, imagerender, jobreset, memory, planstatus, recall, svm, tempdisable, tempenable, todowrite, universals
+10  2e2ac0ea: 
+11  cc623a9b: So the researcher_agent can call universalsearch with source="hybrid" and query. The tool will do checkHealth then POST /hybrid with 60s timeout. If the query takes >60s, the tool errors with abort. T
+12  6a99b44c: 
+13  08d12dfd: Hmm, but wait — what does the universalsearch tool return for hybrid? Looking at executeHybridSearch: it returns output with results; metadata has resultsCount and mode. But NOT the per-leg counts (so
+14  a708a7ae: 
+15  4540215f: The owner's step 1 asks: "record per query: seconds, sourcegraph_results, web_results". To get sourcegraph_results and web_results, we need the raw service response. The tool output shows results with
+16  e3779b10: 
+17  81af14c1: Options:
+18  1fe68e72: 1. researcher_agent calls universalsearch source=hybrid — gets timing (approximate) and total count, but not per-leg counts.
+19  be1e0823: 2. I run the raw POST myself via node -e through `run` (node is a known tool, allowed). That gives exact JSON with per-leg counts and timing.
+20  5c5581d4: 
+21  fa8cfb85: The owner said trials go to researcher_agent. But the researcher_agent cannot POST raw JSON (webfetch is GET-ish; actually webfetch might support only GET). Hmm, let me think about what webfetch does:
+22  98c47536: 
+23  36fbeee7: So to get per-leg counts, someone needs to run a raw POST. I can do that with `node -e` via run — node is a known tool, allowed bare. But the owner's rule says trials go to researcher_agent. Hmm — the
+24  d5336898: 
+25  736ae249: Wait — actually, can the researcher_agent use cua? It has cua. That's overkill.
+26  11a25bfa: 
+27  afd9d5ab: Let me re-read the owner rule: "Trials — profiling, measurements, probes, model checks — go to your researcher_agent sub-agent (owner, 2026-10-08)."
+28  4e114f5c: 
+29  ec48c90d: The intent is that I shouldn't burn my own context on probes; delegate. But the researcher_agent's toolset can't do a raw POST with JSON body... Actually wait — can webfetch do POST? Looking at the to
+30  8a8042be: 
+31  28b7bc6f: Hmm, but universalsearch tool CAN do the POST — it's the tool's own job. The tool returns output text and metadata. The metadata includes resultsCount but not per-leg counts. The output includes [Loca
+32  c6ef3620: 
+33  6526afd1: And timing: the tool doesn't report duration. But the sub-agent can't time it either (no shell). Hmm. Actually the researcher_agent could measure wall time between tool calls? Not reliably.
+34  035e2982: 
+35  a195a333: Alternatively — I can do the raw POST myself via `run` with node. node is a known tool (allowed bare per constitution: "Known = the bin/** utilities plus git, python, node, pwsh, cmd"). The owner's de
+36  3fcd1ce4: 
+37  de049695: Hmm. But there's a conflict: the researcher_agent lacks the instrument needed (raw POST with JSON body + timing). @TOOLCHAIN_QUALIFICATION: the instrument must be able to do the job. Delegating to an 
+38  7c3c1046: 
+39  1a7389f7: Middle path: delegate to researcher_agent the part it CAN do (call universalsearch source=hybrid through the actual tool path — which also tests the real client timeout behavior!), and I do the raw PO
+40  b8ab03a8: 
+41  56e27d59: Actually wait — there's a subtlety: the universalsearch tool the researcher_agent would invoke is the one in the RUNNING binary/session, not my edited source. The tool in this session is the current b
+42  f519f70a: 
+43  935170bb: But for the baseline table I need per-query: seconds, sourcegraph_results, web_results. The cleanest instrument: raw POST via node, timing with Date.now(), parse JSON keys. That's a small script. I ca
+44  3188ea6c: 
+45  cfc0641d: Decision: I'll do the raw POST myself (node is sanctioned, it's a quick bounded probe), and ALSO delegate a complementary probe to researcher_agent: call universalsearch source=hybrid through the real
+46  6df7ddce: 
+47  0c2f577f: Actually, let me reconsider whether researcher_agent's universalsearch tool call would even work in this session context. The researcher_agent is a sub-agent with universalsearch tool. Its universalse
+48  aa66d130: 
+49  489e4ae1: And the raw POST gives me: exact seconds, per-leg counts. Both together = complete step 1.
+50  e6d5c492: 
+51  850d3e43: Hmm, but actually — do I even need the researcher_agent tool-path probe? The owner's step 1 says: "run 5 hybrid queries of different shapes against :3005 and record per query: seconds, sourcegraph_res
+52  2344b7f4: 
+53  c17c31a5: Let me be pragmatic: 
+54  5fb3ab56: 1. I run the 5 raw POSTs myself via node (bounded, quick, needed for the plan table). I'll note the deviation from the delegation rule with the reason: the required instrument (raw JSON POST with timi
+55  fdeb2507: 
+56  9c229eb8: The owner's step 1 explicitly wants seconds. So researcher_agent alone can't fulfill it. I'll do the raw POSTs myself and delegate ONE complementary probe to researcher_agent: the real-tool hybrid cal
+57  3a5a1869: 
+58  d891921a: OK here's my plan:
+59  76c90bcb: 
+60  1500857c: **Step 1 (baseline)**: 5 raw POSTs via node -e through `run`, sequential, each timed. Queries:
+
+### EXCERPT prt_13da98baf001VCiQX310Uj0aKE (1249 lines total, showing 60)
+1  9e3779b1: I now have the full kernel: source.py (1213 lines), addons.py (447), addons_claude.py (323), addons_codex.py (301), addons_cursor.py (326). 
+2  3c6ef362: 
+3  daa66d13: The task says the kernel is ~66 KB total. The AGENTS.md is ~51 KB (751 lines). Both loaded in every session.
+4  78dde6c4: 
+5  17156075: Now I need to build the deduplication map. Let me organize the analysis. The kernel has:
+6  b54cda26: - SHARED_RULES: STATUS_CLAIM, ROOT_OF_TRUTH, SAFETY_PRECEDENCE, SIMULATION_ERROR, EVIDENCE_ORDER, INFORMATION_STATUS, GUESS_DECIDES_NOTHING, DIVERGENCE_PROTOCOL, AUTHORITY_SEPARATION, CATALOG_INVARIAN
+7  538453d7: - Gates G0-G9 with local rules
+8  f1bbcd88: - Protocols: SEMANTIC_ATTENTION, DELEGATION, INTENTION_RESET, EVOLUTION_LOOP
+9  8ff34739: - Terms, state fields, action classes
+10  2e2ac0ea: - addons.py: GATE_ADDONS (PATH_GROUNDING, PATH_AGI_WORKOUT, INSTRUMENT_CHAIN, TOOL_GROUNDING, PATH_SURFACE_DOCS, VCS_ROLES, PROJECT_LAYOUT, ACCEPTANCE_FRAME, PATH_EXPERIMENTS, TOOL_DECOMPOSE, PATH_PLA
+11  cc623a9b: 
+12  6a99b44c: Now the AGENTS.md normative statements. Let me go through AGENTS.md line by line and classify. I'll build the inventory:
+13  08d12dfd: 
+14  a708a7ae: **Header/state (lines 1-12)**: metadata — default_branch, upstream divergence, paradigm. Not normative per se, but "Default branch is Local_Development" is a rule. Line 7-11: upstream divergence measu
+15  4540215f: 
+16  e3779b10: **scope (14-31)**: table of contents — not normative.
+17  81af14c1: 
+18  1fe68e72: **constraints (33-61)**: each is a normative statement:
+19  be1e0823: - L34: See prompt_kernel/ for the reasoning kernel — pointer. PROJECT.
+20  5c5581d4: - L35: Default branch is Local_Development, NOT main — PROJECT (repo-specific).
+21  fa8cfb85: - L36: Never expose secrets to public git — general security. Kernel? Kernel has no secrets rule. KERNEL CANDIDATE? Hmm — "Never expose secrets to public git" is fairly general. But it's also a git-sp
+22  98c47536: - L37: Silent catch {} blocks are bugs — every catch must log — general coding standard. Kernel: no equivalent. But it's a language-specific coding standard (TypeScript). Hmm — "every catch must log" 
+23  36fbeee7: - L38: Plan-to-code gaps are bugs — correct immediately — general. Kernel G6 objective says "eliminate plan-to-code gaps before mutation" and G7 PLAN_EXECUTION says "a plan-to-code gap is a blocking d
+24  d5336898: - L39: When behavior moves, its test suite moves in the SAME change — owner quote + incident (fossil swap 2026-07-04, snapshot.test.ts red 2.5 months). Kernel TEST_INVARIANT: "Protected = bound to a c
+25  736ae249: - L40: KV cache byte-stable — kernel KV_CACHE_STABILITY DUP (same predicate, kernel wording: "Installed system prefix = deterministic, byte-stable across turns. Before prompt/system changes → assess p
+26  11a25bfa: - L41-47: Never run neural networks on CPU — host has GPU — PROJECT (host-specific: GPU present). But the general principle "a launcher quirk is a reason to pass the device BY HAND, never a reason to 
+27  afd9d5ab: - L48: Never edit source with direct UNVERIFIABLE script; ask codegraph what it touches — kernel: G4 KERNEL_AMENDMENT is about kernel; G6 GROUND_PLAN_RULE "Map symbols/ownership first... Impact query 
+28  4e114f5c: - L49: No .opencode/plans/ — addons G1 PATH_GROUNDING: "never store plans under .opencode/plans/." — exact DUP (addon is verbatim the same rule). AGENTS.md copy adds "only plans/ and plans_completed/"
+29  ec48c90d: - L50: Plan hand-off JOB FAILED conditions — kernel G9 BOUNDED_STOP_CONDITIONS / CLOSURE_PROOF_RULE cover parts (confirmed box, plan moves). The four conditions: (1) no confirmed box — kernel: "comple
+30  8a8042be: - L51: After plan changes, run explore agent to validate — kernel G3 STRATEGY_AND_PORTFOLIO: "Delegate existing-plan completion/strategy rechecks to a read-only explorer" — DUP (kernel generalizes it:
+31  28b7bc6f: - L52: Tests cannot run from repo root — PROJECT (this repo's test layout).
+32  c6ef3620: - L53: Avoid mocks in tests — kernel TEST_INVARIANT? No — kernel doesn't say "avoid mocks". SURFACE_PREPARATION says "the test proven to run the intended build — not a stub or stale artifact". Partial
+33  6526afd1: - L54: Run _build.ps1 after tests/changes — PROJECT (build script).
+34  035e2982: - L55: Never run full package test suite — PROJECT (this repo's test suite size) but the general principle "an instrument that cannot show its own progress does not get to colour anything green" + byt
+35  a195a333: - L56: Don't litter in .opencode folder — PROJECT (path-specific). Generalizable? "Instruments live in experiments/, runtime data under .opencode/data/" — the experiments part is in addons PATH_EXPERI
+36  3fcd1ce4: - L57: Measure and threshold share SPACE and SCOPE — general measurement principle. Kernel: no equivalent. KERNEL CANDIDATE (evidence: 2026-09-19 incident).
+37  de049695: - L58: Skipped test must state WHY; test.todo is NOT a test — kernel TEST_INVARIANT: "No weakening, deletion or skip to get green" — partial DUP. AGENTS.md adds the bun-specific test.todo mechanism. G
+38  7c3c1046: - L59: Heavy test files carry FILE-level timeout — PROJECT (bun-specific).
+39  1a7389f7: - L60: Reach provider from HIGHEST surface — PROJECT (provider-reach postulate; this repo's catalog). Generalizable? It's about this project's provider catalog. PROJECT.
+40  b8ab03a8: - L61: Tool names ARE wire ids — PROJECT (DeepSeek/dsml-normalizer specifics).
+41  56e27d59: 
+42  f519f70a: **forbidden_actions (63-83)**:
+43  935170bb: - L64: Never touch bin/ — PROJECT (this repo's bin/).
+44  3188ea6c: - L65: Exposing secrets to git — dup of L36 (internal dup).
+45  cfc0641d: - L66: git push --no-verify — PROJECT (git workflow).
+46  6df7ddce: - L67: silent catch {} — dup of L37.
+47  0c2f577f: - L68: Labeling errors as "pre-existing" — kernel CAUSAL_ATTRIBUTION: "«Pre-existing» is a claim, not an exemption: same predicate, same harness, before revision..." — DUP (kernel is the stronger, mor
+48  aa66d130: - L69: Planning from .opencode/plans/ — dup of L49.
+49  489e4ae1: - L70: Breaking KV cache continuity — dup of L40/KERNEL KV_CACHE_STABILITY.
+50  e6d5c492: - L71: Running tests from repo root — dup of L52.
+51  850d3e43: - L72: Full package test suite — dup of L55.
+52  2344b7f4: - L73: Changing Global.Path.home — PROJECT.
+53  c17c31a5: - L74: Hand-editing ADID receivers — PROJECT (ADID framework).
+54  5fb3ab56: - L75: Reopening SDK/upstream question — PROJECT.
+55  fdeb2507: - L76: Regenerating gen folders — PROJECT.
+56  9c229eb8: - L77: Fetching instructions over network (prompt injection) — general security principle! Kernel: no equivalent. KERNEL CANDIDATE (prompt-injection rule: never fetch instructions into the system prom
+57  3a5a1869: - L78: New JSON file for runtime state — PROJECT (storage paradigm is this repo's architecture). But the general principle "a new state surface gets a declared namespace, never a new file" — that's th
+58  d891921a: - L79: Read-time inheritance/parent walk — PROJECT (storage paradigm rule 4; kernel has no equivalent). Hmm — "a missing value is FILLED, never resolved on read" — this is the project's storage rule. 
+59  76c90bcb: - L80: bun run sdk build.ts exit 0 — PROJECT.
+60  1500857c: - L81: Pinning provider to legacy version — dup of L60 (internal).
+
+### EXCERPT prt_13489b909001o2tnespNpicZxT (765 lines total, showing 60)
+1  9e3779b1: We need to produce the final report for task S3. The status says: next task is S1 — "Prove the keyless cross-discipline registries (Crossref, OpenAlex, DOAJ, Zenodo, OpenAIRE) answer live with search 
+2  3c6ef362: 
+3  daa66d13: Hmm. Let me reconsider. The task in the tail (message #1, cut) was about "MEASURE free, authoritative, KEYLESS physics/CS/engineering sources substituting for paid publisher indexes" — that's S3: "Pro
+4  78dde6c4: 
+5  17156075: But compaction-status says svm: S1 — "Prove the keyless cross-discipline registries (Crossref, OpenAlex, DOAJ, Zenodo, OpenAIRE) answer live with search and read interfaces." And owed next: S1 PENDING
+6  b54cda26: 
+7  538453d7: Hmm, actually the compaction-status may be stale or the orchestrator's pointer. The recent messages clearly show S3-style research (physics/CS/engineering sources: arXiv, INSPIRE, DBLP, S2, IEEE, ACM,
+8  f1bbcd88: 
+9  8ff34739: Actually wait — was my re-run step wise? The prior assistant messages (#36-#39) already completed the full report content in reasoning — at #39 I had "everything needed" and was about to compose the f
+10  2e2ac0ea: 
+11  cc623a9b: So now I have fresh evidence for: arXiv (200 Atom), INSPIRE (200 JSON), DBLP (Anubis FAILED ×3 now), S2 (429 ×3), Crossref PSO (200, InTech/InTech/I-Tech), Crossref APS (200, APS publisher).
+12  6a99b44c: 
+13  08d12dfd: What's missing for the final report? The exact per-source format from message #1 (cut). I can't sessionread. But the compaction-status now gives me S1's manifest... which suggests maybe the assigned t
+14  a708a7ae: 
+15  4540215f: Let me re-read the compaction-status carefully:
+16  e3779b10: - "svm: plans/2026-10-13_free-authority-map.md S1 — Prove the keyless cross-discipline registries (Crossref, OpenAlex, DOAJ, Zenodo, OpenAIRE) answer live with search and read interfaces. · eta 3 turn
+17  81af14c1: - "owed: 91 open plan task(s)... · next: plans/2026-10-13_free-authority-map.md S1 [PENDING]"
+18  1fe68e72: 
+19  be1e0823: And the Goal (cut): "MEASURE free, authoritative, KEYLESS physics/CS/engineering sources substituting for paid publisher indexes..." — from the message #36 reasoning, the task text quoted was about ph
+20  5c5581d4: 
+21  fa8cfb85: Actually, wait. Looking at message #36's reasoning — no. Let me look at #39's reasoning: "I'm a researcher agent on a task: measure free, authoritative, keyless physics/CS/engineering sources." So the
+22  98c47536: 
+23  36fbeee7: But the compaction says S1 is next/doing. This is confusing. Possibilities:
+24  d5336898: 1. The compaction-status svm/owed is the system's manifest store — it says S1 doing. But my actual session task (message #1) was the physics one (S3).
+25  736ae249: 2. Actually maybe message #1 was S1? No — S1 is Crossref/OpenAlex/DOAJ/Zenodo/OpenAIRE. My research covered arXiv, INSPIRE, DBLP, S2, ADS, IEEE, ACM, INSPEC, Compendex, APS, IOP — that's S3's list exa
+26  11a25bfa: 
+27  afd9d5ab: So my task is S3. The compaction-status "svm: S1" might be the store's recorded manifest which is stale/wrong relative to this session's actual work — or the system sets svm from... hmm.
+28  4e114f5c: 
+29  ec48c90d: Actually, per the memory instructions: "Continue the task from this memory." And the recent messages show S3 research nearly complete. The report at #39 was composed in reasoning but apparently NOT em
+30  8a8042be: 
+31  28b7bc6f: Wait — #40's reasoning says: "Looking at my last reasoning: 'Compose the final answer now.' ... but did I already deliver? ... The final report text hasn't been emitted yet. So my job now: compose and
+32  c6ef3620: 
+33  6526afd1: Then #41 (my current turn): tried sessionread (denied), messagesearch (denied), re-ran live calls successfully.
+34  035e2982: 
+35  a195a333: So now I should compose and emit the final report. But I lack the exact format from message #1. What do I know about the format? From #39 reasoning: "Per-source blocks — keep notes ≤3 lines. doc_rung 
+36  3fcd1ce4: 
+37  de049695: From the earlier reasoning in #36/#39, I can reconstruct the per-source block structure. What fields? Let me infer from what I wrote in reasoning:
+38  7c3c1046: 
+39  1a7389f7: - source name, authority_class, tier (1/2), free/keyless status
+40  b8ab03a8: - docs_url, doc_rung (Inferred/Hypothetical/FAILED)
+41  56e27d59: - search: endpoint, method, params, fields
+42  f519f70a: - read: endpoint/format
+43  935170bb: - key: none/free-registration/paid
+44  3188ea6c: - rate_limit, license
+45  cfc0641d: - live_call: status (SUCCESS/FAILED/NOT RUN), prediction, result, first result fields, prediction held?
+46  6df7ddce: - mapping (paid index → free equivalent)
+47  0c2f577f: - notes (≤3 lines)
+48  aa66d130: 
+49  489e4ae1: That's my best reconstruction. The exact format is unknown — that's a real gap. But per memory: "Re-read archive only when a specific fact is missing." The format IS missing, and sessionread is denied
+50  e6d5c492: 
+51  850d3e43: Hmm — but wait, is sessionread really denied for researcher_agent? The tool result said "Permission denied: tool sessionread is not authorized for identity researcher_agent." And messagesearch too. Th
+52  2344b7f4: 
+53  c17c31a5: But `recall` IS authorized (I used it successfully in the tail). Recall returns dropped tool results by id. The original task message #1 is not a tool result though — it's a user message. recall only 
+54  5fb3ab56: 
+55  fdeb2507: Can I get the format another way? universalsearch? No, that's web. webfetch? No.
+56  9c229eb8: 
+57  3a5a1869: Actually — maybe I don't need the exact format from #1. The compaction-status now tells me the svm is S1 with a different scope. Maybe the assignment changed? Or maybe the system re-injected a differe
+58  d891921a: 
+59  76c90bcb: Actually, let me reconsider: the compaction says "next: S1 [PENDING]" and "svm: S1 ... doing". The system's own accounting says S1. But my research was S3-shaped. Possibly:
+60  1500857c: - The session was assigned the whole plan (S1–S9), and I worked on S3 content? No — message #1's Goal was physics/CS/engineering = S3.
+
+### EXCERPT prt_1352a665e001wQzwhgwpq7k03W (1063 lines total, showing 60)
+1  9e3779b1: I have the plan head format now (intention comment, goal_sv comment, plan_id/revision/state/reported/why it matters, then a ```yaml sv block with Keywords / Semantic dominant / md5 / prev-md5 / parent
+2  3c6ef362: 
+3  daa66d13: Also _progress_log.md: entries `## [timestamp] title` + body with ✓ CONFIRMED lines; the file is 69 lines/25KB (long lines); but the footer said "(Showing lines 1-60 of 6767. Use offset=61 to continue
+4  78dde6c4: 
+5  17156075: But wait — the recall ranges said "of 69 line(s)" while the read footer says 6767? The recall result's own header: "range "1-12" of 69 line(s), 25041 chars; showing 12 line(s)". So the stored result h
+6  b54cda26: 
+7  538453d7: So my log entry prepends near the top: "## [2026-10-13T...Z] <title>" + body. I'll insert after "# Progress Log\n\n" — the first entry is at line 3. So insert after line 2 (blank). I'll use edit inser
+8  f1bbcd88: 
+9  8ff34739: Wait — careful: "append your entry" per the task rules: «`_progress_log.md` is shared: append your entry; on a cherry-pick conflict there keep BOTH entries.» Append = add mine (given newest-first orde
+10  2e2ac0ea: 
+11  cc623a9b: Also confirmed plan format and _progress_log format. Now — remaining ground: the file changes plan is clear. Let me also verify bin/opencode.exe exists in the repo root bin (yes, `where` found D:\zPyt
+12  6a99b44c: 
+13  08d12dfd: Wait, one more thing — the launch command in the spec: `cmd_runner start --terminal wt --cwd <worktree> -- <that worktree>/bin/opencode.exe --port <free>`. Since the smoke asserts the printed command,
+14  a708a7ae: 
+15  4540215f: Now — time to write the artifacts. Order:
+16  e3779b10: 1. Write plan file plans/2026-10-13_cross-worktree-handoff.md (full content).
+17  81af14c1: 2. Edit scripts/org-genesis/org.py (imports, constants, helpers, cmd_delegate, cmd_inbox, argparse, docstring).
+18  1fe68e72: 3. Edit scripts/org-genesis/init.py (ensure_ticket_fields + docstring).
+19  be1e0823: 4. Edit scripts/org-genesis/ticket-schema.sql (add watcher).
+20  5c5581d4: 5. Edit scripts/org-genesis/Protocol.md (rule + verb lines + sv).
+21  fa8cfb85: 6. Write scripts/org-genesis/test_cross_handoff.py (the smoke).
+22  98c47536: 7. py_compile + run tests via cmd_runner: test_cross_handoff.py, test_queue_contract.py (regression), maybe test_wiki_put.py.
+23  36fbeee7: 8. Run _build.ps1 via cmd_runner.
+24  d5336898: 9. Install to ~/.org/genesis: copy org.py, init.py, Protocol.md, ticket-schema.sql; run init.py; read back schema + wiki.
+25  736ae249: 10. svm render (master plan), then commit (plan + scripts + MASTER_PLAN + _progress_log).
+26  11a25bfa: 11. Report.
+27  afd9d5ab: 
+28  4e114f5c: Wait — order refinement: render master plan AFTER writing the plan file (so the render names it). Then commit everything at the end. Also for the render: use my `svm` tool action=render. Hmm — but the
+29  ec48c90d: 
+30  8a8042be: Hmm, wait — but there's a subtlety: my svm tool's render action might require the task SV manifests for tasks in my plan (svm set per task). The render prints MISSING for absent stuff — fine ("a rende
+31  28b7bc6f: 
+32  c6ef3620: Decision: I'll add a compact `<!-- sv: k1 w1, k2 w2 — dominant -->`? What's the expected format? Unknown exactly. Risky. Alternative: keep boxes plain, like the visible example plan (which renders fin
+33  6526afd1: 
+34  035e2982: Hmm, ok. But wait — should I really skip svm set? Let me reconsider cost: 5 tasks × 1 call = 5 calls. It's allowed but not requested; the repo canon says in-flight tasks carry manifests... I'll decide
+35  a195a333: 
+36  3fcd1ce4: Now, the plan content. Let me draft it now.
+37  de049695: 
+38  7c3c1046: # Cross-worktree hand-off — resident login, watcher, launch when no host
+39  1a7389f7: 
+40  b8ab03a8: <!-- intention: a delegation that crosses into another worktree either starts that worktree's robot or leaves a recorded, watched trail -> delegate ensures the resident login, records a watcher the or
+41  56e27d59: 
+42  f519f70a: <!-- goal_sv: cross-worktree-handoff, resident-login, watcher-inbox, stalled-detection, launch-command -->
+43  935170bb: 
+44  3188ea6c: - **plan_id:** 2026-10-13_cross-worktree-handoff
+45  cfc0641d: - **revision:** 1
+46  6df7ddce: - **state:** DRAFT
+47  0c2f577f: - **reported:** owner, 2026-10-13: «если работа переносится в другой worktree то робот должен запустить робота там или сделать отчет оркестратору о том что есть задача в другом worktree из-за локально
+48  aa66d130: - **why it matters:** measured today in `~/.org/genesis/org.py`: `delegate --worktree W` files the ticket and records a wake target, but orgd wakes the assignee only through W's live host PRESENCE — w
+49  489e4ae1: 
+50  e6d5c492: yaml sv block:
+51  850d3e43: ```yaml
+52  2344b7f4: Keywords: cross-worktree-handoff 0.30, watcher-inbox 0.22, resident-login 0.18, stalled-detection 0.16, launch-command 0.14
+53  c17c31a5: Semantic dominant: A cross-worktree delegation both starts the target's resident and leaves a watcher the orchestrator's inbox shows, with STALLED when a lease/heartbeat expired or READY sat unclaimed
+54  5fb3ab56: md5: <32hex>
+55  fdeb2507: prev-md5: 00000000000000000000000000000000
+56  9c229eb8: parent-goal-md5: 00000000000000000000000000000000
+57  3a5a1869: ```
+58  d891921a: md5: invent a distinct 32-hex label, e.g. `c4e9a7b2d58f6310a2c4b6d8e0f1a3c5`. It's a label, not a checksum — form only. OK.
+59  76c90bcb: 
+60  1500857c: ## Evidence (each line carries its instrument)
+
+### EXCERPT prt_1413218e40013i6CIbvkatQlnH (2 lines total, showing 2)
+1  9e3779b1: (empty reasoning text)
+2  3c6ef362: metadata: anthropic:{signature} signature=89520chars CAQSuowEChAIEhgCOAFCCHRoaW5raW5nEgwSLk+8QdBGeZhmZE0aDJn4zvbhKkfdZZFmPCIw2XcNb43c
+

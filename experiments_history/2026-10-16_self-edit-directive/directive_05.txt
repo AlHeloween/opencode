@@ -1,0 +1,44 @@
+EXCERPT prt_135509d2e001Q91psjo52X4feZ
+CUT lines: 41-49
+CUT tags: f519f70a-e6d5c492
+CUT start: "  Wait — but instruction 1 says "per sec"
+CUT end: "  Let me just set section-by-section kee"
+REASON: Pure vacillation — oscillating on Content Lifecycle keeps and the "ARGH" meta-chatter about needing a decision framework; the settled per-section keep/move ledger at 51-60 supersedes it.
+SIGNED: keep
+ERRATUM after 35: none needed
+
+EXCERPT prt_116ebe244001N28WWqU75jhICw
+CUT lines: 25-33
+CUT tags: 736ae249-035e2982
+CUT start: "Подождите, давайте посмотрим на скриншот "
+CUT end: "Или может быть, проблема в том, что `fit"
+REASON: Circular re-examination — re-derives the identical 781→1440 scale math already computed at L5-9 and repeats the fitFontAnchoredSize question, adding no new measurement.
+SIGNED: keep
+ERRATUM after 28: lines 26-28 restate the scale math from lines 7-9 verbatim — the "fresh look at the screenshot" adds no new data
+
+EXCERPT prt_14133d71a001J6G1UihhFkWJlU
+CUT lines: none
+CUT tags: none
+CUT start: none
+CUT end: none
+REASON: Entire excerpt is a signed empty-reasoning block (2 lines); any cut of 5-20 lines would cover the whole text and breaking the signed block would corrupt the replay wire.
+SIGNED: keep
+ERRATUM: none needed
+
+EXCERPT prt_13800abef0014ssLYpNatcVbU8
+CUT lines: 55-59
+CUT tags: fdeb2507-1500857c
+CUT start: "Hash: sha3_256; accept sha1 fallback? Fo"
+CUT end: "Hmm — actually, hmm: for the wrong-check"
+REASON: Tentative hedging about sha1 fallback and re-verifying the rid against the org blob table — exploratory double-checks; the locked route verification (L1-12) and core design already cover this.
+SIGNED: keep
+ERRATUM after 26: fossil forum capability '4' is ModForum (moderator), not 'WrForum-trusted' — the comment mislabels it
+
+EXCERPT prt_118f6cb85001cemQUQVixP7xzs
+CUT lines: 21-32
+CUT tags: 98c47536-c6ef3620
+CUT start: "Alternative: derive candidate then VERIF"
+CUT end: "Hmm, what about `session` table having a"
+REASON: Dead-end discovery brainstorm — PID-chain verify, fossil snapshot, parent_id guesses, all abandoned by the DECISION at L33; the final discovery contract (L36-37) supersedes it.
+SIGNED: keep
+ERRATUM: none needed

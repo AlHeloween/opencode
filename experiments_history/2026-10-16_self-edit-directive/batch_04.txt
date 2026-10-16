@@ -1,0 +1,252 @@
+### EXCERPT prt_142ee91ed001hRdNlB7CyE7eHh (2 lines total, showing 2)
+1  9e3779b1: Evaluating hunk-level staging limits and the risk of dropping the other change in the committed blob.
+2  3c6ef362: metadata: openai
+
+### EXCERPT prt_12363ffc0001R6Myp3LIadhCfl (902 lines total, showing 60)
+1  9e3779b1: BASELINE ESTABLISHED ✓ (and it matches the prediction):
+2  3c6ef362: - Ran 15 tests in 3.261s → FAILED (failures=12, errors=3).
+3  daa66d13: - Failure cause sample: "argument verb: invalid choice: 'wiki-put'" — the missing verb ✓.
+4  78dde6c4: - 3 ERRORs: test_03 (unchanged — uses FIXTURE/update.md which wasn't created because test_02 failed → FileNotFoundError), test_14 (lock — `reject()` ... hmm why ERROR?), test_15. Let me think: test_14
+5  17156075: 
+6  b54cda26:   Hmm, but reported ERROR. Actually maybe: `self.assertIn(f"sha256={current}", result.stdout)` with current=None → f"sha256=None" — no; first assertEqual fails at rc... Let me not over-analyze: 12 FAI
+7  538453d7: 
+8  f1bbcd88:   Oh wait — actually test_03 error: `digest_of_page(page)` returns None; `events_before = wiki_events(page)`; `result = run_cli(...)`; assertEqual(rc, 0) fails → that's FAIL. Hmm... unless run_cli RAI
+9  8ff34739: 
+10  2e2ac0ea: - state.json: status=finished, exit_code=1, bytes_written=20886, bytes_dropped=0, truncated=false ✓ (read fully; no truncation).
+11  cc623a9b: - Log dir: C:\WINDOWS\logs\cmd_runner\<runid>\ (inbox.jsonl, stdout.log 20886, stdout_text.log 20086, stderr.log 0, meta.json, exit_code.txt).
+12  6a99b44c: 
+13  08d12dfd: NOW — THE EDIT (call 28): org.py (5 edits) + Protocol.md (3 edits) in ONE edit call. I must use hashes from my reads:
+14  a708a7ae: org.py hashes (from batch4 read lines 1-120 and batch5 read 358-468):
+15  4540215f: - insertAfter 11 (8694cde9): new docstring usage line.
+16  e3779b10: - insertAfter 48 (80e66e3f): "import hashlib".
+17  81af14c1: - insertAfter 50 (7988d2bd): "import re".
+18  1fe68e72: - insertAfter 395 (8b42eca4): the function block (wiki_lock_path, _wiki_canon, _fossil_bytes, _wiki_readback_address, cmd_wiki_put, _wiki_put_locked).
+19  be1e0823: - insertAfter 461 (c5108e88): the wiki-put subparser block.
+20  5c5581d4: 
+21  fa8cfb85: Wait — line 48 is `import argparse` (hash 80e66e3f); inserting "import hashlib" AFTER it gives: argparse, hashlib, json, os, re, sqlite3... ✓ alphabetical. And after 50 `import os` (7988d2bd) insert "
+22  98c47536: 
+23  36fbeee7: Protocol.md hashes (from batch4 read):
+24  d5336898: - replace lines 3-4 (b8777422 .. 870b325c) with new sv.
+25  736ae249: - insertAfter 62 (0da5c5a7): WIKI-PUT bullet.
+26  11a25bfa: - replace line 67 (66f8b094) with extended line.
+27  afd9d5ab: 
+28  4e114f5c: Hmm wait — CRITICAL: hashes must be from a read of THIS file in this session. I read Protocol.md lines 1-64 and 65-126 ✓ — line 3 hash b8777422, line 4 870b325c, line 62 0da5c5a7, line 67 66f8b094 ✓.
+29  ec48c90d: 
+30  8a8042be: Danger: if any hash is stale (file changed since read), the whole edit call fails atomically (nothing written) — then I re-read and retry (costing calls). Files haven't been touched since my reads (or
+31  28b7bc6f: 
+32  c6ef3620: Now COMPOSE the exact newString blocks. IMPORTANT: edit tool writes exactly; keep style (4-space indents; org.py lines are ≤100 chars? Let me keep ~≤110).
+33  6526afd1: 
+34  035e2982: Also — I need to double check the code compiles mentally. Let me write the block:
+35  a195a333: 
+36  3fcd1ce4: ```python
+37  de049695: def wiki_lock_path(page: str) -> Path:
+38  7c3c1046:     """The exclusive per-page lock file (the org's lock convention: $ORG_HOME/locks)."""
+39  1a7389f7:     return LOCKS / f"wiki-{hashlib.sha256(page.encode('utf-8')).hexdigest()[:16]}.lock"
+40  b8ab03a8: 
+41  56e27d59: 
+42  f519f70a: def _wiki_canon(raw: bytes) -> bytes:
+43  935170bb:     """Canonical wiki content: strict UTF-8, LF endings, one trailing newline.
+44  3188ea6c: 
+45  cfc0641d:     fossil's wiki CLI stores pages as text lines and its Windows export re-emits CRLF and
+46  6df7ddce:     guarantees the trailing newline (measured 2026-10-10); pinning one canonical form on both
+47  0c2f577f:     sides keeps a file's digest and a read-back's digest directly comparable."""
+48  aa66d130:     text = raw.decode("utf-8")
+49  489e4ae1:     text = text.replace("\r\n", "\n").replace("\r", "\n")
+50  e6d5c492:     if text and not text.endswith("\n"):
+51  850d3e43:         text += "\n"
+52  2344b7f4:     return text.encode("utf-8")
+53  c17c31a5: 
+54  5fb3ab56: 
+55  fdeb2507: def _fossil_bytes(*args: str, user: str | None = None, data: bytes | None = None):
+56  9c229eb8:     """`fossil()` for byte-exact wiki content — same command shape (-R ORG, optional -U user),
+57  3a5a1869:     but no text codec: its errors="replace" would silently corrupt a page body."""
+58  d891921a:     cmd = [find_fossil(), *args, "-R", str(ORG)]
+59  76c90bcb:     if user:
+60  1500857c:         cmd += ["-U", user]
+
+### EXCERPT prt_1172b9c290014NJj033hi5G7Om (1920 lines total, showing 60)
+1  9e3779b1: Стоп. Хватит копать. Давай сфокусируюсь на том, что просит пользователь.
+2  3c6ef362: 
+3  daa66d13: Пользователь говорит: "Ничего масштабировать для mermaid вообще не надо. Задали max width и отрендерили."
+4  78dde6c4: 
+5  17156075: Что это значит? Я считаю, пользователь хочет, чтобы при рендере mermaid мы не делали `fitFontAnchoredSize` (анкоринг к cellHeight с последующим масштабированием растра) — а просто задавали максимальну
+6  b54cda26: 
+7  538453d7: Погоди. Но ведь именно это и вызывает мелкий текст? Давай проверим.
+8  f1bbcd88: 
+9  8ff34739: Диаграмма 781x117 px (natural), font-size 14.
+10  2e2ac0ea: - fitTo width = 1440 (maxWidth) → scale = 1440/781 = 1.84 → текст становится 25.8px. Читаемо!
+11  cc623a9b: - НО на скриншоте текст мелкий.
+12  6a99b44c: 
+13  08d12dfd: Хм. Стоп. Давай посмотрим на скриншот внимательнее.
+14  a708a7ae: 
+15  4540215f: Пользователь: "Привет посмотри как добиться того чтобы шрифт рендерера mermaid был таким же как в tui - нечитаемо в смысле совсем."
+16  e3779b10: 
+17  81af14c1: Скриншот: терминал, в нём mermaid-диаграмма. Текст в нодах выглядит мелким по сравнению с обычным текстом TUI.
+18  1fe68e72: 
+19  be1e0823: Так. Что если проблема в ДРУГОМ? Что если растр генерируется БОЛЬШИМ (например 3000px шириной), а отображается в маленьком боксе? Тогда текст выглядел бы мелким.
+20  5c5581d4: 
+21  fa8cfb85: Смотрим пайплайн:
+22  98c47536: 1. `renderMermaidToRgba(source, { theme, background, budget })` — budget приходит из MediaImage: `{ maxWidth: bounds.maxCols * cells.cellWidth, maxHeight: ..., cellHeight: ... }`.
+23  36fbeee7: 2. `resvgOptionsForSvg` → `fitTo: { mode: "width", value: width }`, где width = из `fitFontAnchoredSize`.
+24  d5336898: 3. `fitFontAnchoredSize`: scale = min(fontScale, widthScale), где fontScale = (cellH * labelCells)/fontPx, widthScale = maxW / sw.
+25  736ae249: 
+26  11a25bfa: Теперь смотрим, что делает MediaImage при отображении:
+27  afd9d5ab: `width={nativeImageCellCols(f().width, cellWidth)}` — где `nativeImageCellCols(imageWidth, cellWidth)`.
+28  4e114f5c: 
+29  ec48c90d: То есть: если растр получился, скажем, 1440px шириной, а cellWidth = 18, то колонок = 80. Это ок.
+30  8a8042be: 
+31  28b7bc6f: А если растр 3000px, а cellWidth 18 → 167 колонок, что больше ширины терминала! Тогда... он станет огромным? Или обрежется?
+32  c6ef3620: 
+33  6526afd1: Хм. Хм-хм.
+34  035e2982: 
+35  a195a333: Давай вернёмся к ключевому вопросу. Что реально хочет пользователь?
+36  3fcd1ce4: 
+37  de049695: "Когда ты рендеришь мермейд ты можешь разу задать ограничение по ширине и все."
+38  7c3c1046: 
+39  1a7389f7: "Нам важно зафиксировать width чтобы диаграмма фиттилась, а height будет по результату и все."
+40  b8ab03a8: 
+41  56e27d59: "Ничего масштабировать для mermaid вообще не надо. Задали max width и отрендерили."
+42  f519f70a: 
+43  935170bb: Хм, "разу" = "раз уж"? Или "сразу"? Скорее "сразу".
+44  3188ea6c: 
+45  cfc0641d: "Когда ты рендеришь мермейд ты можешь сразу задать ограничение по ширине и все."
+46  6df7ddce: 
+47  0c2f577f: Ключевое: "задать ограничение по ширине" при рендере mermaid. Это может быть про `mmdr render.width`!! Мы же нашли, что в CLI это `--width`, который пишется в `base_config.render.width`. И в `RenderCo
+48  aa66d130: 
+49  489e4ae1: Погоди. Но мы тестировали `render: {width: ...}` через WASM API и не сработало... Но может, мы тестировали неправильно? Может, есть другой путь?
+50  e6d5c492: 
+51  850d3e43: Хм, в CLI:
+52  2344b7f4: ```
+53  c17c31a5: base_config.render.width = args.width.unwrap_or(DEFAULT_WIDTH);
+54  5fb3ab56: base_config.render.height = args.height.unwrap_or(DEFAULT_HEIGHT);
+55  fdeb2507: ```
+56  9c229eb8: Но комментарий: "Width (defaults to the diagram's natural size; used for PNG rasterization fallback)".
+57  3a5a1869: 
+58  d891921a: То есть `render.width` используется как фолбэк для растеризации PNG, а не для изменения SVG! Поэтому он не влияет на SVG.
+59  76c90bcb: 
+60  1500857c: Так, а что же тогда "задать ограничение по ширине"?
+
+### EXCERPT prt_0e3dd7878001Fuio11duvo8KcL (1431 lines total, showing 60)
+1  9e3779b1: 
+2  3c6ef362: Теперь у меня полная картина. Давайте разберу три задачи пользователя:
+3  daa66d13: 
+4  78dde6c4: 1. **"Юридическая вода" в кернеле** — пользователь говорит что Claude добавил много юридического/процедурного текста. Нужно понять что можно убрать.
+5  17156075: 
+6  b54cda26: 2. **Reward function не вставлена** — пользователь говорит что "Клаудий" (предыдущая сессия/модель) не вставил целевую reward function. Нужно найти куда её вставить.
+7  538453d7: 
+8  f1bbcd88: 3. **Баг-фикс процедура из ADID 15.3** — взять из оригинала `docs/ADID_Framework_15_3.md`.
+9  8ff34739: 
+10  2e2ac0ea: 4. **Чего не хватает из оригинала для автономности** — сравнить ADID 15.3 с текущим кернелем.
+11  cc623a9b: 
+12  6a99b44c: Давайте разберём каждую:
+13  08d12dfd: 
+14  a708a7ae: ### 1. "Юридическая вода" в кернеле
+15  4540215f: 
+16  e3779b10: Смотрим на `source.py`. Вижу много комментариев объясняющих историю изменений (2026-09-27, 2026-09-25 и т.д.). Это не "юридическая вода" в классическом смысле, но есть места где правила дублируются ил
+17  81af14c1: 
+18  1fe68e72: Что можно считать "водой":
+19  be1e0823: - Комментарии с историей изменений (строки 294-296, 344-349, 405-406, 457-469, 473-474, 480-481, 546-549, 551-555, 560-564, 565-567, 570-582, 586-594, 596-599, 603-606)
+20  5c5581d4: - Некоторые правила изложены очень подробно (например, `ORACLE` в G8 — целый абзац)
+21  fa8cfb85: - `INFORMATION_STATUS` — очень длинное правило
+22  98c47536: 
+23  36fbeee7: Но подождите — пользователь говорит "Клаудий много юридической воды налил". Это может означать что предыдущая сессия (с Claude) добавила много текста в кернел. Нужно посмотреть что именно было добавле
+24  d5336898: 
+25  736ae249: Смотрим на комментарии — многие из них датированы 2026-09-27 (сегодня). Это говорит о том что изменения были сделаны недавно. Но пользователь говорит что "Клаудий" налил воды — возможно это была преды
+26  11a25bfa: 
+27  afd9d5ab: ### 2. Reward function
+28  4e114f5c: 
+29  ec48c90d: Пользователь говорит "целевой reward функции" не вставлено. В контексте ADID Framework и кернела, reward function — это функция которая определяет что является "хорошим" результатом. 
+30  8a8042be: 
+31  28b7bc6f: В текущем кернеле есть:
+32  c6ef3620: - `LOOP_MEASURE` — прогресс мера
+33  6526afd1: - `QUALITY_VECTOR` — вектор качества
+34  035e2982: - `EVOLUTION_LOOP` — эволюционный цикл
+35  a195a333: 
+36  3fcd1ce4: Но нет явной reward function которая бы определяла что является целью системы. В ADID 15.3 есть раздел про "AGI Reasoning Kernel" и "State Vector Manifest" — но там тоже нет явной reward function.
+37  de049695: 
+38  7c3c1046: Где надо вставить reward function? Логическое место — в `EVOLUTION_LOOP` или в `G9 CLEAN_STATE`, или как отдельный механизм в `KERNEL`. 
+39  1a7389f7: 
+40  b8ab03a8: Reward function должна определять:
+41  56e27d59: - Что является "прогрессом" (уменьшение residual, увеличение покрытия)
+42  f519f70a: - Что является "успехом" (все критерии покрыты, oracle PASS, критические риски = 0)
+43  935170bb: - Что является "провалом" (STALL, BLOCKED)
+44  3188ea6c: 
+45  cfc0641d: ### 3. Баг-фикс процедура из ADID 15.3
+46  6df7ddce: 
+47  0c2f577f: В ADID 15.3 есть раздел "Absolute Development Rules" (строки 584-593):
+48  aa66d130: 
+49  489e4ae1: ```
+50  e6d5c492: 7. **Absolute Development Rules**:
+51  850d3e43: 	1. Before write any code where use external libraries check such libraries source for code correctness.
+52  2344b7f4: 	2. For any kind written code #test_case (`DUnitX`, `pytest`, `jest`, etc.) must be performed.
+53  c17c31a5: 	3. If #test_case unsuccessful then #bug raised.
+54  5fb3ab56: 	4. If #bug raised then
+55  fdeb2507: 		1. #error_test_case has to be performed which exactly reproduce such #bug
+56  9c229eb8: 		2. Once #error_test_case exactly reproduce #bug then #test_bug_fix has to be implemented and tested on #error_test_case with #trial_fix and tested with #trial_fix_test
+57  3a5a1869: 		3. Once #trial_fix_test successful then #real_fix for #bug has to be implemented and tested with #real_fix_test
+58  d891921a: 		4. Only then #bug considered as fixed
+59  76c90bcb: 		5. This will guarantee stable bug fix without working code damages with LLM hallucinations.
+60  1500857c: ```
+
+### EXCERPT prt_1350730bc001s78tZqYnoNbwpe (555 lines total, showing 60)
+1  9e3779b1: codegraph refuses outside the worktree scope. Alternative: the ADID project is at D:\zPython\ADID_Python — outside my worktree. The read tool: "Absolute paths are allowed only when they resolve under 
+2  3c6ef362: 
+3  daa66d13: Actually, hold on: earlier progress entries DID read ADID files (e.g. "Прочитано в %USERPROFILE%\.org\genesis\org.py", "codegraph с projectPath: D:/zPython/ADID_Python — даёт символы чужого проекта бе
+4  78dde6c4: 
+5  17156075: Alternative: use the `cmd` tool with findstr on a specific named file under D:\zPython\ADID_Python — but I don't know the exact file path of org_worker. Could glob... glob is scoped to project too? Pr
+6  b54cda26: 
+7  538453d7: Do I actually NEED the ADID source? The user stated: "the flag name is fixed — ADID org_worker already passes it". That's an authoritative statement from the owner for the flag NAME. My job: accept `-
+8  f1bbcd88: 
+9  8ff34739: Honestly — is the ping to ADID critical? My contract decision: --epoch on heartbeat/report/done/escalate (required), claim unchanged. If ADID's worker passes --epoch to claim too, compatibility breaks
+10  2e2ac0ea: 
+11  cc623a9b: Let me try the explorer/researcher? Overkill. Try findstr quickly: cmd `findstr /s /i /c:"--epoch" D:\zPython\ADID_Python\*.py`? That's a recursive walk (findstr /s) — blocked? findstr is allowed "whe
+12  6a99b44c: 
+13  08d12dfd: Try `glob` with pattern on that path? glob path param must be a directory — "path" must be... it says directory to search in; likely also worktree-scoped. Try it: glob pattern "**/org_worker*", path "
+14  a708a7ae: 
+15  4540215f: Meanwhile, I should also check the live org/genesis state for the install step... later.
+16  e3779b10: 
+17  81af14c1: Actually — you know what, let me NOT burn more cycles: the owner's message is the spec (they wrote "the flag name is fixed — ADID org_worker already passes it"). I'll implement --epoch on the four ver
+18  1fe68e72: 
+19  be1e0823: Hmm, wait — actually, let me try ONE glob call; if it works, one read of the worker file settles it. If refused — proceed. Actually the read tool will likely refuse (outside worktree). Glob same. Skip
+20  5c5581d4: 
+21  fa8cfb85: Hmm, hold on, one more thought — the researcher_agent is Internet-only. explorer_agent: "Read-only explorer_agent: ground bounded code questions with structural CodeGraph..." — same scope constraints 
+22  98c47536: 
+23  36fbeee7: DECISION: implement per user spec. Moving on.
+24  d5336898: 
+25  736ae249: NOW — WRITE THE PLAN. Let me compose `plans/2026-10-08_org-fencing-and-effects.md`.
+26  11a25bfa: 
+27  afd9d5ab: Content per house style (mirroring t14 plan):
+28  4e114f5c: 
+29  ec48c90d: ```md
+30  8a8042be: <!-- intention: a queue that loses work at its edges (a worker whose lease was taken over can still write DONE; a wake already delivered is re-sent blindly after a crash; a `DONE` is a worker's testim
+31  28b7bc6f: 
+32  c6ef3620: # Org queue — lease fencing, recorded wake effects, delegator verdicts
+33  6526afd1: 
+34  035e2982: - sv: { keywords: { lease-fencing 0.28, wake-idempotency 0.24, delegator-verdict 0.20, queue-lifecycle 0.16, crash-consistency 0.12 },
+35  a195a333:         dominant: "..." }
+36  3fcd1ce4: 
+37  de049695: - Owner, 2026-10-08 ... 
+38  7c3c1046: - Requested by: outside review of the organization's queue contract; three gaps.
+39  1a7389f7: - Files: scripts/org-genesis/org.py, orgd.py (ticket-schema.sql already carries idempotency_key — no DDL needed).
+40  b8ab03a8: ```
+41  56e27d59: 
+42  f519f70a: Premises (grounded in code, with line refs):
+43  935170bb: - org.py:245-270 claim: epoch via exclusive lock ✓ atomic (review).
+44  3188ea6c: - org.py:273-283 heartbeat / 286-311 report / 314-322 done / 325-333 escalate: check lease_owner only (report checks NOTHING: cmd_report has no lease read at all — lines 286-299); no epoch presented.
+45  cfc0641d: - orgd.py:22-25 header: woken_state written ONLY after 2xx; a crash between POST and write re-sends; orgd.py:180-201 wake(); 204-241 tick().
+46  6df7ddce: - ticket.idempotency_key column exists and is unused (schema line 39).
+47  0c2f577f: - Lifecycle: agent_state values today READY/WORKING/DONE/BLOCKED (org.py + orgd.py SELECT list line 74); DONE is terminal with no acceptance step.
+48  aa66d130: - ADID org_worker already passes --epoch N (owner's brief).
+49  489e4ae1: 
+50  e6d5c492: Tasks (boxes):
+51  850d3e43: - [ ] S1 — plan + baseline (this file; baseline: tests red on HEAD).
+52  2344b7f4: - [ ] S2 — tests (test_queue_fencing.py) red-first on HEAD: A) stale-epoch DONE refused + current holder named + live-epoch DONE passes; B) PENDING effect resolved by reading, not resent (delivered) +
+53  c17c31a5: - [ ] S3 — fencing in org.py: --epoch required on heartbeat/report/done/escalate; guard_lease (stale ⇒ refuse naming holder; no lease ⇒ refuse; terminal state ⇒ refuse); claim refuses VERIFIED/CANCELL
+54  5fb3ab56: - [ ] S4 — effects in orgd.py: effect_key = sha256(ticket|state|target|epoch|heartbeat); PENDING recorded BEFORE the POST (never send unrecorded); SENT ⇒ woken_state=state; POST raise ⇒ PENDING stays,
+55  fdeb2507: - [ ] S5 — verdicts in org.py: verify/reject/cancel verbs (+Protocol.md, docstrings).
+56  9c229eb8: - [ ] S6 — green run: both test files pass; _build.ps1 via cmd_runner; state.json read.
+57  3a5a1869: - [ ] S7 — install: sha256-verified copy of org.py/orgd.py/Protocol.md into %USERPROFILE%/.org/genesis; run init.py there (idempotent; republishes Protocol); orgd restart so the daemon runs the new co
+58  d891921a: - [ ] S8 — commit naming this plan + _progress_log entry + svm render + move to plans_completed/.
+59  76c90bcb: 
+60  1500857c: Smoke Tests section: table with cases + pre-change prediction + post-change prediction (trader's rule). Cases:
+

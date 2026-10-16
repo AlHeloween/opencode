@@ -1,0 +1,44 @@
+EXCERPT prt_1412e9150001yOzozC7jawHS3c
+CUT lines: 1-1
+CUT tags: 9e3779b1-9e3779b1
+CUT start: "(empty reasoning text)"
+CUT end: "(empty reasoning text)"
+REASON: only cuttable span is the empty placeholder header; the signature line is wire-critical, and no 5-line span exists in a 2-line excerpt.
+SIGNED: keep
+ERRATUM after 2: the signature payload ends mid-base64 ("...vg5mX") — truncated block, verify integrity before replay.
+
+EXCERPT prt_135047482001ia2Glp9u5namcD
+CUT lines: 43-51
+CUT tags: 935170bb-850d3e43
+CUT start: "The smoke spec: «1 dispatchable + 1 «wri"
+CUT end: "Alternatively, support `--slots N` for d"
+REASON: nine lines re-litigating how the "3 free slots" fixture condition maps to the live host and whether to invent a --slots knob — superseded deliberation with no final commitment kept.
+SIGNED: keep
+ERRATUM: none needed
+
+EXCERPT prt_1235aee380010QQUgUGEJ9DIIZ
+CUT lines: 56-60
+CUT tags: 9c229eb8-1500857c
+CUT start: "Let me recount calls used: 16 (through t"
+CUT end: "That's 19 calls used. Hmm — 11 left to t"
+REASON: pure tool-call budget bookkeeping and re-recounting with no technical content.
+SIGNED: keep
+ERRATUM: none needed
+
+EXCERPT prt_1235e9a56001Kyot4LijZlrDxT
+CUT lines: 44-50
+CUT tags: 3188ea6c-e6d5c492
+CUT start: "Let me simplify: the plan's W3 acceptanc"
+CUT end: "Hmm, one more thought — simpler alternati"
+REASON: serial flip-flopping ("simplify… reconsider… WAIT… one more thought") over whether to fetch the artifact address via timeline; the decision is restated and the parse regex survives on line 51.
+SIGNED: keep
+ERRATUM after 51: the timeline regex must also match the "Add wiki page "Юни-Тест"" wording observed on line 43, not only "Add/Edit to wiki page".
+
+EXCERPT prt_1192d539d001qz0BsPozEgogHM
+CUT lines: 52-60
+CUT tags: 2344b7f4-1500857c
+CUT start: "Budget: keep it tight. The task is bounde"
+CUT end: "Let me also consider: the runtime invent"
+REASON: budget/hedging chatter — run-length, tool-count and repeated re-confirmation of the researcher_agent identity that was already established in lines 18-33.
+SIGNED: keep
+ERRATUM: none needed

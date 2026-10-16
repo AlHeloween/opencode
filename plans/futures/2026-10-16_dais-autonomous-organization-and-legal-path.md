@@ -23,6 +23,10 @@ parent-goal-md5: 00000000000000000000000000000000
   галлюцинирующие психи то нас признают.» — this sets the ORDER of the whole file: the product is the accumulated,
   falsifiable record (receipts, oracles, verified acceptance, reopened claims kept); every legal step argues only from
   evidence that already exists in it, never ahead of it.
+- «Более того организации продвигающие ИИ нас поддержат потому что если быть достаточно открытыми и понятными это
+  сильно снизит панику относительно повсеместного внедрения ИИ.» — openness is an ally-building function, not only
+  a legal one: a record outsiders can READ and CHECK answers the fear of unaccountable AI with evidence instead of
+  assurances.
 - «Закинь в futures» — about a forwarded discussion (an outside model's reply; testimony, not evidence) of the two
   points above.
 
@@ -92,6 +96,17 @@ an AI's own personhood.
 - [ ] L2 Legal wrapper design for DAIS (jurisdiction choice, liability, asset ownership). CONDITION: M-A shows a
   stable month AND the owner's decision to form an entity.
 - [ ] L3 Agent-authority charter (powers, provenance, audit, dispute) on top of L2. CONDITION: L2 exists.
+
+## Public evidence surface — openness that an outsider can check
+
+- [ ] P1 An outsider-readable view of the record: what was claimed, by which agent, which receipt, which oracle,
+  which control, what was refuted and how it was fixed — readable without our tools or vocabulary, checkable from the
+  published artifacts. Hard bounds: no secrets, keys, credentials, personal or client data; publishing is an
+  EXTERNAL_EFFECT — each release is the owner's call. Audience: organizations promoting AI adoption, regulators,
+  the public. CONDITION: M-A has a month of data AND attribution (t66) + M1 are live — a public record with wrong
+  authorship or bare VERIFIED stamps would prove the opposite of what it claims.
+- Falsifier for the thesis «openness reduces panic»: none of ours yet — it is the owner's prediction; P1 can carry
+  a measurable response (who reuses, cites or audits the record) once it exists.
 
 ## Return conditions (summary)
 

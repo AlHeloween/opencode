@@ -86,9 +86,9 @@ Selected CENTRAL_TASKS: C1, C2, C4, C5 (C3 rides the stand matrix as a variation
 - [x] S5 — Worker-death fix (b) DONE: `Rpc.client.workerDown` + `thread.ts worker.onerror` wiring. (a) root
   failure; never let a stream-setup throw escape the worker). (b) Death oracle: thread watches worker
   exit/error/close, logs cause, UI says `server died: <cause>`; worker installs sync-flush exit hook.
-- [ ] S6 — Regression + build. Focused files from S2/S4/S5 (ONE file per `bun test` call via cmd_runner),
-  then `pwsh -NoProfile -File _build.ps1` via cmd_runner from repo root; read state.json + whole output.
-  Commit via `scripts/commit_own.py`. Trials/probes go to `researcher_agent`.
+- [x] S6 — Regression + build DONE: rpc/thread/picker focused runs green, `bun run typecheck` exit 0,
+  `pwsh -NoProfile -File _build.ps1` exit 0 (run 20261016T164136Z_2788d3fa, 680-line log read head+tail,
+  dist smoke 10.0.1416 PASS. Commit 7d95f1db (+ MASTER_PLAN ff34b169; this S6 flip follows in a third).
 
 ## Claim ledger
 

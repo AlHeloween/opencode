@@ -139,9 +139,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 274 |
-| plans active | 34 |
-| tasks passed / total | 1295 / 1584 |
-| open boxes | 146 |
+| plans active | 33 |
+| tasks passed / total | 1296 / 1584 |
+| open boxes | 145 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -414,9 +414,9 @@ parent-goal-md5: 00000000000000000000000000000000]
   - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-17_host-crash-nemotron.md` — 1 open / 6 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-17_host-crash-nemotron.md` — 0 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "silent host death on nemotron-3-ultra-free h2 streaming request -> diagnosed cause with worker-death oracle and multi-word model picker match" · keywords []
-  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - no open box
 
 - `plans/2026-10-17_portable-binary-hermetic.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "portable install dir with exe-adjacent config -> hermetic binary that reads only exe-adjacent and data-root sources, never parent folders" · keywords []

@@ -694,7 +694,7 @@ export const layer = Layer.effect(
          * thing runs under the same per-repo semaphore as every other fossil call, and a failure is
          * logged, never thrown — a cell that cannot be written must not break the turn that tried.
          */
-        const cellPost = Effect.fnUntraced(function* (input: { sessionID: string; agent?: string; sign?: string }) {
+const cellPost = Effect.fnUntraced(function* (input: { sessionID: string; agent?: string; sign?: string }) {
           if (!(yield* enabled())) return
           const repoExists = yield* fs.exists(repoPath).pipe(Effect.catch(() => Effect.succeed(false)))
           if (!repoExists) {
@@ -706,6 +706,73 @@ export const layer = Layer.effect(
               Effect.catch((e) => {
                 log.warn("bug: cell post failed", { repoPath, sessionID: input.sessionID, error: String(e) })
                 return Effect.void
+              }),
+            ),
+          )
+        })
+
+        /**
+         * LOCAL TICKETS (plan 2026-10-15_local-ticket-write.md): the write route into
+         * THIS repo's ticket table, under the same per-repo semaphore as every other
+         * fossil call. ensureInit like track (a ticket write materializes the repo the
+         * same way a snapshot does); disabled/init failure is undefined/false, logged.
+         */
+        const ticketAdd = Effect.fnUntraced(function* (input: { title: string; comment?: string; status?: string }) {
+          return yield* locked(
+            Effect.gen(function* () {
+              if (!(yield* enabled())) return undefined
+              if (!(yield* ensureInit())) return undefined
+              const result = yield* fossil(Cell.ticketAddArgs(repoPath, input), { cwd: worktree })
+              if (result.code !== 0) {
+                log.warn("bug: snapshot ticket add failed", { repoPath, stderr: result.stderr || result.text })
+                return undefined
+              }
+              const uuid = Cell.parseTicketAddUuid(result.text)
+              if (!uuid) {
+                log.warn("bug: snapshot ticket add unparseable", { repoPath, stdout: result.text })
+                return undefined
+              }
+              return uuid
+            }).pipe(
+              Effect.catch((e) => {
+                log.warn("bug: snapshot ticket add failed", { repoPath, error: String(e) })
+                return Effect.succeed(undefined)
+              }),
+            ),
+          )
+        })
+
+        const ticketSet = Effect.fnUntraced(function* (input: {
+          uuid: string
+          title?: string
+          comment?: string
+          status?: string
+        }) {
+          return yield* locked(
+            Effect.gen(function* () {
+              if (!(yield* enabled())) return false
+              if (!(yield* ensureInit())) return false
+              const result = yield* fossil(
+                Cell.ticketSetArgs(repoPath, input.uuid, {
+                  title: input.title,
+                  comment: input.comment,
+                  status: input.status,
+                }),
+                { cwd: worktree },
+              )
+              if (result.code !== 0) {
+                log.warn("bug: snapshot ticket set failed", {
+                  repoPath,
+                  uuid: input.uuid.slice(0, 10),
+                  stderr: result.stderr || result.text,
+                })
+                return false
+              }
+              return true
+            }).pipe(
+              Effect.catch((e) => {
+                log.warn("bug: snapshot ticket set failed", { repoPath, error: String(e) })
+                return Effect.succeed(false)
               }),
             ),
           )
@@ -1195,6 +1262,8 @@ export const layer = Layer.effect(
           cleanup: () => Effect.void,
           track,
           cellPost,
+          ticketAdd,
+          ticketSet,
           opId,
           opRestore,
           checkpoint: opId,
@@ -1224,6 +1293,21 @@ export const layer = Layer.effect(
       }),
       cellPost: Effect.fn("SnapshotFossil.cellPost")(function* (input: { sessionID: string; agent?: string; sign?: string }) {
         return yield* InstanceState.useEffect(state, (s) => s.cellPost(input))
+      }),
+      ticketAdd: Effect.fn("SnapshotFossil.ticketAdd")(function* (input: {
+        title: string
+        comment?: string
+        status?: string
+      }) {
+        return yield* InstanceState.useEffect(state, (s) => s.ticketAdd(input))
+      }),
+      ticketSet: Effect.fn("SnapshotFossil.ticketSet")(function* (input: {
+        uuid: string
+        title?: string
+        comment?: string
+        status?: string
+      }) {
+        return yield* InstanceState.useEffect(state, (s) => s.ticketSet(input))
       }),
       checkpoint: Effect.fn("SnapshotFossil.checkpoint")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.opId())

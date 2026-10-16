@@ -111,7 +111,19 @@ export interface Interface {
    * per turn. Lives IN the snapshot repo (B1 verdict: the lifecycle never touches wiki/ticket events).
    * No-op when snapshot is disabled or the repo is absent; failures are logged, never thrown.
    */
-  readonly cellPost: (input: { sessionID: string; agent?: string; sign?: string }) => Effect.Effect<void>
+readonly cellPost: (input: { sessionID: string; agent?: string; sign?: string }) => Effect.Effect<void>
+  /**
+   * LOCAL TICKETS (plan 2026-10-15_local-ticket-write.md): add a ticket / set fields
+   * in THIS repo's ticket table, under the same per-repo semaphore. undefined/false
+   * when snapshot is disabled or the repo cannot be initialized — logged, never thrown.
+   */
+  readonly ticketAdd: (input: { title: string; comment?: string; status?: string }) => Effect.Effect<string | undefined>
+  readonly ticketSet: (input: {
+    uuid: string
+    title?: string
+    comment?: string
+    status?: string
+  }) => Effect.Effect<boolean>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Snapshot") {}

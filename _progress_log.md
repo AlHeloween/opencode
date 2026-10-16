@@ -7049,3 +7049,11 @@ RESIDUAL/NEXT: plan ACTIVE,8/8 inference budget consumed; continuation receipt a
 
 ✓ FINAL READBACK: renderer `20261016T010900Z_51ef39a3` exit0, gapsBefore=[]; план в `plans/`, P2/P5 остаются открытыми. Обнаруженный перед финализацией файл в `plans_completed/` возвращён: критерии не покрыты, архивирование не означает их выполнения. Причина перемещения данным раундом не установлена. Archive manifest:24 файлов, все byte hashes повторно совпали.
 <!-- sv: controlled-latency 0.40, payload-factorization 0.30, evidence-scope 0.20, continuation 0.10 -->
+
+## [2026-10-16] t62 — local tickets in the project cell: the write route (план plans/2026-10-15_local-ticket-write.md)
+
+✓ CONFIRMED (RED→GREEN, cmd_runner, one file per call): cell-ticket RED `20261016T010134Z_2d6bf838` exit 1 (`addTicket` missing) → GREEN `20261016T010756Z_68983209` 4/4; fossilcell-ticket RED `20261016T010200Z_d26e708d` exit 1 (`ownRepoPath` missing) → GREEN `20261016T010703Z_f152237a` 6/6; lock RED `20261016T010214Z_c416f66d` exit 1 (`ticketAdd` missing) → GREEN `20261016T010836Z_f102f64d` 1/1 (peak fossil in-flight == 1, ticketAdd + track concurrent).
+✓ CONFIRMED (regression): cell.test.ts `20261016T010924Z_d026a9d0` 4/4; fossilcell-federation `20261016T010939Z_5b2a8a98` 5/5; fossil-lock `20261016T010954Z_6db807a9` 1/1; description-integrity `20261016T011007Z_93a5f4d8` 5/5; bun typecheck `20261016T011037Z_88f2f84b` exit 0.
+✓ CONFIRMED (source diff, own paths only): cell.ts — TicketInput/TicketFields + ticketAddArgs/ticketSetArgs/parseTicketAddUuid + addTicket/setTicketFields (plain async, null/false never throw); snapshot/fossil.ts + index.ts — ticketAdd/ticketSet under the same lock(fossilDir); tool/fossilcell.ts + txt — ticketadd/ticketset verbs on the OWN repo (Instance.worktree/project.id), foreign project refused, service absent errors, never unlocked writes. Cross-project delegation stays in org.fossil.
+— Остаток: commit naming the plan; `_build.ps1` once via build lock + state.json.
+<!-- sv: local-tickets 0.35, ticket-write 0.25, per-repo-semaphore 0.20, own-cell-only 0.12, org-delegation-split 0.08 -->

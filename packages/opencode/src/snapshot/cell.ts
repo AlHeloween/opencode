@@ -198,3 +198,104 @@ export async function cellPost(fossilBin: string, repoPath: string, worktree: st
   await ensureWikiCard(fossilBin, repoPath, worktree)
   await postChatReport(fossilBin, repoPath, worktree, input)
 }
+
+export type TicketInput = {
+  title: string
+  comment?: string
+  status?: string
+}
+
+export type TicketFields = {
+  title?: string
+  comment?: string
+  status?: string
+}
+
+/**
+ * LOCAL TICKETS (plan 2026-10-15_local-ticket-write.md, owner 2026-10-15:
+ * «Локальные тикеты через fossil ticket add, делегирование в org»).
+ *
+ * The arg builders are the single home of the ticket CLI syntax
+ * (`external/fossil/fossil-src-2.28/src/tkt.c`): `fossil ticket add FIELD VALUE …`
+ * prints `ticket add succeeded for <uuid40>`; `fossil ticket set UUID FIELD VALUE …`
+ * resolves the uuid by prefix GLOB. The `-R` placement mirrors the measured wiki
+ * form (`wiki -R <repo> create …`). No `-U`: the repo default user applies, the same
+ * as the snapshot commit path. Returned without the binary so the snapshot service
+ * (spawner) and these plain fns (execFile) share one syntax.
+ */
+export function ticketAddArgs(repoPath: string, input: TicketInput): string[] {
+  const args = ["ticket", "-R", repoPath, "add", "title", input.title]
+  if (input.status) args.push("status", input.status)
+  if (input.comment) args.push("comment", input.comment)
+  return args
+}
+
+export function ticketSetArgs(repoPath: string, uuid: string, fields: TicketFields): string[] {
+  const args = ["ticket", "-R", repoPath, "set", uuid]
+  if (fields.title) args.push("title", fields.title)
+  if (fields.status) args.push("status", fields.status)
+  if (fields.comment) args.push("comment", fields.comment)
+  return args
+}
+
+/** The new ticket's uuid out of `ticket add` stdout; null when fossil said otherwise. */
+export function parseTicketAddUuid(stdout: string): string | null {
+  const match = stdout.match(/ticket add succeeded for ([0-9a-f]{40})/)
+  return match?.[1] ?? null
+}
+
+/**
+ * One local ticket in THIS repo's ticket table. Returns the full uuid, or null —
+ * a logged finding, never an exception, like every other cell writer.
+ */
+export async function addTicket(
+  fossilBin: string,
+  repoPath: string,
+  worktree: string,
+  input: TicketInput,
+): Promise<string | null> {
+  if (!input.title.trim()) {
+    log.warn("bug: cell ticket add refused — empty title", { repoPath })
+    return null
+  }
+  const r = await fossil([fossilBin, ...ticketAddArgs(repoPath, input)], worktree)
+  if (r.code !== 0) {
+    log.warn("bug: cell ticket add failed", { repoPath, stderr: r.stderr || r.stdout })
+    return null
+  }
+  const uuid = parseTicketAddUuid(r.stdout)
+  if (!uuid) {
+    log.warn("bug: cell ticket add unparseable", { repoPath, stdout: r.stdout })
+    return null
+  }
+  log.info("cell ticket added", { repoPath, uuid: uuid.slice(0, 10) })
+  return uuid
+}
+
+/**
+ * Set fields on a local ticket by uuid prefix. Unknown ticket or repo failure is
+ * false — a logged finding, never a throw.
+ */
+export async function setTicketFields(
+  fossilBin: string,
+  repoPath: string,
+  worktree: string,
+  uuid: string,
+  fields: TicketFields,
+): Promise<boolean> {
+  if (fields.title === undefined && fields.status === undefined && fields.comment === undefined) {
+    log.warn("bug: cell ticket set refused — no fields", { repoPath, uuid: uuid.slice(0, 10) })
+    return false
+  }
+  const r = await fossil([fossilBin, ...ticketSetArgs(repoPath, uuid, fields)], worktree)
+  if (r.code !== 0) {
+    log.warn("bug: cell ticket set failed", {
+      repoPath,
+      uuid: uuid.slice(0, 10),
+      stderr: r.stderr || r.stdout,
+    })
+    return false
+  }
+  log.info("cell ticket set", { repoPath, uuid: uuid.slice(0, 10) })
+  return true
+}

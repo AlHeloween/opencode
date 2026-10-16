@@ -1,4 +1,4 @@
-FossilCell — the read route into every project's LOCAL CELL (plan 2026-10-15_project-fossil-cell.md).
+FossilCell — the read route into every project's LOCAL CELL (plan 2026-10-15_project-fossil-cell.md) plus the write route into THIS project's own ticket table (plan 2026-10-15_local-ticket-write.md).
 
 Each project's snapshot repo (`{worktree}/.opencode/data/fossil/<id>/snapshot.fsl`) carries, beside
 the undo timeline: a wiki page `Project` (pointers to AGENTS.md/README/docs — one-copy rule), a CHAT
@@ -14,6 +14,8 @@ on its neighbours' state before inventing (REUSE.BEFORE across the syndicate).
 | `wiki` | the `Project` card of one or all projects | the pointers, never a restatement |
 | `chat` | the last 20 chat technotes per project | the syndicate's short turn reports |
 | `tickets` | the last 20 local tickets per project | local only — cross-project delegation lives in org.fossil |
+| `ticketadd` | — (writes THIS project's cell) | title required; comment/status optional; returns the new uuid |
+| `ticketset` | — (writes THIS project's cell) | uuid required; at least one of title/status/comment |
 
 `project` (optional) narrows to ONE project by its worktree dir name (e.g. `opencode`). Omit it to
 read ALL registered projects.
@@ -26,6 +28,10 @@ read ALL registered projects.
   zero, never a silent skip.
 - The registry is fossil's own global config (`fossil all list`); a project not registered there is
   invisible to the federation by construction.
-- Writing to a cell is NOT this tool's job: the runtime posts chat reports automatically at the
-  turn-end boundary; tickets are created via `fossil ticket add -R <repo>` (constitution: no fossil
-  CLI mutate paths without need).
+- Chat writes are NOT this tool's job: the runtime posts chat reports automatically at the
+  turn-end boundary. Ticket writes ARE: `ticketadd`/`ticketset` go through the Snapshot
+  service under the same per-repo semaphore as every snapshot write, into THIS project's
+  own repo only — a `project` naming any other project is refused. Cross-project
+  delegation stays in org.fossil (`org.py delegate`); writing another project's cell is
+  refused, and without the Snapshot service in scope the write errors rather than
+  running unlocked.

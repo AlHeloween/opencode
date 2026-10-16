@@ -18,7 +18,13 @@ Owner, verbatim: «запуск _build.ps1 после тестов и измен
   50.2 GB / 4.07 M files of 62.7 GB stayed (measured): the old block was `Remove-Item -ErrorAction SilentlyContinue`
   plus an unconditional «cleaned». Now `Clear-ScratchDir` removes entry by entry and names every survivor with its
   reason (fixture: 3 entries, one locked → 2 removed, the locked one named; the old block said «cleaned» over it).
-  A `[WARN] … still in use` line is not noise: a live process holds that test dir.
+   A `[WARN] … still in use` line is not noise: a live process holds that test dir.
+- **The cleanup skips live test dirs since t74 (2026-10-16).** `Clear-ScratchDir` delegates to
+  `scripts/test-scratch.ps1`: a dir with a sibling `<dir>.owner.json` naming a live pid, a
+  `opencode-test-data-<live pid>` per-process dir, or an entry younger than 60 min is left in place
+  (`[SKIP]`, not `[WARN]`); dead/old entries go exactly as before. The marker sits NEXT TO the dir,
+  never inside it — inside would break the git-porcelain-clean fixture test and the ripgrep exact file
+  listings. The 80 GB rule stands: the mass is hours/days old, the 60 min threshold never spares it.
 - **Where the mass comes from (✓ measured 2026-10-03):** every test dir under `.temp\test\` carries its own
   `.opencode\node_modules` (24–26 MB, ~2.5 k files: zod, effect, @ai-sdk…) and is not removed when the test ends —
   1 731 dirs from one day ≈ 43 GB. The build only sweeps it; the leak is in the test harness and is open.

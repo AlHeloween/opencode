@@ -16,6 +16,7 @@ $Root = $PSScriptRoot
 $DistDir = Join-Path $Root "dist"
 $OpencodePkg = Join-Path (Join-Path $Root "packages") "opencode"
 . (Join-Path $Root "scripts\build-lock.ps1")
+. (Join-Path $Root "scripts\test-scratch.ps1")
 
 # ── Prerequisites (run separately before build) ──
 #   python -m prompt_kernel --install  # kernel assembly (optional)
@@ -67,22 +68,10 @@ function Get-Version {
 # report, so each failure is now caught per entry and named; a survivor is never reported as cleaned.
 function Clear-ScratchDir {
     param([string] $Path, [string] $Label)
-    if (-not (Test-Path -LiteralPath $Path)) { return }
-    Write-Host "  Cleaning $Label..." -ForegroundColor Yellow
-    $failed = @()
-    foreach ($entry in Get-ChildItem -LiteralPath $Path -Force) {
-        try {
-            Remove-Item -LiteralPath $entry.FullName -Recurse -Force -ErrorAction Stop
-        } catch {
-            $failed += "$($entry.Name): $($_.Exception.Message)"
-        }
-    }
-    if ($failed.Count -eq 0) {
-        Write-Success "$Label cleaned"
-        return
-    }
-    Write-Host "  [WARN] $Label - $($failed.Count) entries still in use, left in place:" -ForegroundColor Yellow
-    $failed | Select-Object -First 10 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+    # t74: liveness-aware — a live test dir (sibling .owner.json with a live pid,
+    # opencode-test-data-<live pid>, or younger than 60 min) is skipped, never deleted.
+    # Dead/old entries are removed exactly as before (the 80 GB rule stands).
+    Clear-TestScratch -Path $Path -Label $Label -ProtectMinutes 60
 }
 
 # ═══════════════════════════════════════════════════════════

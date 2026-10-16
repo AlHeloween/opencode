@@ -39,6 +39,24 @@ function clean(dir: string) {
   })
 }
 
+// t74: sibling owner marker so _build.ps1's scratch cleanup can tell a live test
+// dir from sweep litter. NEXT TO the dir (`<dir>.owner.json`), never inside it: an
+// inside marker breaks the git-porcelain-clean fixture test (test/git/git.test.ts)
+// and the ripgrep exact file listings (test/file/ripgrep.test.ts). Removed on
+// dispose; orphans (crashed runs) are swept by scripts/test-scratch.ps1 itself.
+const OWNER_SUFFIX = ".owner.json"
+
+async function writeOwnerMarker(dirpath: string) {
+  await fs.writeFile(
+    dirpath + OWNER_SUFFIX,
+    JSON.stringify({ pid: process.pid, started: new Date().toISOString() }),
+  )
+}
+
+function removeOwnerMarker(dirpath: string) {
+  return fs.rm(dirpath + OWNER_SUFFIX, { force: true }).catch(() => undefined)
+}
+
 async function stop(dir: string) {
   if (!(await exists(dir))) return
   await $`git fsmonitor--daemon stop`.cwd(dir).quiet().nothrow()
@@ -71,6 +89,7 @@ export async function tmpdir<T>(options?: TmpDirOptions<T>) {
     )
   }
   const realpath = sanitizePath(await fs.realpath(dirpath))
+  await writeOwnerMarker(realpath)
   const extra = await options?.init?.(realpath)
   const result = {
     [Symbol.asyncDispose]: async () => {
@@ -79,6 +98,7 @@ export async function tmpdir<T>(options?: TmpDirOptions<T>) {
       } finally {
         if (options?.git) await stop(realpath).catch(() => undefined)
         await clean(realpath).catch(() => undefined)
+        await removeOwnerMarker(realpath)
       }
     },
     path: realpath,
@@ -94,11 +114,13 @@ export function tmpdirScoped(options?: { git?: boolean; config?: Partial<Config.
     const dirpath = sanitizePath(path.join(TEST_TEMP, "opencode-test-" + Math.random().toString(36).slice(2)))
     yield* Effect.promise(() => fs.mkdir(dirpath, { recursive: true }))
     const dir = sanitizePath(yield* Effect.promise(() => fs.realpath(dirpath)))
+    yield* Effect.promise(() => writeOwnerMarker(dir))
 
     yield* Effect.addFinalizer(() =>
       Effect.promise(async () => {
         if (options?.git) await stop(dir).catch(() => undefined)
         await clean(dir).catch(() => undefined)
+        await removeOwnerMarker(dir)
         // Effect's test reporting can emit after this scope closes. Do not
         // leave the process-global logger pointed at the removed worktree.
         Global.initFromWorktree(TEST_TEMP)

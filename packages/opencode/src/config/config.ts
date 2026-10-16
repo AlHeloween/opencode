@@ -663,6 +663,9 @@ export const layer = Layer.effect(
           "bun.lock",
           ".gitignore",
         ]
+        // t73: recreate the dir first — a scratch config dir wiped from under us
+        // (shared .temp/test cleaner) must not DIE the boot.
+        yield* fs.ensureDir(dir)
         yield* fs
           .writeFileString(gitignore, block.join("\n") + "\n")
           .pipe(

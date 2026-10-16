@@ -172,6 +172,12 @@ export function provideTmpdirInstance<A, E, R>(
     }),
   )
 }
+/** Plain-async form of the boot lock `provideTmpdirInstance` takes: serialize raw
+ * `tmpdir` + `Instance.provide` sections of tests that cannot use the Effect helper
+ * (t73: llm.test.ts boots without it while live cases must not overlap). */
+export function withTmpdirInstanceLock<T>(fn: () => Promise<T>): Promise<T> {
+  return Effect.runPromise(tmpdirInstanceLock.withPermits(1)(Effect.promise(fn)))
+}
 
 export function provideTmpdirServer<A, E, R>(
   self: (input: { dir: string; llm: TestLLMServer["Service"] }) => Effect.Effect<A, E, R>,

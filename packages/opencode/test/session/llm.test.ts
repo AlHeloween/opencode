@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test"
+import { afterAll, beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import path from "path"
 import { tool, type ModelMessage } from "ai"
 import { Cause, Effect, Exit, Stream } from "effect"
@@ -11,7 +11,8 @@ import { ProviderTransform } from "@/provider/transform"
 import { ModelsDev } from "@/provider/models"
 import { ProviderID, ModelID } from "../../src/provider/schema"
 import { Filesystem } from "@/util/filesystem"
-import { tmpdir } from "../fixture/fixture"
+import { tmpdir, withTmpdirInstanceLock } from "../fixture/fixture"
+import { Database } from "../../src/storage/db"
 import type { Agent } from "../../src/agent/agent"
 import { MessageV2 } from "../../src/session/message-v2"
 import { sealUserText } from "../../src/session/user-seal"
@@ -30,6 +31,32 @@ async function getModel(providerID: ProviderID, modelID: ModelID) {
 }
 
 const llm = makeRuntime(LLM.Service, LLM.defaultLayer)
+
+// t73: bun's 5 s default turns a loaded machine into a red that says nothing about
+// the code — the heavy tests below already declare 30 s each; the file takes a 60 s
+// ceiling instead of per-test whack-a-mole (measured: 121 s wall under 6x contention).
+setDefaultTimeout(60_000)
+
+// t73: every Instance boot owns a tmpdir that `await using` deletes at scope exit.
+// Dispose the instance AND close its project DB inside the callback — before the
+// directory is gone — serialized on the fixture's own boot lock, or live cases
+// overlap on process-global paths with open clients against removed trees.
+async function withDisposedInstance<T>(directory: string, fn: () => Promise<T>): Promise<T> {
+  return await withTmpdirInstanceLock(() =>
+    Instance.provide({
+      directory,
+      fn: async () => {
+        try {
+          return await fn()
+        } finally {
+          const worktree = Instance.worktree
+          await Instance.dispose()
+          Database.closeWorktreeDb(worktree)
+        }
+      },
+    }),
+  )
+}
 
 async function drain(input: LLM.StreamInput) {
   return llm.runPromise((svc) => svc.stream(input).pipe(Stream.runDrain))
@@ -458,9 +485,7 @@ describe("session.llm owned provider headers on the SDK wire", () => {
         }))
       },
     })
-    return Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    return withDisposedInstance(tmp.path, async () => {
         // Bind the provider using the enclosing suite's registry fixture, then
         // supply the stream model explicitly: this oracle measures headers, not catalog discovery.
         const fixtureID = model.providerID === "opencode-go" ? "glm-5"
@@ -494,8 +519,8 @@ describe("session.llm owned provider headers on the SDK wire", () => {
         expect(capture.body.model).toBe(model.modelID)
         expect(capture.url.pathname).toBe(native ? "/v1/responses" : "/v1/chat/completions")
         return { capture, sessionID, userID: user.id, projectID }
-      },
-    })
+      }
+    )
   }
 
   // Reference: external/opencode-1.19.0/packages/opencode/src/session/llm/request.ts:187-205.
@@ -582,9 +607,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.make(providerID), ModelID.make(model.id))
         const sessionID = SessionID.make("session-test-1")
         const agent = {
@@ -658,8 +681,8 @@ describe("session.llm.stream", () => {
 
         const reasoning = (body.reasoningEffort as string | undefined) ?? (body.reasoning_effort as string | undefined)
         expect(reasoning).toBe("high")
-      },
-    })
+      }
+    )
   }, 30_000)
 
   test("uses a subagent cache lease as the OpenRouter sequence identity", async () => {
@@ -699,9 +722,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.make(providerID), ModelID.make(fixture.model.id))
         const sessionID = SessionID.make("session-openrouter-physical-child")
         const providerCacheKey = "session-parent:general:openrouter:openai/gpt-5.2-codex:task-1"
@@ -744,8 +765,8 @@ describe("session.llm.stream", () => {
         expect(capture.body.prompt_cache_key).toBe(expectedCacheKey)
         expect(JSON.stringify(capture.body.messages)).toContain(`[session: ${expectedCacheKey}]`)
         expect(capture.body.session_id).not.toBe(sessionID)
-      },
-    })
+      }
+    )
   }, 30_000)
 
   test("caps max_tokens for qwen-like output equal to context metadata", async () => {
@@ -787,9 +808,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.make(providerID), ModelID.make(model.id))
         resolved.limit.output = resolved.limit.context
         const sessionID = SessionID.make("session-test-qwen-cap")
@@ -828,8 +847,8 @@ describe("session.llm.stream", () => {
         expect(resolved.limit.output).toBe(resolved.limit.context)
         expect(maxTokens).toBeGreaterThan(0)
         expect(maxTokens).toBeLessThan(resolved.limit.context)
-      },
-    })
+      }
+    )
   })
 
   test("service stream cancellation cancels provider response body promptly", async () => {
@@ -862,9 +881,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.make(providerID), ModelID.make(model.id))
         const sessionID = SessionID.make("session-test-service-abort")
         const agent = {
@@ -909,8 +926,8 @@ describe("session.llm.stream", () => {
           expect(Cause.hasInterrupts(exit.cause)).toBe(true)
         }
         await Promise.race([pending.requestAborted, timeout(500)]).catch(() => undefined)
-      },
-    })
+      }
+    )
   })
 
   test("keeps tools enabled by prompt permissions", async () => {
@@ -952,9 +969,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.make(providerID), ModelID.make(model.id))
         const sessionID = SessionID.make("session-test-tools")
         const agent = {
@@ -994,8 +1009,8 @@ describe("session.llm.stream", () => {
         const capture = await request
         const tools = capture.body.tools as Array<{ function?: { name?: string } }> | undefined
         expect(tools?.some((item) => item.function?.name === "question")).toBe(true)
-      },
-    })
+      }
+    )
   })
 
   test("sends responses API payload for OpenAI models", async () => {
@@ -1066,9 +1081,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.openai, ModelID.make(model.id))
         const sessionID = SessionID.make("session-test-2")
         const agent = {
@@ -1108,8 +1121,8 @@ describe("session.llm.stream", () => {
 
         const maxTokens = body.max_output_tokens as number | undefined
         expect(maxTokens).toBe(undefined) // match codex cli behavior
-      },
-    })
+      }
+    )
   })
 
   test("accepts user image attachments as data URLs for OpenAI models", async () => {
@@ -1182,9 +1195,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.openai, ModelID.make(model.id))
         const sessionID = SessionID.make("session-test-data-url")
         const agent = {
@@ -1228,8 +1239,8 @@ describe("session.llm.stream", () => {
 
         const capture = await request
         expect(capture.url.pathname.endsWith("/responses")).toBe(true)
-      },
-    })
+      }
+    )
   })
 
   test("sends messages API payload for Anthropic Compatible models", async () => {
@@ -1301,9 +1312,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.make(providerID), ModelID.make(model.id))
         const sessionID = SessionID.make("session-test-3")
         const agent = {
@@ -1345,8 +1354,8 @@ describe("session.llm.stream", () => {
         expect(body.max_tokens).toBeLessThanOrEqual(resolved.limit.output)
         expect(body.temperature).toBe(0.4)
         expect(body.top_p).toBe(0.9)
-      },
-    })
+      }
+    )
   })
 
   test("sends anthropic tool_use blocks with tool_result immediately after them", async () => {
@@ -1422,9 +1431,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.make("anthropic"), ModelID.make(model.id))
         const sessionID = SessionID.make("session-test-anthropic-tools")
         const agent = {
@@ -1617,8 +1624,8 @@ describe("session.llm.stream", () => {
             ],
           },
         ])
-      },
-    })
+      }
+    )
   })
 
   test("sends Google API payload for Gemini models", async () => {
@@ -1672,9 +1679,7 @@ describe("session.llm.stream", () => {
       },
     })
 
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
+    await withDisposedInstance(tmp.path, async () => {
         const resolved = await getModel(ProviderID.make(providerID), ModelID.make(model.id))
         const sessionID = SessionID.make("session-test-4")
         const agent = {
@@ -1718,7 +1723,7 @@ describe("session.llm.stream", () => {
         expect(config?.topP).toBe(0.8)
         expect(config?.maxOutputTokens).toBeGreaterThan(0)
         expect(config?.maxOutputTokens).toBeLessThanOrEqual(resolved.limit.output)
-      },
-    })
+      }
+    )
   })
 })

@@ -62,7 +62,9 @@ function createAndInitDb(dbPath: string): DrizzleClient {
   const dir = path.dirname(dbPath)
   if (!existsSync(dir)) startupStage(dbPath, "create-directory", () => mkdirSync(dir, { recursive: true }))
 
-  const db = startupStage(dbPath, "open-client", () => init(dbPath) as DrizzleClient)
+  // t73: the open races an external deleter (a concurrent cleaner wiping the scratch
+  // tree between our mkdir and sqlite's open) and transient file locks — retry boundedly.
+  const db = startupStage(dbPath, "open-client", () => withCantOpenRetry(dbPath, () => init(dbPath) as DrizzleClient))
 
   // Must precede journal_mode: switching to WAL may need an exclusive lock.
   // Without this bound a locked portable DB can make startup appear frozen.
@@ -353,6 +355,27 @@ export function closeProjectDb(projectID: ProjectID) {
   // Keep this method for API compatibility but it's now a no-op
   // since the unified cache is shared by dbPath, not projectID.
 }
+/** Checkpoint, close and evict the cached client for ONE worktree's database.
+ * t73: `Instance.dispose` evicts the instance entry but leaves this cache open —
+ * a tmpdir deleted with its client still cached leaks the handle, and any late
+ * open against the removed tree fails. Returns true when an entry was closed. */
+export function closeWorktreeDb(worktree: string): boolean {
+  const dbPath = getProjectDbPath(worktree)
+  const db = pathClientCache.get(dbPath)
+  if (!db) return false
+  try {
+    db.run("PRAGMA wal_checkpoint(TRUNCATE)")
+  } catch (err) {
+    log.warn("failed to checkpoint DB client before close", { dbPath, error: err })
+  }
+  try {
+    db.$client.close()
+  } catch (err) {
+    log.warn("failed to close DB client", { dbPath, error: err })
+  }
+  pathClientCache.delete(dbPath)
+  return true
+}
 
 export function close() {
   for (const [dbPath, db] of pathClientCache) {
@@ -456,6 +479,39 @@ function isBusy(err: unknown): boolean {
     return (err as Error & { errno: number }).errno === 5
   }
   return false
+}
+
+/** Check if an error is SQLITE_CANTOPEN (errno 14) — the directory vanished or a
+ * transient lock blocks the open. Measured t73: a concurrent scratch-tree cleaner
+ * deletes the just-created dir under load (projectUse → CANTOPEN stack). */
+function isCantOpen(err: unknown): boolean {
+  if (err instanceof Error) {
+    const code = (err as Error & { code?: unknown }).code
+    if (code === "SQLITE_CANTOPEN") return true
+    if ("errno" in err && (err as Error & { errno?: unknown }).errno === 14) return true
+  }
+  return false
+}
+
+
+/** Retry a callback on SQLITE_CANTOPEN with re-mkdir + backoff. Genuine failures
+ * rethrow identically after the budget; a wiped scratch dir self-heals via mkdir. */
+function withCantOpenRetry<T>(dbPath: string, fn: () => T): T {
+  const delays = [50, 100, 200, 400, 800]
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return fn()
+    } catch (err) {
+      if (!isCantOpen(err) || attempt >= delays.length) throw err
+      log.debug("db cantopen, retrying", { dbPath, attempt: attempt + 1 })
+      try {
+        mkdirSync(path.dirname(dbPath), { recursive: true })
+      } catch {
+        // the retry below rethrows a genuine failure identically
+      }
+      Bun.sleepSync(delays[attempt])
+    }
+  }
 }
 
 /** Retry a callback on SQLITE_BUSY with backoff. Max 3 retries over ~7 seconds. */

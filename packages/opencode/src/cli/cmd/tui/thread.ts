@@ -172,15 +172,6 @@ export const TuiThreadCommand = cmd({
       const worker = new Worker(file, {
         env,
       })
-      worker.onerror = (e) => {
-        Log.Default.error("thread error", {
-          message: e.message,
-          filename: e.filename,
-          lineno: e.lineno,
-          colno: e.colno,
-          error: e.error,
-        })
-      }
 
       // Native handle census heartbeat: `handles.zig` is one 65_535-slot table
       // shared by every object kind, and create* failures name only the kind
@@ -191,6 +182,20 @@ export const TuiThreadCommand = cmd({
       }, 120_000).unref()
 
       const client = Rpc.client<typeof rpc>(worker)
+      // t77: a worker error means the transport is dying or dead — fail every
+      // pending RPC with its cause NOW (`server died: <cause>`) instead of
+      // leaving each call silent to its own 30 s timeout, which is all the
+      // owner saw on the nemotron death (`RPC call timed out after 30000ms`).
+      worker.onerror = (e) => {
+        Log.Default.error("thread error", {
+          message: e.message,
+          filename: e.filename,
+          lineno: e.lineno,
+          colno: e.colno,
+          error: e.error,
+        })
+        client.workerDown(e.error ?? e.message)
+      }
       const error = (e: unknown) => {
         Log.Default.error("process error", { error: errorMessage(e) })
       }

@@ -139,4 +139,44 @@ describe("util.rpc", () => {
     expect(error).toBeInstanceOf(Error)
     expect(error!.message).toContain("upstream unreachable")
   })
+  /**
+   * 2026-10-17 (t77) worker-death oracle: when the TUI worker dies, every
+   * pending `fetch` sat silent until its own 30 s timeout and the user saw only
+   * `RPC call timed out after 30000ms: fetch` — never the cause. `workerDown`
+   * rejects every pending call at once with `server died: <cause>` and makes
+   * later calls fail fast instead of hanging to their own timeout.
+   * RED: `workerDown` does not exist yet.
+   */
+  test("workerDown rejects pending calls with server died and the cause", async () => {
+    const worker = fakeWorker()
+    const client = Rpc.client<{ fetch: (input: object) => object }>(worker as any)
+
+    const promise = client.call("fetch", {}, { timeoutMs: 30_000 })
+    ;(client as any).workerDown(new Error("exit 1"))
+
+    const error = await promise.then(
+      () => undefined,
+      (e) => e as Error,
+    )
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error!.message).toContain("server died")
+    expect(error!.message).toContain("exit 1")
+  })
+
+  test("calls made after workerDown fail fast with server died", async () => {
+    const worker = fakeWorker()
+    const client = Rpc.client<{ fetch: (input: object) => object }>(worker as any)
+    ;(client as any).workerDown("boom")
+
+    const start = Date.now()
+    const error = await client.call("fetch", {}, { timeoutMs: 30_000 }).then(
+      () => undefined,
+      (e) => e as Error,
+    )
+
+    expect(Date.now() - start).toBeLessThan(1_000)
+    expect(error).toBeInstanceOf(Error)
+    expect(error!.message).toContain("server died")
+  })
 })

@@ -40,9 +40,14 @@ export function client<T extends Definition>(target: {
   postMessage: (data: string) => void | null
   onmessage: ((this: Worker, ev: MessageEvent<any>) => any) | null
 }) {
-  const pending = new Map<number, { resolve: (result: any) => void; reject: (error: Error) => void }>()
+  const pending = new Map<number, { resolve: (result: any) => void; reject: (error: Error) => void; timer?: ReturnType<typeof setTimeout> }>()
   const listeners = new Map<string, Set<(data: any) => void>>()
   let id = 0
+  // t77 worker-death oracle: once the worker is known dead, pending calls must
+  // fail with its cause — not sit silent to their own 30 s timeout — and later
+  // calls must fail fast. First cause wins; a dead worker never recovers.
+  let downCause: string | null = null
+  const downError = () => new Error(`server died: ${downCause}`)
   target.onmessage = async (evt) => {
     let parsed: any
     try {
@@ -81,6 +86,7 @@ export function client<T extends Definition>(target: {
       options?: { timeoutMs?: number },
     ): Promise<ReturnType<T[Method]>> {
       const requestId = id++
+      if (downCause !== null) return Promise.reject(downError())
       return new Promise((resolve, reject) => {
         const timeoutMs = options?.timeoutMs
         if (timeoutMs === undefined) {
@@ -92,6 +98,7 @@ export function client<T extends Definition>(target: {
           }, timeoutMs)
           timer.unref?.()
           pending.set(requestId, {
+            timer,
             resolve: (result) => {
               clearTimeout(timer)
               resolve(result)
@@ -114,6 +121,18 @@ export function client<T extends Definition>(target: {
       handlers.add(handler)
       return () => {
         handlers!.delete(handler)
+      }
+    },
+    // t77: the worker died (thread.ts `worker.onerror`). Reject everything
+    // pending with the cause and fail fast afterwards — a dead worker never
+    // replies, so waiting for each call's own timeout only repeats the silence.
+    workerDown(cause: unknown) {
+      if (downCause !== null) return
+      downCause = cause instanceof Error ? cause.message : String(cause)
+      for (const [requestId, entry] of pending) {
+        if (entry.timer) clearTimeout(entry.timer)
+        pending.delete(requestId)
+        entry.reject(downError())
       }
     },
   }

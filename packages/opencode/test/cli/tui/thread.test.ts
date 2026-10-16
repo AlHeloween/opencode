@@ -13,9 +13,10 @@ import { TuiConfig } from "../../../src/cli/cmd/tui/config/tui"
 const stop = new Error("stop")
 const seen = {
   tui: [] as string[],
+  workers: [] as unknown[],
 }
 
-function setup() {
+function setup(client?: { workerDown: (cause: unknown) => void }) {
   // Intentionally avoid mock.module() here: Bun keeps module overrides in cache
   // and mock.restore() does not reset mock.module values. If this switches back
   // to module mocks, later suites can see mocked @/config/tui and fail (e.g.
@@ -28,6 +29,7 @@ function setup() {
   spyOn(Rpc, "client").mockImplementation(() => ({
     call: async () => ({ url: "http://127.0.0.1" }) as never,
     on: () => () => {},
+    workerDown: client?.workerDown ?? (() => {}),
   }))
   spyOn(UI, "error").mockImplementation(() => {})
   spyOn(Timeout, "withTimeout").mockImplementation((input) => input)
@@ -69,8 +71,8 @@ describe("tui thread", () => {
     return TuiThreadCommand.handler(args)
   }
 
-  async function check(project?: string) {
-    setup()
+  async function check(project?: string, client?: { workerDown: (cause: unknown) => void }) {
+    setup(client)
     await using tmp = await tmpdir({ git: true })
     const cwd = process.cwd()
     const pwd = process.env.PWD
@@ -87,6 +89,10 @@ describe("tui thread", () => {
     })
     globalThis.Worker = class extends EventTarget {
       onerror = null
+      constructor() {
+        super()
+        seen.workers.push(this)
+      }
       onmessage = null
       onmessageerror = null
       postMessage() {}
@@ -115,5 +121,18 @@ describe("tui thread", () => {
 
   test("uses the real cwd after resolving a relative project from PWD", async () => {
     await check(".")
+  })
+
+  test("a worker error fails RPC with server died and its cause (t77)", async () => {
+    const downs: unknown[] = []
+    await check(undefined, {
+      workerDown: (cause) => {
+        downs.push(cause)
+      },
+    })
+    const worker = seen.workers.at(-1) as unknown as { onerror: ((e: never) => void) | null }
+    const cause = new Error("exit 1")
+    worker.onerror!({ message: "exit 1", error: cause } as never)
+    expect(downs).toEqual([cause])
   })
 })

@@ -135,10 +135,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 267 |
-| plans active | 31 |
-| tasks passed / total | 1249 / 1535 |
-| open boxes | 143 |
+| plans completed | 268 |
+| plans active | 33 |
+| tasks passed / total | 1257 / 1547 |
+| open boxes | 147 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -365,6 +365,10 @@ prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000]
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-16_aicall-router-cost.md` — 1 open / 3 box(es) · lifecycle UNKNOWN
+  sv: intention "aicall calling a router as free -> aicall never silently calls a router" · keywords [Keywords: aicall-router 0.35, cost-unknown 0.25, chain-fallback 0.20, paid-refusal 0.12, free-first 0.08; Semantic dominant: Stop aicall from ever billing a router as free.]
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-16_haiku-omp-controlled-latency.md` — 2 open / 5 box(es) · lifecycle UNKNOWN
   sv: intention "Haiku в OpenCode даёт длительные паузы, в omp с загруженным kernel пользователь наблюдает быстрый ответ -> воспроизводимое сравнение actual запросов и изолированных факторов, с установленной областью причинного вывода и непокрытым остатком" · keywords [controlled-latency, wire-equivalence, protocol-grounding, causal-boundaries]
   - P2 [PENDING] · sv [actual-wire, payload-diff, source-provenance] · manifest: MISSING — nobody has written down what this box is
@@ -378,7 +382,7 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 - `plans/2026-10-16_model-chain-failover.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
   sv: intention "blind retry loops on dead models with human failover -> explicit ordered model chain per agent/scope with automatic classified failover and 10-minute health checks" · keywords [model-chain, failover-classification, health-probe, assignment]
-  - C3b [PENDING] · sv [inrequest-failover 0.50, visible-note 0.30, partial-kept 0.20] · manifest: MISSING — nobody has written down what this box is
+  - C3b [PENDING] · sv [inrequest-failover 0.50, visible-note 0.30, partial-kept 0.20] · manifest: Walk the session chain inside one request with first-token abort and a visible note. · eta 2 · doing
   - C1 [PENDING] · sv [chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25] · manifest: Persist the explicit model chain per agent and scope in LMDB through the TUI server path with fill-once semantics. · eta 3 · doing
   - C2 [PENDING] · sv [error-classification 0.50, reuse-existing 0.30, measured-threshold 0.20] · manifest: MISSING — nobody has written down what this box is
   - C3 [PENDING] · sv [failover-execution 0.45, visible-note 0.30, no-invention 0.25] · manifest: MISSING — nobody has written down what this box is
@@ -398,14 +402,24 @@ parent-goal-md5: 00000000000000000000000000000000]
   - T8 [PENDING] · sv [independent-oracle 0.40, clean-state 0.35, documentation 0.25] · manifest: MISSING — nobody has written down what this box is
   - T9 [PENDING] · sv [http3-quic 0.45, client-network-qualification 0.35, fallback-evidence 0.20] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_self-edit-directive.md` — 3 open / 11 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-16_self-edit-directive.md` — 1 open / 11 box(es) · lifecycle UNKNOWN
   sv: intention "agent sees its own previous-message error and cannot remove it, window copies it forward by attention -> agent emits bounded self-edit directive (cut ranges + errata) addressed by message md5, stored original untouched, replay narrowed; error stopped at next step" · keywords [self-edit-directive, reasoning-hygiene, error-recurrence, fault-tolerance, keep-machinery]
-  - P1b [PENDING] · sv [product-switch 0.45, replay-path 0.35, rollback-proof 0.20] · manifest: Self-edit directive in product behind an OFF switch with byte rollback. · eta 3 · doing
-  - P1c [PENDING] · sv [refusal-visible 0.45, rollback-bytes 0.35, no-residue 0.20] · manifest: MISSING — nobody has written down what this box is
   - P2 [PENDING] · sv [robot-runs 0.45, error-recurrence 0.35, owner-decision 0.20] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-16_zoekt-scip-fossil-sv.md` — 5 open / 5 box(es) · lifecycle UNKNOWN
+  sv: intention "CodeGraph остаётся обязательной зависимостью поиска и impact -> локальная навигация по коду через Zoekt/SCIP, связанная с Fossil diff и SV, с проверенной заменой потребителей CodeGraph" · keywords [Keywords: fossil-diff 0.30, zoekt-search 0.25, scip-navigation 0.20, sv-provenance 0.15, codegraph-migration 0.10
+Semantic dominant: Поиск и навигация получают проверяемые адреса версий Fossil и SV до замены потребителей CodeGraph.
+md5: e8a16f092bce49a5b9f4130dd7c26e84
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000]
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 33 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 35 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

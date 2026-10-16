@@ -40,7 +40,6 @@ CREATE TABLE ticket(
   idempotency_key TEXT,
   failure_code TEXT,
   title TEXT,
-  slug TEXT,
   comment TEXT
 );
 CREATE TABLE ticketchng(

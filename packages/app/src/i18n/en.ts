@@ -677,6 +677,9 @@ export const dict = {
   "sidebar.empty.title": "No projects open",
   "sidebar.activeSessions.title": "Active Sessions",
   "sidebar.activeSessions.none": "none active",
+  "dialog.model.scope.session": "Session",
+  "dialog.model.scope.global": "Global",
+  "dialog.model.scope.globalSaved": "Global config updated",
   "sidebar.empty.description": "Open a project to get started",
 
   "debugBar.ariaLabel": "Development performance diagnostics",

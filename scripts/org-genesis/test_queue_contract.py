@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import sqlite3
 import subprocess
@@ -124,14 +123,9 @@ def fossil_set(uuid: str, **fields: str) -> None:
     assert out.returncode == 0, out.stderr
 
 
-def slugify(title: str) -> str:
-    """Deterministic kebab slug for a test title (titles are unique per fixture)."""
-    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "task"
-
-
 def delegate(title: str, assignee: str = W1, worktree: str | None = None,
              session: str | None = None, no_wake: bool = True) -> str:
-    args = ["delegate", "--title", title, "--slug", slugify(title), "--assignee", assignee, "--user", BOSS]
+    args = ["delegate", "--title", title, "--assignee", assignee, "--user", BOSS]
     if no_wake:
         args.append("--no-wake")
     if session:

@@ -1,5 +1,5 @@
 import { Popover as Kobalte } from "@kobalte/core/popover"
-import { Component, ComponentProps, createMemo, JSX, Show, ValidComponent } from "solid-js"
+import { Component, ComponentProps, createMemo, For, JSX, Show, ValidComponent } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
@@ -12,6 +12,13 @@ import { List } from "@opencode-ai/ui/list"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { ModelTooltip } from "./model-tooltip"
 import { useLanguage } from "@/context/language"
+import { useParams } from "@solidjs/router"
+import { useGlobalSDK } from "@/context/global-sdk"
+import { useGlobalSync } from "@/context/global-sync"
+import { showToast } from "@opencode-ai/ui/toast"
+import { Persist, persisted } from "@/utils/persist"
+import { availableScopes, readScope, type WebModelScope } from "@/pages/session/model-scope"
+import { withGlobalAgentModel } from "@/pages/session/global-agent-model"
 
 const isFree = (provider: string, cost: { input: number } | undefined) =>
   provider === "opencode" && (!cost || cost.input === 0)
@@ -199,6 +206,69 @@ export function ModelSelectorPopover(props: {
 export const DialogSelectModel: Component<{ provider?: string; model?: ModelState }> = (props) => {
   const dialog = useDialog()
   const language = useLanguage()
+  const params = useParams()
+  const local = useLocal()
+  const globalSDK = useGlobalSDK()
+  const globalSync = useGlobalSync()
+  const [scopeStore, setScopeStore] = persisted(
+    Persist.global("dialog.model.scope", ["dialog.model.scope.v1"]),
+    createStore({ scope: "session" as WebModelScope }),
+  )
+  const scopes = createMemo(() => availableScopes(!!params.id))
+  const scope = createMemo<WebModelScope>(() => {
+    const stored = readScope(scopeStore.scope)
+    return (scopes() as readonly WebModelScope[]).includes(stored) ? stored : "global"
+  })
+  const setScope = (next: WebModelScope) => setScopeStore("scope", next)
+  const scopeLabel = (s: WebModelScope) =>
+    s === "session" ? language.t("dialog.model.scope.session") : language.t("dialog.model.scope.global")
+
+  /**
+   * Scoped write (t59 W4). Session reuses the local write; global goes
+   * through the SAME route the TUI uses (GET global.config → merge
+   * agent.<name>.model → global.config.update, then the open session follows
+   * the new value like the TUI carry (`setGlobalAgentSelection`). Worktree
+   * per-agent selection has no server route (TUI writes model.json by fs) —
+   * it is not offered here, never faked.
+   */
+  const base = () => props.model ?? local.model
+  const scopedModel = createMemo(
+    (): ModelState => {
+      const inner = base()
+      if (scope() !== "global") return inner
+      return { ...inner, set: (key) => void writeGlobal(key ?? undefined) }
+    },
+  )
+  const writeGlobal = async (key: { modelID: string; providerID: string } | undefined) => {
+    const agent = local.agent.current()?.name
+    if (!agent) {
+      showToast({ variant: "error", title: language.t("common.requestFailed"), description: "no agent" })
+      return
+    }
+    try {
+      const raw = (await globalSDK.client.global.config.get()) as unknown as { data?: Record<string, unknown> }
+      const current = { ...(((raw as { data?: object })?.data ?? raw) as Record<string, unknown>) }
+      const variant = local.model.variant.current() ?? null
+      await globalSync.updateConfig(
+        withGlobalAgentModel(
+          current,
+          agent,
+          { providerID: key?.providerID ?? "", modelID: key?.modelID ?? "" },
+          variant,
+        ) as never,
+      )
+      base().set(key ? { modelID: key.modelID, providerID: key.providerID } : undefined, { recent: true })
+      showToast({ variant: "success", title: language.t("dialog.model.scope.globalSaved") })
+    } catch (err) {
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: err instanceof Error ? err.message : String(err),
+      })
+      return
+    }
+    dialog.close()
+  }
 
   const provider = () => {
     void import("./dialog-select-provider").then((x) => {
@@ -221,7 +291,26 @@ export const DialogSelectModel: Component<{ provider?: string; model?: ModelStat
         </Button>
       }
     >
-      <ModelList provider={props.provider} model={props.model} onSelect={() => dialog.close()} />
+      <div class="flex items-center gap-1 px-3 pb-2" data-component="model-scope">
+        <For each={scopes()}>
+          {(s) => (
+            <Button
+              variant={scope() === s ? "secondary" : "ghost"}
+              class="h-7 text-13-regular"
+              onClick={() => setScope(s)}
+            >
+              {scopeLabel(s)}
+            </Button>
+          )}
+        </For>
+      </div>
+      <ModelList
+        provider={props.provider}
+        model={scopedModel()}
+        onSelect={() => {
+          if (scope() !== "global") dialog.close()
+        }}
+      />
       <Button variant="ghost" class="ml-3 mt-5 mb-6 text-text-base self-start" onClick={manage}>
         {language.t("dialog.model.manage")}
       </Button>

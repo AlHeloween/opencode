@@ -39,16 +39,6 @@ the owner's to create. The owner is the admin user. Escalations end with the own
 | timeline | reading what happened, in order | the source of truth (artifacts are) |
 | forum | a cross-project problem — a shared tool's defect, another lane's or another session's surface; one thread per problem, its owner named | this project's own backlog; chatter |
 
-## Ticket slugs — a human name beside the hex id
-
-Owner, 2026-10-14: «есть номера тикетов, а о чем они никому не известно».
-
-- `delegate` requires `--slug`: kebab-case (`[a-z0-9-]`, 1–64 chars, no leading/trailing hyphen, e.g. `--slug fix-login-retry`).
-- A slug is unique among OPEN tickets (`READY`/`WORKING`/`BLOCKED`/`DONE`); a duplicate is refused naming the ticket that holds it. `VERIFIED`/`CANCELLED` free the slug for reuse.
-- Every verb that takes a ticket accepts a slug or an id (`claim`, `heartbeat`, `report`, `done`, `escalate`, `verify`, `reject`, `cancel`, `delegate --parent/--root`).
-- `inbox` (text and `--json`) and the «Active tasks» report show slug + title; a ticket from before slugs prints slug «-» and stays readable.
-- A superseded ticket is cancelled with `cancel --successor <slug>`: the `failure_code` reads `superseded by <slug>: <code>`.
-
 ## Where a problem goes
 
 A problem is filed where its owner is, never parked in a project that does not own it:

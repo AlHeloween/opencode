@@ -8,7 +8,7 @@ REPLACE INTO config(name, value, mtime) VALUES
 DELETE FROM reportfmt WHERE title IN ('Active tasks', 'Delegation tree');
 INSERT INTO reportfmt(owner, title, mtime, cols, sqlcode) VALUES ('claude', 'Active tasks', strftime('%s','now'), '',
 'SELECT CASE agent_state WHEN ''WORKING'' THEN ''#d8f0d8'' WHEN ''BLOCKED'' THEN ''#f2dcdc'' WHEN ''READY'' THEN ''#f0f0c8'' ELSE ''#e8e8e8'' END AS ''bgcolor'',
-  substr(tkt_uuid,1,10) AS ''#'', agent_state AS ''state'', assigned_to AS ''agent'', slug AS ''slug'', title,
+  substr(tkt_uuid,1,10) AS ''#'', agent_state AS ''state'', assigned_to AS ''agent'', title,
   substr(parent_task,1,10) AS ''parent'', heartbeat_at AS ''heartbeat'', datetime(tkt_mtime) AS ''updated''
 FROM ticket WHERE agent_state IN (''READY'',''WORKING'',''BLOCKED'') ORDER BY tkt_mtime DESC');
 INSERT INTO reportfmt(owner, title, mtime, cols, sqlcode) VALUES ('claude', 'Delegation tree', strftime('%s','now'), '',

@@ -7165,3 +7165,10 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ W3 model-cell: bun test 20261016T042725Z_46a21dae exit 0 — 3/3. W3 vcs-cell: bun test 20261016T042818Z_9d0b0d83 exit 0 — 3/3. Typecheck packages/app 20261016T042912Z_d68b9150 exit 0.
 ✓ Дифф врезки — только мой (по 2 аддитивные строки в session-header.tsx и layout.tsx). План обновлён (W5: стенд с версией).
 <!-- sv: stand-copy 0.40, w3-green 0.35, receipts 0.25 -->
+## [2026-10-16] t59 — W4 scoped dialog slice session+global (Smit)
+
+✓ MEASURED (write shapes): session — web useLocal уже пишет; global — agent.<name>.model (+variant, null чистит) через GET global.config → merge → global.config.update, та же форма что TUI writeGlobalAgentField (local.tsx:626-658); worktree per-agent выбор — model.json через fs save(), серверного роута нет, не предложен и не сымитирован.
+✓ CONFIRMED (tests first): model-scope RED (модуля нет, прогон 20261016T043540Z_33a432e2) → GREEN 20261016T043632Z_2a103b88 4/4; global-agent-model GREEN 20261016T043650Z_9d7a7007 3/3 (model-строка, variant rides/null-clears, чужие агенты целы).
+✓ CONFIRMED (source diff, own paths): model-scope.ts + global-agent-model.ts (чистые), dialog-select-model.tsx — scope-переключатель Session/Global (персист, без сессии только Global), scopedModel-обёртка, global-ветка с carry в сессию как TUI setGlobalAgentSelection; en.ts +3 ключа (en — fallback-база). Поповер оставлен session-only (дописано в плане как follow-up).
+✓ CONFIRMED (regressions): typecheck 20261016T044319Z_7abb468d exit 0 (после фикса типов в тесте); i18n parity 20261016T044350Z_79926644 1 pass.
+<!-- sv: scoped-dialog 0.40, same-global-route 0.35, red-green 0.25 -->

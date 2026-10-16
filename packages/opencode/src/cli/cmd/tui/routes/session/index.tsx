@@ -37,7 +37,7 @@ import type {
   ToolPart,
   UserMessage,
   TextPart,
-  ReasoningPart,
+  ReasoningPart as ReasoningPartData,
 } from "@opencode-ai/sdk/v2"
 import { useLocal } from "@tui/context/local"
 import { useAgiMode } from "@tui/context/agi-mode"
@@ -222,12 +222,14 @@ const context = createContext<{
   /** Bottom-up mount: true while a message's markdown is not built yet (see `isDeferred`). */
   isDeferred: (messageID: string) => boolean
 }>()
-
 function use() {
   const ctx = useContext(context)
   if (!ctx) throw new Error("useContext must be used within a Session component")
   return ctx
 }
+
+/** Test seam (t65 T6): render ReasoningPart outside the Session route. */
+export const SessionContext = context
 
 export function Session() {
   const route = useRouteData("session")
@@ -2247,7 +2249,13 @@ const PART_MAPPING = {
 /** Reasoning longer than this renders as its tail — see ReasoningPart. */
 const THINKING_DISPLAY_MAX = 6_000
 
-function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
+export function ReasoningPart(props: {
+  last: boolean
+  part: ReasoningPartData
+  message: AssistantMessage
+  /** Test seam (t65 T6): start expanded. Click toggles at runtime. */
+  initialExpanded?: boolean
+}) {
   const ctx = use()
   const { theme } = useTheme()
   // The counter and the markdown BODY are two values, not one string. Inside the markdown the counter
@@ -2255,10 +2263,19 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
   // offset-0 prefix match (`markdown-parser.ts:35-43`) — the whole display window was re-lexed per
   // delta, which is the flicker this plan exists for. The pair comes from a pure function that carries
   // its own pin: `text-segments.ts:reasoningView`, where the measured BEFORE is written down.
+  // t65 T6: the head beyond THINKING_DISPLAY_MAX is reachable in place —
+  // same expand/collapse affordance as the tool blocks (BlockTool), not a
+  // second viewer. Expanded renders the whole part text; the DB part is
+  // untouched (Continuity p.4: only the working representation changes).
+  const [expanded, setExpanded] = createSignal(!!props.initialExpanded)
+  const fullText = createMemo(() => props.part.text.replace("[REDACTED]", "").trim())
+  const overflow = createMemo(() => fullText().length > THINKING_DISPLAY_MAX)
+  const renderer = useRenderer()
   const view = createMemo(() => {
     // OpenRouter sends encrypted reasoning data that appears as [REDACTED]
     const text = props.part.text.replace("[REDACTED]", "").trim()
     if (!text) return null
+    if (expanded()) return reasoningView(text, Number.MAX_SAFE_INTEGER, !!props.part.time?.end)
     return reasoningView(text, THINKING_DISPLAY_MAX, !!props.part.time?.end)
   })
   // The gate's inputs are recorded on the ONE transition that leaves no trace afterwards: the block
@@ -2290,6 +2307,11 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
   return (
     <Show when={view() && ctx.showThinking()}>
       <box
+        onMouseUp={() => {
+          if (!overflow()) return
+          if (renderer.getSelection()?.getSelectedText()) return
+          setExpanded((prev) => !prev)
+        }}
         id={"text-" + props.part.id}
         paddingLeft={2}
         marginTop={1}
@@ -2311,6 +2333,9 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
           streaming={!props.part.time?.end}
           deferred={ctx.isDeferred(props.message.id)}
         />
+        <Show when={overflow()}>
+          <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : "Click to expand"}</text>
+        </Show>
       </box>
     </Show>
   )

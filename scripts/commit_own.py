@@ -6,30 +6,39 @@ Route for robots sharing one checkout (t66): every session commits through
 agent's staged work out of the shared ``.git/index``.
 
 Usage:
-    python scripts/commit_own.py --session <id> -m <msg> -- <paths...>
+    python scripts/commit_own.py --session <id> -m <msg> [--shared <path> ... --apply-patch <file> ...] -- <paths...>
 
-Steps: seed private index from HEAD -> ``git add -A -- <paths>`` into it ->
-refuse when nothing is staged -> run the pre-commit hook -> ``write-tree`` +
+Steps: capture shared-index entries for the given paths (T5 baseline) -> seed
+private index from HEAD -> ``git add -A`` the non-shared paths into it ->
+apply each --apply-patch --cached (T6, shared paths only) -> refuse when
+nothing is staged -> run the pre-commit hook -> ``write-tree`` +
 ``commit-tree`` -> atomic ``update-ref <branch> <new> <old>``
 (compare-and-swap; when HEAD moved meanwhile, re-seed from the fresh HEAD and
-retry, never force) -> remove the private index (on success and on failure).
+retry, never force) -> CAS-sync the shared index entries for the given
+paths to the new HEAD blobs (T5, only entries unchanged since capture) ->
+remove the private index (on success and on failure).
 
-Whole-file staging only. Hunk-level ``git add -p`` against an alternate index
-works (``GIT_INDEX_FILE=<priv> git add -p -- <path>``) but is interactive and
-cannot run unattended, so it is out of scope for this route: the one shared
-append-only file (``_progress_log.md``) needs no hunk support because a
-whole-file add after a HEAD-moved retry stages only lines not yet in HEAD.
-
-The shared ``.git/index`` is never opened by this script: every git command
-that touches an index runs with ``GIT_INDEX_FILE=<priv>``. The only deliberate
-exception is the test seam ``COMMIT_OWN_RACE_HOOK`` (a shell command run after
-``write-tree`` and before ``update-ref`` on the first attempt only), which runs
-with ``GIT_INDEX_FILE`` scrubbed so a simulated peer commits via the shared
-index like a real peer would.
+Whole-file staging is the default. A multi-writer shared file (``_progress_log.md``)
+needs own-hunks-only staging (T6): list it under ``--shared`` (repeatable, excluded
+from whole-file add) and pass the caller's patch via ``--apply-patch`` (repeatable,
+applied ``--cached`` into the private index). The patch may touch ONLY ``--shared``
+paths (refused otherwise); build it with ``git diff -U3 HEAD -- <file>`` and delete
+the foreign hunks. Hunk-level ``git add -p`` also works against an alternate index
+but is interactive and cannot run unattended.
+The shared ``.git/index`` is opened by this script in exactly two places, both
+limited to the caller's own paths: the T5 CAS-sync (``update-index`` on entries
+proven unchanged since capture, warnings otherwise, never forced) and the test
+seam ``COMMIT_OWN_RACE_HOOK`` (a shell command run after ``write-tree`` and before
+``update-ref`` on the first attempt only), which runs with ``GIT_INDEX_FILE``
+scrubbed so a simulated peer commits via the shared index like a real peer
+would. Every other git command that touches an index runs with
+``GIT_INDEX_FILE=<priv>``.
 
 Exit codes: 0 committed (new sha on stdout); 2 usage/refusal (bad session id,
-detached or unborn HEAD, bad pathspec, nothing staged); 1 operational failure
-(hook failed, ref update still racing after --retries, git errors).
+detached or unborn HEAD, bad pathspec, bad/non-applying/out-of-scope patch,
+nothing staged); 1 operational failure (hook failed, ref update still racing
+after --retries, git errors). A failed T5 sync never fails the commit: it warns
+on stderr, the commit stands.
 """
 
 import argparse
@@ -95,6 +104,101 @@ def run_hook_legacy(cwd, env, git_dir):
         except FileNotFoundError:
             continue
     return fail("no shell to run the pre-commit hook", 1)
+def split_nul_records(text):
+    return [r for r in text.split("\0") if r]
+
+
+def read_index_entries(cwd, env, pathspec):
+    """Shared-index entries: path -> (mode, sha, stage). Absent when unindexed."""
+    proc = run_git(["ls-files", "-s", "-z", "--"] + pathspec, cwd, env, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError("git ls-files failed (%d): %s" % (proc.returncode, (proc.stderr or "").strip()))
+    out = {}
+    for rec in split_nul_records(proc.stdout or ""):
+        head, _, path = rec.partition("\t")
+        parts = head.split(" ")
+        if len(parts) != 3 or not path:
+            continue
+        out[path] = (parts[0], parts[1], parts[2])
+    return out
+
+
+def read_head_entries(cwd, env, pathspec):
+    """HEAD blobs: path -> (mode, sha). Absent when not in HEAD."""
+    proc = run_git(["ls-tree", "HEAD", "-z", "--"] + pathspec, cwd, env, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError("git ls-tree HEAD failed (%d): %s" % (proc.returncode, (proc.stderr or "").strip()))
+    out = {}
+    for rec in split_nul_records(proc.stdout or ""):
+        head, _, path = rec.partition("\t")
+        parts = head.split(" ")
+        if len(parts) != 3 or parts[1] != "blob" or not path:
+            continue
+        out[path] = (parts[0], parts[2])
+    return out
+
+
+def patch_files(cwd, env, patch):
+    """Paths a patch touches (via --numstat)."""
+    proc = run_git(["apply", "--numstat", patch], cwd, env, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError("git apply --numstat failed for %r" % patch)
+    touched = set()
+    for line in (proc.stdout or "").splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3 and parts[2]:
+            touched.add(parts[2])
+    return touched
+
+
+def sync_shared_index(cwd, shared_env, pathspec, before):
+    """T5: bring the SHARED index entries for our own paths to the new HEAD.
+
+    Compare-and-swap per entry: rewritten only when the entry is byte-identical
+    to the capture taken at start; a meanwhile-changed entry (a neighbour staged
+    this same path) is left alone with a warning, never forced. Best-effort:
+    every failure returns a warning string, the commit already stands.
+    """
+    warns = []
+    try:
+        want = read_head_entries(cwd, shared_env, pathspec)
+    except RuntimeError as exc:
+        return ["cannot read HEAD entries (%s); shared index left as is" % exc]
+    for path, (mode, sha) in sorted(want.items()):
+        try:
+            cur = read_index_entries(cwd, shared_env, [path]).get(path)
+        except RuntimeError as exc:
+            warns.append("cannot read shared entry for %r (%s)" % (path, exc))
+            continue
+        if cur != before.get(path):
+            warns.append("shared index entry for %r changed meanwhile, leaving it" % path)
+            continue
+        if cur is not None and cur[2] != "0":
+            warns.append("shared index entry for %r is conflicted (stage %s), leaving it" % (path, cur[2]))
+            continue
+        try:
+            cmd = ["update-index", "--cacheinfo", "%s,%s,%s" % (mode, sha, path)]
+            if cur is None:
+                cmd.insert(1, "--add")
+            run_git(cmd, cwd, shared_env)
+        except RuntimeError as exc:
+            warns.append("cannot sync %r (%s)" % (path, exc))
+    for path in sorted(before):
+        if path in want:
+            continue
+        try:
+            cur = read_index_entries(cwd, shared_env, [path]).get(path)
+        except RuntimeError as exc:
+            warns.append("cannot read shared entry for %r (%s)" % (path, exc))
+            continue
+        if cur != before.get(path):
+            warns.append("shared index entry for %r changed meanwhile, leaving it" % path)
+            continue
+        try:
+            run_git(["update-index", "--remove", "--", path], cwd, shared_env)
+        except RuntimeError as exc:
+            warns.append("cannot drop %r (%s)" % (path, exc))
+    return warns
 
 
 def main(argv):
@@ -102,6 +206,8 @@ def main(argv):
     parser.add_argument("--session", required=True, help="session id; becomes .git/index-<id>")
     parser.add_argument("-m", "--message", required=True, help="commit message")
     parser.add_argument("--retries", type=int, default=5, help="HEAD-moved retry budget")
+    parser.add_argument("--shared", action="append", default=[], help="own-hunks-only path (repeatable; excluded from whole-file add)")
+    parser.add_argument("--apply-patch", action="append", default=[], help="patch file applied --cached into the private index (repeatable; may touch only --shared paths)")
     parser.add_argument("paths", nargs="+", help="pathspecs to commit (whole-file)")
     args = parser.parse_args(argv)
 
@@ -122,6 +228,12 @@ def main(argv):
     except RuntimeError:
         return fail("detached HEAD (route requires a branch; refusing)", 2)
     ref = "refs/heads/" + branch
+    shared_env = dict(os.environ)
+    shared_env.pop("GIT_INDEX_FILE", None)
+    try:
+        shared_before = read_index_entries(cwd, shared_env, args.paths)
+    except RuntimeError as exc:
+        return fail("cannot read shared index (%s)" % exc, 1)
 
     priv = os.path.join(git_dir, "index-" + args.session)
     env = dict(os.environ, GIT_INDEX_FILE=priv)
@@ -140,10 +252,28 @@ def main(argv):
             except RuntimeError:
                 return fail("unborn HEAD (route requires an existing commit)", 2)
             run_git(["read-tree", "--reset", head], cwd, env)
-            add = run_git(["add", "-A", "--"] + args.paths, cwd, env, check=False)
-            if add.returncode != 0:
-                sys.stderr.write(add.stderr or "")
-                return fail("bad pathspec (nothing added)", 2)
+            shared_set = set(args.shared or [])
+            whole = [p for p in args.paths if p not in shared_set]
+            if whole:
+                add = run_git(["add", "-A", "--"] + whole, cwd, env, check=False)
+                if add.returncode != 0:
+                    sys.stderr.write(add.stderr or "")
+                    return fail("bad pathspec (nothing added)", 2)
+            touched = set()
+            for patch in args.apply_patch or []:
+                chk = run_git(["apply", "--check", "--cached", patch], cwd, env, check=False)
+                if chk.returncode != 0:
+                    sys.stderr.write(chk.stderr or "")
+                    return fail("patch %r does not apply --cached" % patch, 2)
+                try:
+                    touched |= patch_files(cwd, env, patch)
+                except RuntimeError as exc:
+                    return fail(str(exc), 2)
+            outside = touched - shared_set
+            if outside:
+                return fail("patch touches non-shared paths %s (refusing)" % sorted(outside), 2)
+            for patch in args.apply_patch or []:
+                run_git(["apply", "--cached", patch], cwd, env)
             quiet = run_git(["diff-index", "--quiet", "--cached", head, "--"], cwd, env, check=False)
             if quiet.returncode == 0:
                 return fail("nothing staged for the given paths: no changes vs HEAD (refusing empty commit)", 2)
@@ -157,6 +287,8 @@ def main(argv):
             new = run_git(["commit-tree", tree, "-p", head, "-m", args.message], cwd, env).stdout.strip()
             update = run_git(["update-ref", ref, new, head], cwd, os.environ, check=False)
             if update.returncode == 0:
+                for w in sync_shared_index(cwd, shared_env, args.paths, shared_before):
+                    sys.stderr.write("commit_own: warn: %s\n" % w)
                 sys.stderr.write(
                     "commit_own: staged [%s] -> %s (attempt %d)\n" % (staged.replace("\n", " "), new, attempt)
                 )

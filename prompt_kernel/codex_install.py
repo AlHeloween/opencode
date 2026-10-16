@@ -1,33 +1,32 @@
-"""Install ADID into Codex as a GLOBAL developer-instruction layer.
+"""Install ADID into Codex as the GLOBAL $CODEX_HOME/AGENTS.md file.
 
-Why this file exists, and why it writes where it writes
+t64 (owner 2026-10-16): «developer_instructions писать не надо просто AGENTS.md
+в ~\\.codex и все.» — reverses t54 (commit 2d405fdcf3, «Codex kernel lives only
+in config.toml»). The channel is now `$CODEX_HOME/AGENTS.md`, and
+`developer_instructions` is not written.
+
+Why this file is the channel, and why no cap key is set
 -------------------------------------------------------
-Codex loads `developer_instructions` from the USER-level config
-(`$CODEX_HOME/config.toml`, default `~/.codex/config.toml`) as a `developer`
-role message, before any project document. Measured on codex v0.159.3:
-
-  - user scope    -> arrives, as role=developer. Proven twice: a marker placed in
-    `$CODEX_HOME/config.toml` shows up in the session rollout as a developer
-    message ahead of the prompt.
-  - project scope -> IGNORED. A marker in `<project>/.codex/config.toml` does not
-    reach the prompt, in a trusted project as well as an untrusted one, even
-    while other keys of that same file are read (codex warns about the ones it
-    drops by name). So project config cannot shadow this key, and ADID installed
-    at user scope cannot be overridden by a project's own config.
-
-`~/.codex/AGENTS.md` is NOT a substitute for this: the project's own `AGENTS.md`
-is read as a project document under `project_doc_max_bytes` (32 KiB default,
-truncating silently), which is why the kernel is installed here instead of being
-merged into any AGENTS.md.
+Codex reads the global file whole: `CodexHomeUserInstructionsProvider::
+load_from_codex_home` (`codex-rs/codex-home/src/instructions/mod.rs`) does a
+whole-file `tokio::fs::read` with no `max_bytes` parameter and no truncate. The
+`project_doc_max_bytes` budget (default 32 KiB, `DEFAULT_PROJECT_DOC_MAX_BYTES`
+in `codex-rs/config/src/config_toml.rs`) is enforced only inside
+`read_agents_md` / `load_project_instructions`
+(`codex-rs/core/src/agents_md.rs`) over the PROJECT-chain entries — the global
+file is seeded beforehand via `from_user_instructions` and never passes through
+the budget. Measured on the installed Codex (`codex-cli 0.159.3`, source pins at
+main content_hashes `5f900d53…` / `97427a87…`). So the installer sets NO
+`project_doc_max_bytes` key and doctor performs no cap-size check: there is
+nothing to raise.
 
 Ownership and safety
 --------------------
-This module owns exactly one thing: a marked block inside the
-`developer_instructions` string. It never rewrites the rest of the config, never
-touches another key, and refuses to install over a foreign value unless compose
-is requested explicitly. Writes are transactional: the candidate is written to a
-temporary file, re-parsed, and only then moved into place; any failure leaves the
-original bytes untouched.
+This module owns exactly one thing: `$CODEX_HOME/AGENTS.md`, whose content is
+always the codex render byte-for-byte. It never writes `developer_instructions`.
+A legacy `ADID_MANAGED` block left in config.toml by the retired (t54) installer
+is swept on install/uninstall — a foreign value is never touched, only reported.
+Writes are atomic (`_atomic_write`, LF, UTF-8).
 """
 
 from __future__ import annotations
@@ -35,8 +34,6 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-import shutil
-import tempfile
 import tomllib
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -49,13 +46,15 @@ from .render import render_adapter, render_kernel
 from .source import KERNEL
 from .validate import validate_kernel
 
+#: Markers of the RETIRED (t54) config.toml channel. Recognized only to sweep a
+#: leftover managed block; never written anywhere by this module anymore.
 MANAGED_OPEN = "<ADID_MANAGED"
 MANAGED_CLOSE = "</ADID_MANAGED>"
 FOREIGN_OPEN = "<LOCAL_DEVELOPER_ADDENDUM>"
 FOREIGN_CLOSE = "</LOCAL_DEVELOPER_ADDENDUM>"
 
-#: What a foreign addendum may and may not do. It sits inside ADID's own block,
-#: so the limit is stated where the text is read rather than only in the core.
+#: What a foreign addendum may and may not do (kept for reading legacy composed
+#: values; new installs compose nothing).
 FOREIGN_LIMIT = (
     "may specialize task behavior; may NOT weaken ADID governance, evidence, "
     "authority, oracle or closure invariants"
@@ -66,20 +65,22 @@ def codex_home() -> Path:
     return Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
 
 
-def config_path() -> Path:
-    return codex_home() / "config.toml"
+def _resolve_home(home: Path | None) -> Path:
+    return home if home is not None else codex_home()
 
 
-def root_instructions() -> str:
-    """ADID_CORE + CODEX_ROOT_ADAPTER, the two layers §7 composes.
+def config_path(home: Path | None = None) -> Path:
+    return _resolve_home(home) / "config.toml"
 
-    The core carries no tool names; the adapter binds each capability this
-    runtime provides. Rendering them as two labelled sections keeps the boundary
-    inspectable — a reader can tell which text is portable and which is local.
-    """
-    core = render_kernel(KERNEL, (), ())
-    adapter = render_adapter(CODEX_GATE_ADDONS)
-    return f"<ADID_CORE>\n{core}</ADID_CORE>\n\n<CODEX_RUNTIME_ADAPTER>\n{adapter}\n</CODEX_RUNTIME_ADAPTER>\n"
+
+def agents_path(home: Path | None = None) -> Path:
+    """The ONLY channel: the global instruction file Codex reads whole."""
+    return _resolve_home(home) / "AGENTS.md"
+
+
+def codex_kernel_text() -> str:
+    """The exact bytes this installer owns: the codex variant render."""
+    return render_kernel(KERNEL, CODEX_GATE_ADDONS, ())
 
 
 def content_hash(body: str) -> str:
@@ -87,11 +88,15 @@ def content_hash(body: str) -> str:
 
 
 def _marker(version: str, digest: str) -> str:
+    """Legacy (t54) marker format — recognized, never emitted."""
     return f'{MANAGED_OPEN} version="{version}" content-sha256="{digest}">'
 
 
 def managed_block(version: str) -> str:
-    """The exact bytes this kernel version owns, markers included."""
+    """The exact bytes the RETIRED installer owned, markers included.
+
+    Kept so tests can stage a legacy leftover and the sweeper can recognize it.
+    """
     body = root_instructions()
     digest = content_hash(body)
     return f"{_marker(version, digest)}\n{body}{MANAGED_CLOSE}"
@@ -99,7 +104,7 @@ def managed_block(version: str) -> str:
 
 @dataclass(frozen=True)
 class InstallReport:
-    status: str  # INSTALLED | UNCHANGED | FOREIGN | NOT_CONFIGURED
+    status: str  # INSTALLED | UNCHANGED | UNINSTALLED | NOT_CONFIGURED
     path: Path
     version: str
     digest: str
@@ -107,12 +112,7 @@ class InstallReport:
 
 
 def _split_managed(value: str) -> tuple[str, str, str]:
-    """Split a value into (before, managed block, after).
-
-    The third part matters: a composed foreign addendum sits AFTER the closing
-    marker, so an uninstall that kept only the head would silently destroy the
-    operator's own text while reporting that it had preserved it.
-    """
+    """Split a legacy value into (before, managed block, after)."""
     start = value.find(MANAGED_OPEN)
     end = value.find(MANAGED_CLOSE)
     if start < 0 or end < start:
@@ -126,10 +126,17 @@ def _strip_foreign(value: str) -> str:
     return value.replace(FOREIGN_OPEN, "").replace(FOREIGN_CLOSE, "").strip()
 
 
-def _compose(foreign: str, block: str) -> str:
-    if not foreign:
-        return block
-    return f"{block}\n\n{FOREIGN_OPEN}\n{foreign}\n\n{FOREIGN_LIMIT}.\n{FOREIGN_CLOSE}"
+def root_instructions() -> str:
+    """ADID_CORE + CODEX_ROOT_ADAPTER, the two layers §7 composes.
+
+    Legacy (t54) format: the body the retired installer wrapped in an
+    ADID_MANAGED block inside `developer_instructions`. Kept for recognition
+    (sweep + doctor two-channel check), never installed anymore.
+    """
+
+    core = render_kernel(KERNEL, (), ())
+    adapter = render_adapter(CODEX_GATE_ADDONS)
+    return f"<ADID_CORE>\n{core}</ADID_CORE>\n\n<CODEX_RUNTIME_ADAPTER>\n{adapter}\n</CODEX_RUNTIME_ADAPTER>\n"
 
 
 def _read_config(path: Path) -> dict:
@@ -137,39 +144,6 @@ def _read_config(path: Path) -> dict:
         return {}
     with path.open("rb") as handle:
         return tomllib.load(handle)
-
-
-def _encode_value(value: str) -> str:
-    """Encode as a TOML BASIC string with escaped newlines.
-
-    A multi-line literal (three quotes) is the readable choice and the wrong one:
-    kernel prose and any foreign addendum may contain that sequence, and it would
-    terminate the literal mid-value.
-    """
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-    return f'"{escaped}"'
-
-
-def _splice(text: str, value: str) -> str:
-    """Set `developer_instructions` at TOML TOP LEVEL, replacing it in place.
-
-    Appending to the end of the file looks right and is not: every key after the
-    last table header belongs to that table. A config ending in
-    `[projects.'D:\\x']` would swallow our key as a project setting — read back as
-    `projects.developer_instructions`, invisible to codex and to our own doctor.
-    So a missing key goes BEFORE the first table header.
-    """
-    line = f"developer_instructions = {_encode_value(value)}"
-    pattern = re.compile(r"^[ \t]*developer_instructions\s*=.*$", re.MULTILINE)
-    if pattern.search(text):
-        return pattern.sub(lambda _: line, text, count=1)
-    table = re.search(r"^[ \t]*\[", text, re.MULTILINE)
-    if table is None:
-        body = text if not text or text.endswith("\n") else text + "\n"
-        return body + line + "\n"
-    head, tail = text[: table.start()], text[table.start() :]
-    head = head if not head or head.endswith("\n") else head + "\n"
-    return f"{head}\n{line}\n{tail}"
 
 
 def _validate_rendered(version: str) -> str:
@@ -182,120 +156,160 @@ def _validate_rendered(version: str) -> str:
     return version
 
 
-def install(*, compose: bool = False, version: str | None = None, path: Path | None = None) -> InstallReport:
-    """Install (or refresh) the managed block. Never partial, never implicit."""
-    target = path if path is not None else config_path()
-    kernel_version = _validate_rendered(version or KERNEL.version)
-    write_artifacts(dist=DIST_CODEX, addons=CODEX_GATE_ADDONS, identity_addons=())
-    block = managed_block(kernel_version)
-    digest = content_hash(root_instructions())
+def _sweep_legacy_config(config: Path) -> tuple[bool, str]:
+    """Remove a legacy ADID_MANAGED block from config.toml; never touch foreign text.
 
-    # BYTES, not text: on Windows a text round-trip rewrites CRLF as LF, so a
-    # rollback that re-writes the original as text is not a rollback. The
-    # promise is byte-identical, so the copy is bytes.
-    original_bytes = target.read_bytes() if target.is_file() else None
-    original = original_bytes.decode("utf-8") if original_bytes is not None else ""
-    data = _read_config(target) if target.is_file() else {}
-    existing = data.get("developer_instructions")
-
-    if isinstance(existing, str) and existing.strip():
-        before, current_block, after = _split_managed(existing)
-        if current_block and current_block == block:
-            return InstallReport("UNCHANGED", target, kernel_version, digest, "managed block already current")
-        foreign = _strip_foreign(f"{before}\n{after}").strip()
-        if foreign and not compose:
-            return InstallReport(
-                "FOREIGN",
-                target,
-                kernel_version,
-                digest,
-                "existing developer_instructions is foreign and was NOT overwritten; "
-                "re-run with compose to keep it under <LOCAL_DEVELOPER_ADDENDUM>",
-            )
-        value = _compose(foreign, block)
-    else:
-        value = block
-
-    candidate_text = _splice(original, value)
-
-    # Transaction: stage, re-parse, then move. A parse failure here means the
-    # candidate would be an invalid config, and it never reaches the real file.
-    target.parent.mkdir(parents=True, exist_ok=True)
-    handle, staged_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".candidate", dir=target.parent)
-    staged = Path(staged_name)
+    Returns (changed, note). A foreign `developer_instructions` is left
+    byte-identical and reported in the note.
+    """
+    if not config.is_file():
+        return False, ""
     try:
-        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
-            stream.write(candidate_text)
-        with staged.open("rb") as check:
-            tomllib.load(check)
-        staged.replace(target)
-    except Exception:
-        if original_bytes is None:
-            target.unlink(missing_ok=True)
-        else:
-            target.write_bytes(original_bytes)
-        raise
-    finally:
-        staged.unlink(missing_ok=True)
-
-    return InstallReport("INSTALLED", target, kernel_version, digest)
-
-
-def uninstall(*, path: Path | None = None) -> InstallReport:
-    """Remove only ADID's block. Everything else in the config is preserved."""
-    target = path if path is not None else config_path()
-    if not target.is_file():
-        return InstallReport("NOT_CONFIGURED", target, "", "", "no config.toml")
-    data = _read_config(target)
+        data = _read_config(config)
+    except tomllib.TOMLDecodeError:
+        return False, f"{config.name} is not valid TOML; left alone"
     existing = data.get("developer_instructions")
     if not isinstance(existing, str) or MANAGED_OPEN not in existing:
-        return InstallReport("NOT_CONFIGURED", target, "", "", "no ADID managed block present")
+        if isinstance(existing, str) and existing.strip():
+            return False, "foreign developer_instructions preserved"
+        return False, ""
     before, _, after = _split_managed(existing)
     # Foreign text on BOTH sides of the block is the operator's; only the block is ours.
     remaining = "\n\n".join(part for part in (_strip_foreign(before), _strip_foreign(after)) if part)
-    original = target.read_text(encoding="utf-8")
+    original = config.read_text(encoding="utf-8")
     if remaining:
-        text = _splice(original, remaining)
+        pattern = re.compile(r"^[ \t]*developer_instructions\s*=.*$", re.MULTILINE)
+        replacement = "developer_instructions = " + _toml_basic_string(remaining)
+        text = pattern.sub(lambda _: replacement, original, count=1)
+        note = "removed legacy ADID managed block; foreign developer_instructions kept"
     else:
         text = re.sub(r"^\s*developer_instructions\s*=.*\n?", "", original, flags=re.MULTILINE)
-    _atomic_write(target, text)
-    return InstallReport("UNINSTALLED", target, "", "", "removed ADID block; other keys untouched")
+        note = "removed legacy ADID managed block"
+    _atomic_write(config, text)
+    return True, note
 
 
-def doctor(*, path: Path | None = None) -> list[tuple[str, str, str]]:
-    """(check, status, detail) — the report §23 asks for, as data."""
-    target = path if path is not None else config_path()
+def _toml_basic_string(value: str) -> str:
+    """Encode as a TOML BASIC string with escaped newlines.
+
+    A multi-line literal (three quotes) is the readable choice and the wrong one:
+    kernel prose and any foreign addendum may contain that sequence, and it would
+    terminate the literal mid-value.
+    """
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    return f'"{escaped}"'
+
+
+def install(*, home: Path | None = None) -> InstallReport:
+    """Write $CODEX_HOME/AGENTS.md with the codex render. Never writes config keys.
+
+    A legacy managed block in config.toml is swept (foreign values preserved);
+    `developer_instructions` is never created.
+    """
+    base = _resolve_home(home)
+    target = base / "AGENTS.md"
+    kernel_version = _validate_rendered(KERNEL.version)
+    write_artifacts(dist=DIST_CODEX, addons=CODEX_GATE_ADDONS, identity_addons=())
+    body = codex_kernel_text()
+    digest = content_hash(body)
+
+    notes: list[str] = []
+    if target.is_file() and target.read_bytes() == body.encode("utf-8"):
+        agents_changed = False
+    else:
+        _atomic_write(target, body)
+        agents_changed = True
+
+    swept, note = _sweep_legacy_config(base / "config.toml")
+    if note:
+        notes.append(note)
+
+    if not agents_changed and not swept:
+        return InstallReport("UNCHANGED", target, kernel_version, digest, "AGENTS.md already current")
+    if not agents_changed:
+        notes.insert(0, "AGENTS.md already current")
+    detail = "; ".join(notes)
+    return InstallReport("INSTALLED", target, kernel_version, digest, detail)
+
+
+def uninstall(*, home: Path | None = None) -> InstallReport:
+    """Remove only what this installer wrote: a byte-equal AGENTS.md + legacy block."""
+    base = _resolve_home(home)
+    target = base / "AGENTS.md"
+    removed = False
+    notes: list[str] = []
+    if target.is_file():
+        if target.read_bytes() == codex_kernel_text().encode("utf-8"):
+            target.unlink()
+            removed = True
+        else:
+            notes.append("AGENTS.md is foreign; left alone")
+    swept, note = _sweep_legacy_config(base / "config.toml")
+    if note:
+        notes.append(note)
+    removed = removed or swept
+    if not removed:
+        return InstallReport(
+            "NOT_CONFIGURED", target, "", "", "; ".join(notes) or "nothing ADID owns found"
+        )
+    return InstallReport("UNINSTALLED", target, "", "", "; ".join(notes) or "removed AGENTS.md")
+
+
+def doctor(*, home: Path | None = None) -> list[tuple[str, str, str]]:
+    """(check, status, detail) — the AGENTS.md channel report."""
+    base = _resolve_home(home)
+    agents = base / "AGENTS.md"
+    config = base / "config.toml"
     rows: list[tuple[str, str, str]] = []
-    rows.append(("CODEX_HOME", "PASS", str(codex_home())))
-    rows.append(("config path", "PASS" if target.is_file() else "NOT_CONFIGURED", str(target)))
-    if not target.is_file():
+    rows.append(("CODEX_HOME", "PASS", str(base)))
+    rows.append(("agents path", "PASS" if agents.is_file() else "NOT_CONFIGURED", str(agents)))
+    agents_current = False
+    if agents.is_file():
+        body = codex_kernel_text()
+        digest = hashlib.sha256(agents.read_bytes()).hexdigest()
+        rows.append(("agents content hash", "PASS", digest))
+        agents_current = digest == content_hash(body)
+        rows.append(
+            (
+                "agents content current",
+                "PASS" if agents_current else "WARN",
+                "matches this kernel" if agents_current else "reinstall to refresh",
+            )
+        )
+    if not config.is_file():
+        rows.append(("config", "NOT_CONFIGURED", str(config)))
         return rows
     try:
-        data = _read_config(target)
+        data = _read_config(config)
     except tomllib.TOMLDecodeError as error:
         rows.append(("config parse", "FAIL", str(error)))
         return rows
     rows.append(("config parse", "PASS", "valid TOML"))
     existing = data.get("developer_instructions")
-    if not isinstance(existing, str) or MANAGED_OPEN not in existing:
-        rows.append(("ADID root developer instructions", "NOT_CONFIGURED", "developer_instructions absent"))
-    else:
-        _, block, _ = _split_managed(existing)
-        marker = re.match(rf"{re.escape(MANAGED_OPEN)} version=\"([^\"]+)\" content-sha256=\"([0-9a-f]{{64}})\">", block)
-        if not marker:
-            rows.append(("ADID block marker", "FAIL", "marker is not parseable"))
-        else:
-            version, digest = marker.group(1), marker.group(2)
-            # The block is `marker + "\n" + body + CLOSE`, so the body starts after
-            # exactly one newline. Slicing the marker alone keeps that newline and
-            # hashes a string the installer never produced — a FAIL on a healthy install.
-            body = block[len(marker.group(0)) :].removeprefix("\n")[: -len(MANAGED_CLOSE)]
-            rows.append(("ADID version", "PASS", version))
-            rows.append(("ADID content hash", "PASS" if content_hash(body) == digest else "FAIL", digest))
-            current = digest == content_hash(root_instructions())
+    if isinstance(existing, str) and MANAGED_OPEN in existing:
+        if agents_current:
             rows.append(
-                ("ADID content current", "PASS" if current else "WARN", "matches this kernel" if current else "reinstall to refresh")
+                (
+                    "channels",
+                    "FAIL",
+                    "kernel in both AGENTS.md and developer_instructions; "
+                    "reinstall to converge on AGENTS.md",
+                )
             )
+        else:
+            rows.append(
+                (
+                    "legacy developer_instructions",
+                    "WARN",
+                    "retired channel still carries a managed block; reinstall to sweep it",
+                )
+            )
+    elif isinstance(existing, str) and existing.strip():
+        rows.append(
+            ("developer_instructions", "PASS", "foreign value preserved; kernel loads from AGENTS.md only")
+        )
+    else:
+        rows.append(("developer_instructions", "PASS", "absent; kernel loads from AGENTS.md only"))
     return rows
 
 

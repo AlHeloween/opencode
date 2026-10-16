@@ -20,21 +20,20 @@ from .source import KERNEL
 
 
 def _codex_global() -> int:
-    """ADID as Codex's global developer-instruction layer (spec §1, §7).
+    """ADID as Codex's global instruction file (spec §1, §7).
 
-    The ONLY channel (t54, owner 2026-10-15): the former second writer
-    (`--codex --install` → ~/.codex/AGENTS.md) is retired — Codex loads that file
-    too, and two instruction sources conflict with the system prompt. This writes
-    `developer_instructions` to the USER config, which codex applies as a
-    developer-role message with no project_doc_max_bytes cap and which project
-    config cannot shadow (it ignores that key).
+    The ONLY channel (t64, owner 2026-10-16: «developer_instructions писать не надо
+    просто AGENTS.md в ~/.codex и все» — reverses t54): this writes the codex render
+    to $CODEX_HOME/AGENTS.md, which Codex reads whole with no project_doc_max_bytes
+    cap. `developer_instructions` is never written; a legacy ADID_MANAGED block left
+    by the retired installer is swept, a foreign value preserved.
     """
     from . import codex_install as ci
 
     if "uninstall" in sys.argv:
         report = ci.uninstall()
         print(f"status={report.status}")
-        print(f"config={report.path}")
+        print(f"agents={report.path}")
         if report.detail:
             print(f"detail={report.detail}")
         return 0
@@ -44,9 +43,9 @@ def _codex_global() -> int:
         for check, status, detail in rows:
             print(f"{check.ljust(width)}  {status:<14}  {detail}")
         return 1 if any(status == "FAIL" for _, status, _ in rows) else 0
-    report = ci.install(compose="--compose" in sys.argv)
+    report = ci.install()
     print(f"status={report.status}")
-    print(f"config={report.path}")
+    print(f"agents={report.path}")
     print(f"version={report.version}")
     print(f"content_sha256={report.digest}")
     if report.detail:
@@ -80,16 +79,14 @@ def main() -> int:
         print(f"utf8_bytes={len(render_kernel(KERNEL, CODEX_GATE_ADDONS, ()).encode('utf-8'))}")
         print(f"sha256={kernel_digest(KERNEL, CODEX_GATE_ADDONS, ())}")
         print(f"dist={DIST_CODEX}")
-        # t54 (owner 2026-10-15, plans/2026-10-15_codex-one-channel-toml.md): the
-        # kernel reaches Codex ONLY through ADID's developer_instructions in
-        # config.toml — Codex 0.159.3 loads ~/.codex/AGENTS.md too, and two
-        # instruction sources conflict with the system prompt. The render above is
-        # the canon ADID consumes; `--codex-global` installs it.
+        # t64 (owner 2026-10-16, plans/2026-10-16_codex-agents-md-only.md) reverses t54:
+        # the kernel reaches Codex ONLY through $CODEX_HOME/AGENTS.md — «developer_instructions
+        # писать не надо просто AGENTS.md в ~\.codex и все». The render above is the canon
+        # `--codex-global install` writes there; `--codex --install` writes no receiver.
         if "--install" in sys.argv:
-            print("codex_kernel=not_installed; the ~/.codex/AGENTS.md channel is retired (t54)")
-            print("codex_kernel_channel=ADID developer_instructions; python -m prompt_kernel --codex-global install")
+            print("codex_kernel=not_installed; channel is $CODEX_HOME/AGENTS.md (t64)")
             return 0
-        print("codex_kernel=not_updated; ADID channel: python -m prompt_kernel --codex-global install")
+        print("codex_kernel=not_updated; channel: python -m prompt_kernel --codex-global install")
         return 0
 
     if "--claude" in sys.argv:

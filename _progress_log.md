@@ -13,6 +13,7 @@
 ✓ CONFIRMED (cap verdict NOT_CAPPED): global file read whole by load_from_codex_home (codex-rs/codex-home/src/instructions/mod.rs, whole-file read, no max_bytes/truncate; content_hash 5f900d53…), project_doc_max_bytes (32 KiB default) enforced only in read_agents_md/load_project_instructions (codex-rs/core/src/agents_md.rs; content_hash 97427a87…) over project-chain entries; installed codex-cli 0.159.3. Installer writes NO project_doc_max_bytes key, doctor performs no cap-size check.
 ✓ CONFIRMED (tests first): RED 20261016T014759Z_ff83a1ae exit 2 (ImportError agents_path) → GREEN 20261016T015655Z_579b9845 exit 0 (21 pass, incl. test_addons_codex single-writer pin); full prompt_kernel suite 20261016T015902Z_5d6b6889 exit 0 (301 pass).
 ✓ CONFIRMED (owner state untouched): ~/.codex/AGENTS.md 66 362 B sha de5d5cd8… (= codex render, no markers), config.toml 8 005 B, NO developer_instructions, NO project_doc_max_bytes. STOP before real install — Claude reviews and runs --codex-global install/doctor.
+≈ BUILD (contention residual, 2 attempts): vite built + opencode smoke PASS (10.0.1368, then 10.0.1369, reasoning_prompt.txt embedded); final Copy-Item to dist\bin blocked — dist\bin\opencode.exe held by another process (fellow robot). Runs 20261016T020041Z_188517e5 + 20261016T020334Z_110b28b9, both exit 1 at _build.ps1:247. prompt_kernel-only change; no bin/ touched.
 <!-- sv: codex-channel 0.35, agents-md-only 0.30, cap-not-capped 0.20, suite-green 0.15 -->
 ## [2026-10-16] t63 — tool gate marks + in-place densify (план plans/2026-10-15_tool-gate-marks.md)
 

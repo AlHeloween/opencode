@@ -127,9 +127,8 @@ def test_install_claude_kernel_writes_claude_addon_renderer_output(tmp_path: Pat
     assert expected != render_kernel()
 
 
-# t54 (2026-10-15): test_install_codex_kernel_writes_codex_addon_renderer_output
-# is superseded — install_codex_kernel and its ~/.codex/AGENTS.md receiver are
-# retired (owner: the kernel reaches Codex ONLY through ADID's
-# developer_instructions in config.toml). The codex render stays for ADID to
-# consume; its parity is pinned in test_addons_codex.py
+# t64 (2026-10-16) reverses t54: install_codex_kernel and its ~/.codex/AGENTS.md receiver are
+# back — the single writer is now codex_install.install (`--codex-global install`; owner:
+# «developer_instructions писать не надо просто AGENTS.md в ~\.codex и все»). The codex render
+# stays for that installer to consume; its parity is pinned in test_addons_codex.py
 # (test_codex_addons_render_host_tool_bindings) and test_variant_parity.py.

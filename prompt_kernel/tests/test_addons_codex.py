@@ -140,19 +140,19 @@ def test_codex_cli_writes_artifacts_without_installing(tmp_path: Path, monkeypat
     assert {path.suffix for path in tmp_path.iterdir()} == {".json", ".mdc", ".txt"}
 
 
-# t54 (2026-10-15): test_codex_cli_installs_renderer_output is superseded — the
-# ~/.codex/AGENTS.md install target is retired (owner: the kernel reaches Codex
-# ONLY through ADID's developer_instructions in config.toml; a second channel
-# conflicts with the system instructions Codex loads). The render it pinned is
-# covered by test_codex_addons_render_host_tool_bindings and the pin below.
+# t64 (2026-10-16) reverses t54: the `$CODEX_HOME/AGENTS.md` install target is back —
+# the single writer is `codex_install.install` (`--codex-global install`; owner:
+# «developer_instructions писать не надо просто AGENTS.md в ~\.codex и все»).
+# `--codex --install` still writes no receiver (pin below); the render it pinned is
+# covered by test_codex_addons_render_host_tool_bindings and test_codex_install.py.
 
 
-def test_codex_install_writes_no_agents_md(tmp_path: Path, monkeypatch) -> None:
-    """t54 (owner 2026-10-15): the kernel reaches Codex ONLY through ADID's
-    developer_instructions in config.toml — a second channel in ~/.codex/AGENTS.md
-    conflicts with the system instructions Codex already loads (measured t47:
-    Codex 0.159.3 loads BOTH). No install path writes that file; the codex render
-    stays (ADID consumes the canon from dist_codex/).
+def test_codex_cli_install_writes_no_agents_md_directly(tmp_path: Path, monkeypatch) -> None:
+    """t64 (owner 2026-10-16): `$CODEX_HOME/AGENTS.md` is written by ONE path —
+    `codex_install.install` (`--codex-global install`). `--codex --install` only
+    renders the canon into dist_codex/ and prints the pointer; it must not create
+    an AGENTS.md itself (the retired second-writer failure mode).
+    conflicts are avoided: exactly one writer owns that file.
     """
     import prompt_kernel.__main__ as cli
 

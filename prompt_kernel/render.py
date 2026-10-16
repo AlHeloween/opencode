@@ -336,9 +336,10 @@ def render_adapter(addons: tuple) -> str:
     """The host-binding half of a render, on its own.
 
     `render_kernel` interleaves a host's tool names into the gate blocks. When
-    the portable half has to travel separately — as Codex's `developer_instructions`
-    does — this renders the same bindings as their own section, so the Core that
-    ships beside it contains no tool name at all and the boundary stays visible.
+    the portable half had to travel separately — as the retired (t54) Codex
+    developer_instructions channel did — this rendered the same bindings as
+    their own section. t64 installs the full render as $CODEX_HOME/AGENTS.md;
+    this stays only for recognizing that legacy format.
     """
     grouped: dict[str, list[str]] = {}
     for addon in addons:

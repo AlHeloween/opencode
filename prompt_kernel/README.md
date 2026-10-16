@@ -159,17 +159,16 @@ python -m prompt_kernel --codex
 ```
 
 Artifacts are stamped under `prompt_kernel/dist_codex/`. Codex receives the
-kernel ONLY through ADID's `developer_instructions` in `~/.codex/config.toml`
-(t54, owner 2026-10-15: the `~/.codex/AGENTS.md` channel is retired — Codex
-loads that file too, and two instruction sources conflict with the system
-prompt). ADID consumes the canon this render stamps; install it with:
+kernel ONLY as `$CODEX_HOME/AGENTS.md` (t64, owner 2026-10-16: «developer_instructions
+писать не надо просто AGENTS.md в ~\.codex и все» — reverses t54; the global file is
+read whole, with no `project_doc_max_bytes` cap). Install it with:
 
 ```powershell
 python -m prompt_kernel --codex-global install
 ```
 
-`--codex --install` writes no receiver any more: it prints the pointer to the
-ADID channel. A running Codex task keeps the prefix it started with; the
+`--codex --install` writes no receiver: the single writer is `--codex-global install`.
+A running Codex task keeps the prefix it started with; the
 installed variant becomes active for the next task.
 
 Re-render it in the same motion as product `--install` and Claude

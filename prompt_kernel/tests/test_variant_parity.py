@@ -185,10 +185,8 @@ def test_claude_kernel_is_installed_current() -> None:
 
 def test_codex_artifact_is_current() -> None:
     """The stamped artifact is the in-repo evidence that the Codex variant was rendered.
-
-    Its consumer is ADID's developer_instructions in ~/.codex/config.toml (t54:
-    the ~/.codex/AGENTS.md channel is retired) — host-local, so no test here can
-    assert it; the artifact is what travels with the repo.
+    Its consumer is $CODEX_HOME/AGENTS.md via `python -m prompt_kernel --codex-global install` (t64:
+    reverses t54) — host-local, so no test here can assert it; the artifact is what travels with the repo.
     Fix: `python -m prompt_kernel --codex`.
     """
     artifacts = sorted(Path(DIST_CODEX).glob("*_reasoning_prompt.txt"))

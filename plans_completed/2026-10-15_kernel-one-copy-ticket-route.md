@@ -42,9 +42,10 @@ Owner (2026-10-15, verbatim): «надо явно прописать в керн
   receivers are deliberately NOT refreshed: STOP before `--install`, Claude reviews).
 - [x] T6 — measure: render bytes per variant against the 67 000 cap (validate.py:240). Over cap → (измерено: 66749 / 66460 / 66541 / 66502 — все ≤ 67 000, запас 251 B; STOP не triggered)
   STOP and report the measurement, no cuts.
-- [ ] T7 — commit only own paths (plan, source.py, addons*.py, tests, _progress_log.md entry);
+- [x] T7 — commit only own paths (plan, source.py, addons*.py, tests, _progress_log.md entry); (commit e888f9b8f1; no build — fleet lead builds)
   run `pwsh -NoProfile -File _build.ps1` through cmd_runner; STOP before `--install`; report hash,
   diff, bytes per variant.
+- [x] T8 — INSTALL по ревью Smit (PASS e888f9b8f1): product --install, --claude --install, cursor receiver; baseline repinned (sha256 1d279e5a…, prev ee6e3959…); pytest 300/300; receivers read back byte-equal; NOT --codex-global, no ~/.codex/AGENTS.md (t54 retired), no build.
 
 ## Smoke Tests
 

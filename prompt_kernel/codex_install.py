@@ -263,6 +263,21 @@ def doctor(*, home: Path | None = None) -> list[tuple[str, str, str]]:
     rows: list[tuple[str, str, str]] = []
     rows.append(("CODEX_HOME", "PASS", str(base)))
     rows.append(("agents path", "PASS" if agents.is_file() else "NOT_CONFIGURED", str(agents)))
+    override = base / "AGENTS.override.md"
+    # mod.rs:41-43 @ rust-v0.159.3: load_from_codex_home tries AGENTS.override.md
+    # first and returns the first non-empty file — a non-empty override shadows
+    # AGENTS.md entirely. Empty (whitespace-only) counts as absent (trimmed.is_empty).
+    # The override is always the operator's file: reported, never touched.
+    if override.is_file() and override.read_bytes().strip():
+        rows.append(
+            (
+                "agents override",
+                "FAIL",
+                f"non-empty {override} shadows AGENTS.md; remove it or merge",
+            )
+        )
+    else:
+        rows.append(("agents override", "PASS", "absent or empty; AGENTS.md applies"))
     agents_current = False
     if agents.is_file():
         body = codex_kernel_text()

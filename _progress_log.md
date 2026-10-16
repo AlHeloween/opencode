@@ -1,6 +1,11 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t64 close — owner review PASS + override-дыра S7 (план plans_completed/2026-10-16_codex-agents-md-only.md)
+
+✓ CONFIRMED (owner receipts): pytest 301 passed; live --codex-global doctor all PASS (agents hash de5d5cd8… = matches this kernel; developer_instructions absent); cap-пин mod.rs @ rust-v0.159.3 (sha256 5f900d53…); real install no-op (файл побайтово равен рендеру).
+✓ CONFIRMED (S7): doctor-строка `agents override` — RED 20261016T021133Z_2efb5b84 exit 1 (KeyError) → GREEN 20261016T021208Z_14292a89 exit 0 (18 pass); suite 20261016T021341Z_07e6a3be exit 0 (305 pass). План в plans_completed/, svm render, коммит по путям. Сборка не повторялась (prompt_kernel-only).
+<!-- sv: review-pass 0.35, override-hole 0.30, plan-closed 0.20, receipts-pinned 0.15 -->
 ## [2026-10-16] t65 slice 1 — transform signed-empty preservation (план plans/2026-10-16_reasoning-lossless-replay.md)
 
 ✓ CONFIRMED (T1 grounding): provider matrix + 5 loss reproducers + 7 candidates / LEAN (C1 tier1 selected, C5 tier3 rejected) → experiments/2026-10-16_reasoning-preservation/t1-grounding.md; baselines transform.test.ts 170 pass (20261016T015536Z_19ab74cd) + adaptive 10 pass (20261016T015615Z_47e6fd98).

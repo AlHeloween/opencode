@@ -160,3 +160,42 @@ def test_uninstall_sweeps_the_legacy_block_and_keeps_foreign_text(tmp_path: Path
 def test_uninstall_on_an_empty_home_changes_nothing(tmp_path: Path) -> None:
     assert uninstall(home=tmp_path).status == "NOT_CONFIGURED"
     assert config_path(tmp_path).exists() is False
+
+
+def _override_rows(home: Path) -> dict:
+    return dict((check, (status, detail)) for check, status, detail in doctor(home=home))
+
+
+def test_doctor_passes_on_absent_override(tmp_path: Path) -> None:
+    """No AGENTS.override.md — Codex reads our AGENTS.md."""
+    install(home=tmp_path)
+    status, _ = _override_rows(tmp_path)["agents override"]
+    assert status == "PASS"
+
+
+def test_doctor_passes_on_empty_override(tmp_path: Path) -> None:
+    """Whitespace-only override is skipped by Codex (trimmed.is_empty), like an absent one."""
+    install(home=tmp_path)
+    (tmp_path / "AGENTS.override.md").write_bytes(b"  \n")
+    status, _ = _override_rows(tmp_path)["agents override"]
+    assert status == "PASS"
+
+
+def test_doctor_fails_on_nonempty_override(tmp_path: Path) -> None:
+    """A non-empty AGENTS.override.md shadows AGENTS.md entirely (mod.rs:41-43)."""
+    install(home=tmp_path)
+    override = tmp_path / "AGENTS.override.md"
+    override.write_bytes(b"operator override\n")
+    status, detail = _override_rows(tmp_path)["agents override"]
+    assert status == "FAIL"
+    assert str(override) in detail
+
+
+def test_uninstall_leaves_the_override_alone(tmp_path: Path) -> None:
+    """The override is the operator's file — never ours to delete."""
+    install(home=tmp_path)
+    override = tmp_path / "AGENTS.override.md"
+    override.write_bytes(b"operator override\n")
+    uninstall(home=tmp_path)
+    assert override.read_bytes() == b"operator override\n"
+    assert not (tmp_path / "AGENTS.md").exists()

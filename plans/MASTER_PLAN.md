@@ -135,10 +135,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 263 |
-| plans active | 29 |
-| tasks passed / total | 1191 / 1478 |
-| open boxes | 144 |
+| plans completed | 264 |
+| plans active | 28 |
+| tasks passed / total | 1203 / 1484 |
+| open boxes | 138 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -373,15 +373,6 @@ parent-goal-md5: 00000000000000000000000000000000]
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_codex-agents-md-only.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
-  sv: intention "Codex kernel loads from ONE channel (ADID developer_instructions in config.toml; our pipeline no longer writes ~/.codex/AGENTS.md) -> Codex kernel loads from ONE channel (~/.codex/AGENTS.md written by our installer; developer_instructions is not written)" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-16_haiku-omp-controlled-latency.md` — 2 open / 5 box(es) · lifecycle UNKNOWN
   sv: intention "Haiku в OpenCode даёт длительные паузы, в omp с загруженным kernel пользователь наблюдает быстрый ответ -> воспроизводимое сравнение actual запросов и изолированных факторов, с установленной областью причинного вывода и непокрытым остатком" · keywords [controlled-latency, wire-equivalence, protocol-grounding, causal-boundaries]
   - P2 [PENDING] · sv [actual-wire, payload-diff, source-provenance] · manifest: MISSING — nobody has written down what this box is
@@ -401,6 +392,6 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 ## The checks
 
-This body names all 31 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 30 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -54,6 +54,7 @@ parent-goal-md5: 00000000000000000000000000000000
 - [x] S6: `python -m pytest prompt_kernel/tests/ -q` green (301 pass); `_build.ps1` via cmd_runner (vite+smoke PASS,
   `prompt_kernel/**` + plan file by path, message naming the plan; STOP before any real
   `--codex-global install`/doctor (Claude reviews and runs it).
+- [x] S7: `agents override` hole (owner review 2026-10-16): doctor row `agents override` — PASS when absent/empty, FAIL (with path) when a non-empty AGENTS.override.md shadows AGENTS.md (pin: mod.rs:41-43 @ rust-v0.159.3); uninstall never touches the override. RED→GREEN on temp home; suite 305 pass.
 
 ## Smoke Tests
 
@@ -65,5 +66,13 @@ parent-goal-md5: 00000000000000000000000000000000
 
 ## Out of scope
 
-- Real `--codex-global install`/doctor run (Claude's review step).
+- Real install: not needed (owner: file byte-equal to render, install would be a no-op — verified, not run).
 - ADID_Python side («ADID must not create AGENTS.md») — separate ticket to its resident; that worktree untouched.
+
+## Acceptance — owner review 2026-10-16: PASS
+
+- [x] pytest prompt_kernel 301 passed (owner receipt).
+- [x] live `python -m prompt_kernel --codex-global doctor`: all rows PASS — agents content hash de5d5cd8… = matches this kernel; developer_instructions absent.
+- [x] cap pin confirmed by owner: codex-rs/codex-home/src/instructions/mod.rs @ rust-v0.159.3 (sha256 5f900d53…), codex-cli 0.159.3 — global file read whole.
+- [x] real install not needed: owner file byte-equal to render (install would be a no-op).
+- [x] S7 override hole closed: RED 20261016T021133Z_2efb5b84 exit 1 (KeyError agents override) → GREEN 20261016T021208Z_14292a89 exit 0 (18 pass); full suite 20261016T021341Z_07e6a3be exit 0 (305 pass).

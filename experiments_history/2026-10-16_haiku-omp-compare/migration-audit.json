@@ -1,0 +1,134 @@
+{
+  "scope": "Four historical OpenCode outgoing captures, three adjacent comparisons; no new inference",
+  "sources": [
+    {
+      "authority_class": "official_software_documentation",
+      "url_provenance": "https://platform.claude.com/docs/en/models/haiku-5-5/migration-guide",
+      "sha256": "fefa7f7962c7e85b82defcdc211470a5c5dc665b5df22a0aaac5cc3e98f1d90a",
+      "bytes": 432470,
+      "retrieved_at": "2026-10-16T01:13:42.441Z"
+    },
+    {
+      "authority_class": "official_software_documentation",
+      "url_provenance": "https://platform.claude.com/docs/en/build-with-claude/preserved-thinking",
+      "sha256": "1b5bb7978a45c50224aa688cfc287155be1b74b287109c609e2981ea57f6d280",
+      "bytes": 1380881,
+      "retrieved_at": "2026-10-16T01:13:44.004Z"
+    }
+  ],
+  "requests": [
+    {
+      "file": "2026-10-15T20-08-27-758Z-986ff181-2093-4d2c-b892-c60f3bf34a90-attempt1.json",
+      "sha256": "8eaf3199b591bdef5b48c5ac665c1d1fda063c978b5d70b180bf663a55dd18b5",
+      "thinking": {
+        "type": "adaptive"
+      },
+      "effort": {
+        "effort": "max"
+      },
+      "cap": 125000,
+      "sampling": [],
+      "lastRole": "user",
+      "thinkingBlocks": 0,
+      "systemSha": "2dceed4abc102986ce44e0721049387d2bebccc4c7cba71798ea3d8d4890793c",
+      "toolsSha": "87907b11354b102b886afccef491b9d75139019cb222bda6c315b3898c5bb73c",
+      "betaPresent": [
+        "structured-outputs-2025-11-13,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14"
+      ]
+    },
+    {
+      "file": "2026-10-15T20-08-50-908Z-0baa2f2e-586b-4321-ae80-cf5aa4ed29b8-attempt1.json",
+      "sha256": "78f0ac09fb7c11e3c87b610e0a870babf6253b157a457b4f76e32c4b0d5c3fd8",
+      "thinking": {
+        "type": "adaptive"
+      },
+      "effort": {
+        "effort": "max"
+      },
+      "cap": 125000,
+      "sampling": [],
+      "lastRole": "user",
+      "thinkingBlocks": 0,
+      "systemSha": "2dceed4abc102986ce44e0721049387d2bebccc4c7cba71798ea3d8d4890793c",
+      "toolsSha": "87907b11354b102b886afccef491b9d75139019cb222bda6c315b3898c5bb73c",
+      "betaPresent": [
+        "structured-outputs-2025-11-13,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14"
+      ]
+    },
+    {
+      "file": "2026-10-15T20-11-14-369Z-89e1bcf9-3829-4584-b820-9d28d2dd190c-attempt1.json",
+      "sha256": "137d5ca5e946530e9842031b292aa02d86cc0dc09a69735d651914162b5a27ed",
+      "thinking": {
+        "type": "adaptive"
+      },
+      "effort": {
+        "effort": "max"
+      },
+      "cap": 125000,
+      "sampling": [],
+      "lastRole": "user",
+      "thinkingBlocks": 0,
+      "systemSha": "2dceed4abc102986ce44e0721049387d2bebccc4c7cba71798ea3d8d4890793c",
+      "toolsSha": "87907b11354b102b886afccef491b9d75139019cb222bda6c315b3898c5bb73c",
+      "betaPresent": [
+        "structured-outputs-2025-11-13,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14"
+      ]
+    },
+    {
+      "file": "2026-10-15T20-12-41-924Z-c26d95a2-f435-47e1-8862-cdd9ed08e95d-attempt1.json",
+      "sha256": "fd3496d55bdf181b45268297a948bf93c358dc1146fed00665dbb6ecce3e1b84",
+      "thinking": {
+        "type": "adaptive"
+      },
+      "effort": {
+        "effort": "max"
+      },
+      "cap": 125000,
+      "sampling": [],
+      "lastRole": "user",
+      "thinkingBlocks": 0,
+      "systemSha": "2dceed4abc102986ce44e0721049387d2bebccc4c7cba71798ea3d8d4890793c",
+      "toolsSha": "87907b11354b102b886afccef491b9d75139019cb222bda6c315b3898c5bb73c",
+      "betaPresent": [
+        "structured-outputs-2025-11-13,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14"
+      ]
+    }
+  ],
+  "prefixPairs": [
+    {
+      "from": 0,
+      "to": 1,
+      "systemUnchanged": true,
+      "toolsUnchanged": true,
+      "commonMessagesUnchanged": false,
+      "ignoringCacheMarkers": true
+    },
+    {
+      "from": 1,
+      "to": 2,
+      "systemUnchanged": true,
+      "toolsUnchanged": true,
+      "commonMessagesUnchanged": false,
+      "ignoringCacheMarkers": true
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "systemUnchanged": true,
+      "toolsUnchanged": true,
+      "commonMessagesUnchanged": false,
+      "ignoringCacheMarkers": true
+    }
+  ],
+  "source": {
+    "path": "packages/opencode/src/provider/transform.ts",
+    "sha256": "41e8cc595a8dd749269ba83cf25eab098df8dbd8fe57e6ad77722d142abb572a",
+    "lines": "88-90"
+  },
+  "limitations": [
+    "No latency causality established",
+    "No whole-session or compaction parity",
+    "JSON member ordering is not canonicalized; cache_control stripped for the allowed-marker comparison",
+    "Original prompts and credentials excluded"
+  ]
+}

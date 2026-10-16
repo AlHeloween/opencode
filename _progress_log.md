@@ -7050,6 +7050,11 @@ RESIDUAL/NEXT: plan ACTIVE,8/8 inference budget consumed; continuation receipt a
 ✓ FINAL READBACK: renderer `20261016T010900Z_51ef39a3` exit0, gapsBefore=[]; план в `plans/`, P2/P5 остаются открытыми. Обнаруженный перед финализацией файл в `plans_completed/` возвращён: критерии не покрыты, архивирование не означает их выполнения. Причина перемещения данным раундом не установлена. Archive manifest:24 файлов, все byte hashes повторно совпали.
 <!-- sv: controlled-latency 0.40, payload-factorization 0.30, evidence-scope 0.20, continuation 0.10 -->
 
+## [2026-10-16] Haiku migration-guide contract audit
+
+✓ READBACK: owner URL и linked preserved-thinking authority прочитаны; `experiments_history/2026-10-16_haiku-omp-compare/migration-audit.{md,json}` сохраняют requirements, source hashes и четыре actual capture locators. Три пары сохранили system/tools и общие messages вне разрешённых cache_control markers. Current normalizeMessages удаляет signed-empty reasoning по text; default signature-only output официально штатен. UNSOLVED: latency effect, owner auth parity, complete tool loop. Новых inference calls/source/config/bin edits нет; следующий continuation oracle — fresh valid signed history, сохранение против потери replay при стабильном prefix/account. План ACTIVE.
+<!-- sv: migration-contract 0.40, signed-replay 0.35, prefix-audit 0.25 -->
+
 ## [2026-10-16] t62 — local tickets in the project cell: the write route (план plans/2026-10-15_local-ticket-write.md)
 
 ✓ CONFIRMED (RED→GREEN, cmd_runner, one file per call): cell-ticket RED `20261016T010134Z_2d6bf838` exit 1 (`addTicket` missing) → GREEN `20261016T010756Z_68983209` 4/4; fossilcell-ticket RED `20261016T010200Z_d26e708d` exit 1 (`ownRepoPath` missing) → GREEN `20261016T010703Z_f152237a` 6/6; lock RED `20261016T010214Z_c416f66d` exit 1 (`ticketAdd` missing) → GREEN `20261016T010836Z_f102f64d` 1/1 (peak fossil in-flight == 1, ticketAdd + track concurrent).

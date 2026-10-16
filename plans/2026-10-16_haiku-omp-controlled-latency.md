@@ -106,3 +106,7 @@ Public result: `experiments_history/2026-10-16_haiku-omp-compare/REPORT.md`, con
 Next leaf: новый2×2 system×tools с одинаковыми messages/thinking/display/binding/context/account/headers/gateway/cap, свежим baseline и учётом cache. Continuation receipt: `20261016T004948Z_970f7c8a`, artifact finished2026-10-16T00:53:11.800Z,8calls и8 outgoing hash matches. Затем отдельный valid signed-empty A/B для continuation, не восстановление всех поздних подписей сразу.
 
 Tool residual: починить общий stop/lifecycle research harness и action_ready predicate до следующего использования; existing metrics не объявлять schema/tool execution acceptance. Owner omp exactwire parity также не закрыт. Нет SUCCESS или full portfolio acceptance; план не архивируется в completed. Reopen/continue по этому receipt, не по пересказу предыдущего отчёта.
+
+## Сверка ссылки владельца на migration guide
+
+✓ Read-only audit: `experiments_history/2026-10-16_haiku-omp-compare/migration-audit.md` и `migration-audit.json`. Четыре исходных captures/три пары: system/tools стабильны, общая история отличается только cache_control (разрешено документацией); thinking в outbound отсутствует. Official contract подтверждает штатность signed-empty blocks и необходимость сохранения replay, но latency attribution остаётся UNKNOWN. Для continuation сначала отдельный valid signed replay oracle, для первого запроса — прежний system×tools. Старую матрицу не повторять; новых inference calls нет.

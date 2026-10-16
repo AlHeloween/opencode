@@ -242,6 +242,10 @@ export function runChainStream<TChunk, TModel, TErr = never, R = never>(
     return Stream.catchCause(opened, (cause) =>
       Stream.unwrap(
         Effect.gen(function* () {
+          // The attempt is over — a leaked watchdog would abort a dead
+          // controller 120 s later (harmless but sloppy, and it holds the
+          // test loop open). The next attempt arms its own timer.
+          disarm()
           const failure = Cause.findErrorOption(cause)
           // Failures always enter the decision. Defects enter it only when
           // they carry a provider shape (see isProviderShaped): the t74 429

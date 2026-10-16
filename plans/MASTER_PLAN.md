@@ -101,6 +101,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 [Видимая подготовка запроса](../plans_completed/2026-10-15_prompt-noop-http.md) — принятый запрос показывает этап CodeGraph до запуска модели; HTTP, native кадр, отмена и границы проверки находятся в плане.
 <!-- sv: prompt-preparation,visible-progress,cancellation -->
 
+[Первый нативный граф DAIS с квитанциями](../plans_completed/2026-10-16_dais-evidence-graph.md) — проверенный ограниченный срез SCIP/Fossil/SV; исполненные оракулы, область PASS и продолжение находятся в плане и evidence archive.
+<!-- sv: evidence-graph 0.40, fossil-provenance 0.30, falsification 0.30 -->
+
 ## Standing rules that outlive any plan
 
 [Исследование Haiku 5.5](../plans_completed/2026-10-16_haiku-end-to-end-research.md) — wire/SDK/replay/cancellation receipts и явно непроверенная граница actual TUI; результаты и остатки находятся в плане и отчёте.
@@ -135,10 +138,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 268 |
-| plans active | 32 |
-| tasks passed / total | 1260 / 1547 |
-| open boxes | 144 |
+| plans completed | 274 |
+| plans active | 34 |
+| tasks passed / total | 1295 / 1584 |
+| open boxes | 146 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -365,10 +368,6 @@ prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000]
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_aicall-router-cost.md` — 0 open / 3 box(es) · lifecycle UNKNOWN
-  sv: intention "aicall calling a router as free -> aicall never silently calls a router" · keywords [Keywords: aicall-router 0.35, cost-unknown 0.25, chain-fallback 0.20, paid-refusal 0.12, free-first 0.08; Semantic dominant: Stop aicall from ever billing a router as free.]
-  - no open box
-
 - `plans/2026-10-16_haiku-omp-controlled-latency.md` — 2 open / 5 box(es) · lifecycle UNKNOWN
   sv: intention "Haiku в OpenCode даёт длительные паузы, в omp с загруженным kernel пользователь наблюдает быстрый ответ -> воспроизводимое сравнение actual запросов и изолированных факторов, с установленной областью причинного вывода и непокрытым остатком" · keywords [controlled-latency, wire-equivalence, protocol-grounding, causal-boundaries]
   - P2 [PENDING] · sv [actual-wire, payload-diff, source-provenance] · manifest: MISSING — nobody has written down what this box is
@@ -380,7 +379,7 @@ parent-goal-md5: 00000000000000000000000000000000]
   - E6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - E8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_model-chain-failover.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-16_model-chain-failover.md` — 8 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "blind retry loops on dead models with human failover -> explicit ordered model chain per agent/scope with automatic classified failover and 10-minute health checks" · keywords [model-chain, failover-classification, health-probe, assignment]
   - C3b [PENDING] · sv [inrequest-failover 0.50, visible-note 0.30, partial-kept 0.20] · manifest: Walk the session chain inside one request with first-token abort and a visible note. · eta 2 · doing
   - C1 [PENDING] · sv [chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25] · manifest: Persist the explicit model chain per agent and scope in LMDB through the TUI server path with fill-once semantics. · eta 3 · doing
@@ -389,16 +388,11 @@ parent-goal-md5: 00000000000000000000000000000000]
   - C4 [PENDING] · sv [health-probe 0.50, no-session-probe 0.30, fake-clock 0.20] · manifest: MISSING — nobody has written down what this box is
   - C5 [PENDING] · sv [chain-assignment 0.50, dispatcher-unpinned 0.30, prompt-async 0.20] · manifest: MISSING — nobody has written down what this box is
   - C6 [PENDING] · sv [tui-chain-editor 0.40, live-receipt 0.35, docs-close 0.25] · manifest: MISSING — nobody has written down what this box is
+  - C8 [PENDING] · sv [favorites-chain 0.50, explicit-head 0.30, sdk-gap 0.20] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_reasoning-lossless-replay.md` — 9 open / 9 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-16_reasoning-lossless-replay.md` — 3 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "reasoning и metadata могут теряться до следующего запроса, поддержка HTTP3 у Anthropic на нашем сетевом пути не проверена -> reasoning сохраняется полностью и replay квалифицирован, HTTP3/QUIC и fallback установлены отдельными сетевыми измерениями" · keywords [reasoning-preservation, wire-proof, provider-contracts, continuity, transport-qualification]
-  - T1 [PENDING] · sv [grounding 0.45, route-matrix 0.35, classified-reproducer 0.20] · manifest: Re-ground reasoning loss graph and provider matrix with classified reproducers. · eta 1 · doing
-  - T2 [PENDING] · sv [discriminating-tests 0.45, sdk-wire 0.35, provenance 0.20] · manifest: MISSING — nobody has written down what this box is
-  - T3 [PENDING] · sv [lossless-replay 0.50, metadata-preservation 0.30, minimal-change 0.20] · manifest: MISSING — nobody has written down what this box is
   - T4 [PENDING] · sv [adapter-contracts 0.45, actual-wire 0.35, unsupported-observability 0.20] · manifest: MISSING — nobody has written down what this box is
-  - T5 [PENDING] · sv [continuity 0.45, prefix-binding 0.35, restart-compact 0.20] · manifest: MISSING — nobody has written down what this box is
-  - T6 [PENDING] · sv [complete-access 0.45, tui-navigation 0.35, rendering-performance 0.20] · manifest: MISSING — nobody has written down what this box is
-  - T7 [PENDING] · sv [end-to-end-evidence 0.45, independent-control 0.35, causal-boundary 0.20] · manifest: MISSING — nobody has written down what this box is
   - T8 [PENDING] · sv [independent-oracle 0.40, clean-state 0.35, documentation 0.25] · manifest: MISSING — nobody has written down what this box is
   - T9 [PENDING] · sv [http3-quic 0.45, client-network-qualification 0.35, fallback-evidence 0.20] · manifest: MISSING — nobody has written down what this box is
 
@@ -406,18 +400,35 @@ parent-goal-md5: 00000000000000000000000000000000]
   sv: intention "agent sees its own previous-message error and cannot remove it, window copies it forward by attention -> agent emits bounded self-edit directive (cut ranges + errata) addressed by message md5, stored original untouched, replay narrowed; error stopped at next step" · keywords [self-edit-directive, reasoning-hygiene, error-recurrence, fault-tolerance, keep-machinery]
   - P2 [PENDING] · sv [robot-runs 0.45, error-recurrence 0.35, owner-decision 0.20] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_zoekt-scip-fossil-sv.md` — 3 open / 5 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-16_unmanaged-options.md` — 0 open / 0 box(es) · lifecycle UNKNOWN
+  sv: intention "unmanaged hidden behavior options -> inventoried options with a uniform visible settings surface proposal" · keywords []
+  - no open box
+
+- `plans/2026-10-16_zoekt-scip-fossil-sv.md` — 3 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "CodeGraph остаётся обязательной зависимостью поиска и impact -> локальная навигация по коду через Zoekt/SCIP, связанная с Fossil diff и SV, с проверенной заменой потребителей CodeGraph" · keywords [Keywords: fossil-diff 0.30, zoekt-search 0.25, scip-navigation 0.20, sv-provenance 0.15, codegraph-migration 0.10
 Semantic dominant: Поиск и навигация получают проверяемые адреса версий Fossil и SV до замены потребителей CodeGraph.
 md5: e8a16f092bce49a5b9f4130dd7c26e84
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000]
+  - M0b [PENDING] · sv [baseline, corpus, measurement] · manifest: MISSING — nobody has written down what this box is
+  - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-17_host-crash-nemotron.md` — 1 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "silent host death on nemotron-3-ultra-free h2 streaming request -> diagnosed cause with worker-death oracle and multi-word model picker match" · keywords []
+  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-17_portable-binary-hermetic.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "portable install dir with exe-adjacent config -> hermetic binary that reads only exe-adjacent and data-root sources, never parent folders" · keywords []
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 35 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 37 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

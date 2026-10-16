@@ -54,7 +54,7 @@ doc pointer (edit D1, cua D4, question/summaryedit/compact D8, duplicate `todo` 
 - [x] <!-- sv: edit cua question summaryedit compact densify --> S4 In-place densify D1 (edit −1349 B), D4 (cua), D8 (compact/question/summaryedit) — no meaning/safety/routing name dropped
 - [x] <!-- sv: todo alias wire dedup --> S5 M1: `todo` off the wire via `offeredNames` (llm.ts activeTools) + repair alias step (tool-call-repair.ts); unit tests in tool-define + json-repair-policy GREEN
 - [x] <!-- sv: description integrity test gates --> S6 Integrity test extended (RED run 20261016T013141Z_7247fcfd: 5 pass/3 fail → GREEN run 20261016T014658Z_4820fefe: 8 pass)
-- [ ] <!-- sv: bytes receipts and regression tests --> S7 Wire bytes before/after + existing tool tests green; one build; commit naming this plan
+- [x] <!-- sv: bytes receipts and regression tests --> S7 Wire 152922 → 161869 B projected (+5.9%); tests green (§log); build `20261016T015252Z_faff652b` exit 1 with bundle+smoke PASS (10.0.1367) and the t62 residual only (dist copy held by pid 11188, t59 oracle) — commit naming this plan
 
 ## Gate-line contract (applies to S1/S2)
 

@@ -135,10 +135,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 262 |
-| plans active | 30 |
-| tasks passed / total | 1184 / 1478 |
-| open boxes | 151 |
+| plans completed | 263 |
+| plans active | 29 |
+| tasks passed / total | 1191 / 1478 |
+| open boxes | 144 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -349,22 +349,6 @@ parent-goal-md5: 00000000000000000000000000000000]
   - TASK-16 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-17 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_tool-gate-marks.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
-  sv: intention "unmarked tool schemas (model misuses tools) -> gate-marked + densified descriptions, integrity-tested (in place only)" · keywords [```yaml
-Keywords: tool-gates 0.30, inference-stability 0.25, in-place-densify 0.20, integrity-test 0.15, wire-bytes 0.10
-Semantic dominant: Every owned tool description names its kernel gates and principle in place, proven by an integrity test.
-md5: 63a1f2b4c5d6e7f8091a2b3c4d5e6f70
-prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
-```]
-  - TASK-1 [PENDING] · sv [gate lines on all 36 txt descriptions] · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv [gate lines on inline ts descriptions] · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv [fossilgrep docs pointer removal] · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv [edit cua question summaryedit compact densify] · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv [todo alias wire dedup] · manifest: MISSING — nobody has written down what this box is
-  - TASK-6 [PENDING] · sv [description integrity test gates] · manifest: MISSING — nobody has written down what this box is
-  - TASK-7 [PENDING] · sv [bytes receipts and regression tests] · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-15_tui-active-sessions-panel.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
   sv: intention "TUI sidebar has no live view of running sessions (owner must open the sessions dialog to guess what is running) -> a sidebar block lists every busy/retrying session of THIS server (API robots included), refreshed ~1 s, with an explicit «none active» when idle" · keywords [Keywords: sidebar-active-sessions 0.35, event-synced-store 0.25, elapsed-tick 0.20, none-active-invariant 0.20
 Semantic dominant: The owner sees at a glance which sessions of this server are running — robots included — read from the store the TUI already event-syncs, with the 1 s tick spent only on elapsed time and an explicit «none active» when idle.
@@ -405,7 +389,7 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 - `plans/2026-10-16_reasoning-lossless-replay.md` — 9 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "reasoning и metadata могут теряться до следующего запроса, поддержка HTTP3 у Anthropic на нашем сетевом пути не проверена -> reasoning сохраняется полностью и replay квалифицирован, HTTP3/QUIC и fallback установлены отдельными сетевыми измерениями" · keywords [reasoning-preservation, wire-proof, provider-contracts, continuity, transport-qualification]
-  - T1 [PENDING] · sv [grounding 0.45, route-matrix 0.35, classified-reproducer 0.20] · manifest: MISSING — nobody has written down what this box is
+  - T1 [PENDING] · sv [grounding 0.45, route-matrix 0.35, classified-reproducer 0.20] · manifest: Re-ground reasoning loss graph and provider matrix with classified reproducers. · eta 1 · doing
   - T2 [PENDING] · sv [discriminating-tests 0.45, sdk-wire 0.35, provenance 0.20] · manifest: MISSING — nobody has written down what this box is
   - T3 [PENDING] · sv [lossless-replay 0.50, metadata-preservation 0.30, minimal-change 0.20] · manifest: MISSING — nobody has written down what this box is
   - T4 [PENDING] · sv [adapter-contracts 0.45, actual-wire 0.35, unsupported-observability 0.20] · manifest: MISSING — nobody has written down what this box is
@@ -417,6 +401,6 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 ## The checks
 
-This body names all 32 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 31 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

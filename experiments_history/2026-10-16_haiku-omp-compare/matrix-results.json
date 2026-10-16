@@ -1,0 +1,487 @@
+{
+  "started": "2026-10-16T00:49:50.291Z",
+  "scope": "Exploratory payload matrix through actual isolated OpenCode gateway H2; no model tools executed; not full app acceptance.",
+  "controls": {
+    "bytewise_utf8": "PASS",
+    "truncated_terminal": "EXPECTED_FAIL",
+    "error_event": "PASS",
+    "C_only_tools_changed": "PASS",
+    "D_only_messages_changed": "PASS"
+  },
+  "source": {
+    "originalPath": "D:/zPython/opencode/.opencode/data/gateway/raw-wire/2026-10-15T20-08-27-758Z-986ff181-2093-4d2c-b892-c60f3bf34a90-attempt1.json",
+    "originalBodySha256": "8eaf3199b591bdef5b48c5ac665c1d1fda063c978b5d70b180bf663a55dd18b5",
+    "ompPreSendSha256": "f8898e8383019d996625bace820a287b7408dc08d450d8e806ea410e300dcca9"
+  },
+  "arms": {
+    "A": {
+      "sha256": "dac81ef8512de854fc73834bbe3263eb8c3a4da9d05d1edb4fb13f8365ce4912",
+      "bytes": 317638,
+      "tools": 59,
+      "messages": 1,
+      "thinking": {
+        "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "max"
+      },
+      "max_tokens": 8192
+    },
+    "B": {
+      "sha256": "4550e033a5355bc3152eb84585c2640c171d7f23b088e18096aef27c4d000525",
+      "bytes": 183616,
+      "tools": 11,
+      "messages": 1,
+      "thinking": {
+        "type": "adaptive",
+        "display": "summarized",
+        "block_binding": {
+          "prefix_mismatch_behavior": "drop_block"
+        }
+      },
+      "output_config": {
+        "effort": "max"
+      },
+      "max_tokens": 8192
+    },
+    "C": {
+      "sha256": "b94c481f063551a26d83d4cf06fd50a75dcdcfb4dfa92056cf6009861f82ac8c",
+      "bytes": 175879,
+      "tools": 11,
+      "messages": 1,
+      "thinking": {
+        "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "max"
+      },
+      "max_tokens": 8192
+    },
+    "D": {
+      "sha256": "7f75a2b6bff1bd3bae4804ea7fef866191dcdd84fcdee84161fa53f85b53d20b",
+      "bytes": 285067,
+      "tools": 59,
+      "messages": 1,
+      "thinking": {
+        "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "max"
+      },
+      "max_tokens": 8192
+    }
+  },
+  "order": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "D",
+    "C",
+    "B",
+    "A"
+  ],
+  "calls": [
+    {
+      "arm": "A",
+      "index": 0,
+      "started": "2026-10-16T00:49:50.304Z",
+      "status": 200,
+      "complete": true,
+      "text_chars": 223,
+      "thinking_chars": 0,
+      "event_count": 78,
+      "ping_count": 1,
+      "tools": [
+        "read",
+        "read",
+        "read",
+        "read",
+        "codegraphcodegraphfiles",
+        "planstatus",
+        "cmd"
+      ],
+      "body_sha256": "dac81ef8512de854fc73834bbe3263eb8c3a4da9d05d1edb4fb13f8365ce4912",
+      "headers_ms": 1294,
+      "provider_request_id": "req_011Cg4zpJchqW1pYH93a7225",
+      "first_byte_ms": 1346,
+      "initial_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 123354,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 123354,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 6,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "first_thinking_start_ms": 1346,
+      "first_action_ms": 26995,
+      "first_text_ms": 26995,
+      "valid_tool_json": true,
+      "stop_reason": "tool_use",
+      "final_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 123354,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 6199,
+        "output_tokens_details": {
+          "thinking_tokens": 5619
+        }
+      },
+      "elapsed_ms": 28474,
+      "action_ready": true
+    },
+    {
+      "arm": "B",
+      "index": 1,
+      "started": "2026-10-16T00:50:18.778Z",
+      "status": 200,
+      "complete": true,
+      "text_chars": 61,
+      "thinking_chars": 1430,
+      "event_count": 140,
+      "ping_count": 1,
+      "tools": [
+        "read",
+        "read",
+        "read",
+        "read"
+      ],
+      "body_sha256": "4550e033a5355bc3152eb84585c2640c171d7f23b088e18096aef27c4d000525",
+      "headers_ms": 7126,
+      "provider_request_id": "req_011Cg4zrQDc8mTNCMmLhpaaX",
+      "first_byte_ms": 7178,
+      "initial_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 72943,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 72943,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 4,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "first_thinking_start_ms": 7178,
+      "first_visible_thinking_ms": 8341,
+      "first_action_ms": 15205,
+      "first_text_ms": 15205,
+      "valid_tool_json": true,
+      "stop_reason": "tool_use",
+      "final_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 72943,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 1845,
+        "output_tokens_details": {
+          "thinking_tokens": 1483
+        }
+      },
+      "elapsed_ms": 15208,
+      "action_ready": true
+    },
+    {
+      "arm": "C",
+      "index": 2,
+      "started": "2026-10-16T00:50:33.987Z",
+      "status": 200,
+      "complete": true,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "event_count": 9,
+      "ping_count": 2,
+      "tools": [],
+      "body_sha256": "b94c481f063551a26d83d4cf06fd50a75dcdcfb4dfa92056cf6009861f82ac8c",
+      "headers_ms": 2808,
+      "provider_request_id": "req_011Cg4zsXCaxV6Sk9ezGLTJV",
+      "first_byte_ms": 2919,
+      "initial_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 61061,
+        "cache_read_input_tokens": 7337,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 61061,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 4,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "first_thinking_start_ms": 2919,
+      "stop_reason": "max_tokens",
+      "final_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 61061,
+        "cache_read_input_tokens": 7337,
+        "output_tokens": 8192,
+        "output_tokens_details": {
+          "thinking_tokens": 8192
+        }
+      },
+      "elapsed_ms": 41226,
+      "action_ready": false
+    },
+    {
+      "arm": "D",
+      "index": 3,
+      "started": "2026-10-16T00:51:15.214Z",
+      "status": 200,
+      "complete": true,
+      "text_chars": 188,
+      "thinking_chars": 0,
+      "event_count": 100,
+      "ping_count": 1,
+      "tools": [
+        "read",
+        "read",
+        "read",
+        "read",
+        "planstatus",
+        "codegraphcodegraphstatus",
+        "codegraphcodegraphfiles",
+        "run",
+        "run"
+      ],
+      "body_sha256": "7f75a2b6bff1bd3bae4804ea7fef866191dcdd84fcdee84161fa53f85b53d20b",
+      "headers_ms": 2525,
+      "provider_request_id": "req_011Cg4zvZTbHrXkQdrz9BtHx",
+      "first_byte_ms": 2577,
+      "initial_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 21314,
+        "cache_read_input_tokens": 89469,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 21314,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 4,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "first_thinking_start_ms": 2577,
+      "first_action_ms": 24415,
+      "first_text_ms": 24415,
+      "valid_tool_json": true,
+      "stop_reason": "tool_use",
+      "final_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 21314,
+        "cache_read_input_tokens": 89469,
+        "output_tokens": 5587,
+        "output_tokens_details": {
+          "thinking_tokens": 4758
+        }
+      },
+      "elapsed_ms": 26721,
+      "action_ready": true
+    },
+    {
+      "arm": "D",
+      "index": 4,
+      "started": "2026-10-16T00:51:41.936Z",
+      "status": 200,
+      "complete": true,
+      "text_chars": 66,
+      "thinking_chars": 0,
+      "event_count": 52,
+      "ping_count": 1,
+      "tools": [
+        "read",
+        "read",
+        "read",
+        "read",
+        "planstatus",
+        "list"
+      ],
+      "body_sha256": "7f75a2b6bff1bd3bae4804ea7fef866191dcdd84fcdee84161fa53f85b53d20b",
+      "headers_ms": 1334,
+      "provider_request_id": "req_011Cg4zxXekZ8UopWWkNt2En",
+      "first_byte_ms": 1386,
+      "initial_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 110783,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 6,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "first_thinking_start_ms": 1386,
+      "first_action_ms": 8315,
+      "first_text_ms": 8315,
+      "valid_tool_json": true,
+      "stop_reason": "tool_use",
+      "final_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 110783,
+        "output_tokens": 1855,
+        "output_tokens_details": {
+          "thinking_tokens": 1480
+        }
+      },
+      "elapsed_ms": 9281,
+      "action_ready": true
+    },
+    {
+      "arm": "C",
+      "index": 5,
+      "started": "2026-10-16T00:51:51.220Z",
+      "status": 200,
+      "complete": true,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "event_count": 9,
+      "ping_count": 2,
+      "tools": [],
+      "body_sha256": "b94c481f063551a26d83d4cf06fd50a75dcdcfb4dfa92056cf6009861f82ac8c",
+      "headers_ms": 1814,
+      "provider_request_id": "req_011Cg4zyDSQTHq1ppcDzsQZq",
+      "first_byte_ms": 1865,
+      "initial_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 68398,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 4,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "first_thinking_start_ms": 1865,
+      "stop_reason": "max_tokens",
+      "final_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 68398,
+        "output_tokens": 8192,
+        "output_tokens_details": {
+          "thinking_tokens": 8192
+        }
+      },
+      "elapsed_ms": 38869,
+      "action_ready": false
+    },
+    {
+      "arm": "B",
+      "index": 6,
+      "started": "2026-10-16T00:52:30.128Z",
+      "status": 200,
+      "complete": true,
+      "text_chars": 70,
+      "thinking_chars": 923,
+      "event_count": 136,
+      "ping_count": 1,
+      "tools": [
+        "read",
+        "read",
+        "read",
+        "read"
+      ],
+      "body_sha256": "4550e033a5355bc3152eb84585c2640c171d7f23b088e18096aef27c4d000525",
+      "headers_ms": 1136,
+      "provider_request_id": "req_011Cg51264z4AE9uXjKMZdWX",
+      "first_byte_ms": 1187,
+      "initial_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 72943,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 4,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "first_thinking_start_ms": 1187,
+      "first_visible_thinking_ms": 2396,
+      "first_action_ms": 8280,
+      "first_text_ms": 8280,
+      "valid_tool_json": true,
+      "stop_reason": "tool_use",
+      "final_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 72943,
+        "output_tokens": 1633,
+        "output_tokens_details": {
+          "thinking_tokens": 1258
+        }
+      },
+      "elapsed_ms": 8283,
+      "action_ready": true
+    },
+    {
+      "arm": "A",
+      "index": 7,
+      "started": "2026-10-16T00:52:38.411Z",
+      "status": 200,
+      "complete": true,
+      "text_chars": 163,
+      "thinking_chars": 0,
+      "event_count": 81,
+      "ping_count": 2,
+      "tools": [
+        "read",
+        "read",
+        "read",
+        "read",
+        "planstatus",
+        "codegraphcodegraphstatus",
+        "codegraphcodegraphfiles",
+        "run"
+      ],
+      "body_sha256": "dac81ef8512de854fc73834bbe3263eb8c3a4da9d05d1edb4fb13f8365ce4912",
+      "headers_ms": 868,
+      "provider_request_id": "req_011Cg512h88EZENtvZmScgVR",
+      "first_byte_ms": 919,
+      "initial_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 123354,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 4,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "first_thinking_start_ms": 919,
+      "first_action_ms": 31856,
+      "first_text_ms": 31856,
+      "valid_tool_json": true,
+      "stop_reason": "tool_use",
+      "final_usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 123354,
+        "output_tokens": 7476,
+        "output_tokens_details": {
+          "thinking_tokens": 6896
+        }
+      },
+      "elapsed_ms": 33387,
+      "action_ready": true
+    }
+  ],
+  "finished": "2026-10-16T00:53:11.800Z"
+}

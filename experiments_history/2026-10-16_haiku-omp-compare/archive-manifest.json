@@ -1,0 +1,134 @@
+{
+  "scope": "Selected public-safe research artifacts; raw prompts/captures and OMP sessions excluded.",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 148,
+      "sha256": "fb5a7a084af3988b2227c203b4bada462059b134c78a6d56685231c7737744c9"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 193,
+      "sha256": "ffdc06e9a9f1f922de0a38f7e799c3c6f426f52423da50485b35cf0dda60ab3b"
+    },
+    {
+      "path": "analysis.json",
+      "bytes": 2678,
+      "sha256": "60fcf23dc3180fa24112d6a0545b0f0a5a0fa5c3213fb3f5cdd083d89e526113"
+    },
+    {
+      "path": "capture-actual.ts",
+      "bytes": 1687,
+      "sha256": "4811a591fdec96435c983a2ad78a58c82eafb365466c4563694a978e58174711"
+    },
+    {
+      "path": "capture-extension.ts",
+      "bytes": 1904,
+      "sha256": "77ff4f6ce78788ea8fa8f040ba0365101df380a658068e12b112d6df42ddebfe"
+    },
+    {
+      "path": "capture-qualification.json",
+      "bytes": 619,
+      "sha256": "fdd8464aa1c2c274956f186a0e914e13bb0c1b004e36c43e9eab35bc49f2b35d"
+    },
+    {
+      "path": "matrix-results.json",
+      "bytes": 13552,
+      "sha256": "291fbb99a1dda82d7db84636cdf67b560726804898f4d01519d0d9e4df2184a2"
+    },
+    {
+      "path": "matrix.ts",
+      "bytes": 8735,
+      "sha256": "97c43d04773b7f51e02848d567a99a9b68a6bd21dacdbd993024206297cce19f"
+    },
+    {
+      "path": "qualify-capture.ts",
+      "bytes": 3532,
+      "sha256": "fa4d4b53ab05fe4b3ecc6fa373716c1f97b553a2db748f893962ffc759ba59c5"
+    },
+    {
+      "path": "receipts.json",
+      "bytes": 2047,
+      "sha256": "0c9c7e0138441ee944c601cec777d745fcc5bb5af7da3881caab5c17b6333c00"
+    },
+    {
+      "path": "receipts/20261016T004453Z_ad190fd4/state.json",
+      "bytes": 515,
+      "sha256": "1a398a535ff613eac59331c6ddcc45d338511e5735b2735aa5394b15503c4e53"
+    },
+    {
+      "path": "receipts/20261016T004453Z_ad190fd4/stdout_text.log",
+      "bytes": 29,
+      "sha256": "a0bdb7e71846a959dad4890557156530d5b836126491ac853ac3c629c04c9030"
+    },
+    {
+      "path": "receipts/20261016T004545Z_546f6c6f/state.json",
+      "bytes": 498,
+      "sha256": "30ffad20d19c0f9085136cf5f0eb094148e543e7ee5055d39ecd3017397fe163"
+    },
+    {
+      "path": "receipts/20261016T004545Z_546f6c6f/stdout_text.log",
+      "bytes": 508,
+      "sha256": "b5dff69f328ba0ff540704ed60dabeb9e0ad4c14e377ed07ae51d0099e175e71"
+    },
+    {
+      "path": "receipts/20261016T004631Z_42dab6b9/state.json",
+      "bytes": 497,
+      "sha256": "bd823c46d091e207de0f456f1b74fec1bf4709c443292485d0afab0679e84e35"
+    },
+    {
+      "path": "receipts/20261016T004631Z_42dab6b9/stdout_text.log",
+      "bytes": 596,
+      "sha256": "fe4d7db8275cb621786fd0006e7d69aef1f05e539461a2ccb1134e030c6e60de"
+    },
+    {
+      "path": "receipts/20261016T004948Z_970f7c8a/state.json",
+      "bytes": 514,
+      "sha256": "79f8f8bbbdaccaa8f64d548d750b413eb660d78d97e0fc6730ca54603e117ac5"
+    },
+    {
+      "path": "receipts/20261016T004948Z_970f7c8a/stdout_text.log",
+      "bytes": 1396,
+      "sha256": "765f99d65b85ed814ff8fc991ca68a3b5d3c9de73b1af1873743c880004529ef"
+    },
+    {
+      "path": "receipts/20261016T005145Z_0de9d608/state.json",
+      "bytes": 497,
+      "sha256": "67da729cb6d2888c1189106bb0766dc80971b04df190c86b8eabc90d7b62f2a6"
+    },
+    {
+      "path": "receipts/20261016T005145Z_0de9d608/stdout_text.log",
+      "bytes": 316,
+      "sha256": "8f4e86cc7979a3f1a0ecde6610b35f1c3802f2b66531d20385bafefbe1a22c24"
+    },
+    {
+      "path": "receipts/20261016T010426Z_de5bd26b/state.json",
+      "bytes": 498,
+      "sha256": "ad63aaeb1065c24cd01922215f98f71a6781a7a8711c37227dde5d8cf86a7a3a"
+    },
+    {
+      "path": "receipts/20261016T010426Z_de5bd26b/stdout_text.log",
+      "bytes": 254,
+      "sha256": "a7f46525ddf794099702b5879176e0847c391d13e07c5e1adad431100809bcbf"
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 13181,
+      "sha256": "37353baa010cb0b12571c1c73c54948eb008253d961b6a5df254b06faf2e0cce"
+    },
+    {
+      "path": "wire-readback.json",
+      "bytes": 2113,
+      "sha256": "4204fc1d3760d70a5229343ea5fb48fece3f6232701226939f2d67e193f5dcb8"
+    }
+  ],
+  "checks": {
+    "json": "PASS",
+    "secret_pattern_scan": "PASS",
+    "regular_files": "PASS"
+  },
+  "limitations": [
+    "Pattern scan not exhaustive; selected files were content-read.",
+    "No product fix or complete causal outcome."
+  ]
+}

@@ -7038,3 +7038,14 @@ Untried, named: contention against a REAL second concurrent _build (only fixture
 
 RESIDUAL: original125000-token completion, actual Session/TUI frame, full tool loop, source fixes signed replay/H2 signal+cleanup, output-path lock. Следующий ремонт начинает с сохранённых fixtures и их независимых controls; research closure не закрывает эти результаты FAIL/UNKNOWN. Чужой portfolio acceptance не проверен, чужая dirty work не staged.
 <!-- sv: haiku-research 0.35, live-wire 0.25, signed-replay 0.20, h2-cancellation 0.20 -->
+
+## [2026-10-16] Haiku/OpenCode/omp — controlled first-turn round, ACTIVE
+
+✓ READBACK: `plans/2026-10-16_haiku-omp-controlled-latency.md`, `experiments_history/2026-10-16_haiku-omp-compare/REPORT.md`. Installed omp18.11.1 actual CLI pre-send capture qualified by independent localhost counter: stop74/0requests vs send0/1request, run `20261016T004545Z_546f6c6f`; first JSON-not-SSE qualification stopped/retained. Capture-only `20261016T004631Z_42dab6b9`; owner extensions disabled, MCP gap explicit, not owner transmitted wire proof.
+
+✓ MATRIX: `20261016T004948Z_970f7c8a`,8 HTTP200/message_stop, orderABCDDCBA, common OpenCode gatewayh2/account/model/max/cap8192,8 outgoing hashes matched. First text/tool-start: A26.995/31.856s, B15.205/8.280s; C twice cap8192 purethinking, D24.415/8.315s fails conservative30% signal. WholeOMPbundle faster in2samples withoutOMPtransport; no unique component/root cause stamp. Source field action_ready limited to syntax, not execution; process retained background timers and owned runner was stopped after final receipt, not clean suite PASS.
+
+RESIDUAL/NEXT: plan ACTIVE,8/8 inference budget consumed; continuation receipt above + matrix-results finished2026-10-16T00:53:11.800Z. Next2×2 system/tools at fixed otherfields/newbaseline; separately valid signed replay continuation, native transport parity and full tool loop. No product/config/bin edits, no owner abort/restart, no tests/build claimed. Public projections exclude raw user history/credentials; private captures stay ignored.
+
+✓ FINAL READBACK: renderer `20261016T010900Z_51ef39a3` exit0, gapsBefore=[]; план в `plans/`, P2/P5 остаются открытыми. Обнаруженный перед финализацией файл в `plans_completed/` возвращён: критерии не покрыты, архивирование не означает их выполнения. Причина перемещения данным раундом не установлена. Archive manifest:24 файлов, все byte hashes повторно совпали.
+<!-- sv: controlled-latency 0.40, payload-factorization 0.30, evidence-scope 0.20, continuation 0.10 -->

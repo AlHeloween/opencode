@@ -1,0 +1,7 @@
+# Re-run outputs containing private prompts/runtime state stay out of the archive.
+*.private.json
+qualify-*-capture.json
+*.stdout.jsonl
+*.stderr.txt
+matrix-stand/
+retained-first-qualification/

@@ -1,0 +1,56 @@
+{
+  "checks": [
+    {
+      "file": "2026-10-16T00-49-50-314Z-054824fa-8604-4a3f-b49c-3eef636029ef-attempt1.json",
+      "protocol": "h2",
+      "body_sha256": "dac81ef8512de854fc73834bbe3263eb8c3a4da9d05d1edb4fb13f8365ce4912",
+      "arm": "A"
+    },
+    {
+      "file": "2026-10-16T00-50-18-780Z-0d8a5f9d-17ce-4be5-bd69-6a17915bd270-attempt1.json",
+      "protocol": "h2",
+      "body_sha256": "4550e033a5355bc3152eb84585c2640c171d7f23b088e18096aef27c4d000525",
+      "arm": "B"
+    },
+    {
+      "file": "2026-10-16T00-50-33-988Z-4edec07e-387f-461c-bd7a-8d791b580b34-attempt1.json",
+      "protocol": "h2",
+      "body_sha256": "b94c481f063551a26d83d4cf06fd50a75dcdcfb4dfa92056cf6009861f82ac8c",
+      "arm": "C"
+    },
+    {
+      "file": "2026-10-16T00-51-15-216Z-99060f08-3b36-4280-b380-647d257dc171-attempt1.json",
+      "protocol": "h2",
+      "body_sha256": "7f75a2b6bff1bd3bae4804ea7fef866191dcdd84fcdee84161fa53f85b53d20b",
+      "arm": "D"
+    },
+    {
+      "file": "2026-10-16T00-51-41-938Z-f6492bb5-cab3-4f38-9b81-60b9b08e7647-attempt1.json",
+      "protocol": "h2",
+      "body_sha256": "7f75a2b6bff1bd3bae4804ea7fef866191dcdd84fcdee84161fa53f85b53d20b",
+      "arm": "D"
+    },
+    {
+      "file": "2026-10-16T00-51-51-222Z-bf1edbd3-a134-4222-afcc-920ab43c30e7-attempt1.json",
+      "protocol": "h2",
+      "body_sha256": "b94c481f063551a26d83d4cf06fd50a75dcdcfb4dfa92056cf6009861f82ac8c",
+      "arm": "C"
+    },
+    {
+      "file": "2026-10-16T00-52-30-134Z-2a3eac4a-6a97-4f3a-945b-c108507447cf-attempt1.json",
+      "protocol": "h2",
+      "body_sha256": "4550e033a5355bc3152eb84585c2640c171d7f23b088e18096aef27c4d000525",
+      "arm": "B"
+    },
+    {
+      "file": "2026-10-16T00-52-38-415Z-60efd189-9ddf-47a3-a998-b616cc68fed5-attempt1.json",
+      "protocol": "h2",
+      "body_sha256": "dac81ef8512de854fc73834bbe3263eb8c3a4da9d05d1edb4fb13f8365ce4912",
+      "arm": "A"
+    }
+  ],
+  "expected_calls": 8,
+  "actual_calls": 8,
+  "hash_matches": true,
+  "scope": "Outgoing matrix request bodies exactly match planned arm hashes; this is not proof of owner OMP transmitted body equality."
+}

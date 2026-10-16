@@ -1,0 +1,81 @@
+{
+  "scope": "Derived interpretation, original matrix-results remains unchanged.",
+  "calls": [
+    {
+      "index": 0,
+      "arm": "A",
+      "http_complete_without_error": true,
+      "syntactic_tool_payload": true,
+      "first_text_or_tool_start_ms": 26995,
+      "original_action_ready_field_is_not_product_acceptance": true
+    },
+    {
+      "index": 1,
+      "arm": "B",
+      "http_complete_without_error": true,
+      "syntactic_tool_payload": true,
+      "first_text_or_tool_start_ms": 15205,
+      "original_action_ready_field_is_not_product_acceptance": true
+    },
+    {
+      "index": 2,
+      "arm": "C",
+      "http_complete_without_error": true,
+      "syntactic_tool_payload": false,
+      "first_text_or_tool_start_ms": null,
+      "original_action_ready_field_is_not_product_acceptance": true
+    },
+    {
+      "index": 3,
+      "arm": "D",
+      "http_complete_without_error": true,
+      "syntactic_tool_payload": true,
+      "first_text_or_tool_start_ms": 24415,
+      "original_action_ready_field_is_not_product_acceptance": true
+    },
+    {
+      "index": 4,
+      "arm": "D",
+      "http_complete_without_error": true,
+      "syntactic_tool_payload": true,
+      "first_text_or_tool_start_ms": 8315,
+      "original_action_ready_field_is_not_product_acceptance": true
+    },
+    {
+      "index": 5,
+      "arm": "C",
+      "http_complete_without_error": true,
+      "syntactic_tool_payload": false,
+      "first_text_or_tool_start_ms": null,
+      "original_action_ready_field_is_not_product_acceptance": true
+    },
+    {
+      "index": 6,
+      "arm": "B",
+      "http_complete_without_error": true,
+      "syntactic_tool_payload": true,
+      "first_text_or_tool_start_ms": 8280,
+      "original_action_ready_field_is_not_product_acceptance": true
+    },
+    {
+      "index": 7,
+      "arm": "A",
+      "http_complete_without_error": true,
+      "syntactic_tool_payload": true,
+      "first_text_or_tool_start_ms": 31856,
+      "original_action_ready_field_is_not_product_acceptance": true
+    }
+  ],
+  "predefined_signal": {
+    "B": true,
+    "D": false
+  },
+  "C": "Both runs right-censored by max_tokens with no text/tool start; not completed answers.",
+  "limitations": [
+    "action_ready source predicate is too broad in general; current eight records separately checked for status/error/deadline.",
+    "No tool name/schema/execution oracle.",
+    "First-action timestamp is tool-start, not readiness of complete arguments.",
+    "Only two samples per arm, different cache warmth.",
+    "Current source gateway process retained background timers after all final receipts; owned runner explicitly stopped, no clean suite-exit PASS."
+  ]
+}

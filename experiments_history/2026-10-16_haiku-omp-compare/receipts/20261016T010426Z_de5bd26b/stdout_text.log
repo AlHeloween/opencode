@@ -1,0 +1,42 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "ok": true,
+  "file": "plans/MASTER_PLAN.md",
+  "bytes": 44554,
+  "stats": {
+    "plans": 31,
+    "openBoxes": 144,
+    "missingPlanSv": 2,
+    "missingTaskSv": 97,
+    "missingManifests": 141,
+    "gapsBefore": []
+  }
+}

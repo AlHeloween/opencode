@@ -1,0 +1,44 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "ok": true,
+  "file": "plans/MASTER_PLAN.md",
+  "bytes": 44792,
+  "stats": {
+    "plans": 31,
+    "openBoxes": 148,
+    "missingPlanSv": 2,
+    "missingTaskSv": 97,
+    "missingManifests": 145,
+    "gapsBefore": [
+      "plans/2026-10-16_haiku-omp-controlled-latency.md"
+    ]
+  }
+}

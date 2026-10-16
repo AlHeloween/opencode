@@ -1,0 +1,4 @@
+# Captured byte hashes must survive checkout unchanged.
+* -text
+receipts/**/state.json whitespace=cr-at-eol
+receipts/**/stdout_text.log -whitespace

@@ -5,7 +5,7 @@ import {
 } from "@ai-sdk/provider"
 import type { OpenAICompatibleChatPrompt } from "./openai-compatible-api-types"
 import { convertToBase64 } from "@ai-sdk/provider-utils"
-
+import { reportCut } from "@/session/conservation"
 function getOpenAIMetadata(message: { providerOptions?: SharedV3ProviderOptions }) {
   return {
     ...(message?.providerOptions?.openaiCompatible ?? {}),
@@ -77,6 +77,11 @@ export function convertToOpenAICompatibleChatMessages(prompt: LanguageModelV3Pro
         let text = ""
         let reasoningText: string | undefined
         let reasoningOpaque: string | undefined
+        // t65 D-S1: empty-text reasoning parts that contribute neither text nor
+        // their own opaque binding. Reported below when the message carries no
+        // reasoning at all — a silent drop is the defect; inventing bytes is not
+        // the fix, so bare-empty parts stay off the wire and stay VISIBLE.
+        let droppedReasoning = 0
         const toolCalls: Array<{
           id: string
           type: "function"
@@ -98,7 +103,13 @@ export function convertToOpenAICompatibleChatMessages(prompt: LanguageModelV3Pro
               break
             }
             case "reasoning": {
-              if (part.text) reasoningText = part.text
+              if (part.text) {
+                reasoningText = part.text
+              } else if (
+                !((part.providerOptions as { copilot?: { reasoningOpaque?: string } })?.copilot?.reasoningOpaque)
+              ) {
+                droppedReasoning++
+              }
               break
             }
             case "tool-call": {
@@ -124,6 +135,14 @@ export function convertToOpenAICompatibleChatMessages(prompt: LanguageModelV3Pro
           typeof reasoning_content === "string" && reasoning_content.length > 0
             ? reasoning_content
             : reasoningText || undefined
+        if (droppedReasoning > 0 && !resolvedReasoningContent && !reasoningOpaque) {
+          reportCut({
+            site: "sdk.copilot-chat",
+            kind: "empty reasoning parts with nothing to carry (no text, no opaque, no metadata fallback)",
+            dropped: droppedReasoning,
+            reason: "copilot-chat wire has no field for them — original parts stay upstream, never forwarded as vendor bytes",
+          })
+        }
         messages.push({
           role: "assistant",
           content: text || null,

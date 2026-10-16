@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t65 D-S1 fix + A7 S5 chain (план plans/2026-10-16_reasoning-lossless-replay.md)
+
+✓ CONFIRMED (D-S1 RED→GREEN): new test/provider/copilot/copilot-empty-reasoning-report.test.ts RED 20261016T045743Z_52b8b876 exit 1 (3 pass / 1 fail — только report-assert) → GREEN 20261016T050908Z_3c656d54 exit 0 (4/4). Fix: `convert-to-openai-compatible-chat-messages.ts` — пустые reasoning-части без текста и без собственного opaque считаются, reportCut `sdk.copilot-chat` когда на wire вообще ничего reasoning не едет; opaque binding едет как раньше, байты не выдумываются. Регрессии: convert-to-copilot-messages 19/19, typecheck exit 0. KV-cache: bytes меняются только для ходов с пустым reasoning (добавляется report-лог, не wire).
+✓ CONFIRMED (A7 S5, predicted chain): new test/provider/gateway-fallback-chain.test.ts GREEN (1/1, 9 expects) — stubbed-h3 reject → h2 падает на h1-only сервере → h1.1 отдаёт 200; wire [h3,h2,http/1.1], attempts [1,2,3], selected [http/1.1], served -attempt3 complete/200. Явный `h3` (не auto): без пинов Store, owner data не тронуты. A7-fallback engagement CLOSED на этом шве.
+✓ CONFIRMED (build): `_build.ps1` 20261016T050944Z_843d1c99 exit 0 — smoke 10.0.1376 + prompt embedded PASS, все копии OK, lock отпущен нами. Платных ноль.
+— Следующий leaf: T4 fix slice F1 остаток (bedrock/openai-compatible transform-time reports), T5 checkpoint/compaction.
+<!-- sv: adapter-contracts 0.45, actual-wire 0.35, unsupported-observability 0.20 -->
 ## [2026-10-16] t68 slice 1 — model-chain core: chain/classify/failover/health-check + RED→GREEN (план plans/2026-10-16_model-chain-failover.md)
 
 ✓ CONFIRMED (RED first): new test/provider/model-chain-failover.test.ts RED 20261016T044603Z_8bf4b9b9 exit 1 (Cannot find module '@/provider/model-chain/chain') → GREEN 20261016T044736Z_a31ef591 exit 0 (18 pass, 50 expects).

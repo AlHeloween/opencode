@@ -273,6 +273,13 @@ Three rules, each bought by a defect the agent could not diagnose about itself:
    range accounting (summaries `#a..#b`, tail `#b+1..#c`): `no gap` — with the rows the selector omits
    by design NAMED, never counted as holes — or a `GAP` with its count. A decision carries its reason:
    `compact`'s `reason` is required and echoed into the tool's own output.
+4. **The agent may repair its own working representation — never the sources.** Owner, 2026-10-16, verbatim:
+   «Агент должен иметь возможность исправлять обнаруженные дефекты собственного рабочего представления до их
+   повторного использования, не изменяя первоисточников, доказательств и истории решений.» Rule 1 forbids the
+   RUNTIME silently compressing the tail; this permits the AGENT's own explicit, reasoned correction (cut or
+   erratum) of what replays, before it is reused — the stored original, tool exchanges, evidence and the decision
+   history stay unchanged and addressable, and each correction is recorded as a self-refutation. Mechanism:
+   plan t70 (self-edit directive).
 
 **Falsifier:** if you have to go and CHECK what your own window held, the boundary broke continuity.
 The saving is a token; the cost is a recall turn. Full design:

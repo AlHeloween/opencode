@@ -11,6 +11,7 @@
 
 - [Исследование Haiku 5.5 — 2026-10-16](../experiments_history/2026-10-16_haiku-research/REPORT.md) — live wire, hidden thinking, signed replay, HTTP/2 cancellation; воспроизводители и границы без заявления product fix
 - [Контролируемое сравнение Haiku/OpenCode/omp](../experiments_history/2026-10-16_haiku-omp-compare/REPORT.md) — actual CLI capture, восемь payload arms через общий gateway; различие bundle подтверждено, конкретная причина и продолжение остаются открыты
+- [Граф reasoning по умолчанию](reasoning-flow.md) — получение, хранение, экран, replay, route-specific потери и границы SDK; срез кода до исправления
 
 - [Отчётность и wiki организации](organization-reporting.md) — входы к паспорту, портфелю, участникам и отчётам Agent Corporation
 - [Устав агентной корпорации](organization-charter.md) — роли, продвижение по проверенным результатам, непрерывная память и самостоятельный запуск

@@ -1,0 +1,153 @@
+{
+  "scope": "Current source control-flow graph; no provider runtime or speed acceptance",
+  "observed_at": "2026-10-16T01:29:16.401Z",
+  "sources": [
+    {
+      "path": "packages/opencode/src/session/processor.ts",
+      "sha256": "441302e2b3ce05b475ec11c025bacbb208c0e42ba719bb5b693d8089331fa415",
+      "bytes": 86172
+    },
+    {
+      "path": "packages/opencode/src/session/message-v2.ts",
+      "sha256": "5fbaf44e338b647df695b99b3b5c4adf909e3d8d73ae58006cb5420a11b709cc",
+      "bytes": 107207
+    },
+    {
+      "path": "packages/opencode/src/provider/transform.ts",
+      "sha256": "41e8cc595a8dd749269ba83cf25eab098df8dbd8fe57e6ad77722d142abb572a",
+      "bytes": 63528
+    },
+    {
+      "path": "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx",
+      "sha256": "c118954246a78c13df811021b973a747f2bcd9ea3c47c6df5546a912b9fca6b6",
+      "bytes": 129217
+    },
+    {
+      "path": "packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts",
+      "sha256": "fe27e25a48c9ea3a35ad2e6f045f548500d4c72d35459e98699760fc1a57765e",
+      "bytes": 4479
+    },
+    {
+      "path": "packages/opencode/src/session/compaction.ts",
+      "sha256": "decb719b5ccf4cb2d67ea672556dc33ce9b5636de4fef876a2e6117fdac70d1e",
+      "bytes": 164583
+    },
+    {
+      "path": "packages/opencode/src/session/llm.ts",
+      "sha256": "269df52ef9da491091c0007b1982ec0eeaff8554d582b31e111eafe9fae0d784",
+      "bytes": 45744
+    },
+    {
+      "path": "packages/opencode/src/session/checkpoint.ts",
+      "sha256": "f973b1fed69eb03af3c3fab4c86c52c546a2820a35405d128eae7b1aff713870",
+      "bytes": 19503
+    },
+    {
+      "path": "packages/opencode/node_modules/@ai-sdk/anthropic/dist/index.js",
+      "sha256": "6c174178d7e79decb1aa6b0ec862bdffafc0563fb291ce85601e18de6e380059",
+      "bytes": 295082
+    },
+    {
+      "path": "packages/opencode/node_modules/@ai-sdk/amazon-bedrock/dist/index.js",
+      "sha256": "5aab6fb445402378011eb178c240e6a2055cb4917b4a518ba85ca6b7f4c52f84",
+      "bytes": 120416
+    }
+  ],
+  "anchors": [
+    {
+      "path": "packages/opencode/src/session/processor.ts",
+      "line": 883,
+      "needle": "case \"reasoning-start\"",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/session/processor.ts",
+      "line": 899,
+      "needle": "metadata: value.providerMetadata",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/session/processor.ts",
+      "line": 848,
+      "needle": "value.providerMetadata",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/session/message-v2.ts",
+      "line": 1509,
+      "needle": "const differentModel",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/session/message-v2.ts",
+      "line": 1728,
+      "needle": "part.type === \"reasoning\"",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/session/message-v2.ts",
+      "line": 1755,
+      "needle": "&& delivered",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/session/message-v2.ts",
+      "line": 1787,
+      "needle": "reasoning only",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/provider/transform.ts",
+      "line": 89,
+      "needle": "part.type === \"reasoning\"",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/provider/transform.ts",
+      "line": 118,
+      "needle": "part.type === \"reasoning\"",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/provider/transform.ts",
+      "line": 358,
+      "needle": "part.type !== \"reasoning\"",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx",
+      "line": 462,
+      "needle": "thinking_visibility",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx",
+      "line": 2248,
+      "needle": "6_000",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts",
+      "line": 86,
+      "needle": "text.slice(window.start)",
+      "matched": true
+    },
+    {
+      "path": "packages/opencode/src/session/compaction.ts",
+      "line": 2045,
+      "needle": "[reasoning]",
+      "matched": true
+    }
+  ],
+  "negative_control": {
+    "case": "wrong source anchor at processor reasoning-start",
+    "matched": false,
+    "expected": false
+  },
+  "limitations": [
+    "CodeGraph omitted inner message-v2/processor branches; targeted filesystem reads used after two indexed queries",
+    "TUI default is declared, persisted value not read",
+    "Compaction text render is not signature-preserving wire replay",
+    "All-provider SDK and real runtime behavior not smoke-tested"
+  ]
+}

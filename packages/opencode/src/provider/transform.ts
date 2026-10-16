@@ -327,9 +327,13 @@ function normalizeMessages(
     model.api.npm !== "@ai-sdk/google-vertex/anthropic"
   ) {
     const field = model.capabilities.interleaved.field
-    return msgs.map((msg) => {
+    // t65 slice 2: the dialect keeps the text; opaque blocks it cannot carry
+    // are counted here and reported once below — a silent drop is the defect.
+    let opaqueLeftBehind = 0
+    const mapped = msgs.map((msg) => {
       if (msg.role === "assistant" && Array.isArray(msg.content)) {
         const reasoningParts = msg.content.filter((part: any) => part.type === "reasoning")
+        opaqueLeftBehind += reasoningParts.filter(hasOpaqueReasoning).length
         const reasoningText = reasoningParts.map((part: any) => part.text).join("")
 
         // Filter out reasoning parts from content
@@ -353,6 +357,16 @@ function normalizeMessages(
 
       return msg
     })
+    if (opaqueLeftBehind > 0) {
+      reportCut({
+        site: "provider.transform",
+        kind: "interleaved opaque reasoning metadata (text kept in field)",
+        dropped: opaqueLeftBehind,
+        reason: "dialect conversion keeps text; foreign opaque blocks stay in the DB, never forwarded as vendor bytes",
+        detail: { field, providerID: model.providerID, modelID: model.id },
+      })
+    }
+    return mapped
   }
 
   // Everyone else on openai-compatible routes drops historical reasoning

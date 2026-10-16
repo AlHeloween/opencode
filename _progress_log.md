@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t65 slice 2 — message-v2 reasoning-only + differentModel + interleaved observe (план plans/2026-10-16_reasoning-lossless-replay.md)
+
+✓ CONFIRMED (T2 RED first): new test/session/message-v2-reasoning-preservation.test.ts RED 20261016T022151Z_8756aaec exit 1 (3 pass / 5 fail — все пять предсказанные preservation-asserts; оба qualify-контроля зелёные).
+✓ CONFIRMED (T3 GREEN): message-v2.ts — любое reasoning ставит delivered (reasoning-only форвардится), differentModel снимает только opaque binding с reportCut, DB-вход не мутируется; transform.ts interleaved — текст клеится как раньше + reportCut uncarried opaque; stale DROPS-тест superseded в FORWARDS с provenance (processor Bug #4 untouched). GREEN: новый 8/8 (20261016T022722Z_b29999eb exit 0), message-v2.test.ts 47/47, deepseek-defence 5/5, transform.test.ts 170/170, signed-empty 10/10; typecheck exit 0. KV-cache: bytes меняются только для ходов, раньше дропавшихся (reasoning-only теперь едут); остальные реплеи байт-идентичны.
+✓ MEASURED (T9, aioquic 1.6.1, 6/12 проб, платных ноль): www.google.com — QUIC handshake + H3 200 (зонд квалифицирован); cloudflare.com — QUIC TIMEOUT; api.anthropic.com — ClientHello(ALPN h3) → CONNECTION_CLOSE crypto handshake_failure(40), reason None. UDP-путь рабочий (google-контроль тем же клиентом) — отказ на handshake от edge. H2/H1.1Fallback работает (curl 404). Заявлено только измеренное.
+— Остаток: _build.ps1 в этом заходе не запускался; T8 independent verifier; A2–A4 live — ноль платных; H2-fallback отдельным fixture (A7).
+<!-- sv: lossless-replay 0.50, metadata-preservation 0.30, minimal-change 0.20 -->
 ## [2026-10-16] t66 — private-index commit route (plan plans/2026-10-16_private-index-commit.md)
 
 ✓ CONFIRMED (tests first): packages/opencode/test/git/private-index-commit.test.ts RED `20261016T022926Z_1547a8fd` exit 1 (0 pass / 4 fail, missing route) → GREEN `20261016T023058Z_40ca69d5` exit 0 (4 pass / 0 fail, 19 expects) + strengthened race-order GREEN `20261016T023237Z_c534de4f` exit 0.

@@ -1531,6 +1531,9 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       // вместо того чтобы их выкидывать»; wire: three turns with content "", tool_calls 0,
       // finish "stop"). An empty delivery is dropped from the replay.
       let delivered = false
+      // t65 slice 2: set when a different-model turn sheds opaque metadata —
+      // reported once per message below, never forwarded as foreign bytes.
+      let strippedOpaque = false
       for (const part of msg.parts) {
         if (part.type === "text") {
           if (part.text.trim().length > 0) delivered = true
@@ -1736,6 +1739,13 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           // same session showed 0-1 stamp tokens per block. Instrument:
           // experiments/2026-09-29_seal-loop-forensics/loop_census.py. The section-8 seal
           // stays on user messages only — a replayed chain is not a message.
+          // t65 slice 2 (owner 2026-10-16 «ничего резать не надо»): reasoning IS
+          // delivery — a reasoning-only assistant is replayed history, not an
+          // empty turn. The 2026-09-29 answering machine lived on the INBOUND
+          // side (an empty provider reply accepted as a completed turn); that
+          // processor retry is untouched — this gate only replays DB content.
+          delivered = true
+          if (differentModel && Object.keys(part.metadata ?? {}).length > 0) strippedOpaque = true
           assistantMessage.parts.push({
             type: "reasoning",
             text: part.text,
@@ -1776,17 +1786,30 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           })
         }
       } else if (assistantMessage.parts.length > 0) {
-        // Zero-payload tracking (owner directive 2026-09-29): a turn that carries parts but
-        // delivers nothing is NOT forwarded — and the drop is named through the one cut vocabulary,
+        // Zero-payload tracking (owner directive 2026-09-29, narrowed t65 slice 2):
+        // only a turn with no text/tool/file/reasoning at all lands here (reasoning
+        // counts as delivery since owner 2026-10-16) — and the drop is named
+        // through the one cut vocabulary,
         // so the class is visible instead of inferred. Nothing is trimmed from the transcript:
         // the parts stay in the DB.
         reportCut({
           site: "message-v2.replay",
           kind: "empty delivery",
           dropped: assistantMessage.parts.length,
-          reason: "delivered nothing (reasoning only) — not forwarded",
+          reason: "delivered nothing (no text/tool/file/reasoning) — not forwarded",
           sessionID: msg.info.sessionID,
           messageID: msg.info.id,
+        })
+      }
+      if (strippedOpaque) {
+        reportCut({
+          site: "message-v2.replay",
+          kind: "different-model opaque metadata",
+          dropped: 1,
+          reason: "foreign signature not forwarded to another model/account — original stays in the DB",
+          sessionID: msg.info.sessionID,
+          messageID: msg.info.id,
+          detail: { from: `${msg.info.providerID}/${msg.info.modelID}`, to: `${model.providerID}/${model.id}` },
         })
       }
     }

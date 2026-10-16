@@ -1504,13 +1504,12 @@ describe("session.message-v2.toModelMessage", () => {
     expect(content.some((p) => p.type === "reasoning" && p.text === "plan before call")).toBe(true)
   })
 
-  test("DROPS a reasoning-only assistant message — an empty delivery is not history (2026-09-29)", async () => {
-    // Owner 2026-09-29: «мы возвращаем эти пустые сообщения вместо того чтобы их выкидывать».
-    // Wire evidence that day: three turns ended with content "", tool_calls 0,
-    // finish_reason "stop" (17 898 / 34 815 / 24 905 chars of reasoning). They delivered
-    // nothing, and returning them taught the model that announcing the calls WAS finishing —
-    // the next attempt continued its own unfinished sentence and stopped again. The vendor
-    // ignores historical reasoning without tool calls, so the drop costs nothing.
+  test("FORWARDS a reasoning-only assistant message (owner 2026-10-16 overrules the 2026-09-29 drop)", async () => {
+    // Supersedes «DROPS a reasoning-only assistant message» with provenance:
+    // owner 2026-10-16 «ничего резать не надо» — a reasoning-only assistant is
+    // replayed history, not an empty delivery. The answering-machine guard that
+    // motivated the drop lives on the INBOUND side (processor empty-delivery
+    // retry, deepseek-defence Bug #4) and is untouched by this change.
     const assistantID = "m-assistant"
     const input: MessageV2.WithParts[] = [
       {
@@ -1523,7 +1522,11 @@ describe("session.message-v2.toModelMessage", () => {
     ]
 
     const result = await MessageV2.toModelMessages(input, model)
-    expect(result.some((m) => m.role === "assistant")).toBe(false)
+    const assistant = result.find((m) => m.role === "assistant")
+    const content = Array.isArray(assistant?.content)
+      ? (assistant.content as Array<{ type?: string; text?: string }>)
+      : []
+    expect(content.some((p) => p.type === "reasoning" && p.text === "only process")).toBe(true)
   })
 
   test("strips flood reminder blocks from replayed tool outputs, keeps gated-workflow brief", async () => {

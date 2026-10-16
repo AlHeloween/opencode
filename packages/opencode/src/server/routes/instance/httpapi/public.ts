@@ -1,4 +1,5 @@
 import { HttpApi, OpenApi } from "effect/unstable/httpapi"
+import { ChainApi } from "./chain"
 import { ConfigApi } from "./config"
 import { ControlApi } from "./control"
 import { EventApi } from "./event"
@@ -21,6 +22,7 @@ export const PublicApi = HttpApi.make("opencode")
   .addHttpApi(ControlApi)
   .addHttpApi(GlobalApi)
   .addHttpApi(EventApi)
+  .addHttpApi(ChainApi)
   .addHttpApi(ConfigApi)
   .addHttpApi(ExperimentalApi)
   .addHttpApi(FileApi)

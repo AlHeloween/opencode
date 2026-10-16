@@ -4,6 +4,7 @@ import { Agent } from "@/agent/agent"
 import { Bus } from "@/bus"
 import { Command } from "@/command"
 import { Permission } from "@/permission"
+import { assignChainModel } from "@/provider/model-chain/assign"
 import { PermissionID } from "@/permission/schema"
 import { Instance } from "@/project/instance"
 import { ModelID, ProviderID } from "@/provider/schema"
@@ -839,11 +840,22 @@ export const sessionHandlers = Layer.unwrap(
       payload: typeof PromptPayload.Type
     }) {
       const instance = yield* InstanceState.context
+      const assigned =
+        ctx.payload.model === undefined && ctx.payload.agent !== undefined
+          ? assignChainModel(ctx.params.sessionID, ctx.payload.agent)
+          : undefined
+      if (assigned) {
+        log.info("chain assign", { sessionID: ctx.params.sessionID, note: assigned.note })
+      }
+      const payload =
+        assigned !== undefined
+          ? { ...ctx.payload, model: assigned.model, variant: assigned.variant ?? ctx.payload.variant }
+          : ctx.payload
       yield* Effect.sync(() => {
         Instance.restore(instance, () => {
           void AppRuntime.runPromise(
             SessionPrompt.Service.use((svc) =>
-              svc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID } as unknown as SessionPrompt.PromptInput),
+              svc.prompt({ ...payload, sessionID: ctx.params.sessionID } as unknown as SessionPrompt.PromptInput),
             ).pipe(Effect.provide(SessionPrompt.defaultLayer)),
           ).catch((error) => {
             log.error("prompt_async failed", { sessionID: ctx.params.sessionID, error })

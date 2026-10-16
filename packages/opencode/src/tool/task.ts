@@ -23,10 +23,13 @@ import {
   loadSessionSettings,
   effectiveSubagents,
   resolveAgentModel,
+  resolveChainAgentModel,
   chosenVariant,
   resolveAgentVariant,
   readModelState,
 } from "../session/session-settings"
+import { loadChain } from "@/provider/model-chain/store"
+import { chainHealthState } from "@/provider/model-chain/health-registry"
 import { canonicalIdentity } from "../session/mode-identity"
 
 const log = Log.create({ service: "task" })
@@ -228,7 +231,15 @@ export const TaskTool = Tool.define(
       const msg = yield* Effect.sync(() => MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }))
       if (msg.info.role !== "assistant") return yield* Effect.fail(new Error("Not an assistant message"))
 
-      // Unified model resolution: session → workspace → global agent config → parent fallback
+      // Chain assignment (t68): the session layer's explicit chain wins over
+      // the legacy resolution below. Empty layer falls through silently here
+      // (the `bug:` warn lives in `resolveChainAgentModel`); a taken chain
+      // member different from the legacy pick is logged as the switch note.
+      const chainResolved = yield* Effect.sync(() =>
+        resolveChainAgentModel(next.name, ctx.sessionID, chainHealthState(), {
+          chain: loadChain(`session:${ctx.sessionID}`, next.name),
+        }),
+      ).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const parentSession = yield* sessions.get(ctx.sessionID)
       const modelState = yield* Effect.tryPromise({
         try: () => readModelState(),
@@ -250,14 +261,27 @@ export const TaskTool = Tool.define(
           modelID: state.taskModel.modelID,
         }
       })()
-      // Model precedence: session/workspace → global agent config → legacy task model → parent model.
+      // Model precedence: chain → session/workspace → global agent config → legacy task model → parent model.
       const model =
+        chainResolved ??
         resolved ??
         (next.model ??
           (taskModelOverride ?? {
             modelID: msg.info.modelID,
             providerID: msg.info.providerID,
           }))
+      if (
+        chainResolved !== undefined &&
+        resolved !== undefined &&
+        (chainResolved.providerID !== resolved.providerID || chainResolved.modelID !== resolved.modelID)
+      ) {
+        log.info("chain switch", {
+          sessionID: ctx.sessionID,
+          agent: next.name,
+          from: `${resolved.providerID}/${resolved.modelID}`,
+          to: `${chainResolved.providerID}/${chainResolved.modelID}`,
+        })
+      }
 
       // Unified variant resolution: session → workspace → global → agent configured
       const sameAsAgentModel =

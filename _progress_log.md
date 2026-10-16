@@ -1,6 +1,12 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t68 slice 3 — роут /chain + wiring prompt_async/task/pipeline (план plans/2026-10-16_model-chain-failover.md, боксы не тронуты)
+
+✓ CONFIRMED (роут): `GET/PUT /chain/:scope/:agent` (`httpapi/chain.ts`, регистрация `public.ts`/`server.ts`); PUT валидирует (пусто → 400), GET отдаёт мемберы + статусы/reasons — источник для заметки и web-формы t59.
+✓ CONFIRMED (wiring): `promptAsync` без модели подставляет first UP (`assign.ts` + `health-registry.ts`); `task`/`pipeline` берут цепочку первыми, switch — `chain switch`-заметкой в лог; пустой слой → legacy-путь. Store-тест 11/11 (20261016T053335Z_1ef1efbd), failover 25/25, task 14/14 (20261016T053557Z_5fdcc091).
+— Остаток: свежий dist → изолированный стенд free→Go; in-session баннер (новый event-type) — C6; dispatch unpin — owner.
+<!-- sv: chain-route 0.35, prompt-wiring 0.30, switch-note 0.20, isolated-stand 0.15 -->
 ## [2026-10-16] t68 slice 2 — ревью R1–R4 + C1 store + C5 core (план plans/2026-10-16_model-chain-failover.md, боксы не тронуты)
 
 ✓ CONFIRMED (R1 fill-once): `fillChain` read-walk удалён; `fillChainForNewLayer` + `readChainLayer` (один ключ) + `shouldBackfill`; пустой слой — `bug:`-warn + legacy-fallback. Failover-тест 25/25 (20261016T051512Z_07af3598 exit 0).

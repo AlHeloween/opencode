@@ -12,6 +12,7 @@ import { Session } from "@/session/session"
 import { lazy } from "@/util/lazy"
 import { Filesystem } from "@/util/filesystem"
 import { authorizationLayer } from "./auth"
+import { ChainApi, chainHandlers } from "./chain"
 import { ConfigApi, configHandlers } from "./config"
 import { eventRoute } from "./event"
 import { FileApi, fileHandlers } from "./file"
@@ -78,6 +79,7 @@ const instance = HttpRouter.middleware()(
 export const routes = Layer.mergeAll(
   eventRoute,
   ptyConnectRoute,
+  HttpApiBuilder.layer(ChainApi).pipe(Layer.provide(chainHandlers)),
   HttpApiBuilder.layer(ConfigApi).pipe(Layer.provide(configHandlers)),
   HttpApiBuilder.layer(ExperimentalApi).pipe(Layer.provide(experimentalHandlers)),
   HttpApiBuilder.layer(FileApi).pipe(Layer.provide(fileHandlers)),

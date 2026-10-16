@@ -12,6 +12,7 @@ import {
 } from "@/provider/model-chain/chain"
 import type { ChainHealth, ChainMember } from "@/provider/model-chain/chain"
 import { resolveChainAgentModel } from "@/session/session-settings"
+import { assignChainModel } from "@/provider/model-chain/assign"
 
 setDefaultTimeout(20_000)
 
@@ -99,5 +100,41 @@ describe("resolveChainAgentModel (C5 assignment)", () => {
   test("empty session layer warns and falls through (undefined), never walks to a parent", () => {
     expect(resolveChainAgentModel("build_mode", "ses_1", new Map(), { chain: undefined })).toBeUndefined()
     expect(resolveChainAgentModel("build_mode", "ses_1", new Map(), { chain: [] })).toBeUndefined()
+  })
+})
+
+describe("assignChainModel (prompt_async wiring)", () => {
+  test("assigns the first UP member with a visible note", () => {
+    const seen = new Map<string, string>()
+    const assignment = assignChainModel("ses_1", "build_mode", {
+      load: () => [free, go],
+      health: new Map(),
+      noteUse: (sid, agent, member) => {
+        const key = `${member.providerID}/${member.modelID}`
+        const prev = seen.get(`${sid}:${agent}`)
+        seen.set(`${sid}:${agent}`, key)
+        if (prev === key) return undefined
+        return prev
+      },
+    })
+    expect(assignment?.model).toEqual({ providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" })
+    expect(assignment?.note ?? "").toMatch(/chain assign opencode\/muse-spark-1.3-contributor-free/)
+  })
+  test("a mid-session switch names previous, new and reason", () => {
+    const health = new Map<string, ChainHealth>([
+      ["opencode/muse-spark-1.3-contributor-free", { status: "DOWN", downAt: 0, reason: "hang past 120s" }],
+    ])
+    const assignment = assignChainModel("ses_1", "build_mode", {
+      load: () => [free, go],
+      health,
+      noteUse: () => "opencode/muse-spark-1.3-contributor-free",
+    })
+    expect(assignment?.model).toEqual({ providerID: "opencode-go", modelID: "muse-spark-1.3-contributor" })
+    expect(assignment?.note ?? "").toMatch(/chain switch .* → .* \(hang past 120s\)/)
+  })
+  test("empty session layer falls through (undefined), never to a parent", () => {
+    expect(
+      assignChainModel("ses_1", "build_mode", { load: () => undefined, health: new Map(), noteUse: () => undefined }),
+    ).toBeUndefined()
   })
 })

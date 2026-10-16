@@ -8,7 +8,9 @@ import { Provider } from "@/provider/provider"
 import { MessageID } from "../session/schema"
 import { ModelID, ProviderID } from "../provider/schema"
 import type { TaskPromptOps } from "./task"
-import { resolveAgentModel, resolveAgentVariant } from "../session/session-settings"
+import { resolveAgentModel, resolveAgentVariant, resolveChainAgentModel } from "../session/session-settings"
+import { loadChain } from "@/provider/model-chain/store"
+import { chainHealthState } from "@/provider/model-chain/health-registry"
 
 const ContextMode = Schema.Literals(["full", "summary", "fields", "maxTokens"])
 
@@ -205,6 +207,13 @@ export const PipelineTool = Tool.define(
               title: `${step.description} (@${stepAgent.name} subagent)`,
             })
 
+            // Chain assignment (t68): the session layer's explicit chain wins over
+            // the legacy resolution below; empty layer falls through to it.
+            const chainResolved = yield* Effect.sync(() =>
+              resolveChainAgentModel(stepAgent.name, ctx.sessionID, chainHealthState(), {
+                chain: loadChain(`session:${ctx.sessionID}`, stepAgent.name),
+              }),
+            ).pipe(Effect.catch(() => Effect.succeed(undefined)))
             // Unified model resolution: session → workspace → global agent config → default
             const parentSession = yield* sessions.get(ctx.sessionID)
             const resolved = yield* Effect.tryPromise({
@@ -217,6 +226,7 @@ export const PipelineTool = Tool.define(
             }).pipe(Effect.catch(() => Effect.succeed(undefined)))
             const defaultModel = yield* provider.defaultModel()
             const model =
+              chainResolved ??
               resolved ??
               (stepAgent.model
                 ? { providerID: stepAgent.model.providerID, modelID: stepAgent.model.modelID }

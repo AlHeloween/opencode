@@ -24,6 +24,12 @@ side: in an OSINT era whatever a phone leaks (trackers, ad IDs, location pings, 
 joinable into a profile. The product's measurable value is the shrunken surface: third-party destinations and leaked
 data categories per app, before vs after, with every allowed service still healthy.
 
+And: «столько сколько сливает телефон больше не сливает ни одно устройство. Комп так или иначе заточен под полиси,
+можно прибить, а вот в телефоне это в разы сложнее причем часто источники слива как раз легальные каналы.» — the hard
+part: the leak rides LEGITIMATE channels (push, platform services, sync, crash reporting) that the phone needs, often on
+the same endpoint as the function. A domain block list cannot separate them; the intent record must be per PURPOSE,
+and the trade-off per service («block this and push dies») is shown with its measured consequence, never silent.
+
 ## The idea in our terms
 
 The pain is not writing rules once — it is that rules are a REPRESENTATION that breaks when the OS changes (new

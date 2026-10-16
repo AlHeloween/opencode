@@ -1,5 +1,6 @@
 import { describe, expect, setDefaultTimeout, test } from "bun:test"
 import {
+  favoritesToChain,
   HEALTH_CHECK_INTERVAL_MS,
   chainKey,
   displayHealth,
@@ -320,5 +321,38 @@ describe("classifyGatewayError (one signal source)", () => {
       message: "Too Many Requests",
       code: "429",
     })
+  })
+})
+
+describe("favoritesToChain (explicit pick = head, favorites = backups)", () => {
+  test("picked model heads, remaining favorites follow in order", () => {
+    const picked: ChainMember = { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" }
+    const favs: ChainMember[] = [
+      { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+      { providerID: "opencode-go", modelID: "muse-spark-1.3-contributor" },
+    ]
+    expect(favoritesToChain(picked, favs)).toEqual([
+      { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+      { providerID: "opencode-go", modelID: "muse-spark-1.3-contributor" },
+    ])
+  })
+  test("pick outside favorites still heads; duplicates collapse", () => {
+    const picked: ChainMember = { providerID: "opencode-go", modelID: "muse-spark-1.3-contributor" }
+    const favs: ChainMember[] = [
+      { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+      { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+    ]
+    expect(favoritesToChain(picked, favs)).toEqual([
+      { providerID: "opencode-go", modelID: "muse-spark-1.3-contributor" },
+      { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+    ])
+  })
+  test("copies are never aliased to the inputs", () => {
+    const picked: ChainMember = { providerID: "a", modelID: "m" }
+    const favs: ChainMember[] = [{ providerID: "b", modelID: "n" }]
+    const out = favoritesToChain(picked, favs)
+    expect(out).not.toBe(favs)
+    expect(out[0]).not.toBe(picked)
+    expect(out[1]).not.toBe(favs[0])
   })
 })

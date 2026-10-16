@@ -1,4 +1,12 @@
 ﻿# Progress Log
+## [2026-10-16] t68 session-retry consults chain + видимые попытки (C7) + favoritesToChain (C8 частично) (план plans/2026-10-16_model-chain-failover.md)
+
+✓ CONFIRMED (проводка): `processor.ts` — ячейка attemptModel/currentModel, `Effect.serviceOption(Provider.Service)` (без новых требований слоя — слой 10-16 не сломан), decide возвращает именованное сообщение; стрим перестраивается с `model: currentModel`; policy публикует switch-message с нулевым ожиданием. `bun typecheck` exit 0 (20261016T162117Z_061cc2e6).
+✓ CONFIRMED (RED→GREEN): chain-тест `processor-effect -t "consults the chain"` 1 pass / 20 filtered / 0 fail (20261016T161934Z_e4c936c8); `retry.test.ts` 36/36 (20261016T161231Z_06b951a3) — reason несёт код + retry-after, статус публикует имя переключения; `model-chain-failover.test.ts` 32/32 (20261016T161917Z_aacfacd5) — favoritesToChain голова+бэкапы+без алиасинга.
+✓ CONFIRMED (C7 видимость, закрыт): лента — `[chain switch prev → next (terminal: … (429, retry-after …); kept)]`; статус — `chain switch …: terminal …` + next=now. Жалоба владельца «информации о попытках не отображается» закрыта механизмом: попытка всегда пишет статус-строку с именами моделей.
+— C8 остаток: dialog-проводка (`DialogModel.onSelect` → `PUT /chain/:scope/:agent`); преграда — chain-клиента нет в SDK v2 (grep `chain` по `sdk.gen.ts` → no matches, 2026-10-16), нужен новый метод клиента. Связь favorites↔chain доказана ОТСУТСТВУЮЩЕЙ (два стора, общих вызывающих нет — codegraph).
+— Чужое дерево не тронуто; чужая строка: убрана одна stray-`}` в `stop-check.ts` (t76-мехправка в промежуточном состоянии) — разблокировала весь пакетный харнесс; `doc-read.ts` конкурент дописал сам. Класс оплачен дважды за ход: инструмент, говорящий «нет экспорта», прав — читай дифф байтами (`git diff`), а не эхо.
+<!-- sv: session-retry-live 0.40, switch-visibility 0.30, favorites-chain 0.20, shared-tree 0.10 -->
 
 ## [2026-10-17] DAIS M1 — нативный Fossil provider (план 2026-10-16_zoekt-scip-fossil-sv)
 

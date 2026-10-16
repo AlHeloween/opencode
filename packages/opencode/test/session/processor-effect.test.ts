@@ -23,7 +23,11 @@ import * as Log from "@opencode-ai/core/util/log"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideTmpdirServer } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
-import { raw, reply, TestLLMServer } from "../lib/llm-server"
+import { httpError, raw, reply, TestLLMServer } from "../lib/llm-server"
+import { loadChain, saveChain } from "@/provider/model-chain/store"
+import { chainHealthState } from "@/provider/model-chain/health-registry"
+import { memberKey } from "@/provider/model-chain/chain"
+import type { ChainMember } from "@/provider/model-chain/chain"
 
 Log.init()
 
@@ -1244,4 +1248,93 @@ it.live("session.processor gives a later assistant message its own full cap budg
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),
+)
+
+it.live("session.processor consults the chain on terminal retry instead of waiting", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+        const badID = ModelID.make("test-model")
+        const goodID = ModelID.make("test-model-2")
+        const bad = yield* provider.getModel(ref.providerID, badID)
+        const good = yield* provider.getModel(ref.providerID, goodID)
+        // Route stubs by model: bad is refused terminally, good answers.
+        // No retry-after header here — the FreeUsageLimitError body alone
+        // must already switch via the BALANCE branch (headers are pinned
+        // by unit tests); a wait would surface as a second bad hit below.
+        yield* llm.pushMatch(
+          (hit) => (hit.body as { model?: unknown }).model === bad.api.id,
+          httpError(429, {
+            type: "error",
+            error: { type: "FreeUsageLimitError", message: "Rate limit exceeded. Please try again later." },
+          }),
+        )
+        yield* llm.pushMatch(
+          (hit) => (hit.body as { model?: unknown }).model === good.api.id,
+          reply().text("hello from backup").stop().item(),
+        )
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "hi")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const members: ChainMember[] = [
+          { providerID: ref.providerID, modelID: bad.id },
+          { providerID: ref.providerID, modelID: good.id },
+        ]
+        saveChain(`session:${chat.id}`, "build_mode", members)
+        expect(loadChain(`session:${chat.id}`, "build_mode")).toEqual(members)
+        const hitsBefore = (yield* llm.hits).length
+        const handle = yield* processors.create({ assistantMessage: msg, sessionID: chat.id, model: bad })
+        const value = yield* handle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: bad.id },
+          } satisfies MessageV2.User,
+          sessionID: chat.id,
+          model: bad,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "hi" }],
+          tools: {},
+        })
+        expect(value).toBe("continue")
+        const hits = (yield* llm.hits).slice(hitsBefore)
+        expect(hits).toHaveLength(2)
+        expect((hits[0]?.body as { model?: unknown }).model).toBe(bad.api.id)
+        expect((hits[1]?.body as { model?: unknown }).model).toBe(good.api.id)
+        expect(chainHealthState().get(memberKey(members[0]!))?.status).toBe("DOWN")
+        const parts = MessageV2.parts(msg.id)
+        const texts = parts.filter((part) => part.type === "text").map((part) => (part as { text?: string }).text ?? "")
+        expect(texts.some((text) => text.includes("chain switch"))).toBe(true)
+        expect(texts.some((text) => text.includes("hello from backup"))).toBe(true)
+      }),
+    {
+      git: true,
+      config: (url: string) => {
+        const base = providerCfg(url)
+        return {
+          ...base,
+          provider: {
+            ...base.provider,
+            test: {
+              ...base.provider.test,
+              models: {
+                ...base.provider.test.models,
+                "test-model-2": {
+                  ...base.provider.test.models["test-model"],
+                  id: "test-model-2",
+                  name: "Test Model 2",
+                },
+              },
+            },
+          },
+        }
+      },
+    },
+  ),
+  30_000,
 )

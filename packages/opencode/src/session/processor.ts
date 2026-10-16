@@ -45,11 +45,16 @@ function countRequestMedia(messages: unknown[]): { image: number; video: number 
   }
   return { image, video }
 }
-import { SessionRetry, EMPTY_RESPONSE_MAX_ATTEMPTS } from "./retry"
+import { SessionRetry, EMPTY_RESPONSE_MAX_ATTEMPTS, consultChainSwitch } from "./retry"
 
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
-import type { Provider } from "@/provider/provider"
+import { Provider } from "@/provider/provider"
+import { ProviderID, ModelID } from "@/provider/schema"
+import { loadChain } from "@/provider/model-chain/store"
+import { memberKey } from "@/provider/model-chain/chain"
+import { chainHealthState } from "@/provider/model-chain/health-registry"
+import { canonicalIdentity } from "@/session/mode-identity"
 import { Question } from "@/question"
 import { Constitution } from "./constitution"
 import { noteToolCall as noteGraphFirstCall } from "./graph-first"
@@ -613,6 +618,11 @@ export const layer: Layer.Layer<
         changedFiles: new Set<string>(),
         evidenceFloor: input.evidenceFloor ?? "Inferred",
       }
+      // Attempt model cell (t68): the model the CURRENT attempt runs on.
+      // The drain rebuilds from it per retry, parse attributes errors to it,
+      // and guards read it via ctx.model. process() re-syncs it from the
+      // step's requested model on entry; chain switches move it forward.
+      let attemptModel = input.model
       let aborted = false
       let contextPrefix: string | undefined
       const slog = log
@@ -640,8 +650,8 @@ export const layer: Layer.Layer<
 
       const parse = (e: unknown) =>
         MessageV2.fromError(e, {
-          providerID: input.model.providerID,
-          modelID: input.model.id,
+          providerID: attemptModel.providerID,
+          modelID: attemptModel.id,
           aborted,
         })
 
@@ -875,6 +885,35 @@ export const layer: Layer.Layer<
         return true
       })
 
+      // Chain switch note writer (t68) — shared by the in-stream
+      // `chain-switch` event above and the session-retry switch below, so the
+      // two cannot render different text for the same switch.
+      const recordSwitchNote = Effect.fn("SessionProcessor.recordSwitchNote")(function* (note: {
+        prevKey: string
+        nextKey: string
+        reason: string
+      }) {
+        if (ctx.currentText) {
+          ctx.currentText.text = ctx.textBuilder.toString()
+          yield* session.updatePart(ctx.currentText)
+          ctx.currentText = undefined
+        }
+        const keptChars = ctx.textBuilder.length
+        yield* session.updatePart({
+          id: PartID.ascending(),
+          messageID: ctx.assistantMessage.id,
+          sessionID: ctx.sessionID,
+          type: "text",
+          text: buildSwitchNote({
+            prevKey: note.prevKey,
+            nextKey: note.nextKey,
+            reason: note.reason,
+            keptChars,
+          }),
+          synthetic: true,
+          time: { start: Date.now(), end: Date.now() },
+        })
+      })
       const handleEvent = Effect.fnUntraced(function* (value: StreamEvent) {
         // C3b visible note (t68) — before the switch: `case` cannot match
         // the service event type, and code between `switch {` and the first
@@ -883,27 +922,7 @@ export const layer: Layer.Layer<
         // lost silently), then record the switch as a synthetic part BEFORE
         // the next member's chunks arrive. Model content is never rewritten.
         if ((value as { type: string }).type === "chain-switch") {
-          const note = value as unknown as ChainSwitchEvent
-          if (ctx.currentText) {
-            ctx.currentText.text = ctx.textBuilder.toString()
-            yield* session.updatePart(ctx.currentText)
-            ctx.currentText = undefined
-          }
-          const keptChars = ctx.textBuilder.length
-          yield* session.updatePart({
-            id: PartID.ascending(),
-            messageID: ctx.assistantMessage.id,
-            sessionID: ctx.sessionID,
-            type: "text",
-            text: buildSwitchNote({
-              prevKey: note.prevKey,
-              nextKey: note.nextKey,
-              reason: note.reason,
-              keptChars,
-            }),
-            synthetic: true,
-            time: { start: Date.now(), end: Date.now() },
-          })
+          yield* recordSwitchNote(value as unknown as ChainSwitchEvent)
           return
         }
         switch (value.type) {
@@ -1748,6 +1767,43 @@ export const layer: Layer.Layer<
         const configBreak = (yield* config.get()).experimental?.continue_loop_on_deny === true
         ctx.shouldBreak = parentSession ? false : !configBreak
 
+        // Session-retry chain consultation (t68, session path): the model the
+        // CURRENT attempt runs on. process() re-syncs it from the step's
+        // requested model on entry; chain switches move it forward and the
+        // retry continues immediately (zero wait) with a visible note.
+        attemptModel = streamInput.model
+        let currentModel = streamInput.model
+        const providerOpt = yield* Effect.serviceOption(Provider.Service)
+        const chainEnv = {
+          load: loadChain,
+          health: chainHealthState(),
+          resolveModel: (member: { providerID: string; modelID: string }) =>
+            providerOpt._tag === "None"
+              ? Effect.succeed(undefined)
+              : providerOpt.value
+                  .getModel(ProviderID.make(member.providerID), ModelID.make(member.modelID))
+                  .pipe(
+                    Effect.map((m) => m as Provider.Model | undefined),
+                    Effect.catch(() => Effect.succeed(undefined as Provider.Model | undefined)),
+                  ),
+          noteSwitch: (note: { prevKey: string; nextKey: string; reason: string }) => recordSwitchNote(note),
+        }
+        const decideChainSwitch = (error: SessionRetry.Err) =>
+          Effect.gen(function* () {
+            const result = yield* consultChainSwitch({
+              sessionID: ctx.sessionID,
+              agent: canonicalIdentity(streamInput.agent.name),
+              model: { providerID: attemptModel.providerID, modelID: attemptModel.id },
+              error,
+              now: Date.now,
+              env: chainEnv,
+            })
+            if (!result) return false
+            const prevKey = memberKey({ providerID: attemptModel.providerID, modelID: attemptModel.id })
+            attemptModel = result.model
+            currentModel = result.model
+            return `chain switch ${prevKey} → ${memberKey(result.member)}: ${result.reason}`
+          })
         return yield* Effect.gen(function* () {
           yield* Effect.gen(function* () {
             ctx.currentText = undefined
@@ -1764,7 +1820,7 @@ export const layer: Layer.Layer<
               slog.info("turn.prepare", { requestMs: turn.timing.requestMs })
             }
             contextPrefix = undefined
-            const stream = llm.stream({ ...streamInput, onRequestPrefix: (fingerprint) => {
+            const stream = llm.stream({ ...streamInput, model: currentModel, onRequestPrefix: (fingerprint) => {
               contextPrefix = fingerprint
               streamInput.onRequestPrefix?.(fingerprint)
             } })
@@ -1790,6 +1846,7 @@ export const layer: Layer.Layer<
             Effect.retry(
               SessionRetry.policy({
                 parse,
+                decideChainSwitch,
                 maxAttempts: EMPTY_RESPONSE_MAX_ATTEMPTS,
                 set: (info) =>
                   status.set(ctx.sessionID, {

@@ -67,6 +67,23 @@ export function validateChain(chain: unknown): ChainMember[] {
 }
 
 /**
+ * Ordered chain from the TUI favorites (t68): the explicitly picked model
+ * becomes the head, the remaining favorites follow in list order as
+ * backups. Duplicates collapse to first occurrence, copies are never
+ * aliased. The caller keeps the existing chain when there is nothing to
+ * write — this helper never invents members outside the pick list.
+ */
+export function favoritesToChain(picked: ChainMember, favorites: ChainMember[]): ChainMember[] {
+  const out: ChainMember[] = [{ ...picked }]
+  for (const fav of favorites) {
+    if (fav.providerID === picked.providerID && fav.modelID === picked.modelID) continue
+    if (out.some((m) => m.providerID === fav.providerID && m.modelID === fav.modelID)) continue
+    out.push({ ...fav })
+  }
+  return out
+}
+
+/**
  * Copy the parent layer's chain into a layer that comes into existence.
  * Runs exactly once per layer (creation, or one-time backfill for layers
  * born before chains); afterwards the layer owns its copy and the parent

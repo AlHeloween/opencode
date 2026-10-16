@@ -11,7 +11,10 @@ import { SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
 import { Instance } from "../../src/project/instance"
 import { tmpdir } from "../fixture/fixture"
-
+import { consultChainSwitch } from "../../src/session/retry"
+import type { ChainMember } from "../../src/provider/model-chain/chain"
+import { memberKey } from "../../src/provider/model-chain/chain"
+import type { ChainHealth } from "../../src/provider/model-chain/chain"
 const providerID = ProviderID.make("test")
 
 function apiError(headers?: Record<string, string>): MessageV2.APIError {
@@ -357,5 +360,158 @@ describe("session.message-v2.fromError", () => {
     expect(MessageV2.APIError.isInstance(result)).toBe(true)
     expect((result as MessageV2.APIError).data.statusCode).toBe(504)
     expect(SessionRetry.retryable(result)).toBe("Upstream idle timeout exceeded")
+  })
+})
+
+describe("session.retry.consultChainSwitch", () => {
+  const free: ChainMember = { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" }
+  const go: ChainMember = { providerID: "opencode-go", modelID: "muse-spark-1.3-contributor", variant: "xhigh" }
+  function terminal429(): MessageV2.APIError {
+    return new MessageV2.APIError({
+      message: "Rate limit exceeded. Please try again later.",
+      statusCode: 429,
+      isRetryable: true,
+      responseHeaders: { "retry-after": "44638" },
+      responseBody:
+        '{"type":"error","error":{"type":"FreeUsageLimitError","message":"Rate limit exceeded. Please try again later."}}',
+    }).toObject() as MessageV2.APIError
+  }
+  function envOf(health: Map<string, ChainHealth>, seen: { notes: unknown[]; models: unknown[] }) {
+    return {
+      load: (_scope: string, _agent: string) => [free, go] as ChainMember[],
+      health,
+      resolveModel: (member: ChainMember) => Effect.succeed({ marker: memberKey(member) }),
+      noteSwitch: (note: unknown) => Effect.sync(() => void seen.notes.push(note)),
+    }
+  }
+  test("terminal 429 with huge retry-after marks DOWN and switches without waiting", async () => {
+    const health = new Map<string, ChainHealth>()
+    const seen = { notes: [] as unknown[], models: [] as unknown[] }
+    const result = await Effect.runPromise(
+      consultChainSwitch({
+        sessionID: "ses_1",
+        agent: "build_mode",
+        model: { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+        error: terminal429(),
+        now: () => 0,
+        env: envOf(health, seen),
+      }),
+    )
+    expect(health.get(memberKey(free))?.status).toBe("DOWN")
+    expect(result?.member).toEqual(go)
+    expect(result?.reason).toMatch(/terminal/)
+    expect(seen.notes).toHaveLength(1)
+  })
+  test("short retry-after stays transient: no mark, no switch", async () => {
+    const health = new Map<string, ChainHealth>()
+    const seen = { notes: [] as unknown[], models: [] as unknown[] }
+    const error = new MessageV2.APIError({
+      message: "Too Many Requests",
+      statusCode: 429,
+      isRetryable: true,
+      responseHeaders: { "retry-after": "5" },
+    }).toObject() as MessageV2.APIError
+    const result = await Effect.runPromise(
+      consultChainSwitch({
+        sessionID: "ses_1",
+        agent: "build_mode",
+        model: { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+        error,
+        now: () => 0,
+        env: envOf(health, seen),
+      }),
+    )
+    expect(result).toBeUndefined()
+    expect(health.get(memberKey(free))).toBeUndefined()
+    expect(seen.notes).toHaveLength(0)
+  })
+  test("non-API error never switches", async () => {
+    const health = new Map<string, ChainHealth>()
+    const seen = { notes: [] as unknown[], models: [] as unknown[] }
+    const result = await Effect.runPromise(
+      consultChainSwitch({
+        sessionID: "ses_1",
+        agent: "build_mode",
+        model: { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+        error: wrap("boom"),
+        now: () => 0,
+        env: envOf(health, seen),
+      }),
+    )
+    expect(result).toBeUndefined()
+  })
+  test("unresolvable next member falls through to the normal wait", async () => {
+    const health = new Map<string, ChainHealth>()
+    const seen = { notes: [] as unknown[], models: [] as unknown[] }
+    const env = { ...envOf(health, seen), resolveModel: (_member: ChainMember) => Effect.succeed(undefined) }
+    const result = await Effect.runPromise(
+      consultChainSwitch({
+        sessionID: "ses_1",
+        agent: "build_mode",
+        model: { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+        error: terminal429(),
+        now: () => 0,
+        env,
+      }),
+    )
+    expect(result).toBeUndefined()
+    expect(seen.notes).toHaveLength(0)
+  })
+  test("switch reason names the status code and retry-after", async () => {
+    const health = new Map<string, ChainHealth>()
+    const seen = { notes: [] as unknown[], models: [] as unknown[] }
+    const result = await Effect.runPromise(
+      consultChainSwitch({
+        sessionID: "ses_1",
+        agent: "build_mode",
+        model: { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free" },
+        error: terminal429(),
+        now: () => 0,
+        env: envOf(health, seen),
+      }),
+    )
+    expect(result?.reason).toMatch(/terminal/)
+    expect(result?.reason).toMatch(/429/)
+    expect(result?.reason).toMatch(/retry-after 44638s/)
+  })
+  test("policy publishes the switch message and continues without waiting", async () => {
+    await using tmp = await tmpdir()
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const sessionID = SessionID.make("session-retry-switch-test")
+        const error = apiError({ "retry-after-ms": "0" })
+        const switched = "chain switch opencode/test-model → opencode/test-model-2: terminal: boom (429)"
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const step = yield* Schedule.toStepWithMetadata(
+              SessionRetry.policy({
+                parse: (err) => err as MessageV2.APIError,
+                decideChainSwitch: () => Effect.succeed(switched),
+                set: (info) =>
+                  Effect.promise(() =>
+                    AppRuntime.runPromise(
+                      SessionStatus.Service.use((svc) =>
+                        svc.set(sessionID, {
+                          type: "retry",
+                          attempt: info.attempt,
+                          message: info.message,
+                          next: info.next,
+                        }),
+                      ),
+                    ),
+                  ),
+              }),
+            )
+            yield* step(error)
+          }),
+        )
+        expect(await AppRuntime.runPromise(SessionStatus.Service.use((svc) => svc.get(sessionID)))).toMatchObject({
+          type: "retry",
+          attempt: 1,
+          message: switched,
+        })
+      },
+    })
   })
 })

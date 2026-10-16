@@ -17,8 +17,8 @@ function lastUsedKey(sessionID: string, agentName: string): string {
   return `${sessionID}\n${agentName}`
 }
 
-/** Live view of the registry (read-only). The 10-minute probe mutates it. */
-export function chainHealthState(): ReadonlyMap<string, ChainHealth> {
+/** Live registry: the failover loop and the 10-minute probe mutate it. Readers take `ReadonlyMap` views themselves. */
+export function chainHealthState(): Map<string, ChainHealth> {
   return health
 }
 

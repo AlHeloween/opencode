@@ -1,0 +1,92 @@
+{
+  "run": "20261016T082703Z",
+  "removed_env": [
+    "BASETEN_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "GITHUB_PAT_TOKEN",
+    "HF_TOKEN",
+    "NOVITA_API_KEY",
+    "OPENCODE_API_KEY",
+    "OPENCODE_PID",
+    "OPENCODE_PROCESS_ROLE",
+    "OPENCODE_RUN_ID",
+    "OPENROUTER_API_KEY",
+    "STREAMLAKE_API_KEY"
+  ],
+  "catalog_env_names": 228,
+  "results": [
+    {
+      "model": "deepseek-v4-flash-free",
+      "seconds": 10.2,
+      "timed_out": false,
+      "exit": 1,
+      "answered": false,
+      "answer": "",
+      "error": "\u001b[91m\u001b[1mError: \u001b[0mProviderModelNotFoundError"
+    },
+    {
+      "model": "nemotron-3-ultra-free",
+      "seconds": 180.0,
+      "timed_out": true,
+      "exit": null,
+      "answered": false,
+      "answer": "",
+      "error": ""
+    },
+    {
+      "model": "space-bunny-free",
+      "seconds": 180.0,
+      "timed_out": true,
+      "exit": null,
+      "answered": false,
+      "answer": "",
+      "error": ""
+    },
+    {
+      "model": "kimi-k2.5-free",
+      "seconds": 3.6,
+      "timed_out": false,
+      "exit": 1,
+      "answered": false,
+      "answer": "",
+      "error": "{\"type\":\"error\",\"timestamp\":1792139180254,\"sessionID\":\"ses_ebc2e48ddffeeC8o6ZxSxaZycg\",\"error\":{\"name\":\"UnknownError\",\"data\":{\"message\":\"Model not found: opencode/kimi-k2.5-free.\"}}}\r"
+    },
+    {
+      "model": "glm-5-free",
+      "seconds": 17.7,
+      "timed_out": false,
+      "exit": 1,
+      "answered": false,
+      "answer": "",
+      "error": "\u001b[91m\u001b[1mError: \u001b[0mProviderModelNotFoundError"
+    },
+    {
+      "model": "minimax-m3-free",
+      "seconds": 8.8,
+      "timed_out": false,
+      "exit": 1,
+      "answered": false,
+      "answer": "",
+      "error": "\u001b[91m\u001b[1mError: \u001b[0mProviderModelNotFoundError"
+    },
+    {
+      "model": "qwen3.6-plus-free",
+      "seconds": 8.8,
+      "timed_out": false,
+      "exit": 1,
+      "answered": false,
+      "answer": "",
+      "error": "\u001b[91m\u001b[1mError: \u001b[0mProviderModelNotFoundError"
+    }
+  ],
+  "control": {
+    "model": "gpt-5.4",
+    "seconds": 7.6,
+    "timed_out": false,
+    "exit": 1,
+    "answered": false,
+    "answer": "",
+    "error": "\u001b[91m\u001b[1mError: \u001b[0mProviderModelNotFoundError",
+    "control": true
+  }
+}

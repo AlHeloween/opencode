@@ -135,10 +135,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 264 |
-| plans active | 28 |
-| tasks passed / total | 1203 / 1484 |
-| open boxes | 138 |
+| plans completed | 265 |
+| plans active | 30 |
+| tasks passed / total | 1218 / 1511 |
+| open boxes | 150 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -363,20 +363,38 @@ parent-goal-md5: e31df24e5415d6a594172176f48af8e0]
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_web-tui-parity.md` — 3 open / 6 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-15_web-tui-parity.md` — 1 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "browser form shows only part of what the TUI shows (no active-sessions block, no sidebar status rows, no scoped agent/model write path) -> the web app reaches parity surface by surface through the SAME server routes/events the TUI uses, with a measured parity table and a value-or-unknown invariant on every status" · keywords [Keywords: web-tui-parity 0.35, same-server-source 0.25, active-sessions-web 0.20, status-or-unknown 0.20
 Semantic dominant: The browser form shows everything the TUI shows by reading the same server data, starting with the active-sessions block the owner needs to not kill a running session.
 md5: 9f3a7c2d1e4b4f6a8d2c5e7f1a3b4c5d
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000]
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-16_haiku-omp-controlled-latency.md` — 2 open / 5 box(es) · lifecycle UNKNOWN
   sv: intention "Haiku в OpenCode даёт длительные паузы, в omp с загруженным kernel пользователь наблюдает быстрый ответ -> воспроизводимое сравнение actual запросов и изолированных факторов, с установленной областью причинного вывода и непокрытым остатком" · keywords [controlled-latency, wire-equivalence, protocol-grounding, causal-boundaries]
   - P2 [PENDING] · sv [actual-wire, payload-diff, source-provenance] · manifest: MISSING — nobody has written down what this box is
   - P5 [PENDING] · sv [measured-outcome, continuation-receipt, research-closure] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-16_model-chain-failover.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "blind retry loops on dead models with human failover -> explicit ordered model chain per agent/scope with automatic classified failover and 10-minute health checks" · keywords [model-chain, failover-classification, health-probe, assignment]
+  - C1 [PENDING] · sv [chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25] · manifest: MISSING — nobody has written down what this box is
+  - C2 [PENDING] · sv [error-classification 0.50, reuse-existing 0.30, measured-threshold 0.20] · manifest: MISSING — nobody has written down what this box is
+  - C3 [PENDING] · sv [failover-execution 0.45, visible-note 0.30, no-invention 0.25] · manifest: MISSING — nobody has written down what this box is
+  - C4 [PENDING] · sv [health-probe 0.50, no-session-probe 0.30, fake-clock 0.20] · manifest: MISSING — nobody has written down what this box is
+  - C5 [PENDING] · sv [chain-assignment 0.50, dispatcher-unpinned 0.30, prompt-async 0.20] · manifest: MISSING — nobody has written down what this box is
+  - C6 [PENDING] · sv [tui-chain-editor 0.40, live-receipt 0.35, docs-close 0.25] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-16_org-ticket-slugs.md` — 8 open / 11 box(es) · lifecycle UNKNOWN
+  sv: intention "from_state="tickets are known only by a hex id; nobody can tell what 355f6a3d4d is about" -> to_state="every ticket carries a required kebab slug, unique among open tickets, and every verb and report shows slug + title"" · keywords []
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-11 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-16_reasoning-lossless-replay.md` — 9 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "reasoning и metadata могут теряться до следующего запроса, поддержка HTTP3 у Anthropic на нашем сетевом пути не проверена -> reasoning сохраняется полностью и replay квалифицирован, HTTP3/QUIC и fallback установлены отдельными сетевыми измерениями" · keywords [reasoning-preservation, wire-proof, provider-contracts, continuity, transport-qualification]
@@ -392,6 +410,6 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 ## The checks
 
-This body names all 30 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 32 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

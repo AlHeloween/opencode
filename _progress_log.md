@@ -7147,3 +7147,9 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 — Факт: мой `git add` 4 путей (план, MASTER_PLAN.md, REPORT.md, SOURCES.md из архива) + чужой `git commit -m t59` без путей в то же окно = HEAD 5ae331f221 с сообщением t59, но с моими 4 файлами внутри (REPORT 313 строк, SOURCES 92, rename плана 77%, MASTER_PLAN render gapsBefore=[]) + 1 строка лога t59. Хуков нет (.git/hooks — только samples). History rewrite (reset/amend) запрещён — оставлено как есть.
 — Закрыто по правилам владельца: 7/7 боксов [x] с RECEIPT, Residual-секция (6 пунктов с routes), 42/42 свежих source_stamp sha256 (runs 20261016T014423Z_b385fea6 + 20261016T014555Z_23f26769, оба exit 0), понижений Documented→Hypothetical: 0, архив experiments_history/2026-10-15_activators-vs-training-data/ (content-checked), сборки не повторял.
 <!-- sv: commit-race 0.50, no-rewrite 0.30, closure-complete 0.20 -->
+## [2026-10-16] t59 — стенд из копии + W3 model/vcs land (Smit)
+
+✓ STAND (по пункту владельца): свой процесс на 4123 мёртв (pid 11188 нет в tasklist; слушает только bin-хост 17272 — чужое, не тронуто). dist/bin свободен (в нём только кандидат 10.0.1366+ от сборки 12:23). Стенд: .temp/t59-stand/opencode.exe — копия из dist/bin, --version 10.0.1373 (прогон 20261016T042522Z_8e0e64f7 exit 0). Дальше стенды только из копий.
+✓ W3 model-cell: bun test 20261016T042725Z_46a21dae exit 0 — 3/3. W3 vcs-cell: bun test 20261016T042818Z_9d0b0d83 exit 0 — 3/3. Typecheck packages/app 20261016T042912Z_d68b9150 exit 0.
+✓ Дифф врезки — только мой (по 2 аддитивные строки в session-header.tsx и layout.tsx). План обновлён (W5: стенд с версией).
+<!-- sv: stand-copy 0.40, w3-green 0.35, receipts 0.25 -->

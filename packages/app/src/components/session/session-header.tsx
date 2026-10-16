@@ -26,6 +26,7 @@ import { decode64 } from "@/utils/base64"
 import { Persist, persisted } from "@/utils/persist"
 import { StatusPopover } from "../status-popover"
 import { ProtocolCell } from "@/pages/session/protocol-cell-view"
+import { ModelCell } from "@/pages/session/model-cell-view"
 
 const OPEN_APPS = [
   "vscode",
@@ -433,6 +434,7 @@ export function SessionHeader() {
                   </Tooltip>
                 </Show>
                 <ProtocolCell sessionID={() => params.id} />
+                <ModelCell />
                 <Show when={term()}>
                   <TooltipKeybind
                     title={language.t("command.terminal.toggle")}

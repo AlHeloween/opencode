@@ -89,6 +89,7 @@ import {
 import { ProjectDragOverlay, SortableProject, type ProjectSidebarContext } from "./layout/sidebar-project"
 import { SidebarContent } from "./layout/sidebar-shell"
 import { ActiveSessionsPanel } from "./layout/active-sessions-panel"
+import { VcsCell } from "./layout/vcs-cell-view"
 
 export default function Layout(props: ParentProps) {
   const [store, setStore, , ready] = persisted(
@@ -2159,6 +2160,7 @@ export default function Layout(props: ParentProps) {
 
               <div class="flex-1 min-h-0 flex flex-col">
                 <ActiveSessionsPanel directories={workspaces} />
+                <VcsCell backend={() => project()?.vcs} directories={workspaces} />
                 <Show
                   when={workspacesEnabled()}
                   fallback={

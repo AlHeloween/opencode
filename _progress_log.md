@@ -1,5 +1,14 @@
 ﻿# Progress Log
 
+## [2026-10-16] Zoekt / SCIP / Fossil / SV — Z3 grounded design; cloning отклонён
+
+✓ CONFIRMED (readback): план `plans/2026-10-16_zoekt-scip-fossil-sv.md`, отчёт `experiments_history/2026-10-16_zoekt-fossil/REPORT.md`; explorer `/root/search_architecture`, 7 source hashes независимо совпали. Z3 подтверждён; replacement inventory частичный.
+✓ CONFIRMED (readonly SQLite): check-in `cf64f467b5b2d6deed2bcb38d88740397a3dd32aa794f3f93a60f4bd5ca19b7a` несёт полный SV и 3 mlink rows; primitive negative control EXPECTED_FAIL.
+✗ REFUTED (effect cloning): оба cmd_runner/git clone отклонены runtime policy до запуска; fs.stat — обе цели ENOENT. Receipt: `experiments_history/2026-10-16_zoekt-fossil/RECEIPTS.md`. Z1/Z2 остаются открытыми, production actual_diff=none.
+✓ CONFIRMED (render): `20261016T095324Z_582e25d3` exit 0; EXPECTED_FAIL missing marker, два одинаковых SHA256, hand-owned head и 7 manifests сохранены. Предыдущий stamp `20261016T095122Z_68af993e` ОТОЗВАН: cwd привязал неверный store; исправлено Global.initFromWorktree(root) и known-present manifest control. Inline eval ранее упал на quoting (`20261016T094941Z_7c55e72b`); полные журналы прочитаны, workaround file-launch, launcher не исправлен.
+— Продолжение: разрешённое cloning → integrity → Zoekt fixture → SCIP parity → consumer cutover; задача ACTIVE, background job отсутствует. Полной замены CodeGraph и ускорения не заявлено.
+<!-- sv: fossil-provenance 0.30, zoekt-search 0.25, migration-seams 0.20, scip-navigation 0.15, oracle-boundaries 0.10 -->
+
 
 ## [2026-10-16] Утечка доставок закрыта + PRESENCE отозваны (план plans/2026-10-16_presence-revoke-and-test-guard.md, G1-G3 закрыты)
 

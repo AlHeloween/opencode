@@ -1,7 +1,7 @@
 import { $ } from "bun"
 import { describe, expect, test } from "bun:test"
 import { tmpdir } from "../fixture/fixture"
-
+import path from "path"
 describe("Git (direct CLI)", () => {
   test("branch returns current branch name", async () => {
     await using tmp = await tmpdir({ git: true })
@@ -12,7 +12,15 @@ describe("Git (direct CLI)", () => {
 
   test("branch returns nothing for non-git directories", async () => {
     await using tmp = await tmpdir()
-    const result = await $`git -C ${tmp.path} branch --show-current`.quiet().nothrow()
+    // t74-S6: the fixture tmpdir lives INSIDE this worktree (.temp/test is repo-local
+    // since preload), so bare git discovery walks up and finds Local_Development — the
+    // «non-git» premise was false and the assert failed. The ceiling stops the ascent
+    // at the scratch root, so git genuinely finds no repository. The assert below is
+    // untouched: outside a discoverable repo git exits non-zero.
+    const result = await $`git -C ${tmp.path} branch --show-current`
+      .env({ GIT_CEILING_DIRECTORIES: path.dirname(tmp.path) })
+      .quiet()
+      .nothrow()
     expect(result.exitCode).not.toBe(0)
   })
 

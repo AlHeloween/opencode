@@ -1,6 +1,11 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t74-S6 не-git tmpdir под потолком обнаружения (план plans/2026-10-16_git-tmpdir-ceiling.md, лист t74)
+
+✓ CONFIRMED (механизм): `test/git/git.test.ts` «branch returns nothing for non-git directories» лгал посылкой — фикстурный tmpdir внутри worktree (repo-local `.temp/test`), git шёл вверх и находил `Local_Development` (зонд без фикстуры: `git -C .temp/test branch --show-current` → exit 0; пара проб: без потолка — ветка, с потолком на предке — `fatal: not a git repository`). Выбор: потолок на один спавн (вне дерева ломает переносимость preload, глобальный потолок — load-bearing подъём Instance; ассерт побайтово тот же).
+✓ CONFIRMED (RED→GREEN): 4/5 exit 1 на закоммиченном дереве (`20261016T121346Z_50cfecd3`) → 5/5 exit 0 после (`.env({ GIT_CEILING_DIRECTORIES: path.dirname(tmp.path) })`, `20261016T121547Z_d8b370c3`). План t74 уехал в `plans_completed/` чужим reconcile (D + ?? — не моё, не коммичу).
+<!-- sv: git-ceiling 0.45, scoped-env 0.30, assert-intact 0.25 -->
 ## [2026-10-16] t75 staircase in Claude Desktop panel — eye badge carries VS16 (plan plans/2026-10-16_tui-render-claude-panel.md)
 
 ✓ CONFIRMED (mechanism): badge eye was bare U+1F441 (Emoji_Presentation=No) — width guessed on every side: Bun 1/lib 2 standalone-vs-badge, native eawToWidth 1 (table gap 1F400-1F43E/1F440/1F442-1F4FC), emoji panel 2. Every badge row overflowed by 1 cell on the panel (TERM_PROGRAM=claude-desktop matches no explicit_cursor_positioning rule, so intra-row bytes rely on terminal advance). Researcher external leg: unicode.org CONFIRMED (EAW/EP/Age), ConPTY passthrough CONFIRMED, sync-output/DECAWM/resize-race ruled out as staircase causes.

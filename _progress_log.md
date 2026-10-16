@@ -1,6 +1,12 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t65 T5 pins + T6 expand (план plans/2026-10-16_reasoning-lossless-replay.md)
+
+✓ CONFIRMED (T5, verify-only): new test/session/checkpoint-reasoning-continuity.test.ts 6/6 — takeModelPrefix byte-identical incl. opaque, prefix invalidates on tool-state change, misaligned counts → null (reconvert), tailMessageText carries full text but NO signature (text-only compact ≠ signed replay, Continuity p.4). Checkpoint: per-model slots, prefix gated on IDs+toolReplayStates+wireTurn; compact only flags + 1 synthetic message, parts untouched. Без изменений продукта. Регрессия checkpoint.test.ts 26/26.
+✓ CONFIRMED (T6 RED→GREEN): new test/tui/reasoning-expand.test.tsx RED (export missing, exit 1) → GREEN 2/2 — ReasoningPart expand/collapse toggle (onMouseUp + selection guard, образец BlockTool), хинт после тела (порядок покраски!), initialExpanded seam; exports SessionContext/ReasoningPart + alias ReasoningPartData (TS1361). Голова >6000 доступна в месте, не только в DB. Регрессия reasoning-window 7/7, typecheck exit 0. KV-cache: bytes меняются только для оверфлоу-блоков (хинт-строка); windowed-рендер байт-идентичен.
+— Следующий leaf: TUI-фикстура клика (A5, cua/cmd_runner), T4 F2/F3, T7/T8. Платных ноль.
+<!-- sv: continuity-pins 0.35, expand-affordance 0.30, render-oracle 0.20, minimal-change 0.15 -->
 ## [2026-10-16] t68 slice 3 — роут /chain + wiring prompt_async/task/pipeline (план plans/2026-10-16_model-chain-failover.md, боксы не тронуты)
 
 ✓ CONFIRMED (роут): `GET/PUT /chain/:scope/:agent` (`httpapi/chain.ts`, регистрация `public.ts`/`server.ts`); PUT валидирует (пусто → 400), GET отдаёт мемберы + статусы/reasons — источник для заметки и web-формы t59.
@@ -7236,3 +7242,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ HARNESS: fixer_run.py --model с allowlist (26b|31b, остальное отказ), per-model логи (fixer_log.jsonl→fixer_log_26b.jsonl, verdicts.jsonl→verdicts_26b.jsonl, байты те же); тот же промпт, temperature 0. Validator: FIXLOG из argv, VERDICTS по имени лога.
 ✓ REPORT Supplement S1 + renewed NO-GO (на двух free id), архив обновлён (REPORT, harness, переименованные логи — всё identical). E3 в плане BLOCKED на оба id.
 <!-- sv: owner-31b-authorized 0.35, same-pool-429 0.30, supplement-no-go 0.20, archive-refreshed 0.15 -->
+## [2026-10-16] t70 Phase E — self-edit directive (план plans/2026-10-16_self-edit-directive.md, E1–E6 [x], P1/P2 открыты)
+
+✓ GROUNDED (G1): keep-машина (`recall` keep/release + `selectLines`/`addressableLines`), replay-путь (`message-v2.ts` → `transform.ts` → copilot-chat convert), store (reasoning 18 749/76 MB; топ-30 64–244 KB), правило 4 Continuity (bbd76ba319).
+✓ CORPUS (E1): `experiments/2026-10-16_self-edit-directive/CORPUS.md` — 30 parts + предсказания ДО прогонов; 4 signed-empty (пустой text + anthropic signature) — готовые adversarial-кейсы.
+✓ TRIALS (E2, 6 free-вызовов openrouter/auto-beta, ≤120 ✓): a-ok 27/30, tags↔numbers 21/27 (78%), snippets↔numbers 13/27 (48%) — модель копирует токены, считать строки не умеет; вывод: резолв по snippet+tags, numbers — advisory. `SCORES.json` (`score.py`).
+✓ ERRATA (E4): 13/30 специфичных, 0 generic; 1 структурно верифицирована (перепутанные timestamps), 1 — внимательность к артефакту харнесса; seed self-refutation 13/30 ходов.
+✓ WIRE (E5, researcher `ses_ebccd6dbeffele21qBQt8fZlfb`): 11 официальных фетчей + хэши — Anthropic/Bedrock требуют verbatim-replay signed-блоков последнего хода (400 иначе), ранние ходы опускаемы; минимальное отклонение для P1 зафиксировано.
+✓ REPORT (E6): `experiments/2026-10-16_self-edit-directive/REPORT.md` — GO P1 (за свитчем, OFF) с условиями, NO-GO default. Token-saving 60–75% → 15.6% медианы по показанному окну: прогноз ПРОМАХНУТ (якорь капа 5–20 строк), full-message и per-tool — Unknown с причиной, не провал. Вопрос владельцу: CUT на свой reasoning или ERRATUM-only.
+<!-- sv: self-edit-phase-e 0.35, addressing-measured 0.30, errata-specific 0.20, go-p1-conditional 0.15 -->

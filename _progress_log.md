@@ -7301,3 +7301,7 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 — S1 OPEN: RED receipt unrecoverable (helper + tests arrived together untracked) — owner accepts as superseded by GREEN or replays in scratch.
 — Plan stays in `plans/` (2 open); `MASTER_PLAN.md` counts go stale until `svm render`; commit owns all 4 panel paths.
 <!-- sv: t52b-close 0.40, sidebar-sessions 0.30, stub-oracle 0.20, open-residual 0.10 -->
+## [2026-10-16] t52b S1 RED replay — scratch `.temp/s1-red/` (stub helper, 0/7 FAIL on behavior)
+
+✓ CONFIRMED (S1 RED): копия 7 unit-тестов + стаб `active-sessions.ts` без поведения → `20261016T072629Z_4954de14` exit 1, 0 pass / 7 fail: `toHaveLength(1)` получил 0 («no busy session listed»), пустые метки вместо `unknown`/`0s`, стамп не чистится. Харнесс загрузился чисто — все 7 падений по ассёртам, не по загрузке. S1 тикнут; остался только S5 (ждём llm.ts от t68, без циклов).
+<!-- sv: s1-red-replay 0.50, stub-absent-behavior 0.30, assertion-fails 0.20 -->

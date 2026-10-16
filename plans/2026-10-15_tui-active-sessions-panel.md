@@ -50,7 +50,7 @@ agent · model · state · short-id. State labels: `busy→working ⏳`, `retry�
 
 <!-- sv: Keywords: active-session-rows 0.4, state-map 0.3, elapsed 0.3; dominant: pure row computation over the event-synced stores; md5: c41d8e2f70b3a5962d1c4e0f8a6b5937 -->
 
-- [ ] S1 RED: `test/tui/sidebar-active-sessions.test.ts` fails before the helper exists (no block / no busy session listed) — OPEN: RED receipt unrecoverable (helper + tests arrived together, untracked, 2026-10-15 15:45; no pre-helper run exists). Next: owner accepts as superseded by S2+S3 GREEN, or replays RED by removing the helper in a scratch copy.
+- [x] S1 RED: `test/tui/sidebar-active-sessions.test.ts` fails before the helper exists (no block / no busy session listed) — receipt `20261016T072629Z_4954de14` exit 1, 0 pass / 7 fail on `.temp/s1-red/` replay (test copy + stub helper with absent behavior): toHaveLength(1)→0, blank labels, stamp never cleared; harness loaded clean, all 7 fail on assertions
 - [x] S2 helper GREEN: busy/retry/unknown rows, idle cleared, elapsed ticks with `now`, longest-first sort — receipt `20261016T070710Z_e26a6418` exit 0, 9 pass / 0 fail (7 unit tests)
 - [x] S3 render test GREEN: busy fixture frame lists the session; idle fixture frame shows «none active» — same receipt (2 render tests); frames saved `.temp/t52b-frames/busy.txt`, `.temp/t52b-frames/idle.txt` via `20261016T071632Z_97e92492` exit 0
 - [x] S4 plugin wired: sessions.tsx + internal.ts registration (order 50) — receipt: `git diff HEAD` shows exactly 2 added lines (import + list entry after SidebarJobs); slot `sidebar_content` order 50 (`sessions.tsx:94`)

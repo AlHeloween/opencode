@@ -36,6 +36,14 @@ describe("classifyChainError", () => {
   test("terminal: 402 balance never retries", () => {
     expect(classifyChainError({ statusCode: 402, message: "402 Insufficient Balance" })).toBe("terminal")
   })
+  test("terminal: FreeUsageLimitError is DOWN at once — measured live 2026-10-16 (429 + retry-after 64404s), never retried for 17.9h", () => {
+    expect(
+      classifyChainError({
+        statusCode: 429,
+        message: '{"type":"error","error":{"type":"FreeUsageLimitError","message":"Rate limit exceeded. Please try again later."}}',
+      }),
+    ).toBe("terminal")
+  })
   test("terminal: auth 401/403 never retries", () => {
     expect(classifyChainError({ statusCode: 401, message: "Unauthorized" })).toBe("terminal")
     expect(classifyChainError({ statusCode: 403, message: "Forbidden" })).toBe("terminal")

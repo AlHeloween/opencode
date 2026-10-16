@@ -137,4 +137,17 @@ describe("assignChainModel (prompt_async wiring)", () => {
       assignChainModel("ses_1", "build_mode", { load: () => undefined, health: new Map(), noteUse: () => undefined }),
     ).toBeUndefined()
   })
+  test("legacy agent names resolve through the canonical key", () => {
+    const seen = new Map<string, ChainMember[] | undefined>([["session:ses_9:build_mode", [go]]])
+    const assignment = assignChainModel("ses_9", "build", {
+      load: (scope, agent) => {
+        expect(scope).toBe("session:ses_9")
+        expect(agent).toBe("build_mode")
+        return seen.get(`${scope}:${agent}`)
+      },
+      health: new Map(),
+      noteUse: () => undefined,
+    })
+    expect(assignment?.model).toEqual({ providerID: "opencode-go", modelID: "muse-spark-1.3-contributor" })
+  })
 })

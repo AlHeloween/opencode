@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t68 slice 3-live — изолированный стенд: роут, assign, free-отказ, висящий Go (план plans/2026-10-16_model-chain-failover.md, боксы не тронуты)
+
+✓ CONFIRMED (live, стенд .temp/chain-stand на копии dist, порт 4099): `PUT/GET /chain/global/build_mode` — JSON, статусы `unknown`, пустой слой `[]`; hono-бридж `ChainPaths` в `InstanceRoutes` обязателен (без него SPA — измерено). Каноникализация legacy `build`→`build_mode` в `assignChainModel` + тест.
+✓ CONFIRMED (live assign): `prompt_async` без модели → `chain assign opencode/muse-spark-1.3-contributor-free` (лог стенда, v10.0.1384). free ответил terminal-отказом: 429 `FreeUsageLimitError`, `retry-after: 64404` — покрыт BALANCE-веткой + явным пином (failover-тест 26/26, 20261016T061924Z_72e2f9bd).
+✗ MEASURED (live): Go xhigh — 7+ мин ни ответа, ни ошибки (дольше пола 120 с); авто-перехода висящего free→Go нет — нужен in-request контур (C3b, следующий лист). Платных — ноль (запросы только free/Go, ответов с токенами не получено).
+— Ловушки стенда записаны: стенд держать на КОПИИ exe (иначе блокирует dist для билда); Select-String врёт на длинных строках бинаря (байтовый поиск — истина); raw-запросам нужен `?directory=`.
+<!-- sv: isolated-stand 0.35, live-refusal 0.25, hanging-go 0.20, bridge-required 0.20 -->
 ## [2026-10-16] t65 T5 pins + T6 expand (план plans/2026-10-16_reasoning-lossless-replay.md)
 
 ✓ CONFIRMED (T5, verify-only): new test/session/checkpoint-reasoning-continuity.test.ts 6/6 — takeModelPrefix byte-identical incl. opaque, prefix invalidates on tool-state change, misaligned counts → null (reconvert), tailMessageText carries full text but NO signature (text-only compact ≠ signed replay, Continuity p.4). Checkpoint: per-model slots, prefix gated on IDs+toolReplayStates+wireTurn; compact only flags + 1 synthetic message, parts untouched. Без изменений продукта. Регрессия checkpoint.test.ts 26/26.

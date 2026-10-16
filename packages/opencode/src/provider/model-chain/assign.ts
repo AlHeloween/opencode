@@ -15,6 +15,7 @@
  * model actually answered.
  */
 import { memberKey } from "./chain"
+import { canonicalIdentity } from "@/session/mode-identity"
 import { chainHealthState, noteChainUse } from "./health-registry"
 import { loadChain } from "./store"
 import { resolveChainAgentModel } from "@/session/session-settings"
@@ -38,11 +39,12 @@ export function assignChainModel(
   const load = deps?.load ?? loadChain
   const health = deps?.health ?? chainHealthState()
   const noteUse = deps?.noteUse ?? noteChainUse
-  const chain = load(`session:${sessionID}`, agentName)
-  const member = resolveChainAgentModel(agentName, sessionID, health, { chain })
+  const agent = canonicalIdentity(agentName)
+  const chain = load(`session:${sessionID}`, agent)
+  const member = resolveChainAgentModel(agent, sessionID, health, { chain })
   if (!member) return undefined
   const key = memberKey(member)
-  const previous = noteUse(sessionID, agentName, member)
+  const previous = noteUse(sessionID, agent, member)
   const reason = previous ? health.get(previous)?.reason : undefined
   const note =
     previous === undefined

@@ -1,6 +1,11 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t67 closed — план в plans_completed/, карта перегенерирована
+
+✓ CONFIRMED (закрытие): plans_completed/2026-10-16_org-reconcile-m1-contest.md закоммичен (был UNTRACKED после штатного reconcile); `svm render` — 33 плана, 143 открытых бокса; MASTER_PLAN.md — машинная регенерация целиком (счётчики и чужие закрытия отражены как факты дерева).
+— Рестарт orgd передан владельцу. t67 закрыт.
+<!-- sv: t67-closed 0.50, map-rendered 0.30, restart-handed 0.20 -->
 ## [2026-10-16] t67 S2+S3 — M1 mint rule + contest verb (план plans/2026-10-16_org-reconcile-m1-contest.md, оба бокса закрыты)
 
 ✓ CONFIRMED (RED→GREEN): V1 адаптирован под --receipt; MintTest V4-V6 + ContestTest C1-C4 — 8 failed как предсказано (нет флага/глагола/колонок) → 8/8 GREEN; весь layout: queue 15/15, cross 12/12, slugs 8/8 (t2/t3 сопряжены с M1 — два вызова verify + receipt, asserts слагов не тронуты), wiki 15/15, forum 11/11.

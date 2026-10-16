@@ -135,10 +135,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 266 |
-| plans active | 30 |
-| tasks passed / total | 1231 / 1518 |
-| open boxes | 144 |
+| plans completed | 267 |
+| plans active | 31 |
+| tasks passed / total | 1249 / 1535 |
+| open boxes | 143 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -349,19 +349,13 @@ parent-goal-md5: 00000000000000000000000000000000]
   - TASK-16 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-17 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_tui-active-sessions-panel.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-15_tui-active-sessions-panel.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
   sv: intention "TUI sidebar has no live view of running sessions (owner must open the sessions dialog to guess what is running) -> a sidebar block lists every busy/retrying session of THIS server (API robots included), refreshed ~1 s, with an explicit «none active» when idle" · keywords [Keywords: sidebar-active-sessions 0.35, event-synced-store 0.25, elapsed-tick 0.20, none-active-invariant 0.20
 Semantic dominant: The owner sees at a glance which sessions of this server are running — robots included — read from the store the TUI already event-syncs, with the 1 s tick spent only on elapsed time and an explicit «none active» when idle.
 md5: b7e2c41d90a85f3671d4c0e2f8a6b593
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: e31df24e5415d6a594172176f48af8e0]
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-15_web-tui-parity.md` — 1 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "browser form shows only part of what the TUI shows (no active-sessions block, no sidebar status rows, no scoped agent/model write path) -> the web app reaches parity surface by surface through the SAME server routes/events the TUI uses, with a measured parity table and a value-or-unknown invariant on every status" · keywords [Keywords: web-tui-parity 0.35, same-server-source 0.25, active-sessions-web 0.20, status-or-unknown 0.20
@@ -376,13 +370,15 @@ parent-goal-md5: 00000000000000000000000000000000]
   - P2 [PENDING] · sv [actual-wire, payload-diff, source-provenance] · manifest: MISSING — nobody has written down what this box is
   - P5 [PENDING] · sv [measured-outcome, continuation-receipt, research-closure] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_message-cleaner.md` — 2 open / 7 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-16_message-cleaner.md` — 3 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "raw chain replies with foreign-script slips flow into requests uncleaned -> measured go/no-go on a one-shot free-model cleaner with a deterministic validator, no product change" · keywords [message-cleaner-experiment 0.40, free-model-fixer 0.25, deterministic-validator 0.20, detector-precision-recall 0.15]
-  - E3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - E3 [PENDING] · sv MISSING · manifest: Re-run the 27-call fixer campaign when the free pool answers; validator and report supplement follow. · eta 2 · doing
   - E6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - E8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_model-chain-failover.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-16_model-chain-failover.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
   sv: intention "blind retry loops on dead models with human failover -> explicit ordered model chain per agent/scope with automatic classified failover and 10-minute health checks" · keywords [model-chain, failover-classification, health-probe, assignment]
+  - C3b [PENDING] · sv [inrequest-failover 0.50, visible-note 0.30, partial-kept 0.20] · manifest: MISSING — nobody has written down what this box is
   - C1 [PENDING] · sv [chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25] · manifest: Persist the explicit model chain per agent and scope in LMDB through the TUI server path with fill-once semantics. · eta 3 · doing
   - C2 [PENDING] · sv [error-classification 0.50, reuse-existing 0.30, measured-threshold 0.20] · manifest: MISSING — nobody has written down what this box is
   - C3 [PENDING] · sv [failover-execution 0.45, visible-note 0.30, no-invention 0.25] · manifest: MISSING — nobody has written down what this box is
@@ -402,8 +398,14 @@ parent-goal-md5: 00000000000000000000000000000000]
   - T8 [PENDING] · sv [independent-oracle 0.40, clean-state 0.35, documentation 0.25] · manifest: MISSING — nobody has written down what this box is
   - T9 [PENDING] · sv [http3-quic 0.45, client-network-qualification 0.35, fallback-evidence 0.20] · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-16_self-edit-directive.md` — 3 open / 11 box(es) · lifecycle UNKNOWN
+  sv: intention "agent sees its own previous-message error and cannot remove it, window copies it forward by attention -> agent emits bounded self-edit directive (cut ranges + errata) addressed by message md5, stored original untouched, replay narrowed; error stopped at next step" · keywords [self-edit-directive, reasoning-hygiene, error-recurrence, fault-tolerance, keep-machinery]
+  - P1b [PENDING] · sv [product-switch 0.45, replay-path 0.35, rollback-proof 0.20] · manifest: Self-edit directive in product behind an OFF switch with byte rollback. · eta 3 · doing
+  - P1c [PENDING] · sv [refusal-visible 0.45, rollback-bytes 0.35, no-residue 0.20] · manifest: MISSING — nobody has written down what this box is
+  - P2 [PENDING] · sv [robot-runs 0.45, error-recurrence 0.35, owner-decision 0.20] · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 32 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 33 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

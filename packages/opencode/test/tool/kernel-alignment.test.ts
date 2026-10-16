@@ -14,9 +14,10 @@ describe("tool prompts vs constitution", () => {
     expect(text).toContain("guardBrutalDestructive")
   })
 
-  test("universalsearch defaults to web and refuses generic Inferred", async () => {
+  test("universalsearch defaults to hybrid and refuses generic Inferred", async () => {
+    // Provenance (t46, owner 2026-10-15: «давай перейдем на гибрид… из code выборок часто вылазят ссылки на научные публикации»; commit ace2192441): the default source is `hybrid`, not `web` — the test moved with the behavior in the same change per AGENTS.md § Bug Policy.
     const text = await readTool("universalsearch.txt")
-    expect(text).toMatch(/default `source` is `web`/i)
+    expect(text).toMatch(/default `source` is `hybrid`/i)
     expect(text).not.toMatch(/Schema default remains `agent`/)
     expect(text).toContain("source_stamp")
     expect(text).toMatch(/Generic\s+web never becomes Inferred/)

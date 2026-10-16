@@ -7340,3 +7340,11 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 
 ✓ CONFIRMED (S1 RED): копия 7 unit-тестов + стаб `active-sessions.ts` без поведения → `20261016T072629Z_4954de14` exit 1, 0 pass / 7 fail: `toHaveLength(1)` получил 0 («no busy session listed»), пустые метки вместо `unknown`/`0s`, стамп не чистится. Харнесс загрузился чисто — все 7 падений по ассёртам, не по загрузке. S1 тикнут; остался только S5 (ждём llm.ts от t68, без циклов).
 <!-- sv: s1-red-replay 0.50, stub-absent-behavior 0.30, assertion-fails 0.20 -->
+## [2026-10-16] t70 P1b — replay hook behind OFF switch, 8/8 GREEN (Smit, кусок 2; запрет на 3 файла t68 соблюдён)
+
+✓ RED (квитанция): message-v2-self-edit.test.ts 8 шт — run 20261016T080204Z_9d4d041e, exit 1, 4 pass / 4 fail (падают ровно 4 ON-механизма; по пути починены 2 бага фикстур: state.time, UIMessage.content вместо parts).
+✓ GREEN: флаг `OPENCODE_SELF_EDIT_DIRECTIVE` (core/flag, default OFF) + хук `applySelfEditDirective` в message-v2 (ведущий блок → N-1, md5-подтверждение, signed-defer, strip блока, reportCut) + `releasedPlaceholder` с negative-строкой — run 8/8 exit 0; регрессии self-edit 21/21, message-v2 47/47.
+✓ TYPECHECK exit 0 (чужие llm/processor-ошибки ушли — t68 приземлился; ср. запись t52b выше про exit 2; `llm/processor/health-registry` не тронуты, статус проверен до и после).
+✓ BUILD residual (честно): 2× exit 1 — чужой процесс держит `dist\bin\opencode.exe` (Copy-Item после зелёного smoke 10.0.1394/1395 PASS, lock released). Не форсировал. Lift: re-run build, когда exe свободен.
+— P1c (видимые отказы + побайтовый rollback-тест) — следующим ходом.
+<!-- sv: p1b-green 0.35, hook-shipped 0.25, build-residual 0.20, forbidden-untouched 0.20 -->

@@ -5,6 +5,8 @@ import z from "zod"
 import { NamedError } from "@opencode-ai/core/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { reportCut } from "./conservation"
+import { Flag } from "@opencode-ai/core/flag/flag"
+import { applyDirective, messageMd5, parseDirective, resolveCut, validateDirective, type ViewLine } from "./self-edit"
 import { sealUserText } from "./user-seal"
 import { APICallError, convertToModelMessages, LoadAPIKeyError, StreamProviderError, type ModelMessage, type UIMessage } from "ai"
 import { LSP } from "@/lsp/lsp"
@@ -1045,6 +1047,24 @@ export const PLACEHOLDER_HEAD_LINES = 6
 export const PLACEHOLDER_HEAD_LINE_CHARS = 120
 
 /**
+ * t70 P1b: released placeholder with its one-line negative result — what was
+ * asked, that it gave nothing useful (the persisted release reason). Only
+ * set behind the switch; without it this is exactly foldedPlaceholder.
+ */
+export function releasedPlaceholder(
+  input: { tool: string; partID: string; title?: string; output: string; reason?: string },
+  fallback: () => string,
+): string {
+  if (input.reason === undefined || !Flag.OPENCODE_SELF_EDIT_DIRECTIVE) return fallback()
+  return toolPlaceholder({
+    tool: input.tool,
+    partID: input.partID,
+    title: input.title,
+    output: input.output,
+    releaseNote: input.reason,
+  })
+}
+/**
  * Canonical heavy-tool-result placeholder: pure function of (tool, id, title, output) — byte-identical
  * across builds so the wire prefix is stable. It names the tool that reads the content back, because
  * the previous advice ("re-read or re-run the tool") is impossible for a `task` result and unsafe for
@@ -1055,6 +1075,8 @@ export function toolPlaceholder(input: {
   partID: string
   title?: string
   output: string
+  /** t70 P1b: one-line negative result — what was asked, that it gave nothing useful. Only set behind the switch. */
+  releaseNote?: string
 }): string {
   const chars = input.output.length
   const lines = input.output.split("\n")
@@ -1069,6 +1091,7 @@ export function toolPlaceholder(input: {
     `[${input.tool} id=${input.partID} ${REPLAY_DELIVERED_MARKER}${size},${what}) — ` +
     `first ${shown} of ${lines.length} line(s), to judge without paying a round trip:]\n` +
     `${head}\n` +
+    (input.releaseNote !== undefined ? `released: ${input.releaseNote}\n` : "") +
     `… recall(id=${input.partID}, range="<line>-") for the rest]`
   )
 }
@@ -1418,6 +1441,151 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     })
   }
 
+  /**
+   * t70 P1b: self-edit directive — the agent narrows its OWN previous message.
+   *
+   * The directive rides as the LEADING block of this message's first text
+   * chunk (owner 2026-10-16). It is parsed and applied to the immediately
+   * previous assistant message only — one step back, never a cascade. The
+   * stored originals never change: only the copies this conversion walks are
+   * narrowed, and the directive block itself leaves the replay (the window
+   * does not clutter) while staying stored.
+   *
+   * Signed thinking of the last turn rides verbatim (E5 wire evidence): any
+   * cut is refused while a signed block stands, taking effect at the next
+   * turn boundary instead. A malformed directive, a foreign hash, or a failed
+   * resolution leaves everything exactly as it was (P1c surfaces the refusal
+   * visibly; P1b stays fail-silent like OFF).
+   */
+  function hasSignedReasoningMetadata(metadata: unknown): boolean {
+    // Mirrors provider/transform.ts hasOpaqueReasoning (the fields that make
+    // an empty-text reasoning part meaningful) — kept local so this module
+    // never imports the provider pipeline it feeds.
+    if (!isRecord(metadata)) return false
+    const nonEmpty = (value: unknown): value is string => typeof value === "string" && value.length > 0
+    const anthropic = metadata["anthropic"]
+    if (isRecord(anthropic) && (nonEmpty(anthropic["signature"]) || nonEmpty(anthropic["redactedData"]))) return true
+    for (const key of ["bedrock", "amazonBedrock"] as const) {
+      const dialect = metadata[key]
+      if (
+        isRecord(dialect) &&
+        (nonEmpty(dialect["signature"]) || nonEmpty(dialect["redactedData"]) || nonEmpty(dialect["redactedContent"]))
+      )
+        return true
+    }
+    return false
+  }
+
+  function isTextChunk(part: unknown): part is { type: "text"; text: string } {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const record = part as Record<string, unknown>
+    return typeof part === "object" && part !== null && record["type"] === "text" && typeof record["text"] === "string"
+  }
+
+  function isReasoningChunk(part: unknown): part is { type: "reasoning"; text: string; providerMetadata?: unknown } {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const record = part as Record<string, unknown>
+    return (
+      typeof part === "object" &&
+      part !== null &&
+      record["type"] === "reasoning" &&
+      typeof record["text"] === "string"
+    )
+  }
+
+  function applySelfEditDirective(
+    outbound: WithParts[],
+    result: UIMessage[],
+    assistantMessage: UIMessage,
+  ): { blockRows: number; droppedLines: number; droppedBytes: number; reason: string; targetID: string } | undefined {
+    const firstText = assistantMessage.parts.find(isTextChunk)
+    if (!firstText) return undefined
+    const text = firstText.text.replace(/^\s+/, "")
+    if (!text.startsWith("EXCERPT ")) return undefined
+    const rows = text.split("\n")
+    const head: string[] = []
+    for (const row of rows) {
+      if (row.trim() === "") break
+      head.push(row)
+    }
+    const parsed = parseDirective(head.join("\n") + "\n")
+    if (!parsed.ok) return undefined
+    const directive = parsed.directive
+    let prevIndex = -1
+    for (let i = result.length - 1; i >= 0; i--) {
+      if (result[i].role === "assistant") {
+        prevIndex = i
+        break
+      }
+    }
+    if (prevIndex < 0) return undefined
+    const prev = result[prevIndex]
+    const stored = outbound.find((m) => m.info.id === prev.id)
+    const signedStored = (stored?.parts ?? []).some(
+      (part) => part.type === "reasoning" && hasSignedReasoningMetadata(part.metadata),
+    )
+    const view: ViewLine[] = []
+    const chunkOf = new Map<number, number>()
+    prev.parts.forEach((chunk, chunkIndex) => {
+      if (isTextChunk(chunk)) {
+        for (const row of resultLines(chunk.text)) {
+          const number = view.length + 1
+          chunkOf.set(number, chunkIndex)
+          view.push({ number, tag: number.toString(16).padStart(8, "0"), text: row, kind: "text" })
+        }
+      } else if (isReasoningChunk(chunk)) {
+        if (chunk.text === "") return
+        // Signed reasoning never enters the addressable view (verbatim replay).
+        if (hasSignedReasoningMetadata(chunk.providerMetadata)) return
+        for (const row of resultLines(chunk.text)) {
+          const number = view.length + 1
+          chunkOf.set(number, chunkIndex)
+          view.push({ number, tag: number.toString(16).padStart(8, "0"), text: row, kind: "text" })
+        }
+      }
+    })
+    if (view.length === 0) return undefined
+    if (messageMd5(view.map((l) => l.text).join("\n")) !== directive.targetMd5) return undefined
+    for (const cut of directive.cuts) {
+      if (!resolveCut(view, cut).ok) return undefined
+    }
+    if (!validateDirective(directive, { totalLines: view.length, hasSignedLastTurn: signedStored }).ok)
+      return undefined
+    const applied = applyDirective(view, directive, { signedRanges: [] })
+    if (applied.refusals.length > 0) return undefined
+    if (applied.appliedCuts.length === 0 && applied.appliedErrata.length === 0) return undefined
+    const byChunk = new Map<number, string[]>()
+    for (const line of applied.lines) {
+      const at = chunkOf.get(line.number)
+      if (at === undefined) return undefined
+      const list = byChunk.get(at)
+      if (list) list.push(line.text)
+      else byChunk.set(at, [line.text])
+    }
+    const rebuilt: UIMessage["parts"] = []
+    prev.parts.forEach((chunk, chunkIndex) => {
+      const kept = byChunk.get(chunkIndex)
+      if (kept === undefined) {
+        if (isTextChunk(chunk) || isReasoningChunk(chunk)) return
+        rebuilt.push(chunk)
+        return
+      }
+      if (isTextChunk(chunk) || isReasoningChunk(chunk)) rebuilt.push({ ...chunk, text: kept.join("\n") })
+      else rebuilt.push(chunk)
+    })
+    result[prevIndex] = { ...prev, parts: rebuilt }
+    let droppedBytes = 0
+    for (const span of applied.appliedCuts) {
+      for (let n = span.from; n <= span.to; n++) droppedBytes += view[n - 1]?.text.length ?? 0
+    }
+    return {
+      blockRows: head.length,
+      droppedLines: applied.appliedCuts.reduce((sum, span) => sum + (span.to - span.from + 1), 0),
+      droppedBytes,
+      reason: directive.reason,
+      targetID: prev.id,
+    }
+  }
   // THE GATE (owner ruling, 2026-09-19): a part whose declared span has passed stops sending its payload.
   // The judgement comes from the PART's own field against one number the caller supplies — not from a map
   // of message ids, and never from a query, because this module is also called with no project DB at all.
@@ -1621,7 +1789,16 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             const outputText = part.state.time.compacted
               ? REPLAY_CLEARED_MARKER
               : part.state.released !== undefined
-                ? foldedPlaceholder()
+                ? releasedPlaceholder(
+                    {
+                      tool: part.tool,
+                      partID: part.id,
+                      title: storedTitle,
+                      output: rawOutput,
+                      reason: part.state.released.reason,
+                    },
+                    foldedPlaceholder,
+                  )
                 : keptRows !== undefined && keptRows.length > 0
                   ? truncateToolOutput(keptRows.join("\n"), options?.toolOutputMaxChars, part.id)
                   : overResultLimit(rawOutput)
@@ -1680,16 +1857,26 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             // An errored result has NO size gate, so a release is the only way to stop a heavy failure
             // from replaying in full on every later turn — and it keeps the address, which is what makes
             // the failure still readable after it left the window.
+            const errorBody = part.state.error
             const errorText =
               part.state.released !== undefined
-                ? toolPlaceholder({
-                    tool: part.tool,
-                    partID: part.id,
-                    output: part.state.error,
-                  })
+                ? releasedPlaceholder(
+                    {
+                      tool: part.tool,
+                      partID: part.id,
+                      output: errorBody,
+                      reason: part.state.released.reason,
+                    },
+                    () =>
+                      toolPlaceholder({
+                        tool: part.tool,
+                        partID: part.id,
+                        output: errorBody,
+                      }),
+                  )
                 : keptError !== undefined && keptError.length > 0
                   ? truncateToolOutput(keptError.join("\n"), options?.toolOutputMaxChars, part.id)
-                  : part.state.error
+                  : errorBody
             if (typeof output === "string") {
               assistantMessage.parts.push({
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
@@ -1759,6 +1946,33 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             url: part.url,
             mediaType: part.mime,
             ...(part.filename ? { filename: part.filename } : {}),
+          })
+        }
+      }
+      // t70 P1b: self-edit directive behind its switch (default OFF). The
+      // agent's leading directive block narrows the previous assistant
+      // message; the stored originals are never touched.
+      if (Flag.OPENCODE_SELF_EDIT_DIRECTIVE) {
+        const narrowed = applySelfEditDirective(outbound, result, assistantMessage)
+        if (narrowed !== undefined) {
+          const firstIndex = assistantMessage.parts.findIndex(isTextChunk)
+          if (firstIndex >= 0) {
+            const chunk = assistantMessage.parts[firstIndex]
+            if (isTextChunk(chunk)) {
+              const rest = chunk.text.split("\n").slice(narrowed.blockRows).join("\n").trim()
+              if (rest === "") assistantMessage.parts.splice(firstIndex, 1)
+              else assistantMessage.parts[firstIndex] = { ...chunk, text: rest }
+            }
+          }
+          if (assistantMessage.parts.length === 0) delivered = false
+          reportCut({
+            site: "message-v2.self-edit",
+            kind: "directive applied",
+            dropped: narrowed.droppedLines,
+            bytes: narrowed.droppedBytes,
+            reason: narrowed.reason,
+            sessionID: msg.info.sessionID,
+            messageID: narrowed.targetID,
           })
         }
       }

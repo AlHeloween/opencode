@@ -68,6 +68,9 @@ export const Flag = {  get OPENCODE_AUTO_SHARE() { return (_configValues["OPENCO
   OPENCODE_SERVER_PASSWORD: process.env["OPENCODE_SERVER_PASSWORD"],
   OPENCODE_SERVER_USERNAME: process.env["OPENCODE_SERVER_USERNAME"],
   get OPENCODE_ENABLE_QUESTION_TOOL() { return (_configValues["OPENCODE_ENABLE_QUESTION_TOOL"] as boolean) ?? truthy("OPENCODE_ENABLE_QUESTION_TOOL") },
+  // t70 self-edit directive: the agent narrows its OWN replayed representation
+  // (Continuity rule 4). OFF unless explicitly enabled — rollback is the switch.
+  get OPENCODE_SELF_EDIT_DIRECTIVE() { return (_configValues["OPENCODE_SELF_EDIT_DIRECTIVE"] as boolean) ?? truthy("OPENCODE_SELF_EDIT_DIRECTIVE") },
 
   // Experimental
   OPENCODE_EXPERIMENTAL,

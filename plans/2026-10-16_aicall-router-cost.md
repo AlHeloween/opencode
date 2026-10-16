@@ -65,9 +65,9 @@ price is UNKNOWN, not free. Owner rule: never a paid «auto» router.
   (the old silent free-scan is REMOVED, so no fallback can land on a router).
   Typecheck 20261016T094321Z_a89b4f49 exit 0.
   <!-- sv: Keywords: allow-paid 0.35, chain-first 0.30, refuse-router 0.20, envelope-fix 0.15; Semantic dominant: Refuse routers unless explicitly allowed. -->
-- [ ] S3 — Typecheck (`bun typecheck` in `packages/opencode`), one-file test
-  run via `cmd_runner`, `_build.ps1` lock, commit via `scripts/commit_own.py`,
-  `_progress_log.md` entry, `svm render`.
+- [x] S3 — Typecheck exit 0, test GREEN via `cmd_runner`, `_build.ps1` exit 0
+  (smoke 10.0.1402, lock released), commits 9c0466f76f (5 paths) +
+  55425c34a7 (svm render), `_progress_log.md` entry.
   <!-- sv: Keywords: typecheck-build 0.40, commit-own 0.30, progress-log 0.20, render 0.10; Semantic dominant: Prove and land the router fix. -->
 
 ## Smoke Tests

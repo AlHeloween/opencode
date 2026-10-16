@@ -25,6 +25,7 @@ import { messageAgentColor } from "@/utils/agent"
 import { decode64 } from "@/utils/base64"
 import { Persist, persisted } from "@/utils/persist"
 import { StatusPopover } from "../status-popover"
+import { ProtocolCell } from "@/pages/session/protocol-cell-view"
 
 const OPEN_APPS = [
   "vscode",
@@ -431,6 +432,7 @@ export function SessionHeader() {
                     <StatusPopover />
                   </Tooltip>
                 </Show>
+                <ProtocolCell sessionID={() => params.id} />
                 <Show when={term()}>
                   <TooltipKeybind
                     title={language.t("command.terminal.toggle")}

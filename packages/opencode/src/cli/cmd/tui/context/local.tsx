@@ -17,6 +17,7 @@ import { useRoute, type Route } from "./route"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
 import { Filesystem } from "@/util/filesystem"
+import { errorMessage } from "@/util/error"
 import {
   loadSessionSettings,
   saveSessionSettings,
@@ -300,7 +301,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           .then(() => Filesystem.writeJson(filePath, snapshot))
           .catch((error) =>
             Log.Default.warn("bug: model config save failed", {
-              error: error instanceof Error ? error.message : String(error),
+              error: errorMessage(error),
             }),
           )
       }
@@ -326,9 +327,16 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           )
             setModelStore("taskModel", x.taskModel)
         })
-        .catch((e: unknown) =>
-          Log.Default.warn("bug: model config load failed", { error: e instanceof Error ? e.message : String(e) }),
-        )
+        .catch((e: unknown) => {
+          // Fill, not warn (t78): a fresh data root has no model.json yet — create the
+          // layer shape instead of ENOENT-warning on every boot. No model choice is invented.
+          const code = (e as { code?: unknown })?.code
+          if (code === "ENOENT") {
+            void Filesystem.writeJson(filePath, {}).catch(() => undefined)
+            return
+          }
+          Log.Default.warn("bug: model config load failed", { error: errorMessage(e) });
+        })
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()
@@ -662,7 +670,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (paths?.config) where = paths.config
         } catch (e) {
           Log.Default.warn("bug: failed to resolve global config path for toast", {
-            error: e instanceof Error ? e.message : String(e),
+            error: errorMessage(e),
           })
         }
         toast.show({
@@ -707,7 +715,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           })
           return true
         } catch (e: unknown) {
-          Log.Default.warn("bug: global config seed failed", { error: e instanceof Error ? e.message : String(e) })
+          Log.Default.warn("bug: global config seed failed", { error: errorMessage(e) })
           return false
         }
       }

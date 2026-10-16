@@ -7,6 +7,16 @@ md5: 8f2a4c1d9e3b47a5b6c8d0f1a2b3c4d5
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000
 
+## Update 2026-10-17 — live portable run found the true warn sites
+
+A real dist/bin copy launched from .temp/t78-install/a/b/bin (build 10.0.1415, with the
+paths.ts/tui.ts clamp) proved the clamp holds: every logged path is local to a/b/bin, no parent
+.opencode source, marker plugin never fired. The same run reproduced both side defects from the
+TUI layer (not the server layer fixed first): model config load ENOENT from local.tsx readJson
+and global-config-seed [object Object] from local.tsx String(e). Fixed at the true sites: ENOENT
+fills model.json silently; all six String(e) warns in local.tsx route through errorMessage.
+session-settings ensureModelState + config errorMessage stay as the server-side backstop.
+
 Owner verbatim (2026-10-17): «а вот это баг - не фича а баг - я запустил opencode из dist какого черта она нашла
 где-то там конфиг если его не было рядом с экзешником. Это же форменная лажа.» + «Это получается что мы потом не
 сможем отлаживать инсталлятор он подцепит что у нас тут и упадет у потенциального пользователя нашей системы.

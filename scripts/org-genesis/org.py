@@ -429,15 +429,21 @@ def launch_command(worktree: str, exe: Path) -> str:
         port = probe.getsockname()[1]
     return f"cmd_runner start --terminal wt --cwd {_quoted(worktree)} -- {_quoted(exe)} --port {port}"
 
-def deliver_into_new_session(worktree: str, title: str, text: str) -> tuple[str, str]:
+def deliver_into_new_session(worktree: str, title: str, text: str,
+                             _connect=None) -> tuple[str, str]:
     """Open a session on that worktree's live host and deliver `text` into it, pinned to the fleet's
-    model. Returns (session_id, "") or ("", why) — the caller records the session or says why."""
-    if opencode_host is None:
+    model. Returns (session_id, "") or ("", why) — the caller records the session or says why.
+    `_connect` is the test seam (a stub instead of opencode_host.connect): production callers
+    never pass it, so no production path changes for the tests."""
+    if opencode_host is None and _connect is None:
         return "", f"opencode_host unavailable ({HOST_IMPORT_ERROR})"
+    connect = _connect if _connect is not None else opencode_host.connect
     try:
-        host = opencode_host.connect(worktree)
-    except opencode_host.HostError as error:
-        return "", f"host not live — {error}"
+        host = connect(worktree)
+    except Exception as error:
+        if opencode_host is not None and isinstance(error, opencode_host.HostError):
+            return "", f"host not live — {error}"
+        return "", f"delivery failed: {error}"
     try:
         created = host.post("/session", {"title": title})
         session_id = str((created or {}).get("id") or "")
@@ -708,6 +714,34 @@ def cmd_contest(a) -> int:
     print(f"org: {short(t)} CONTESTED (dispute {name}) — READY, awaiting the delegator's answer with a receipt")
     return 0
 
+def cmd_revoke_session(a, user: str) -> int:
+    """Supersede a dead/stray session: record REVOKE so orgd skips its PRESENCE lines."""
+    session = (a.revoke_session or "").strip()
+    if not session:
+        sys.exit("org: --revoke-session needs a session id")
+    try:
+        lines = rows("SELECT xmsg FROM chat ORDER BY msgid DESC LIMIT 400")
+    except sqlite3.OperationalError as error:  # born-empty org: the chat table appears with the first send
+        if "no such table" not in str(error):
+            raise
+        lines = []
+    for row in lines:
+        parts = str(row["xmsg"] or "").split()
+        if len(parts) >= 4 and parts[0] == "PRESENCE" and parts[2] == session and canon_login(parts[1]) != canon_login(user):
+            sys.exit(f"org: session {session} declared itself for {parts[1]} — only that user may revoke it")
+    want = f"REVOKE {user} {session}"
+    if not chat(want):
+        sys.exit(f"org: cannot record the revoke for {session} — the org chat is unreachable "
+                 f"(is the server up on 127.0.0.1:{PORT}?)")
+    try:
+        back = rows("SELECT xmsg FROM chat ORDER BY msgid DESC LIMIT 400")
+    except sqlite3.OperationalError:
+        back = []
+    if not any(str(row["xmsg"] or "") == want for row in back):
+        sys.exit(f"org: the revoke for {session} was not recorded in the chat — nothing was written, nothing revoked")
+    print(f"org: revoked {session} for {user} — orgd will skip its PRESENCE lines")
+    return 0
+
 
 def cmd_cancel(a) -> int:
     """The delegator abandons the ticket (READY/WORKING/BLOCKED/DONE -> CANCELLED)."""
@@ -730,6 +764,8 @@ def cmd_cancel(a) -> int:
 
 def cmd_inbox(a) -> int:
     user = need_user(a)
+    if a.revoke_session:
+        return cmd_revoke_session(a, user)
     try:
         mine = rows(
             "SELECT tkt_uuid, title, slug, agent_state, lease_owner, lease_until, parent_task FROM ticket "
@@ -1284,6 +1320,7 @@ def main() -> int:
     p.add_argument("--json", action="store_true", help="machine-readable: one JSON document on stdout")
     p.add_argument("--no-presence", action="store_true",
                    help="read-only poll: post no PRESENCE line and resolve no session")
+    p.add_argument("--revoke-session", help="supersede a dead/stray session: record REVOKE so orgd never wakes it again (only your own PRESENCE lines)")
     p.set_defaults(func=cmd_inbox)
 
     p = sub.add_parser("chat", help="read the chat table since a msgid (a cursor poll)")

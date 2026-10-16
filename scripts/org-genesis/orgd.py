@@ -175,12 +175,22 @@ def assignee_session(assigned_to: str, worktree: str) -> tuple[str | None, str]:
             lines = []
     finally:
         con.close()
+    revoked: set[str] = set()  # sessions superseded with `org.py inbox --revoke-session`: never woken
+    for (message,) in lines:
+        parts = str(message or "").split()
+        if len(parts) >= 3 and parts[0] == "REVOKE" and parts[1].lower() == assigned_to.lower():
+            revoked.add(parts[2])
     for (message,) in lines:
         parts = str(message or "").split()
         if len(parts) >= 4 and parts[0] == "PRESENCE" and parts[1].lower() == assigned_to.lower() and norm(parts[3]) == norm(worktree):
+            if parts[2] in revoked:
+                continue  # a dead/stray session, superseded — look at the next line, never wake it
             if session_exists(worktree, parts[2]):
                 return parts[2], ""
             return None, f"the newest PRESENCE for {assigned_to} names a session that no longer exists ({parts[2]})"
+    if revoked:
+        return None, (f"every PRESENCE for {assigned_to} in {worktree} names a revoked session — "
+                      f"nothing to wake; a live session registers itself with `org.py inbox`")
     return None, (f"no PRESENCE for {assigned_to} in {worktree} — nothing to wake; "
                   f"`org.py inbox` there registers the session")
 

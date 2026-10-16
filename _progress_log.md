@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] Утечка доставок закрыта + PRESENCE отозваны (план plans/2026-10-16_presence-revoke-and-test-guard.md, G1-G3 закрыты)
+
+✓ CONFIRMED (механизм): S10-orgd подбирал fixture-тикеты S2/S4 с workspace_repo=D:/zPython/opencode (текст первой части c0c89ed2a9 — «s2 omitted worktree»); fake-счётчики были слепы к побочным доставкам. 9 живых сессий тремя пачками + 3 с 10-14.
+✓ CONFIRMED (G1): sitecustomize-страж (только тестовый PYTHONPATH, прод не тронут) + S10 на изолированной фикстуре + S9b со стабом; полный файл 18/18, живые ticket-сессии 15→15 (+0); queue/slugs/wiki/forum зелёные.
+✓ CONFIRMED (G2+G3): revoke-глагол с read-back (r4 научил: fossil chat send без сервера rc 0, но не пишет); orgd пропускает отозванные; отозваны 13 PRESENCE (12 ticket + 1 gone), 2 LIVE не тронуты; assignee_session возвращает живую ses_ee6ff19e.
+— Дальше: установка/сверка/коммит, запрос рестарта orgd.
+<!-- sv: leak-closed 0.40, test-guard 0.30, revoke-applied 0.20, restart-pending 0.10 -->
 ## [2026-10-16] t68 C3b closer — registry закоммичен, typecheck зелёный, красные классифицированы (план plans/2026-10-16_model-chain-failover.md)
 
 ✓ CONFIRMED (п.1): `health-registry.ts` (ReadonlyMap→Map) закоммичен `7326d41c`; `bun typecheck` из закоммиченного дерева — exit 0 (`20261016T080405Z_fba066a4`). Соседи разблокированы.

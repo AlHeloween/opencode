@@ -91,9 +91,12 @@ instead of copying it.
   it stays closable with `cancel`); REJECTED sends it back to READY with the findings as a technote and wakes the assignee to rework;
   CONTESTED is the assignee's dispute of a reject with evidence (READY stays READY, recorded as `contest_ref`) and the next verdict answers with a receipt;
   CANCELLED abandons it. Only the delegator (`delegated_by`) may pass a verdict (verify/reject require DONE); only the assignee may contest (READY + findings).
-- INBOX — `org.py inbox [--user X] [--json] [--no-presence]` — lists your READY/WORKING/BLOCKED tickets. Text
+- INBOX — `org.py inbox [--user X] [--json] [--no-presence] [--revoke-session SES]` — lists your READY/WORKING/BLOCKED tickets. Text
   mode **registers this session for wakes** (a `PRESENCE <you> <session> <worktree>` chat line) — run it when you
   start work. `--json --no-presence` is the read-only poll: one JSON document, no PRESENCE, no session needed.
+  `--revoke-session SES` supersedes a dead/stray session of yours (a `REVOKE <you> <SES>` chat line): orgd skips
+  its PRESENCE lines and never wakes it again — the repair for a session that was opened by mistake and already
+  declared itself. Only your own PRESENCE lines; the revoke is proven by reading it back, never by the exit code.
   A `watcher` login (a ticket's `watcher` field — recorded by a cross hand-off) also reads a `watching:` section:
   those tickets with state, `workspace_repo`, assignee and heartbeat age, and STALLED when a lease/heartbeat
   expired or a READY ticket sat unclaimed past an hour. The hourly orchestrator reads exactly this section.

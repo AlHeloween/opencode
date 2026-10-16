@@ -89,14 +89,24 @@ LATE = FIXTURE / "late-stand"  # no host at delegate time; the host appears late
 RESIDENT_LATE = "smit-late-stand"
 ORGD_PY = GENESIS / "orgd.py"
 DISPATCH = REPO / "experiments" / "2026-10-08_robot-wave" / "dispatch.py"  # the fleet's one model source
+RESIDENT_REVOKE = "smit-revoke-stand"  # the login revoke tests speak presence for
 
 
-def _env() -> dict:
+def _env(extra: dict | None = None) -> dict:
     env = dict(os.environ)
     env["ORG_HOME"] = str(FIXTURE)
     env["ORG_PORT"] = "1"
     env["FOSSIL"] = FOSSIL
     env["PYTHONUTF8"] = "1"
+    guard = GENESIS / "testdata" / "guard"
+    if guard.is_dir():  # the socket guard rides every org subprocess (sitecustomize)
+        prior = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = str(guard) + (os.pathsep + prior if prior else "")
+    if _FAKE_PORT:  # the fixture host is the only TCP a test subprocess may open
+        env["ORG_GUARD_ALLOW_PORTS"] = str(_FAKE_PORT)
+    env["ORG_GUARD_LOG"] = str(FIXTURE / "guard.log")
+    if extra:
+        env.update(extra)
     env.pop("ORG_USER", None)
     env.pop("ORG_SESSION", None)
     return env
@@ -216,7 +226,10 @@ def setUpModule() -> None:
 
 
 def tearDownModule() -> None:
+    log = FIXTURE / "guard.log"
+    violations = log.read_text(encoding="utf-8") if log.exists() else ""
     shutil.rmtree(FIXTURE, ignore_errors=True)
+    assert not violations, ("the socket guard caught outside-fixture connections during this run:\n" + violations)
 
 
 class CrossHandoffTest(unittest.TestCase):
@@ -499,20 +512,95 @@ class DeliveryTest(unittest.TestCase):
                          {"providerID": "opencode-go", "modelID": "muse-spark-1.3-contributor"})
         self.assertEqual(delivered[0].get("variant"), "xhigh")
 
+    def test_s9b_deliver_uses_the_injected_client_without_any_network(self):
+        calls = []
+
+        class StubHost:
+            def post(self, path, body=None, query=None):
+                calls.append((path, body))
+                return {"id": "ses_stub1"} if path == "/session" else {}
+
+        session, why = org.deliver_into_new_session(str(LIVE), "ticket x", "hello, resident",
+                                                    _connect=lambda worktree: StubHost())
+        self.assertEqual((session, why), ("ses_stub1", ""))
+        created = [body for path, body in calls if path == "/session"]
+        delivered = [body for path, body in calls if path.endswith("/prompt_async")]
+        self.assertEqual(len(created), 1, "exactly one session is opened through the injected client")
+        self.assertEqual(len(delivered), 1, "exactly one prompt carries the ticket")
+        self.assertEqual(delivered[0].get("model"),
+                         {"providerID": "opencode-go", "modelID": "muse-spark-1.3-contributor"})
+        self.assertEqual(delivered[0].get("variant"), "xhigh")
+        self.assertIn("hello, resident", delivered[0].get("parts", [{}])[0].get("text", ""))
+
+        def boom(worktree):
+            raise RuntimeError("boom")
+
+        failed, reason = org.deliver_into_new_session(str(LIVE), "t", "x", _connect=boom)
+        self.assertEqual(failed, "")
+        self.assertIn("delivery failed", reason)
+
     def test_s10_orgd_delivers_when_the_host_appears_later_exactly_once(self):
-        out, uuid = cross_delegate("s10 late host", worktree=LATE, assignee=RESIDENT_LATE)
-        self.assertEqual(field(uuid, "wake_session"), "", "no host yet — nothing delivered at delegate time")
+        # An org of its own: this orgd sees NOTHING but the s10 ticket — the main fixture's
+        # same-worktree tickets (s2/s4, workspace_repo = the real tree) are invisible here, so no
+        # delivery can ever leave the fixture, guard or no guard.
+        iso = Path(tempfile.mkdtemp(prefix="org-late-"))
+        self.addCleanup(shutil.rmtree, iso, True)
+        iso_env = _env({"ORG_HOME": str(iso)})
+        late = iso / "late-stand"
+        (late / "bin").mkdir(parents=True, exist_ok=True)
+        (late / "bin" / "opencode.exe").write_bytes(b"")
+
+        def iso_cli(*args):
+            return subprocess.run([sys.executable, "-X", "utf8", str(ORG_PY), *args],
+                                  capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                  cwd=str(REPO), env=iso_env)
+
+        def iso_orgd():
+            return subprocess.run([sys.executable, "-X", "utf8", str(ORGD_PY), "--once"],
+                                  capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                  cwd=str(REPO), env=iso_env)
+
+        def iso_field(uuid, name):
+            con = sqlite3.connect("file:" + urllib.request.pathname2url(str(iso / "org.fossil")) + "?mode=ro", uri=True)
+            try:
+                con.row_factory = sqlite3.Row
+                value = con.execute("SELECT * FROM ticket WHERE tkt_uuid = ?", (uuid,)).fetchone()[name]
+            finally:
+                con.close()
+            return "" if value is None else str(value)
+
+        init = subprocess.run([FOSSIL, "init", str(iso / "org.fossil")], capture_output=True)
+        self.assertEqual(init.returncode, 0, init.stderr)
+        schema = (GENESIS / "ticket-schema.sql").read_text(encoding="utf-8").replace("'", "''")
+        applied = subprocess.run([FOSSIL, "sql", "-R", str(iso / "org.fossil"),
+                                  f"INSERT OR REPLACE INTO config(name,value,mtime) VALUES('ticket-table','{schema}',now());"],
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        rebuilt = subprocess.run([FOSSIL, "rebuild", str(iso / "org.fossil")], capture_output=True)
+        self.assertEqual(rebuilt.returncode, 0, rebuilt.stderr)
+        for login in (BOSS, RESIDENT_LATE):
+            made = subprocess.run([FOSSIL, "user", "new", login, "-R", str(iso / "org.fossil")],
+                                  input="s3cret\ns3cret\n",
+                                  capture_output=True, text=True, encoding="utf-8", errors="replace")
+            self.assertEqual(made.returncode, 0, (login, made.stderr))
+        out = iso_cli("delegate", "--title", "s10 late host", "--slug", "s10-late-host",
+                      "--assignee", RESIDENT_LATE, "--worktree", str(late),
+                      "--user", BOSS, "--no-wake")
+        self.assertEqual(out.returncode, 0, (out.stdout, out.stderr))
+        uuid = out.stdout.strip()
+        self.assertTrue(len(uuid) >= 40, ("stdout must be exactly the ticket uuid", out.stdout))
+        self.assertEqual(iso_field(uuid, "wake_session"), "", "no host yet — nothing delivered at delegate time")
         self.assertIn("cmd_runner start", out.stderr, "no host → the ONE launch command is printed")
         self.assertEqual(posts_to("/session"), [], "no session opened without a host")
-        make_host_record(LATE, self.port)
-        first = run_orgd_once()
+        make_host_record(late, self.port)
+        first = iso_orgd()
         self.assertEqual(first.returncode, 0, (first.stdout, first.stderr))
-        session = field(uuid, "wake_session")
+        session = iso_field(uuid, "wake_session")
         self.assertTrue(session.startswith("ses_"), f"orgd must deliver once the host appears, got {session!r}")
-        self.assertEqual(field(uuid, "woken_state"), "NEW")
+        self.assertEqual(iso_field(uuid, "woken_state"), "NEW")
         self.assertIn(uuid, "\n".join(str(body) for body in posts_to("/prompt_async")))
         _FakeHostHandler.received.clear()
-        second = run_orgd_once()
+        second = iso_orgd()
         self.assertEqual(second.returncode, 0, (second.stdout, second.stderr))
         self.assertEqual(posts_to("/session"), [], "woken NEW — the ticket is never delivered twice")
 
@@ -527,5 +615,92 @@ class FleetModelMirrorTest(unittest.TestCase):
         self.assertEqual(org.FLEET_MODEL, dispatch.MODEL)
         self.assertEqual(org.FLEET_VARIANT, dispatch.VARIANT)
 
+
+class GuardSelfTest(unittest.TestCase):
+    """The socket guard is on in every org subprocess (a silent guard proves nothing)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.port = start_fake_host()
+
+    def test_guard_blocks_outside_and_passes_the_fixture_port(self):
+        lines = [
+            "import urllib.request",
+            f"port = {self.port}",
+            "hit = False",
+            "try:",
+            "    urllib.request.urlopen('http://127.0.0.1:1/', timeout=5)",
+            "except OSError as error:",
+            "    hit = 'org-test-guard' in str(error)",
+            "print('GUARD_HIT' if hit else 'GUARD_MISS')",
+            f"print(urllib.request.urlopen('http://127.0.0.1:{self.port}/global/health', timeout=5).read().decode())",
+        ]
+        script = "\n".join(lines)
+        env = _env()
+        env["ORG_GUARD_LOG"] = str(FIXTURE / "guard-selftest.log")  # the deliberate probe must not pollute the run journal
+        out = subprocess.run([sys.executable, "-X", "utf8", "-c", script],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace",
+                             cwd=str(REPO), env=env)
+        self.assertEqual(out.returncode, 0, (out.stdout, out.stderr))
+        self.assertIn("GUARD_HIT", out.stdout, "the guard must refuse outside connections loudly")
+        self.assertIn(_FakeHostHandler.nonce, out.stdout, "the fixture port must stay reachable")
+
+
+class RevokeTest(unittest.TestCase):
+    """R1-R4 — a dead/stray PRESENCE is superseded by REVOKE: orgd skips it for the next valid one."""
+    maxDiff = None
+
+    @staticmethod
+    def _say(text: str) -> None:
+        out = fossil("sql",
+                     "CREATE TABLE IF NOT EXISTS chat(msgid INTEGER PRIMARY KEY, mtime, xfrom TEXT, xmsg TEXT);"
+                     f"INSERT INTO chat(xfrom, xmsg) VALUES('test', '{text}');")
+        assert out.returncode == 0, out.stderr
+
+    @staticmethod
+    def _stand(name: str, *sessions: str) -> Path:
+        wt = FIXTURE / name
+        data = wt / ".opencode" / "data"
+        data.mkdir(parents=True, exist_ok=True)
+        con = sqlite3.connect(str(data / "opencode.db"))
+        try:
+            con.execute("CREATE TABLE IF NOT EXISTS session(id TEXT PRIMARY KEY)")
+            for session in sessions:
+                con.execute("INSERT OR IGNORE INTO session(id) VALUES(?)", (session,))
+            con.commit()
+        finally:
+            con.close()
+        return wt
+
+    def test_r1_revoked_presence_is_skipped_for_the_next_valid_one(self):
+        wt = self._stand("revoke-stand", "ses_old_r1", "ses_new_r1")
+        self._say(f"PRESENCE {RESIDENT_REVOKE} ses_old_r1 {wt}")
+        self._say(f"PRESENCE {RESIDENT_REVOKE} ses_new_r1 {wt}")
+        self._say(f"REVOKE {RESIDENT_REVOKE} ses_new_r1")
+        import orgd
+        session_id, why = orgd.assignee_session(RESIDENT_REVOKE, str(wt))
+        self.assertEqual(session_id, "ses_old_r1", why)
+
+    def test_r2_all_presence_revoked_reports_revoke(self):
+        wt = self._stand("revoke-empty", "ses_gone_r2")
+        self._say(f"PRESENCE {RESIDENT_REVOKE} ses_gone_r2 {wt}")
+        self._say(f"REVOKE {RESIDENT_REVOKE} ses_gone_r2")
+        import orgd
+        session_id, why = orgd.assignee_session(RESIDENT_REVOKE, str(wt))
+        self.assertIsNone(session_id)
+        self.assertIn("revok", why.lower())
+
+    def test_r3_revoke_stranger_is_refused(self):
+        wt = self._stand("revoke-stranger")
+        self._say(f"PRESENCE {RESIDENT_REVOKE} ses_mine_r3 {wt}")
+        out = run_cli("inbox", "--user", BOSS, "--revoke-session", "ses_mine_r3", "--no-presence")
+        self.assertNotEqual(out.returncode, 0, "only the session's own user may revoke it")
+
+    def test_r4_revoke_without_server_is_refused(self):
+        wt = self._stand("revoke-noserver")
+        self._say(f"PRESENCE {BOSS} ses_mine_r4 {wt}")
+        out = run_cli("inbox", "--user", BOSS, "--revoke-session", "ses_mine_r4", "--no-presence")
+        self.assertNotEqual(out.returncode, 0, "without a server the revoke is not recorded — refuse, never pretend")
+        self.assertIn("revoke", (out.stdout + out.stderr).lower())
 if __name__ == "__main__":
     unittest.main(verbosity=2)

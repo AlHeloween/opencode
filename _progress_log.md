@@ -7292,6 +7292,14 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ MISS (честно): предсказание A 7–8/10 провалено → falsifier сработал для CJK-класса (нужны ДЛИННЫЕ продолжения — поправка для P2); эффект директивы — там, где ошибка воспроизводима (claims A 2.5/4 vs B 0/4).
 ✓ PLAN: бокс AB [x]; P1 разбит на P1a (тесты сначала) / P1b (выключатель+replay) / P1c (refusal+rollback); svm set P1b. Код P1 в этом ходу НЕ начат (кусок 2 — следующим; тесты сначала).
 <!-- sv: ab-recurrence 0.35, explicit-model 0.25, miss-honest 0.20, p1-split 0.20 -->
+## [2026-10-16] t70 P1a — self-edit module + 21 tests GREEN (Smit, кусок 2: тесты сначала)
+
+✓ RED (квитанция): test/session/self-edit.test.ts против отсутствующего `@/session/self-edit` — run 20261016T072148Z_4b646459, exit 1, 0 pass / 1 fail (Cannot find module).
+✓ GREEN: session/self-edit.ts (parse/resolve/validate/apply, messageMd5, isSelfEditEnabled OFF-default) — run 20261016T072438Z_d1636e58, exit 0, 21 pass / 0 fail, 45 expects.
+✓ TYPECHECK inherited-red (доказано before/after): с моими файлами exit 2 (2 ошибки processor.ts:1572/1578 — чужой незакоммиченный chain-switch t68); БЕЗ моих файлов (вынос в .temp/p1a_hold) — те же 2 ошибки, run 20261016T072738Z_11bed74c exit 2. По @CAUSAL_ATTRIBUTION — inherited, чиню не я (чужая активная зона). Последний коммит по processor.ts — 312b650d30 (t53, тогда typecheck exit 0).
+✓ BUILD: две попытки упёрлись в чужой lock (pid 24824, жив — ждал, не форсировал); третья взяла lock (pid 33492) — run 20261016T073012Z_bd7de6e5, exit 0, smoke 10.0.1391 PASS, lock released.
+— P1b (хук message-v2 + Flag) — следующим ходом. Residual прежние: MASTER_PLAN-mapping (svm render), ckpt-сводки.
+<!-- sv: p1a-green 0.35, red-receipt 0.25, inherited-proof 0.20, build-clean 0.20 -->
 ## [2026-10-16] t52b TUI active-sessions panel — close the uncommitted tree dirt (plan plans/2026-10-15_tui-active-sessions-panel.md, 5/7 boxes)
 
 ✓ CONFIRMED (S2+S3): `test/tui/sidebar-active-sessions.test.tsx` 9/9 PASS (7 unit + 2 render) via `20261016T070710Z_e26a6418` exit 0 — the 9 tests ARE the plan's S1–S3 (import path `.test.tsx`, plan names `.test.ts`).

@@ -114,3 +114,5 @@ Tool residual: починить общий stop/lifecycle research harness и ac
 ## Граф default reasoning по запросу владельца
 
 Artifact: `docs/reasoning-flow.md`, source/line/hash receipts — `experiments_history/2026-10-16_haiku-omp-compare/default-flow-evidence.json`. Read-only grounding расширено до processor → stored parts → UI/history → message-v2 → provider transform → SDK. Это Inferred карта текущего кода, не runtime acceptance. Помимо signed-empty filter найдены reasoning-only gate, differentModel metadata gate и route no-echo strip. Source repair ещё не применён; следующая bounded реализация должна связывать тесты с конкретными слоями, а не объявлять все reasoning сохранёнными после правки одного фильтра.
+
+Owner decision 2026-10-16: «ничего резать не надо»; владелец сам запускает робота. Для расследования/ремонта подготовлен [отдельный план preservation](2026-10-16_reasoning-lossless-replay.md), READY_FOR_OWNER_ROBOT, без dispatch receipt и без выполненной реализации. Исходный latency criterion здесь остаётся открытым; исполнителю не повторять израсходованную матрицу как будто это новый baseline.

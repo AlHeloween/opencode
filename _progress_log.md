@@ -7062,6 +7062,15 @@ RESIDUAL/NEXT: plan ACTIVE,8/8 inference budget consumed; continuation receipt a
 BOUNDARY/NEXT: all-provider behavior remains Inferred from source, not runtime PASS. No product source edits/tests/build/API calls in this graph task. Source repair not applied: preserve meaningful reasoning requires regressions at message-v2/transform/SDK seams; one-filter patch cannot establish whole-chain preservation. Root latency plan ACTIVE, continuation source/hash receipt above. No owner runtime/bin changes.
 <!-- sv: reasoning-flow 0.40, replay-loss 0.30, source-provenance 0.20, next-repair 0.10 -->
 
+## [2026-10-16] Reasoning preservation + Anthropic HTTP3 — owner robot plan
+
+✓ PLAN READBACK: `plans/2026-10-16_reasoning-lossless-replay.md`,9open tasks/7acceptance predicates/9taskSV, weights sum1.0, fences balanced, local links exist. Graph `docs/reasoning-flow.md` сохраняет before-code snapshot и отдельно фиксирует target владельца «ничего резать».10/10 prior source pins rechecked; CodeGraph busy45s recorded, no index-absence claim. Readonly plan reviews corrected cross-model metadata wording and validated separate T9/A7 boundaries.
+
+✓ ROUTING: `svm render` receipts `20261016T014129Z_984388e2`, `20261016T014613Z_4d4e3bb5`; own plan has hand-owned link and generated entry. First render gap named a foreign plan, not this plan; no global portfolio acceptance claimed. Handoff evidence/runner state+whole stdout → `experiments_history/2026-10-16_haiku-omp-compare/plan-handoff-receipt.json`.
+
+STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No product edits/tests/build/network probes to Anthropic. Owner launches executor; then T1 refresh/qualification, regressions before mutation, independent wire oracle. HTTP3 client/network/server/runtime/fallback/SSE are separate claims; current support/latency not asserted from pasted testimony. Root Haiku latency plan remains ACTIVE.
+<!-- sv: robot-plan 0.35, reasoning-preservation 0.30, http3-qualification 0.20, evidence-contract 0.15 -->
+
 ## [2026-10-16] t62 — local tickets in the project cell: the write route (план plans/2026-10-15_local-ticket-write.md)
 
 ✓ CONFIRMED (RED→GREEN, cmd_runner, one file per call): cell-ticket RED `20261016T010134Z_2d6bf838` exit 1 (`addTicket` missing) → GREEN `20261016T010756Z_68983209` 4/4; fossilcell-ticket RED `20261016T010200Z_d26e708d` exit 1 (`ownRepoPath` missing) → GREEN `20261016T010703Z_f152237a` 6/6; lock RED `20261016T010214Z_c416f66d` exit 1 (`ticketAdd` missing) → GREEN `20261016T010836Z_f102f64d` 1/1 (peak fossil in-flight == 1, ticketAdd + track concurrent).

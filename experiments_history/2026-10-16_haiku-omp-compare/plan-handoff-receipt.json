@@ -1,0 +1,83 @@
+{
+  "scope": "Plan/documentation handoff only; no robot/product execution",
+  "state": "READY_FOR_OWNER_ROBOT",
+  "plan": {
+    "path": "plans/2026-10-16_reasoning-lossless-replay.md",
+    "sha256": "17f86d0f3a42ec8266d91b58a7a541487dfe918eaecdaf9288cdb7a579c508c3",
+    "open_tasks": 9,
+    "acceptance_conditions": 7,
+    "task_sv": 9
+  },
+  "graph": {
+    "path": "docs/reasoning-flow.md",
+    "sha256": "018aa4e70219ff1515c72605cd68d18b840b43f95342e80cfc936ad0d0d11adc"
+  },
+  "checks": {
+    "local_refs": "all exist",
+    "sv_weights": 1,
+    "fences": "balanced",
+    "independent_reviews": "cross-model send ambiguity corrected; HTTP3/additional bounds reviewed",
+    "source_pins": "10/10 unchanged",
+    "implementation": "not run",
+    "robot_dispatches": 0,
+    "anthropic_network_probes": 0
+  },
+  "renders": [
+    {
+      "run_id": "20261016T014129Z_984388e2",
+      "state": {
+        "status": "finished",
+        "pids": [
+          13648
+        ],
+        "exit_code": 0,
+        "started_utc": "2026-10-16T01:41:29Z",
+        "finished_utc": "2026-10-16T01:41:40Z",
+        "stopped_utc": null,
+        "timeout_utc": null,
+        "backend": "windows-conpty",
+        "log": {
+          "limit_bytes": 52428800,
+          "bytes_written": 527,
+          "bytes_dropped": 0,
+          "truncated": false
+        },
+        "creation_tick": 134365884898119020,
+        "host_pid": 32652,
+        "host_creation_tick": 134365884893006930,
+        "notes": "log final"
+      },
+      "whole_stdout": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n{\n  \"ok\": true,\n  \"file\": \"plans/MASTER_PLAN.md\",\n  \"bytes\": 46377,\n  \"stats\": {\n    \"plans\": 32,\n    \"openBoxes\": 151,\n    \"missingPlanSv\": 2,\n    \"missingTaskSv\": 93,\n    \"missingManifests\": 148,\n    \"gapsBefore\": [\n      \"plans/2026-10-15_tool-gate-marks.md\"\n    ]\n  }\n}\n",
+      "stdout_sha256": "1a6e8a298b1e97b9133ba515bf9f64fd384356112bca9a0c42d684506bfcd312"
+    },
+    {
+      "run_id": "20261016T014613Z_4d4e3bb5",
+      "state": {
+        "status": "finished",
+        "pids": [
+          24952
+        ],
+        "exit_code": 0,
+        "started_utc": "2026-10-16T01:46:13Z",
+        "finished_utc": "2026-10-16T01:46:16Z",
+        "stopped_utc": null,
+        "timeout_utc": null,
+        "backend": "windows-conpty",
+        "log": {
+          "limit_bytes": 52428800,
+          "bytes_written": 572,
+          "bytes_dropped": 0,
+          "truncated": false
+        },
+        "creation_tick": 134365887735684480,
+        "host_pid": 36824,
+        "host_creation_tick": 134365887733929620,
+        "notes": "log final"
+      },
+      "whole_stdout": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n{\n  \"ok\": true,\n  \"file\": \"plans/MASTER_PLAN.md\",\n  \"bytes\": 47478,\n  \"stats\": {\n    \"plans\": 33,\n    \"openBoxes\": 158,\n    \"missingPlanSv\": 2,\n    \"missingTaskSv\": 99,\n    \"missingManifests\": 155,\n    \"gapsBefore\": [\n      \"plans/2026-10-16_codex-agents-md-only.md\"\n    ]\n  }\n}\n",
+      "stdout_sha256": "c3a2b92aab8145a64a332a7fa0e6892b788b7d37514dc65178e91ce795927839"
+    }
+  ],
+  "source_note": "Web sources in T9 were read to verify source wording; target transport not probed",
+  "residual": "All T1-T9 are unexecuted. Owner starts robot; first action T1 refresh/qualify, never reuse past PASS as current product acceptance."
+}

@@ -1,0 +1,108 @@
+<!-- intention: reasoning и metadata могут теряться до следующего запроса, поддержка HTTP3 у Anthropic на нашем сетевом пути не проверена -> reasoning сохраняется полностью и replay квалифицирован, HTTP3/QUIC и fallback установлены отдельными сетевыми измерениями -->
+<!-- goal_sv: reasoning-preservation,wire-proof,provider-contracts,continuity,transport-qualification -->
+# Reasoning без потерь и HTTP/3 Anthropic: план для запуска роботом
+
+Состояние: **READY_FOR_OWNER_ROBOT**. Этот commit содержит план и документацию; робот не запущен, реализация не выполнена. Все implementation boxes открыты. Владелец: Alexander; исполнитель — робот, которого запускает владелец; independent oracle/финальный commit — уполномоченный проверяющий. Robot brief — этот файл целиком вместе с referenced graph/evidence, не пересказ вывода.
+
+```yaml
+Keywords: reasoning-preservation 0.35, wire-proof 0.25, provider-contracts 0.20, continuity 0.10, transport-qualification 0.10
+Semantic dominant: Сохранить reasoning до wire и независимо квалифицировать HTTP3/QUIC и fallback Anthropic.
+md5: 6e41b38c90ad4a5f8732d697e0bc512a
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 81e70d3af5c64b8292d15e6f370a49bc
+```
+
+## Намерение владельца и неподвижный критерий
+
+Дословно: «Короче ничего резать не надо эту схему в доки и сделай план, я робота запущу чтобы разобрался».
+
+Дополнение владельца: «Это тоже в план» и приложенная переписка о HTTP/3/QUIC Anthropic. T9/A7 ниже — самостоятельная transport qualification, не объяснение reasoning loss и не утверждение уже установленной поддержки H3.
+
+Цель — сохранность reasoning, а не получение зелёного теста на один фильтр и не автоматический вывод об ускорении Haiku. Не удалять reasoning-only assistant, signed-empty blocks, redacted/encrypted data, исторический reasoning или его исходную metadata по эвристике пустоты/маршрута/смены модели. Длинный reasoning не должен становиться недоступным из-за экранного окна. Dialect conversion допустима как сохраняющее смысл представление, а не разрешение терять opaque данные.
+
+Ограничение удалённого API не исправляется отправкой невалидной подписи или неподдерживаемого поля. Если API/SDK не может принять сохранённое reasoning, робот сохраняет оригинал, квалифицирует препятствие, устраняет устранимый adapter defect и выводит проверяемый неподдержанный случай. Он не возвращает молчаливый strip и не объявляет требование выполненным только потому, что оригинал остался в DB. Изменять target под более удобный oracle нельзя.
+
+## SVM / стратегия / исходная поверхность
+
+SVM: task=`reasoning-lossless-replay-20261016`; parent=`haiku-omp-20261016-01`; goal_hierarchy=MASTER_PLAN mechanical continuity → Haiku research → reasoning preservation + transport qualification. goal_vector=this plan + acceptance frame below; task_vector=T1–T9; evidence_vector=graph/source pins, test/run addresses; oracle_vector=pending. Перед каждым implementation slice робот материализует свой task SVM штатным инструментом и обновляет его по receipt; наличие текста в плане не выдаётся за запись в SVM store.
+
+PLAN_STRATEGY: [MASTER_PLAN.md](MASTER_PLAN.md), Goal level0: mechanical continuity / proof-not-claim / turn-loop-first. Contribution: reasoning переживает хранение, повторное воспроизведение и проверенный dialect conversion без скрытой потери. [Исследование latency](2026-10-16_haiku-omp-controlled-latency.md) остаётся отдельным ACTIVE планом: source preservation не закрывает причинный latency criterion.
+
+✓ Исходные артефакты: [граф](../docs/reasoning-flow.md), [10 source pins / 14 anchors](../experiments_history/2026-10-16_haiku-omp-compare/default-flow-evidence.json), [migration audit](../experiments_history/2026-10-16_haiku-omp-compare/migration-audit.md), [SDK differential baseline](../experiments_history/2026-10-16_haiku-research/sdk-probe.ts), [результаты baseline](../experiments_history/2026-10-16_haiku-research/sdk-results.json).
+
+✓ При подготовке плана10/10 source hashes повторно совпали. Новый CodeGraph query `normalizeMessages toModelMessagesEffect reasoningView` вернул busy после45s; это не отсутствие индекса. Для этого read-only шага использованы ранее полученный graph и повторная проверка hashes. Перед изменением кода исполнитель повторяет structural/impact query; старые номера строк — locators, не разрешение редактировать изменившийся файл.
+
+Inferred по текущему коду, не all-provider runtime PASS:
+
+| Класс | Surface / locator | Опровержение |
+|---|---|---|
+| Reasoning-only assistant исключается из replay | `session/message-v2.ts:1509,1728–1790` | Реальный conversion возвращает такую signed/nonempty часть и message целиком |
+| Empty reasoning удаляется вместе с metadata | `provider/transform.ts:79–133` | Actual SDK wire после transform содержит исходные signature/redacted blocks |
+| Default route strip / interleaved metadata loss | `provider/transform.ts:251–369` | Route matrix сохраняет смысл и opaque metadata до wire, без молчаливого drop |
+| Смена модели снимает metadata | `session/message-v2.ts:1509,1742` | Оригинал остаётся неизменным; legal replay/unsupported boundary различены runtime oracle |
+| Экранное окно и текстовый compact не равны полному replay | `ReasoningPart`, `reasoningView`, `compaction`, `checkpoint` | Доступ ко всему тексту и сохранение/допустимость opaque blocks проверены отдельно |
+
+## Разрешённый объём и исполнение
+
+Текущий запрос разрешает подготовку плана/документации; этот файл сам не запускает исполнителя и не выдаёт ему отсутствующие права. При owner launch робот читает текущие AGENTS/свой role contract и binds envelope до mutations.
+
+Предлагаемые implementation surfaces: `packages/opencode/src/session/{message-v2,processor,llm,compaction,checkpoint}.ts`, `packages/opencode/src/provider/transform.ts`, существующие provider adapters в `src/provider/sdk/**`, `src/cli/cmd/tui/routes/session/{index.tsx,text-segments.ts}`, их package-local focused tests; `docs/reasoning-flow.md`, этот план, `_progress_log.md`, собственные `experiments/2026-10-16_reasoning-preservation/**` и public-safe `experiments_history/2026-10-16_reasoning-preservation/**`. Это кандидаты scope: T1 сужает каждый change до конкретных символов/consumers. Изменение dependency/framework/version — отдельное обоснование и авторизация, не скрытая часть adapter patch.
+
+Запрещено: kernel/control-plane изменения, правка receivers/генерация SDK, изменение owner configs/credentials, потеря чужой dirty work, install/promotion в bin/, остановка owner sessions, обход locks/permissions, fake signatures или fake assistant text ради успешного API запроса. Робот не делает commit, если его собственный contract это запрещает; тогда передаёт точный diff/oracle receipts проверяющему, план остаётся ACTIVE до независимой проверки и commit.
+
+Предлагаемый первый execution envelope: READ/PLAN_WRITE/MODIFY_CANDIDATE/MODIFY_PROJECT только перечисленные и grounded paths;80steps/100tool calls/4returns/depth2/90min на один запуск, дочерние расходы внутри этих bounds. Один implementation slice за раз. Реальные API probes — только при authority от owner launch, максимум6calls,16384output tokens/call,120s/call; сначала fixture qualification. Они не наследуют израсходованные8calls прошлой latency matrix. Нет такой authority — offline slices продолжаются, live criterion остаётся открытым, не заменяется fixture PASS. Исчерпание bounds оставляет artifact/run receipt и следующий leaf, без фиктивного DONE.
+
+## Acceptance frame — до изменений
+
+| ID | Предикат | Oracle / различающий контроль |
+|---|---|---|
+| A1 | Сохранены порядок, полный text и opaque metadata полученных reasoning; reasoning-only и signed-empty не теряются нашим pipeline | Actual processor/storage readback + MessageV2 conversion + transform; исходная часть сопоставляется с результатом; old revision/drop mutation обязан дать EXPECTED_FAIL |
+| A2 | Поддерживаемые route/SDK передают допустимое reasoning на wire без default no-echo strip | Installed SDK capture-fetch/local endpoint, canonical/custom provider IDs, actual outgoing body; source-level presence недостаточно |
+| A3 | Неподдержанный wire случай явно наблюдаем, original не уничтожен, критерий не закрыт | Negative unsupported fixture обязан дать содержательную диагностику; silent drop, пустой assistant и успешный пустой assert — FAIL |
+| A4 | Checkpoint reuse, compact и model/account switch не маскируют loss или invalid binding | Fresh valid multi-turn continuation, prefix/account provenance, compact/restart/switch readback; fake/reinserted historical signatures не считаются oracle |
+| A5 | Полный reasoning доступен пользователю, display optimization не уничтожает/не делает недоступной старую часть | Actual TUI fixture со всем объектом/навигацией и text>12000символов; UI-only predicate отдельно от wire |
+| A6 | Scoped regression/typecheck/build и независимая проверка сохранены, root latency не объявлена исправленной | Focused package tests → `bun typecheck` → `_build.ps1`; полные state/stdout logs; ограниченный smoke результата, EXPECTED_FAIL controls, own diff/commit readback |
+| A7 | Поддержка H3/QUIC установлена отдельно для target host, локального клиента, сетевого пути и OpenCode runtime; fallback проверен, заявления ограничены измеренным | Qualified H3 client/control endpoint + negotiated HTTP version/ALPN + target receipt; failure без UDP control не означает server unsupported; H2 fallback проверяется отдельным discriminating fixture |
+
+## Задачи и bindings
+
+- [ ] **T1** — Re-ground graph, доступные routes/credentials/SDK versions и существующие требования/тесты; classified reproducer каждого loss class. Выделить≥5 кандидатов исправления/инструмента, LEAN ranking и наблюдаемые medoids. Заполнить provider matrix: direct Anthropic, Vertex, Bedrock, DeepSeek/MiMo, OpenAI-compatible, OpenRouter, Copilot, dedicated OpenAI/Azure/Google, interleaved и их комбинации. Где значения зависят от providerID/model/capability, записать точный predicate, а не бренд. state=PENDING;eta_turns=1;oracle=A1–A4/source+baseline. <!-- sv: grounding 0.45, route-matrix 0.35, classified-reproducer 0.20 -->
+- [ ] **T2** — До product edits добавить meaningful failing regressions и qualify instruments. Cases: signed-empty+text/tool; signed-empty-only; непустой signed text с Unicode; redactedData/redactedContent/opaque; unsigned empty/nonempty, включая reasoning-only; multiple parts/order; canonical/custom provider namespaces; model/account switch. Проверить input immutability и реальную SDK serialization. Существующие bare-empty tests сверить с новым owner requirement; stale assertion не сохранять как требование и не ослаблять молча. state=PENDING;eta_turns=1;oracle=A1–A3/RED+EXPECTED_FAIL. <!-- sv: discriminating-tests 0.45, sdk-wire 0.35, provenance 0.20 -->
+- [ ] **T3** — Устранить наши потери в message-v2/transform: whole-message gate, empty filters, blanket route strip, потерю original metadata/provenance при differentModel и потери interleaved conversion. Сохранение original не означает безусловную пересылку прежней подписи другой модели: допустимость target wire решает квалифицированный adapter path T4/T5; снятие guard само по себе не acceptance. Каждая правка по grounded binding и своему test-before; сохранять opaque values без decoding/trim/склейки с посторонним текстом. Plain empty text constraints не использовать как основание удалить meaningful reasoning. Не строить новый второй read-time policy resolver вместо исправления producer hole. state=PENDING;eta_turns=2;oracle=A1–A3/full conversion→wire. <!-- sv: lossless-replay 0.50, metadata-preservation 0.30, minimal-change 0.20 -->
+- [ ] **T4** — Квалифицировать downstream SDK/adapters по provider matrix: не оставлять silent drop ниже исправленного transform. Отличать текстовую dialect conversion от opaque replay; сохранять provenance original model/account/namespace. Проверить unsupported cases и настоящие warnings/errors. Не писать в node_modules/external, не менять SDK version незаметно; если старый SDK несовместим — отдельный prerequisite со своим oracle/authority. state=PENDING;eta_turns=2;oracle=A2–A3/SDK outgoing capture. <!-- sv: adapter-contracts 0.45, actual-wire 0.35, unsupported-observability 0.20 -->
+- [ ] **T5** — Проверить и при необходимости исправить checkpoint/compaction/restart/model switch. Text-only compact view не выдавать за signed replay. Исходная история сохраняется неизменной и адресуемой; prefix/signature chain проверяются на свежей valid истории. Не восстанавливать старые подписи в историю, продолженную без них; не пересылать их под видом другой account/model. Server-side drops/input_transformations наблюдать отдельно от client loss. state=PENDING;eta_turns=2;oracle=A4/persistent+continuation readback. <!-- sv: continuity 0.45, prefix-binding 0.35, restart-compact 0.20 -->
+- [ ] **T6** — Проверить полный пользовательский доступ к reasoning. Устранить ситуацию, где6000символов — единственная доступная проекция; переиспользовать существующую навигацию/scroll/full view и проверить performance. Виртуализация допустима, недоступная утрата начала — нет. UI fixture не заменяет model replay oracle. state=PENDING;eta_turns=1;oracle=A5/actual frame+full text navigation. <!-- sv: complete-access 0.45, tui-navigation 0.35, rendering-performance 0.20 -->
+- [ ] **T7** — Повторить целевую route matrix и реальные доступные multi-turn smokes в изолированном stand. Показать оригинал→DB→conversion→SDK→wire, provider response/stop/usage, контроль намеренной потери. Для Haiku — same account/model, append-only prefix, real seed signatures. Latency сравнивать только matched valid runs; preservation PASS не равен latency IMPROVED. state=PENDING;eta_turns=2;oracle=A1–A5/differential+real continuation. <!-- sv: end-to-end-evidence 0.45, independent-control 0.35, causal-boundary 0.20 -->
+- [ ] **T8** — Independent verifier перечитывает artifacts/pins и сам исполняет decisive oracle; scoped regressions/typecheck/обязательный build, diff direction и чужая dirty work проверены. Обновить граф на final revision, requirements/tests/docs и progress; scoped commit с именем плана делает уполномоченный executor. Только после покрытия всех acceptance: планы по фактическому outcome, `svm render`, scan stale refs. При остатке — ACTIVE с next action и настоящим run/ticket receipt, без DONE. state=PENDING;eta_turns=1;oracle=A6/independent receipt+commit. <!-- sv: independent-oracle 0.40, clean-state 0.35, documentation 0.25 -->
+- [ ] **T9** — Квалифицировать HTTP/3/QUIC для `api.anthropic.com` с этой машины и проверить текущий OpenCode transport/fallback по отдельному contract ниже. T9 research-only; изменение product transport требует отдельного classified reproducer/binding/authorisation и не прячется в reasoning patch. Можно исследовать независимо от T3–T7, но результат не закрывает их. Финальная проверка T8 учитывает A7. state=PENDING;eta_turns=1;oracle=A7/qualified direct-network receipts. <!-- sv: http3-quic 0.45, client-network-qualification 0.35, fallback-evidence 0.20 -->
+
+## T9: отдельный HTTP/3 / QUIC contract
+
+Исходная переписка — testimony, не current receipt этого Windows host. Ни наличие direct network, ни TLS interception, ни ограничения песочницы, ни «Bun предпочитает QUIC» отсюда не наследуются. Первичная проверка источников при подготовке плана: issue27785 действительно содержит пользовательское сообщение о QUIC/H3 для **a-api.anthropic.com**; issue49761 — пользовательскую гипотезу о QUIC/Bun fallback. Это не подтверждение `api.anthropic.com` или нашего runtime.
+
+Порядок и различающие результаты:
+
+1. Обнаружить точный клиент/binary и версии; проверить HTTP3 feature/build flags, а не только список URL schemes. Квалифицировать на independently known H3 endpoint/fixture. Curl без HTTP3 — CAPABILITY_GAP инструмента; выбрать/квалифицировать другой portable client без глобальных изменений и не делать вывод о сервере.
+2. Установить фактический network path: direct/proxy/VPN, DNS/IP, target host/SNI, сертификат/проверка TLS, UDP443/control reachability. Содержимое proxy URLs/credentials не печатать. Не объявлять proxy TLS-terminating без свидетельства; учитывать возможности конкретного клиента/proxy, не делать универсальных утверждений про все proxy implementations. Не менять firewall/VPN/OS settings ради теста; blocked-UDP control — isolated fixture/process transport seam.
+3. Сохранить raw response headers и Alt-Svc, но считать это только объявлением. Отсутствие Alt-Svc не доказывает отсутствие H3. Проверить forced H3 **без fallback**, зафиксировать negotiated protocol/ALPN или эквивалентный transport receipt, HTTP status, error, target IP, timestamps/RTT/deadline. Для curl различать `--http3-only` и `--http3`: второй допускает fallback, поэтому exit0 без фактической версии не доказывает H3.
+4. Прямой TLS-verified HTTP/3 response от target, включая401/405/404, доказывает reachability конкретного host/path на этом маршруте; HEAD/root не доказывает работу authenticated POST `/v1/messages` и SSE. При fail/timeout квалифицировать UDP/client/network leaves; иначе server support остаётся UNKNOWN. Не подменять target на a-api из GitHub testimony.
+5. Отдельно прочитать current gateway/transport code через CodeGraph, проверить реальную capability Bun/Node/SDK и winning rung по runtime evidence. H3 в curl не означает H3 в OpenCode. Квалифицировать fallback H3→H2→HTTP1.1 на deterministic seam с forced QUIC failure; записать результат и terminal cleanup/cancellation. По проектному правилу победившая ступень записывается один раз в существующий store namespace, не проверяется заново на каждом request и не живёт в новом runtime JSON. До product binding разрешены только исследовательские artifacts.
+6. Authenticated H3/H2 Messages/SSE comparison — лишь при available qualified client/authority; общий model/account/body/effort/cap/headers, корректный complete terminal, одинаковые credentials только в памяти. Эти inference calls входят в общий лимит6, не добавляют новый. Transport success, API acceptance и latency — три разных claims; один HEAD401 не закрывает последние два. Полного ответа о H3 SLA без прямого vendor contract не заявлять.
+
+Дополнительный предел T9 внутри общего envelope: максимум12 non-inference network probes,30s/probe; qualification/control входят в12, paid probes — в6 выше, общий deadline90min не обновляется. Если инструменты не квалифицированы — построение/подбор bounded fixture/client следующий leaf, а не вывод «H3 нет». Отчёт содержит client support / path reachability / server observation / product transport / fallback / authenticated SSE отдельными полями; неисполненные поля остаются открытыми.
+
+Authorities для reread/hash до исполнения: [curl HTTP3](https://curl.se/docs/http3.html), [curl http3-only](https://curl.se/docs/manpage.html#--http3-only), [issue27785](https://github.com/anthropics/claude-code/issues/27785), [issue49761](https://github.com/anthropics/claude-code/issues/49761). User issue — Hypothetical, official client docs — Inferred о client contract, actual negotiated target response — ограниченный transport oracle. Текущих сетевых проб к Anthropic при подготовке этого плана не выполнялось.
+
+## Smoke Tests
+
+Предсказания записать до runs. Initial known diagnostic defect: current transform удаляет signed-empty reasoning; новое preservation assertion ожидается RED, direct SDK control — PASS. Bare-empty fixture без signature не доказывает поведение valid provider reasoning. Не запускать старый `sdk-probe.ts` как «green regression» без адаптации: его assertion ожидает наличие дефекта; архивный результат остаётся историческим baseline, не редактируется задним числом.
+
+Из `packages/opencode`, начиная с конкретных существующих файлов: `bun test test/provider/transform.test.ts test/provider/transform-anthropic-adaptive.test.ts`; затем новые scoped files и package-local message-v2/processor/compaction/checkpoint/UI tests, выбранные после T1. Никогда full `bun test` без path, никогда tests из root. `bun typecheck` отдельно. Все длительные запуски через cmd-runner; read state.json и весь stdout_text.log, crash/timeout означает UNKNOWN inventory, не suite PASS.
+
+После tests/source edits обязателен `_build.ps1 -Task build` по `docs/build-and-run.md`; перед запуском открыть текущий script/build-lock. Соблюдать maintenance/exclusive lock, не `-ForceBuild` без отдельной authority, не убивать process ради dist copy. Lock failure — настоящий residual с receipt и lift condition, не успех и не бесконечные одинаковые retries. Изолированный product source-run строится по `_run.cmd`/действующей процедуре, cwd в experiments stand; не писать disposable sessions в owner DB, не launch bin runtime.
+
+## Риски / rollback / продолжение
+
+R1: API отвергает unsigned/чужую подпись → независимые valid seed + unsupported controls, никогда fake signature для live. R2: reintroduction reasoning ломает prefix или token budget → append-only+count/usage oracle, actual stop и конечный bounded context. R3: больше reasoning увеличивает объём/latency → измерить отдельно; не вернуть скрытый strip ради красивых чисел. R4: межмодельная metadata ошибочно remap в чужой dialect → сохранять original provenance, квалифицировать adapter mapping. R5: shared dirty tree/build lock → before-hash recheck перед apply, узкие paths и собственные receipts.
+
+Rollback только собственных verified hunks по before pins/patch, без blanket reset. Перед остановкой: completed/residual/next action + read-back run или ticket receipt; без owner-run receipt этот план READY, не in-flight. Фактический старт владельца должен добавить такой receipt. Планы не закрываются по числу зелёных boxes.

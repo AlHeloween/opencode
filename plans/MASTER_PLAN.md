@@ -109,6 +109,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 [Открытое сравнение Haiku/OpenCode/omp](2026-10-16_haiku-omp-controlled-latency.md) — ограниченный раунд и continuation receipt, отдельный oracle для причинного компонента и последующих шагов.
 <!-- sv: controlled-latency,wire-equivalence,protocol-grounding,causal-boundaries -->
 
+[Сохранение reasoning и HTTP/3 Anthropic](2026-10-16_reasoning-lossless-replay.md) — план для запуска роботом владельца; граф, provider matrix, metadata provenance, wire oracle и отдельная transport qualification находятся в плане.
+<!-- sv: reasoning-preservation,wire-proof,provider-contracts,continuity,transport-qualification -->
+
 [Живой текст после Revert](../plans_completed/2026-10-15_revert-live-text.md) — воспроизведение исчезающего текста и ремонт полного snapshot/фильтра строк; кадры и границы проверки находятся в плане.
 <!-- sv: revert-live-text,full-snapshot,native-frame -->
 

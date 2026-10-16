@@ -7292,3 +7292,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ MISS (честно): предсказание A 7–8/10 провалено → falsifier сработал для CJK-класса (нужны ДЛИННЫЕ продолжения — поправка для P2); эффект директивы — там, где ошибка воспроизводима (claims A 2.5/4 vs B 0/4).
 ✓ PLAN: бокс AB [x]; P1 разбит на P1a (тесты сначала) / P1b (выключатель+replay) / P1c (refusal+rollback); svm set P1b. Код P1 в этом ходу НЕ начат (кусок 2 — следующим; тесты сначала).
 <!-- sv: ab-recurrence 0.35, explicit-model 0.25, miss-honest 0.20, p1-split 0.20 -->
+## [2026-10-16] t52b TUI active-sessions panel — close the uncommitted tree dirt (plan plans/2026-10-15_tui-active-sessions-panel.md, 5/7 boxes)
+
+✓ CONFIRMED (S2+S3): `test/tui/sidebar-active-sessions.test.tsx` 9/9 PASS (7 unit + 2 render) via `20261016T070710Z_e26a6418` exit 0 — the 9 tests ARE the plan's S1–S3 (import path `.test.tsx`, plan names `.test.ts`).
+✓ CONFIRMED (S4): `plugin/internal.ts` diff is exactly 2 added lines (import + list entry after SidebarJobs); slot order 50 above context@100.
+✓ CONFIRMED (S6): fresh frames `.temp/t52b-frames/busy.txt` (title `robot-wave:t52` + `working` + elapsed, no `none active`) and `idle.txt` (`none active`, never blank), captured via stub provider in the test harness (`20261016T071632Z_97e92492` exit 0, throwaway capture script removed after).
+— S5 OPEN: package typecheck exit 2, 10/10 errors in `src/session/llm.ts` (peer's in-flight M, 0 reference t52b paths) — re-run after the peer lands it.
+— S1 OPEN: RED receipt unrecoverable (helper + tests arrived together untracked) — owner accepts as superseded by GREEN or replays in scratch.
+— Plan stays in `plans/` (2 open); `MASTER_PLAN.md` counts go stale until `svm render`; commit owns all 4 panel paths.
+<!-- sv: t52b-close 0.40, sidebar-sessions 0.30, stub-oracle 0.20, open-residual 0.10 -->

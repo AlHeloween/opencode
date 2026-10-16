@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t68 slice 1 — model-chain core: chain/classify/failover/health-check + RED→GREEN (план plans/2026-10-16_model-chain-failover.md)
+
+✓ CONFIRMED (RED first): new test/provider/model-chain-failover.test.ts RED 20261016T044603Z_8bf4b9b9 exit 1 (Cannot find module '@/provider/model-chain/chain') → GREEN 20261016T044736Z_a31ef591 exit 0 (18 pass, 50 expects).
+✓ CONFIRMED (slice): packages/opencode/src/provider/model-chain/{chain,classify,failover,health-check}.ts — explicit order + fill-not-resolve + firstUp, terminal-at-once (privacy/402/auth/404/unknown-field) vs transient-bounded (429/5xx/timeout), first-token timeout max(30s, 3×p50-TTFT), 10-min probe off-path with zero sessions/tools by construction (injected probe callback).
+✓ QUALIFIED (researcher ses_ebcf5c56cffexXbCn23MILMgFr): no GET /model route on this server; Tier-0 GET {baseURL}/models + Tier-1 one-token non-streaming chat completion per free model ID, never POST /session. No live run from that seat — keys/money.
+— Residual: session-settings/model.json/global persistence wiring, prompt_async/task assignment, TUI chain editor, dispatch unpin, live free→Go probe. Plan stays ACTIVE.
+<!-- sv: model-chain 0.35, failover-classification 0.25, health-probe 0.20, assignment 0.12, tui-recents 0.08 -->
 ## [2026-10-16] t65 T4 grounding + A7 fallback-gap (план plans/2026-10-16_reasoning-lossless-replay.md)
 
 ✓ CONFIRMED (T4 map, read-only, predicted findings): 9 downstream границ ниже transform → experiments/2026-10-16_reasoning-preservation/t4-grounding.md. Главные: D-S1 copilot-chat serializer `convert-to-openai-compatible-chat-messages.ts:100-101` молча роняет empty-text reasoning (`if (part.text)`, без warn/reportCut) — коллизия со слайсами 1–2; D-S7 installed openai-compatible SDK outbound/inbound молча опускает пустое; D-S6 bedrock — единственный silent skip установленного SDK.

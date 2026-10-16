@@ -1,0 +1,89 @@
+<!-- intention: blind retry loops on dead models with human failover -> explicit ordered model chain per agent/scope with automatic classified failover and 10-minute health checks -->
+<!-- goal_sv: model-chain,failover-classification,health-probe,assignment -->
+# t68 — explicit model chain (recents = primary + backups), automatic failover, 10-minute health check
+
+```yaml
+Keywords: model-chain 0.35, failover-classification 0.25, health-probe 0.20, assignment 0.12, tui-recents 0.08
+Semantic dominant: An explicit ordered model chain per agent replaces blind retry with classified automatic failover and periodic health recovery.
+md5: 8f3a1c2d4e5f6a7b8c9d0e1f2a3b4c5d6
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+```
+
+Owner, 2026-10-16, verbatim: «Вообще надо доработать систему:
+1. Явное добавление в recents - модель и ее бэкапы, на случай если сложностей, и чтобы они цеплялись автоматом после
+ошибок. Цепочку проверять раз в 10 минут и смотреть если модели из списка отлипли.
+2. При назначении агентов назначаются именно назначенные recents.
+3. Это убережет нас от зацикливания запросов на которые мы заведомо получаем отлуп.»
+
+State: **DRAFT** — grounding done this session (codegraph + reads), no product edit yet. Bounds per run: steps 80, tools 200, loops 4, depth 2, time 7 200 000 ms.
+
+## Ground (G1 — what the code says, not a proposal)
+
+- Recents today is an implicit LRU, not a chain: `local.tsx:744-750,1192-1200` prepends every pick to `modelStore.recent` (cap 10), persisted via `save()` into `.opencode/data/state/model.json`; session copy via `sessionPayload` (`local.tsx:240-258`). TUI owns the worktree layer (`setWorkspaceAgentModel`, `session-settings.ts:105`); a write behind its back is overwritten (measured 10-15). Every write goes through the SAME server path the TUI uses. Map: `docs/agent-model-resolution.md`.
+- Resolution today: `resolveAgentModel` (`session-settings.ts:257`) S2 session → S1 worktree → fallthrough; server `prompt.ts:1289` `input.model ?? resolveAgentModel ?? ag.model ?? lastModel`. Dispatch pins by hand: `experiments/2026-10-08_robot-wave/dispatch.py` `MODEL`/`FALLBACK_MODEL`/`VARIANT` sent as `prompt_async {agent,model,variant}`.
+- Health already exists — REUSE, no second breaker: `provider/gateway/store.ts` `getHealthWindow`, `recordError`, `recordSuccess`, `getOrCreateCircuitBreaker`, `recordCircuitBreakerFailure/Success`, `isCircuitBreakerOpen`; `provider/gateway/health-window.ts` (100-sample window, p50 latency/ttft/chunk-gap); `provider/gateway/circuit-breaker.ts` (failThreshold 5, cooldown 30 s, probeLimit 3); `provider/gateway/adaptive-client.ts:363 wrapFetch` records both.
+- Error classification exists in pieces: `provider/error.ts parseAPICallError` (overflow, unknown_parameter, api_error + `isRetryable`), `session/retry.ts retryable/delay/policy` (5xx always retriable, overflow never, backoff 2 s ×2, headers honoured), `session/message-v2.ts fromError` (AuthError, APIError, AbortedError, HeaderTimeoutError → retryable). No terminal-vs-transient split, no DOWN-at-once, no chain order.
+- Retry UI: `SessionRetry` (`packages/ui/src/components/session-retry.tsx`) renders attempt/next/message — the visible-note surface to reuse for failover notes.
+- Storage rule (AGENTS.md): new state = key namespace in LMDB/SQLite, never a new JSON file. Chain extends the EXISTING `model.json` / session `.jsonc` / global config shapes (same files the TUI already writes), not a new file. Granularity rule: 10-min check runs off the request path, on its own timer.
+- Absence-of-oracle rule: chain health renders a value or `unknown`, never blank.
+
+## Design (decided from the code; the rest is implementation detail)
+
+1. **Chain is explicit and ordered** — per agent AND scope (global / worktree / session, filled not resolved): `[primary, backup1, backup2…]`, each `{providerID, modelID, variant}`. User adds model AND backups from the TUI dialog (DialogModel/DialogManageModels extension); web form (t59 lane) coordinates through the SAME server route — one route, two surfaces, never built twice.
+2. **Failover is automatic and classified** — terminal (auth, privacy/consent gate, 402 balance, model-not-found, unknown_parameter naming a body field) marks member DOWN at once, zero retries on it; transient (429, 5xx, timeouts, HeaderTimeoutError/ResponseStreamError, stream with no first token past threshold derived from measured p50-TTFT — `threshold = max(floorMs, k × p50TtftMs)`, floor and k named in code and pinned by test, never a guessed constant) gets the existing bounded retry (`retry.ts delay/policy`), then DOWN. Session continues on next healthy member with a visible note (which member, why — via the SessionRetry surface); never a silent swap.
+3. **10-minute health check** — each DOWN member gets one cheap probe on a 10-min cadence, off the request path. Probe is a DIRECT provider call (or ephemeral non-resumable path) with zero tools and zero sessions in the robots' host (measured 10-16: probe sessions got revived with «Продолжай» and stole plan boxes). Probe answers → UP, chain returns to order.
+4. **Assignment uses the chain** — dispatched agent (TUI, `prompt_async` without model, org delivery) resolves to first UP member of its assigned chain; dispatcher stops pinning models by hand (`dispatch.py` MODEL/FALLBACK_MODEL becomes chain read, not a constant).
+5. **No paid tier sneaks in** — member set is exactly what the user put in the chain; failover never invents a model. Paid `/paid` zen/contributor distinction from catalog stays user-visible.
+
+## Acceptance frame (named BEFORE planning — ISO/IEC 25010)
+
+| ID | Predicate | Oracle / discriminating control |
+|---|---|---|
+| A1 | Chain CRUD persists per agent/scope through the TUI's own server path; fill (global→worktree→session) preserved, no new JSON file | Focused store test + `model.json`/session readback; TUI-behind-back overwrite case stays green |
+| A2 | Terminal refusal (privacy-gate text, 402, auth, model-not-found) marks member DOWN at once — refusing member never called twice before its health check | Fixture stub test RED-first; call-count assertion on refusing member |
+| A3 | Transient (429/5xx/timeout/no-first-token past derived threshold) retries bounded, then DOWN; session ends on backup with visible note (member + reason) | Hanging-stub cut at threshold; session transcript contains the note; silent-swap mutation → EXPECTED_FAIL |
+| A4 | 10-min check probes each DOWN member once with a cheap direct call; recovered member returns on next check; probes create no sessions and carry no tools | Fake-clock test (no 10-min sleep); probe session-creation count = 0, tools = 0 |
+| A5 | `prompt_async` without model + task/pipeline/reasoning resolve to first UP member; dispatcher no longer pins MODEL by hand | Assignment test with first member DOWN → second member used; `dispatch.py` diff shows chain read |
+| A6 | No invented models: failover set ⊆ user chain; health surface shows value or `unknown`, never blank | Exhausted-chain test errors visibly instead of inventing; status render test |
+| A7 | Live: chain [free zen → Go contributor] with free hanging today ends on Go; scoped regressions + typecheck + `_build.ps1` green | Real free/contributor-only probe via researcher_agent; run/state receipts |
+
+## Tasks and bindings
+
+- [ ] **C1** — Chain store + server route: types `ChainMember{providerID,modelID,variant}`, per-agent/scope order, persistence inside existing `model.json` (`MODEL_STATE_KEYS` + `modelChain`), session `.jsonc` (`SESSION_SETTINGS_KEYS` + `modelChain`), global config; fill global→worktree→session; one server route the TUI dialog AND web form share. Binding: `packages/opencode/src/session/session-settings.ts`, `packages/opencode/src/cli/cmd/tui/context/local.tsx`, `packages/opencode/src/server/routes/**model**`, `packages/opencode/test/session/session-settings-*.test.ts`. state=PENDING;eta_turns=2;oracle=A1. <!-- sv: chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25 -->
+- [ ] **C2** — Error classifier: `classifyChainError(parsed, message)` → `terminal | transient`, reusing `parseAPICallError` + `retryable`; terminal list: auth/401/403, privacy/consent-gate regex, 402/insufficient-balance, ModelNotFound, unknown_parameter; transient: 429/5xx/timeout/HeaderTimeout/no-first-token. TTFT threshold from `HealthWindow` p50 (`max(floorMs, k×p50)` with named constants). Binding: `packages/opencode/src/provider/error.ts`, `packages/opencode/src/session/retry.ts`, `packages/opencode/src/provider/gateway/health-window.ts`, new `packages/opencode/src/provider/model-chain/*` + focused test. state=PENDING;eta_turns=1;oracle=A2/A3-classify. <!-- sv: error-classification 0.50, reuse-existing 0.30, measured-threshold 0.20 -->
+- [ ] **C3** — Failover executor: first-UP selection, terminal→DOWN-at-once, transient→bounded retry→DOWN, continue session on next healthy + visible note (member, reason) via SessionRetry surface, never silent. No invention: exhausted chain = visible error. Binding: `packages/opencode/src/session/prompt.ts` (`createUserMessage`/`getModel`/`runLoop`), `packages/opencode/src/session/message-v2.ts`, `packages/ui/src/components/session-retry.tsx`, `packages/opencode/src/provider/gateway/store.ts` (reuse breaker/health). state=PENDING;eta_turns=2;oracle=A3/A6. <!-- sv: failover-execution 0.45, visible-note 0.30, no-invention 0.25 -->
+- [ ] **C4** — 10-min health checker: timer off request path, one cheap direct provider probe per DOWN member, UP on answer, order restored; zero tools, zero sessions; fake-clock tests. Reuses breaker `cooldownMs` concept with chain cadence 10 min (named constant, not breaker default 30 s). Binding: new `packages/opencode/src/provider/model-chain/health-check.ts`, `provider/gateway/adaptive-client.ts` (direct-call path), focused test with fake clock + probe-call recorder. state=PENDING;eta_turns=1;oracle=A4. <!-- sv: health-probe 0.50, no-session-probe 0.30, fake-clock 0.20 -->
+- [ ] **C5** — Assignment uses chain: `prompt_async` without model, `task`/`pipeline`/`reasoning` resolve via `resolveAgentModel`-chain (first UP); `dispatch.py` stops pinning MODEL/FALLBACK_MODEL by hand (reads chain). Binding: `packages/opencode/src/session/session-settings.ts:resolveAgentModel`, `packages/opencode/src/tool/{task,pipeline,reasoning}.ts`, `packages/opencode/src/session/prompt.ts`, `experiments/2026-10-08_robot-wave/dispatch.py`. state=PENDING;eta_turns=1;oracle=A5. <!-- sv: chain-assignment 0.50, dispatcher-unpinned 0.30, prompt-async 0.20 -->
+- [ ] **C6** — TUI chain editor + close: DialogModel/DialogManageModels gains primary+backups editing through the C1 route; web lane (t59) parity noted not built twice; live free→Go receipt via researcher_agent; regressions + typecheck + `_build.ps1`; docs + `_progress_log.md` + `svm render`. Binding: `packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx`, `dialog-manage-models.*`, `docs/agent-model-resolution.md` (appendix, not rewrite), this plan, `_progress_log.md`. state=PENDING;eta_turns=2;oracle=A6/A7. <!-- sv: tui-chain-editor 0.40, live-receipt 0.35, docs-close 0.25 -->
+
+## Smoke Tests (PRE_FLIGHT gate — no product edit before RED)
+
+1. `packages/opencode/test/provider/model-chain-failover.test.ts` (new, ONE file per runner call): stub provider with 4 behaviours — hang (no first token), privacy-refusal text, 402, 429-then-success. RED today: no chain module exists. Asserts: terminal members called exactly once; hanging cut at derived threshold; session ends on backup with note; recovered member returns after fake-clock advance; exhausted chain errors without inventing.
+2. `packages/opencode/test/session/session-settings-smoke.test.ts` § chain-fill (extend, not fork): chain fill global→worktree→session; TUI-path write wins over behind-back edit.
+3. Live (researcher_agent only, free/contributor): chain `[opencode/muse-spark-1.3-contributor-free → opencode-go/muse-spark-1.3-contributor]` with free hanging → session answers on Go; receipt = session id + model footer + timings.
+
+## Risks
+
+| ID | Trigger | Severity | Containment / rollback | Owner |
+|---|---|---|---|---|
+| R1 | Second breaker alongside gateway store | critical | REUSE `getHealthWindow`/`recordError`/breaker; review diff for duplicate state | Smit |
+| R2 | Probe creates sessions / carries tools (10-16 incident) | critical | Direct-call-only probe; test asserts sessions=0, tools=0; no `prompt_async` in probe path | Smit |
+| R3 | TUI-behind-back overwrite (10-15) | high | All writes via TUI server path; behind-back test stays green | Smit |
+| R4 | Paid model invented by failover | high | Failover set ⊆ chain; exhausted = visible error; catalog price labels untouched | Smit |
+| R5 | Threshold as guessed constant | medium | Derived from p50-TTFT with named floor/k; test pins formula, not value | Smit |
+| R6 | Two robots in same tree on disjoint paths | medium | Own paths only, private-index commits, lock waited-for never deleted by hand | Smit |
+
+## Claims (assistant proposes; only @ORACLE binds Exact)
+
+| ID | Statement | Falsifier |
+|---|---|---|
+| CL1 | Recents today is implicit LRU, not an ordered chain | `local.tsx` shows ordered per-agent primary+backups with failover |
+| CL2 | No terminal-vs-transient split exists | `classifyChainError` + tests pin the split |
+| CL3 | Probes can run without creating sessions | A4 test: probe path creates zero sessions with tools zero |
+
+Web-lane parity: t59 owns the web form; this plan owns the shared server route + chain semantics. Coordinate, do not duplicate.
+
+## Execution envelope (proposed; binds at G4)
+
+action_classes: READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT (listed bindings only). No PROMOTE_STABLE (dist/ only via `_build.ps1`), no SELF_MODIFY (no kernel), no EXTERNAL_EFFECT beyond free/contributor probes via researcher_agent. Tools: codegraph/read/grep/glob, edit/write, cmd_runner-probed tests, task(researcher_agent for live probes). Bounds: steps 80, tools 200, loops 4, depth 2, time 7 200 000 ms. Prohibitions: `bin/`, `--amend`, `--no-verify`, bare `git commit`, `bun test` without path, sleeping 10 minutes, deleting a held lock file by hand.

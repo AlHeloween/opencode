@@ -20,6 +20,8 @@ import { registry } from "@/attachment/registry"
 import { filePartFromNormalized, normalizeAttachment } from "@/attachment/normalize"
 import { MediaTokenCalibration } from "./media-token-calibration"
 import { vectorSign } from "@/memory/spine"
+import { buildSwitchNote } from "@/provider/model-chain/stream-failover"
+import type { ChainSwitchEvent } from "@/provider/model-chain/stream-failover"
 
 /**
  * Count media file parts in a wire request (ModelMessage[]): images and
@@ -874,6 +876,36 @@ export const layer: Layer.Layer<
       })
 
       const handleEvent = Effect.fnUntraced(function* (value: StreamEvent) {
+        // C3b visible note (t68) — before the switch: `case` cannot match
+        // the service event type, and code between `switch {` and the first
+        // `case` never runs. Seal the interrupted member's partial text (its
+        // deltas already reached the store via updatePartDelta — nothing is
+        // lost silently), then record the switch as a synthetic part BEFORE
+        // the next member's chunks arrive. Model content is never rewritten.
+        if ((value as { type: string }).type === "chain-switch") {
+          const note = value as unknown as ChainSwitchEvent
+          if (ctx.currentText) {
+            ctx.currentText.text = ctx.textBuilder.toString()
+            yield* session.updatePart(ctx.currentText)
+            ctx.currentText = undefined
+          }
+          const keptChars = ctx.textBuilder.length
+          yield* session.updatePart({
+            id: PartID.ascending(),
+            messageID: ctx.assistantMessage.id,
+            sessionID: ctx.sessionID,
+            type: "text",
+            text: buildSwitchNote({
+              prevKey: note.prevKey,
+              nextKey: note.nextKey,
+              reason: note.reason,
+              keptChars,
+            }),
+            synthetic: true,
+            time: { start: Date.now(), end: Date.now() },
+          })
+          return
+        }
         switch (value.type) {
           case "start":
             ctx.streamStartTime = Date.now()

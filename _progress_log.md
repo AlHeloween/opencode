@@ -8,6 +8,14 @@
 ✓ CONFIRMED (схема+установка): verify_receipt + contest_ref в ticket-schema.sql и ensure_ticket_fields; installed == repo sha256 (4 файла); init.py rc 0, fields upgraded, колонки read-back True True; orgd pid 36072 не тронут — рестарт за владельцем.
 — Следующее: запрос рестарта orgd через Claude; бэклог вердиктов — в trust-плане до появления квитанций.
 <!-- sv: mint-rule 0.40, contest-route 0.30, schema-install 0.20, restart-pending 0.10 -->
+## [2026-10-16] t68 C3b — in-request контур приземлён (план plans/2026-10-16_model-chain-failover.md, бокс C3b открыт)
+
+✓ CONFIRMED (ядро, RED→GREEN): `stream-failover.ts` (watcher/fake-clock, `decideStreamError` на 4 заглушках, `buildSwitchNote`) — RED 20261016T065059Z_4395fc62 exit 1 → GREEN 11/11 (20261016T072237Z_10540843 exit 0; один exit −1 при тех же 11/11 — флейк ConPTY-хоста, не кода).
+✓ CONFIRMED (встройка): `llm.stream/runChain` — first-token watchdog 120 с, abort попытки, повтор на следующем UP через `provider.getModel`, switch упорядоченным событием; `case "chain-switch"` в processor (фиксация оборванного + synthetic note). Без цепочки — байт-идентичный legacy-путь. Регрессии: llm-headers 4/4, processor-tool-identity 1/1, llm-кейс opencode-go изолированно 2/2.
+✗ CLASSIFIED (не моё): `llm.test.ts` 33/34 — `SQLITE_CANTOPEN` в спавне git фикстурой; `processor-effect` 16/20 — таймауты 5с + SIGTERM child-процессов под нагрузкой; мои пути там недостижимы (нет цепочек → legacy), изолированные кейсы зелёные. Чужие файлы не трогаю.
+— KV-вердикт: переключение МЕНЯЕТ байты реплея (новая synthetic-часть + текст другого мембера + system prefix под нового провайдера); без switch — идентично legacy. Variant-подмена, p50-адаптация порога, live-стенд — остаток C3b.
+— Стенд: у копии стенда не было `auth.json` (есть только у `bin/`) — тишина Go записана как Unknown, не как отказ.
+<!-- sv: inrequest-failover 0.50, visible-note 0.30, partial-kept 0.20 -->
 ## [2026-10-16] t67 S1 — org delivery reconciled into git on Go/xhigh, gate kept (plan plans/2026-10-16_org-reconcile-m1-contest.md, S1 closed)
 
 ✓ CONFIRMED (B1 RED→R1 GREEN): new S9/S10/mirror RED pre-change (3 failed as predicted) → 12/12 PASS (11.02 s); regressions run isolated per-file — the whole-dir run is a HARNESS error (each module pins its own ORG_HOME fixture at import): queue 8/8, slugs 8/8, wiki-put 15/15, forum-post 11/11.

@@ -30,7 +30,15 @@ import * as Option from "effect/Option"
 import { canonicalName, TOOL_ALIASES, offeredNames } from "@/tool/tool"
 import { repairToolCall } from "./tool-call-repair"
 import { REQUEST_OVERHEAD_TOKENS, usable } from "./overflow"
-import { isPrimaryModeIdentity } from "./mode-identity"
+import { isPrimaryModeIdentity, canonicalIdentity } from "./mode-identity"
+import { loadChain } from "@/provider/model-chain/store"
+import { chainHealthState } from "@/provider/model-chain/health-registry"
+import { decideStreamError } from "@/provider/model-chain/stream-failover"
+import { firstTokenTimeoutMs, type ChainErrorInput } from "@/provider/model-chain/classify"
+import { memberKey } from "@/provider/model-chain/chain"
+import type { ChainMember } from "@/provider/model-chain/chain"
+import type { ChainSwitchEvent } from "@/provider/model-chain/stream-failover"
+import { ProviderID, ModelID } from "@/provider/schema"
 import {
   loadSessionSettings,
   readModelState,
@@ -989,18 +997,160 @@ const live: Layer.Layer<
       })
     })
 
+    /**
+     * In-request chain failover (t68, C3b): walk the session chain across
+     * members inside ONE request. Terminal refusals and hangs past the
+     * measured first-token threshold mark DOWN at once; other transients
+     * get a bounded retry on the same member. Exhaustion rethrows the last
+     * error into the legacy retry path — never an invented model.
+     *
+     * KV: a switch rebuilds the system prefix for the next member
+     * (`providerCacheKey` already keys on modelID); without a switch the
+     * bytes are identical to the legacy path. The chain variant is not
+     * applied to the switched model yet (residual).
+     */
+    const runChain = Effect.fn("LLM.runChain")(function* (input: StreamInput, chain: ChainMember[]) {
+      const health = chainHealthState()
+      const timeoutMs = firstTokenTimeoutMs(0)
+      let current: { model: Provider.Model; member: ChainMember | undefined } = {
+        model: input.model,
+        member: chain.find((m) => m.providerID === input.model.providerID && m.modelID === input.model.id),
+      }
+      let failed: ChainMember | undefined
+      let attemptsOnCurrent = 1
+      let pendingNote: ChainSwitchEvent | undefined
+      for (;;) {
+        const attemptCtrl = new AbortController()
+        // User cancel arrives as an Effect interrupt that kills this
+        // generator between yields (never as a value here) — so it can
+        // never be misread as a failover trigger. The watchdog owns abort.
+        const abort = attemptCtrl.signal
+        let timer: ReturnType<typeof setTimeout> | undefined
+        let timedOut = false
+        let firstSeen = false
+        const disarm = () => {
+          if (timer !== undefined) {
+            clearTimeout(timer)
+            timer = undefined
+          }
+        }
+        const toChainError = (e: unknown): ChainErrorInput => ({
+          message: e instanceof Error ? e.message : String(e),
+          statusCode:
+            typeof (e as { statusCode?: unknown })?.statusCode === "number"
+              ? (e as { statusCode: number }).statusCode
+              : undefined,
+        })
+        try {
+          const result = yield* run({ ...input, model: current.model, abort })
+          timer = setTimeout(() => {
+            timedOut = true
+            attemptCtrl.abort()
+          }, timeoutMs)
+          const watched = (async function* () {
+            try {
+              if (pendingNote) {
+                const note = pendingNote
+                pendingNote = undefined
+                // One cast for the service channel (not model content):
+                // the processor renders it as the visible switch note.
+                yield note as unknown as Event
+              }
+              for await (const chunk of result.stream) {
+                if (!firstSeen) {
+                  firstSeen = true
+                  disarm()
+                }
+                yield chunk
+              }
+            } finally {
+              disarm()
+            }
+          })()
+          return Stream.fromAsyncIterable(watched, (e) => (e instanceof Error ? e : new Error(String(e))))
+        } catch (e) {
+          disarm()
+          failed = current.member
+          const error = timedOut
+            ? { code: "FIRST_TOKEN_TIMEOUT", message: `no first token within ${timeoutMs}ms` }
+            : toChainError(e)
+          const decision = decideStreamError({
+            chain,
+            health,
+            now: Date.now,
+            failed,
+            error,
+            attemptsSoFar: attemptsOnCurrent,
+            maxTransientAttempts: 2,
+          })
+          if (decision.action === "retry-member") {
+            attemptsOnCurrent += 1
+            continue
+          }
+          if (decision.action === "next") {
+            let target = decision.member
+            let targetModel: Provider.Model | undefined
+            for (;;) {
+              let resolved: Provider.Model | undefined
+              yield* provider
+                .getModel(ProviderID.make(target.providerID), ModelID.make(target.modelID))
+                .pipe(
+                  Effect.map((m) => {
+                    resolved = m
+                  }),
+                  Effect.catch(() => Effect.succeed(undefined)),
+                )
+              if (resolved !== undefined) {
+                targetModel = resolved
+                break
+              }
+              const gone = decideStreamError({
+                chain,
+                health,
+                now: Date.now,
+                failed: target,
+                error: { message: `Model not found: ${target.providerID}/${target.modelID}` },
+              })
+              if (gone.action !== "next") throw e
+              pendingNote = {
+                type: "chain-switch",
+                prevKey: memberKey(target),
+                nextKey: memberKey(gone.member),
+                reason: gone.reason,
+              }
+              target = gone.member
+            }
+            pendingNote = {
+              type: "chain-switch",
+              prevKey: failed ? memberKey(failed) : `${input.model.providerID}/${input.model.id}`,
+              nextKey: memberKey(target),
+              reason: decision.reason,
+            }
+            current = { model: targetModel, member: target }
+            failed = target
+            attemptsOnCurrent = 1
+            continue
+          }
+          throw e
+        }
+      }
+    })
     const stream: Interface["stream"] = (input) =>
       Stream.scoped(
         Stream.unwrap(
           Effect.gen(function* () {
-            const ctrl = yield* Effect.acquireRelease(
-              Effect.sync(() => new AbortController()),
-              (ctrl) => Effect.sync(() => ctrl.abort()),
-            )
+            const chain = loadChain(`session:${input.sessionID}`, canonicalIdentity(input.agent.name))
+            if (!chain || chain.length === 0) {
+              const ctrl = yield* Effect.acquireRelease(
+                Effect.sync(() => new AbortController()),
+                (ctrl) => Effect.sync(() => ctrl.abort()),
+              )
 
-            const result = yield* run({ ...input, abort: ctrl.signal })
+              const result = yield* run({ ...input, abort: ctrl.signal })
 
-            return Stream.fromAsyncIterable(result.stream, (e) => (e instanceof Error ? e : new Error(String(e))))
+              return Stream.fromAsyncIterable(result.stream, (e) => (e instanceof Error ? e : new Error(String(e))))
+            }
+            return yield* runChain(input, chain)
           }),
         ),
       )

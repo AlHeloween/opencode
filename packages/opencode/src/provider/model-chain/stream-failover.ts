@@ -2,8 +2,9 @@
  * In-request stream failover (t68, C3b): the decision core.
  *
  * Pure and clock-injected — the fake clock in the tests fires the same
- * transitions without sleeping. The Effect/Stream wiring lives in
- * `processor.ts`, which owns the abort, the parts and the retry policy;
+ * transitions without sleeping. The attempt walk (`runChainStream`) lives
+ * here too, on injected run/resolve/clock seams; `session/llm.ts runChain`
+ * only binds the live seams (provider run, `provider.getModel`, real clock);
  * this module owns the DECISION: when a member is done, who is next, and
  * what the visible note says.
  *
@@ -14,8 +15,10 @@
  * - other transient: bounded retries on the SAME member, then DOWN + next;
  * - no UP member left: visible exhaustion, never an invented model.
  */
+import { Cause, Effect, Option } from "effect"
+import * as Stream from "effect/Stream"
 import { firstUp, markDown, memberKey } from "./chain"
-import { classifyChainError } from "./classify"
+import { classifyChainError, parseRetryAfterMs } from "./classify"
 import type { ChainErrorInput } from "./classify"
 import type { ChainHealth, ChainMember } from "./chain"
 
@@ -129,4 +132,154 @@ export function buildSwitchNote(input: {
 }): string {
   const kept = input.keptChars > 0 ? `${input.keptChars} chars kept` : "no partial text"
   return `[chain switch ${input.prevKey} → ${input.nextKey} (${input.reason}; ${kept})]`
+}
+
+/**
+ * Raw provider/stream failure onto the one question failover asks.
+ * Duck-typed (numeric `statusCode`, record `responseHeaders`) because stream
+ * failures arrive as SDK error objects, never as our own schema: the t73 429
+ * carried its wait in `responseHeaders["retry-after"]`, and dropping the
+ * headers is what let the retry policy wait it out (~14h).
+ */
+export function toChainError(e: unknown): ChainErrorInput {
+  const message = e instanceof Error ? e.message : String(e)
+  const record = (typeof e === "object" && e !== null ? (e as Record<string, unknown>) : {}) as Record<
+    string,
+    unknown
+  >
+  const statusCode = typeof record.statusCode === "number" ? record.statusCode : undefined
+  const headers = record.responseHeaders
+  const retryAfterMs =
+    typeof headers === "object" && headers !== null ? parseRetryAfterMs(headers as Record<string, string>) : undefined
+  return { message, statusCode, retryAfterMs }
+}
+
+export interface ChainStreamDeps<TChunk, TModel, TErr = never, R = never> {
+  chain: ChainMember[]
+  initialModel: TModel
+  memberOf: (model: TModel) => ChainMember | undefined
+  modelKey: (model: TModel) => string
+  run: (model: TModel, abort: AbortSignal) => Effect.Effect<{ stream: AsyncIterable<TChunk> }, TErr, R>
+  resolveModel: (member: ChainMember) => Effect.Effect<TModel | undefined, TErr, R>
+  health: Map<string, ChainHealth>
+  timeoutMs: number
+  now: () => number
+  schedule: (ms: number, cb: () => void) => () => void
+  maxTransientAttempts?: number
+}
+
+/**
+ * In-request chain walk as a Stream (t68, t73 live finding): stream-PHASE
+ * failures re-enter the same decision the setup phase uses. A 429 arriving
+ * after the stream started used to bypass the old try/catch (which only
+ * covered setup) and land in the processor retry policy, which waited out
+ * `retry-after` (~14h busy on t73). Here every phase funnels through
+ * `decideStreamError`: DOWN + next member with a visible note, or the
+ * original cause rethrown — never an invented model, never a silent wait.
+ *
+ * Defects (and anything that is not a failed value) are never misread as a
+ * failover trigger — the same rule user-cancel relies on.
+ */
+export function runChainStream<TChunk, TModel, TErr = never, R = never>(
+  deps: ChainStreamDeps<TChunk, TModel, TErr, R>,
+): Stream.Stream<unknown, TErr | Error, R> {
+  const maxTransientAttempts = deps.maxTransientAttempts ?? 2
+  let pendingNote: ChainSwitchEvent | undefined
+  const buildAttempt = (
+    current: { model: TModel; member: ChainMember | undefined },
+    attemptsOnCurrent: number,
+  ): Stream.Stream<unknown, TErr | Error, R> => {
+    const state = { timedOut: false, cancel: undefined as (() => void) | undefined }
+    const disarm = () => {
+      state.cancel?.()
+      state.cancel = undefined
+    }
+    const opened = Stream.unwrap(
+      Effect.gen(function* () {
+        const attemptCtrl = new AbortController()
+        const result = yield* deps.run(current.model, attemptCtrl.signal)
+        state.cancel = deps.schedule(deps.timeoutMs, () => {
+          state.timedOut = true
+          attemptCtrl.abort()
+        })
+        const watched = (async function* (): AsyncGenerator<TChunk | ChainSwitchEvent> {
+          try {
+            if (pendingNote) {
+              const note = pendingNote
+              pendingNote = undefined
+              yield note
+            }
+            let firstSeen = false
+            for await (const chunk of result.stream) {
+              if (!firstSeen) {
+                firstSeen = true
+                disarm()
+              }
+              yield chunk
+            }
+          } finally {
+            disarm()
+          }
+        })()
+        return Stream.fromAsyncIterable(watched, (e) => (e instanceof Error ? e : new Error(String(e))))
+      }),
+    )
+    return Stream.catchCause(opened, (cause) =>
+      Stream.unwrap(
+        Effect.gen(function* () {
+          const failure = Cause.findErrorOption(cause)
+          if (Option.isNone(failure)) return Stream.failCause(cause)
+          const error: ChainErrorInput = state.timedOut
+            ? { code: "FIRST_TOKEN_TIMEOUT", message: `no first token within ${deps.timeoutMs}ms` }
+            : toChainError(failure.value)
+          const decision = decideStreamError({
+            chain: deps.chain,
+            health: deps.health,
+            now: deps.now,
+            failed: current.member,
+            error,
+            attemptsSoFar: attemptsOnCurrent,
+            maxTransientAttempts,
+          })
+          if (decision.action === "retry-member") return buildAttempt(current, attemptsOnCurrent + 1)
+          if (decision.action === "next") {
+            let target = decision.member
+            let targetModel: TModel | undefined
+            for (;;) {
+              const resolved = yield* deps.resolveModel(target)
+              if (resolved !== undefined) {
+                targetModel = resolved
+                break
+              }
+              const gone = decideStreamError({
+                chain: deps.chain,
+                health: deps.health,
+                now: deps.now,
+                failed: target,
+                error: { message: `Model not found: ${memberKey(target)}` },
+              })
+              if (gone.action !== "next") return Stream.failCause(cause)
+              pendingNote = {
+                type: "chain-switch",
+                prevKey: memberKey(target),
+                nextKey: memberKey(gone.member),
+                reason: gone.reason,
+              }
+              target = gone.member
+            }
+            pendingNote = {
+              type: "chain-switch",
+              prevKey: current.member ? memberKey(current.member) : deps.modelKey(current.model),
+              nextKey: memberKey(target),
+              reason: decision.reason,
+            }
+            if (targetModel === undefined) return Stream.failCause(cause)
+            return buildAttempt({ model: targetModel, member: target }, 1)
+          }
+          return Stream.failCause(cause)
+        }),
+      ),
+    )
+  }
+  return buildAttempt({ model: deps.initialModel, member: deps.memberOf(deps.initialModel) }, 1)
 }

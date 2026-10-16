@@ -18,6 +18,13 @@ export interface ChainErrorInput {
   code?: string
   /** Unknown-parameter field named by the provider (body-schema descent). */
   field?: string
+  /**
+   * Provider-ordered wait in ms, parsed off `retry-after` headers (never
+   * guessed). A wait longer than this attempt's own liveness budget
+   * (FIRST_TOKEN_FLOOR_MS, measured R4) means the member cannot serve THIS
+   * attempt: DOWN now, the 10-minute probe re-arms it.
+   */
+  retryAfterMs?: number
 }
 
 /**
@@ -45,6 +52,26 @@ const TIMEOUT = /timed out|timeout|headers timed out|econnreset|zlib|decompressi
 const RATE = /too many requests|rate limit|rate increased|429/i
 const OVERLOADED = /overloaded|service unavailable|server.*overloaded|temporarily unavailable/i
 
+/**
+ * Provider-ordered wait in ms off raw `retry-after` headers — the same
+ * semantics `session/retry.ts delay()` honors (ms-key wins, then seconds,
+ * then HTTP date). `undefined` when absent or unparseable: no header, no wait.
+ */
+export function parseRetryAfterMs(headers: Record<string, string> | undefined): number | undefined {
+  if (!headers) return undefined
+  const msRaw = headers["retry-after-ms"]
+  if (typeof msRaw === "string") {
+    const parsedMs = Number.parseFloat(msRaw)
+    if (!Number.isNaN(parsedMs)) return parsedMs
+  }
+  const raw = headers["retry-after"]
+  if (typeof raw !== "string") return undefined
+  const parsedSeconds = Number.parseFloat(raw)
+  if (!Number.isNaN(parsedSeconds)) return Math.ceil(parsedSeconds * 1000)
+  const parsedDate = Date.parse(raw) - Date.now()
+  if (!Number.isNaN(parsedDate) && parsedDate > 0) return Math.ceil(parsedDate)
+  return undefined
+}
 export function classifyChainError(input: ChainErrorInput): ChainErrorClass {
   const message = input.message ?? ""
   if (input.field !== undefined && input.field.length > 0) return "terminal"
@@ -52,6 +79,11 @@ export function classifyChainError(input: ChainErrorInput): ChainErrorClass {
   if (PRIVACY_GATE.test(message)) return "terminal"
   if (BALANCE.test(message)) return "terminal"
   if (MODEL_NOT_FOUND.test(message)) return "terminal"
+  // A provider-ordered wait longer than the longest we ever wait for a first
+  // token (FIRST_TOKEN_FLOOR_MS) means the member cannot serve this attempt.
+  // Waiting it out is the t73 hang (429 + retry-after 49715s held the session
+  // busy ~14h). Short waits stay transient on the existing bounded retry.
+  if (input.retryAfterMs !== undefined && input.retryAfterMs > FIRST_TOKEN_FLOOR_MS) return "terminal"
   const status = input.statusCode
   if (status === 401 || status === 403) return "terminal"
   if (status === 402) return "terminal"
@@ -77,3 +109,4 @@ export function firstTokenTimeoutMs(p50TtftMs: number): number {
   if (!Number.isFinite(p50TtftMs) || p50TtftMs <= 0) return FIRST_TOKEN_FLOOR_MS
   return Math.max(FIRST_TOKEN_FLOOR_MS, Math.round(FIRST_TOKEN_P50_MULTIPLE * p50TtftMs))
 }
+

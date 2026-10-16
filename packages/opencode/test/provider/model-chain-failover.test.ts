@@ -10,7 +10,7 @@ import {
   shouldBackfill,
   validateChain,
 } from "@/provider/model-chain/chain"
-import { FIRST_TOKEN_FLOOR_MS, classifyChainError, firstTokenTimeoutMs } from "@/provider/model-chain/classify"
+import { FIRST_TOKEN_FLOOR_MS, classifyChainError, firstTokenTimeoutMs, parseRetryAfterMs } from "@/provider/model-chain/classify"
 import { runWithFailover } from "@/provider/model-chain/failover"
 import { classifyGatewayError, gatewayErrorToChainInput } from "@/provider/model-chain/gateway"
 import { probeDownMembers } from "@/provider/model-chain/health-check"
@@ -61,6 +61,23 @@ describe("classifyChainError", () => {
     expect(classifyChainError({ statusCode: 500, message: "Internal Server Error" })).toBe("transient")
     expect(classifyChainError({ statusCode: 503, message: "Service Unavailable" })).toBe("transient")
     expect(classifyChainError({ message: "Provider response headers timed out after 30000ms" })).toBe("transient")
+  })
+  test("terminal: retry-after beyond the measured floor is DOWN at once — live t73 2026-10-16 (429 + retry-after 49715s, no body text)", () => {
+    expect(classifyChainError({ statusCode: 429, message: "Too Many Requests", retryAfterMs: 49_715_000 })).toBe("terminal")
+  })
+  test("transient: retry-after within the floor stays bounded", () => {
+    expect(classifyChainError({ statusCode: 429, message: "Too Many Requests", retryAfterMs: 5_000 })).toBe("transient")
+    expect(classifyChainError({ statusCode: 429, message: "Too Many Requests" })).toBe("transient")
+  })
+  test("parseRetryAfterMs mirrors the retry policy: ms-key wins, then seconds, then HTTP date", () => {
+    expect(parseRetryAfterMs({ "retry-after-ms": "2500" })).toBe(2_500)
+    expect(parseRetryAfterMs({ "retry-after": "7" })).toBe(7_000)
+    const future = new Date(Date.now() + 60_000).toUTCString()
+    const parsed = parseRetryAfterMs({ "retry-after": future })
+    expect(parsed !== undefined && parsed > 30_000 && parsed <= 60_000).toBe(true)
+    expect(parseRetryAfterMs(undefined)).toBeUndefined()
+    expect(parseRetryAfterMs({})).toBeUndefined()
+    expect(parseRetryAfterMs({ "retry-after": "not-a-time" })).toBeUndefined()
   })
 })
 

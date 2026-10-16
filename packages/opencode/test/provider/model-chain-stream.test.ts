@@ -1,5 +1,7 @@
 import { describe, expect, setDefaultTimeout, test } from "bun:test"
-import { buildSwitchNote, createFirstTokenWatch, decideStreamError } from "@/provider/model-chain/stream-failover"
+import { Effect } from "effect"
+import * as Stream from "effect/Stream"
+import { buildSwitchNote, createFirstTokenWatch, decideStreamError, runChainStream, toChainError } from "@/provider/model-chain/stream-failover"
 import type { ChainHealth, ChainMember } from "@/provider/model-chain/chain"
 import { memberKey } from "@/provider/model-chain/chain"
 
@@ -178,6 +180,20 @@ describe("decideStreamError", () => {
     if (decision.action !== "exhausted") throw new Error("unreachable")
     expect(decision.tried).toEqual(["opencode/muse-spark-1.3-contributor-free"])
   })
+  test("429 with retry-after beyond the floor marks DOWN at once — live t73 2026-10-16", () => {
+    const health = healthOf()
+    const decision = decideStreamError({
+      chain: [free, go],
+      health,
+      now: () => 0,
+      error: { statusCode: 429, message: "Too Many Requests", retryAfterMs: 49_715_000 },
+    })
+    expect(decision.action).toBe("next")
+    if (decision.action !== "next") throw new Error("unreachable")
+    expect(decision.member).toEqual(go)
+    expect(health.get(memberKey(free))?.status).toBe("DOWN")
+    expect(decision.attemptsOnFailed).toBe(1)
+  })
 })
 
 describe("buildSwitchNote", () => {
@@ -202,5 +218,77 @@ describe("buildSwitchNote", () => {
     })
     expect(note).toMatch(/hang past 120000ms/)
     expect(note).toMatch(/no partial text/)
+  })
+})
+
+describe("toChainError", () => {
+  test("keeps statusCode and parses retry-after headers off the raw error", () => {
+    const raw = Object.assign(new Error('{"type":"error","error":{"type":"FreeUsageLimitError"}}'), {
+      statusCode: 429,
+      responseHeaders: { "retry-after": "49715" },
+    })
+    expect(toChainError(raw)).toEqual({
+      message: '{"type":"error","error":{"type":"FreeUsageLimitError"}}',
+      statusCode: 429,
+      retryAfterMs: 49_715_000,
+    })
+  })
+  test("missing headers stay undefined, never a guessed wait", () => {
+    expect(toChainError(new Error("boom"))).toEqual({ message: "boom", statusCode: undefined, retryAfterMs: undefined })
+  })
+})
+
+describe("runChainStream (stream-phase failover)", () => {
+  interface StubModel {
+    key: string
+  }
+  const freeModel: StubModel = { key: "opencode/muse-spark-1.3-contributor-free" }
+  const goModel: StubModel = { key: "opencode-go/muse-spark-1.3-contributor" }
+  const freeError = () =>
+    Object.assign(new Error('{"type":"error","error":{"type":"FreeUsageLimitError","message":"Rate limit exceeded"}}'), {
+      statusCode: 429,
+      responseHeaders: { "retry-after": "49715" },
+    })
+  function depsOf(health: Map<string, ChainHealth>, seen: { freeCalls: number; scheduled: number[] }) {
+    return {
+      chain: [free, go],
+      initialModel: freeModel,
+      memberOf: (model: StubModel) => (model.key === freeModel.key ? free : model.key === goModel.key ? go : undefined),
+      modelKey: (model: StubModel) => model.key,
+      run: (model: StubModel, _abort: AbortSignal) =>
+        Effect.succeed({
+          stream: (async function* (): AsyncGenerator<string> {
+            if (model.key === freeModel.key) {
+              seen.freeCalls += 1
+              throw freeError()
+            }
+            yield "hello from go"
+          })(),
+        }),
+      resolveModel: (member: ChainMember) =>
+        Effect.succeed(member === go ? goModel : member === free ? freeModel : undefined),
+      health,
+      timeoutMs: 120_000,
+      now: () => 0,
+      schedule: (ms: number, _cb: () => void) => {
+        seen.scheduled.push(ms)
+        return () => {}
+      },
+    }
+  }
+  test("stream-phase 429 + huge retry-after: DOWN in one response, switch with note, no waiting", async () => {
+    const health = healthOf()
+    const seen = { freeCalls: 0, scheduled: [] as number[] }
+    const collected = await Effect.runPromise(Stream.runCollect(runChainStream(depsOf(health, seen))))
+    const elements = Array.from(collected)
+    expect(seen.freeCalls).toBe(1)
+    expect(health.get(memberKey(free))?.status).toBe("DOWN")
+    const note = elements.find(
+      (element) => typeof element === "object" && element !== null && (element as { type?: string }).type === "chain-switch",
+    ) as { prevKey: string; nextKey: string; reason: string } | undefined
+    expect(note?.nextKey).toBe(memberKey(go))
+    expect(note?.reason).toMatch(/terminal/)
+    expect(elements).toContain("hello from go")
+    expect(elements.indexOf(note)).toBeLessThan(elements.indexOf("hello from go"))
   })
 })

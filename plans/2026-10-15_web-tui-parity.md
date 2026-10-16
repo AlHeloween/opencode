@@ -89,7 +89,7 @@ Invariant for every status built here (AGENTS.md): a value or `unknown`, never b
 <!-- sv: Keywords: sidebar-status-rows 0.5, value-or-unknown 0.5; dominant: every web status shows a value or unknown, never blank; md5: d74ab14193e6d8295f4f71201d9e8274 -->
 - [x] W4 agent/model dialog with scopes (slice: session + global; worktree per-agent selection needs a model-state server route — TUI writes model.json by fs, never faked here)
 <!-- sv: Keywords: scoped-dialog 0.5, same-write-path 0.5; dominant: web writes go through the TUI's own routes; md5: e85bc25204f7d930606082123e0af9385 -->
-- [ ] W5 proof (idle DOM+probe banked; busy frame BLOCKED keyless: 4 models × 5 turns → 401 Invalid credential, isRetryable:false — the 10-07 public-key path regressed upstream; STAND: .temp/t59-stand/opencode.exe @ 10.0.1373 copied from dist 2026-10-16 12:23, dist/bin free, no oracle server running — pid 11188 stopped, only bin-host 17272 alive)
+- [ ] W5 proof (idle DOM+probe banked; busy frame BLOCKED keyless: 4 models × 5 turns → 401 Invalid credential, isRetryable:false — the 10-07 public-key path regressed upstream; STAND: .temp/t59-stand/opencode.exe @ 10.0.1374 (with W4, build 20261016T044744Z_411d4819 exit 0 smoke 10.0.1374), dist/bin free, no oracle server running)
 <!-- sv: Keywords: visual-oracle 0.4, build-receipt 0.3, commit-by-path 0.3; dominant: each closed gap carries a receipt; md5: f96cd36315f8e041717193234f1be0496 -->
 
 ## Smoke Tests

@@ -7177,3 +7177,8 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 — Факт: мой `git add` 8 путей W4 + `git commit -m t59` унёс чужой стейдж полосы org-ticket-slugs: в коммите 551bb9501d лежат их staged-deletions (plans/2026-10-16_org-ticket-slugs.md −63, scripts/org-genesis/test_ticket_slugs.py −340, плюс правки Protocol.md/branding.sql/init.py/test_queue_contract.py/ticket-schema.sql). Проверка ПОСЛЕ: оба файла живы на диске (glob находит), сейчас как untracked; 5 правок org-genesis — unstaged M, полоса работает дальше. Контент не потерян, бита только атрибуция. History rewrite запрещён — оставлено как есть.
 — Причина: перед коммитом не проверил `git diff --cached --stat` (индекс общий на всех роботов). Урок в процедуру: add своих путей → diff --cached --stat → только свои → commit. Индекс сейчас пуст (проверено). Их файлы не трогаю: ни add, ни restore.
 <!-- sv: index-race 0.50, no-rewrite 0.30, content-safe 0.20 -->
+## [2026-10-16] t59 — сборка после W4 + стенд 10.0.1374 (Smit)
+
+✓ BUILD (обязательная после изменений): `_build.ps1` прогон 20261016T044744Z_411d4819 exit 0 — лок взят/отпущен, smoke 10.0.1374 + reasoning_prompt embedded PASS, App пересобран (индекс с W4 внутри), артефакты в dist/.
+✓ STAND обновлён: .temp/t59-stand/opencode.exe — копия dist/bin после этой сборки, --version 10.0.1374 (прогон 20261016T044955Z_392fc0a8 exit 0). План W5 несёт версию стенда. dist/bin свободен, серверов со стенда не поднято.
+<!-- sv: post-change-build 0.50, stand-refreshed 0.30, receipts 0.20 -->

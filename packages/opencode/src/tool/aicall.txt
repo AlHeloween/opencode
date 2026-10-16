@@ -28,14 +28,20 @@ repo discovery, no working-tree authority).
 4. After — treat as draft; apply with edit tools; run declared oracles before Done.
 
 Every result begins with the direct-call envelope: selected provider/model, API
-model, SDK, endpoint, model type, parameter count, cost class (free/paid) and
+model, SDK, endpoint, model type, parameter count, cost class (free/paid/UNKNOWN-router) and
 context size, plus the fact that this isolated request sends no system prompt
 or tools. The envelope reports request shape, not secrets or the full
 user/file content.
 
 ## Model selection
-- Auto-select is **free-first**: declared-free models (cost 0/0 in the registry)
-  → `big-pickle` → session default. Omit `model` unless you specifically need a
+- Omitted `model` resolves through the caller's session chain first UP
+  (`resolveChainAgentModel`, t68) — never a silent free/default/router
+  fallback. No chain / no UP member → REFUSED naming the missing model.
+- Explicit `model`/`provider` runs as given, except routers
+  (`openrouter/auto`, `openrouter/auto-beta`, any `*router*` name/id):
+  a router bills the ROUTED model, so the envelope prints
+  `cost: UNKNOWN (router)` and the call is REFUSED without
+  `allow_paid:true`. Omit `model` unless you specifically need a
   capability the free tier lacks.
 - **Never auto-select a paid model.** If you must pass `model`/`provider`
   explicitly, prefer free models (e.g. `openrouter/*:free`) — paid calls drain

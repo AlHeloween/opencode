@@ -8,16 +8,43 @@ import path from "path"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { generateText } from "ai"
 import * as Log from "@opencode-ai/core/util/log"
+import { canonicalIdentity } from "@/session/mode-identity"
+import { loadChain } from "@/provider/model-chain/store"
+import { chainHealthState } from "@/provider/model-chain/health-registry"
+import { resolveChainAgentModel } from "@/session/session-settings"
 
 const log = Log.create({ service: "tool.aicall" })
 
 const id = "aicall"
 
+export function isRouterModel(model: { providerID: string; id: string; name?: string }): boolean {
+  const pid = String(model.providerID ?? "").toLowerCase()
+  const mid = String(model.id ?? "").toLowerCase()
+  const name = String((model as { name?: unknown }).name ?? "").toLowerCase()
+  if (name.includes("router")) return true
+  if (mid.includes("router")) return true
+  if (mid.includes("switchyard")) return true
+  const base = mid.split("/").pop() ?? mid
+  if (base === "auto" || base === "auto-beta") return true
+  if (pid === "openrouter") {
+    if (base === "free" || base === "fusion" || base === "pareto-code") return true
+    if (mid === "openrouter/auto" || mid === "openrouter/auto-beta" || mid === "openrouter/free" || mid === "openrouter/fusion" || mid === "openrouter/pareto-code") return true
+  }
+  if (base === "switchyard" || base === "fusion" || base === "pareto-code" || base === "jev-router") return true
+  return false
+}
+
 export function requestEnvelope(
-  model: Pick<Provider.Model, "providerID" | "id" | "api" | "parameters" | "model_type" | "cost" | "limit">,
+  model: Pick<Provider.Model, "providerID" | "id" | "api" | "parameters" | "model_type" | "cost" | "limit"> & { name?: string },
   userText: string,
 ) {
+  const router = isRouterModel(model)
   const paid = (model.cost?.input ?? 0) > 0 || (model.cost?.output ?? 0) > 0
+  const costLine = router
+    ? "cost: UNKNOWN (router)"
+    : paid
+      ? `cost: $${model.cost?.input}/$${model.cost?.output} per Mtok`
+      : "cost: free"
   return [
     "Direct AI call request:",
     `provider: ${model.providerID}`,
@@ -27,7 +54,7 @@ export function requestEnvelope(
     `endpoint: ${model.api.url ?? "provider default"}`,
     `type: ${model.model_type ?? "chat"}`,
     `parameters: ${model.parameters ? `${model.parameters}B` : "unknown"}`,
-    paid ? `cost: $${model.cost?.input}/$${model.cost?.output} per Mtok` : "cost: free",
+    costLine,
     `context: ${model.limit?.context ?? "unknown"} tokens`,
     "system: none (isolated aicall)",
     "tools: none (isolated aicall)",
@@ -60,6 +87,9 @@ export const Parameters = Schema.Struct({
   top_k: Schema.optional(Schema.Number).annotate({ description: "Top-K sampling" }),
   max_tokens: Schema.optional(Schema.Number).annotate({ description: "Maximum output tokens" }),
   seed: Schema.optional(Schema.Number).annotate({ description: "Seed for (mostly) deterministic sampling" }),
+  allow_paid: Schema.optional(Schema.Boolean).annotate({
+    description: "Accept a routed-model charge. Routers (openrouter/auto, auto-beta) bill the routed model — without allow_paid:true such a call is REFUSED",
+  }),
 })
 
 type Metadata = {
@@ -93,47 +123,68 @@ export const AiCallTool = Tool.define(
             },
           })
 
-          // Resolve model
-          const model = yield* (params.model || params.provider
-            ? Effect.gen(function* () {
-                const defaultModel = yield* provider.defaultModel()
-                const rawProviderID = params.provider ?? defaultModel.providerID
-                const providerID = ProviderID.make(rawProviderID)
-                const modelID = ModelID.make(params.model ?? defaultModel.modelID)
-                return yield* provider.getModel(providerID, modelID)
-              })
-            : Effect.gen(function* () {
-                // Auto-select: prefer free models (cost 0/0, declared in the
-                // registry) with the largest context, then BigPickle, then the
-                // session default. Chat models only — embedding/rerank entries
-                // cannot serve a text call. A 10B model is not asked for
-                // miracles: size is reported in the envelope so the caller can
-                // calibrate expectations.
-                const providers = yield* provider.list()
-                const chatModels = Object.values(providers).flatMap((p) =>
-                  Object.values(p.models).filter(
-                    (m) => m.model_type !== "embedding" && m.model_type !== "rerank",
-                  ),
-                )
-                const free = chatModels
-                  .filter(
-                    (m) =>
-                      m.cost !== undefined && (m.cost.input ?? 0) === 0 && (m.cost.output ?? 0) === 0,
-                  )
-                  .sort((a, b) => b.limit.context - a.limit.context)
-                if (free[0]) return free[0]
-                // Free tier anchor: the actual id is "big-pickle" (dashed) —
-                // the old "bigpickle" needle never matched and silently fell
-                // through to the (possibly paid) session default.
-                for (const p of Object.values(providers)) {
-                  const found = Object.values(p.models).find((m) =>
-                    m.id.toLowerCase().includes("big-pickle"),
-                  )
-                  if (found) return found
-                }
-                const defaultModel = yield* provider.defaultModel()
-                return yield* provider.getModel(defaultModel.providerID, defaultModel.modelID)
-              }))
+          // Resolve model (t72): explicit model/provider, else the caller's
+          // session chain first UP (t68, resolveChainAgentModel). Routers bill
+          // the routed model, so a router without allow_paid is REFUSED, never
+          // run as "free". An omitted model with no chain is REFUSED, never a
+          // silent free/default/router fallback.
+          const allowPaid = params.allow_paid === true
+          let model: Provider.Model | undefined
+          if (params.model || params.provider) {
+            const defaultModel = yield* provider.defaultModel()
+            const rawProviderID = params.provider ?? defaultModel.providerID
+            const providerID = ProviderID.make(rawProviderID)
+            const modelID = ModelID.make(params.model ?? defaultModel.modelID)
+            const resolved = yield* provider.getModel(providerID, modelID)
+            if (isRouterModel(resolved) && !allowPaid) {
+              const envelope = requestEnvelope(resolved, params.prompt)
+              return {
+                title: `aicall REFUSED (router): ${resolved.providerID}/${resolved.id}`,
+                metadata: {
+                  model: { providerID: resolved.providerID, modelID: resolved.id },
+                },
+                output: `${envelope}\n\nREFUSED: router ${resolved.providerID}/${resolved.id} bills the routed model (price UNKNOWN, not free). Re-call with allow_paid:true to accept the routed-model charge, or pass a free non-router model explicitly.`,
+              }
+            }
+            model = resolved
+          } else {
+            const agent = canonicalIdentity(ctx.agent)
+            const chain = loadChain(`session:${ctx.sessionID}`, agent)
+            const member = resolveChainAgentModel(agent, String(ctx.sessionID), chainHealthState(), { chain })
+            if (!member) {
+              return {
+                title: `aicall REFUSED (no model): ${agent}`,
+                metadata: {
+                  model: { providerID: "", modelID: "" },
+                },
+                output: `aicall REFUSED: no model given and no UP chain member for agent "${agent}" in session "${ctx.sessionID}". Pass model explicitly (a free non-router id) or set the session chain first; an omitted model never silently falls to a router or default.`,
+              }
+            }
+            const resolved = yield* provider.getModel(
+              ProviderID.make(member.providerID),
+              ModelID.make(member.modelID),
+            )
+            if (isRouterModel(resolved) && !allowPaid) {
+              const envelope = requestEnvelope(resolved, params.prompt)
+              return {
+                title: `aicall REFUSED (router): ${resolved.providerID}/${resolved.id}`,
+                metadata: {
+                  model: { providerID: resolved.providerID, modelID: resolved.id },
+                },
+                output: `${envelope}\n\nREFUSED: chain member ${resolved.providerID}/${resolved.id} is a router (price UNKNOWN, not free). Re-call with allow_paid:true to accept the routed-model charge, or pick a free non-router chain member.`,
+              }
+            }
+            model = resolved
+          }
+          if (!model) {
+            return {
+              title: `aicall REFUSED (no model): ${canonicalIdentity(ctx.agent)}`,
+              metadata: {
+                model: { providerID: "", modelID: "" },
+              },
+              output: `aicall REFUSED: model resolution left no model; pass model explicitly (a free non-router id).`,
+            }
+          }
 
           // Build user message: file contents (if any) + prompt
           let userText = ""

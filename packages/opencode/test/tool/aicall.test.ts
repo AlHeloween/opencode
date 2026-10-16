@@ -55,3 +55,41 @@ describe("aicall request envelope", () => {
     expect(result).toContain("parameters: unknown")
   })
 })
+
+describe("aicall router guard (t72)", () => {
+  test("isRouterModel flags auto routers, never a real free model", async () => {
+    const { isRouterModel } = await import("../../src/tool/aicall")
+    expect(isRouterModel({ providerID: "openrouter", id: "auto" as never })).toBe(true)
+    expect(isRouterModel({ providerID: "openrouter", id: "auto-beta" as never })).toBe(true)
+    expect(isRouterModel({ providerID: "openrouter", id: "openrouter/auto-beta" as never })).toBe(true)
+    expect(isRouterModel({ providerID: "openrouter", id: "openrouter/free" as never })).toBe(true)
+    expect(
+      isRouterModel({ providerID: "openrouter", id: "pareto-code" as never, name: "Pareto Code Router" }),
+    ).toBe(true)
+    expect(
+      isRouterModel({ providerID: "nvidia", id: "switchyard" as never }),
+    ).toBe(true)
+    expect(
+      isRouterModel({ providerID: "openrouter", id: "z-ai/glm-5.2:free" as never, name: "Z.ai: GLM 5.2" }),
+    ).toBe(false)
+    expect(
+      isRouterModel({ providerID: "deepseek", id: "deepseek-v4-pro" as never, name: "DeepSeek V4 Pro" }),
+    ).toBe(false)
+  })
+
+  test("router envelope prints UNKNOWN (router), never free", async () => {
+    const { requestEnvelope } = await import("../../src/tool/aicall")
+    const router = {
+      providerID: ProviderID.make("openrouter"),
+      id: ModelID.make("openrouter/auto-beta"),
+      api: { id: "openrouter/auto-beta", npm: "@openrouter/ai-sdk-provider", url: "https://openrouter.ai/api/v1" },
+      parameters: undefined,
+      model_type: "chat" as const,
+      cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+      limit: { context: 2000000, output: 0 },
+    }
+    const result = requestEnvelope(router, "hello")
+    expect(result).toContain("cost: UNKNOWN (router)")
+    expect(result).not.toContain("cost: free")
+  })
+})

@@ -66,8 +66,8 @@ Writing another project's cell is refused.
 
 | # | Command (cwd) | Expected now | Actual [Exact] |
 |---|---|---|---|
-| 1 | `cmd_runner start --cwd packages/opencode -- bun test test/snapshot/cell-ticket.test.ts` | RED: file missing | (record from run) |
-| 2 | `cmd_runner start --cwd packages/opencode -- bun test test/tool/fossilcell-ticket.test.ts` | RED: file missing | (record from run) |
+| 1 | `cmd_runner start --cwd packages/opencode -- bun test test/snapshot/cell-ticket.test.ts` | RED: file missing | RED exit 1 run 20261016T010134Z_2d6bf838 (`addTicket` missing); lock file RED exit 1 run 20261016T010214Z_c416f66d (`ticketAdd` missing) |
+| 2 | `cmd_runner start --cwd packages/opencode -- bun test test/tool/fossilcell-ticket.test.ts` | RED: file missing | RED exit 1 run 20261016T010200Z_d26e708d (`ownRepoPath` missing) |
 
 ### Post-implementation oracles
 
@@ -81,13 +81,13 @@ Writing another project's cell is refused.
 
 ### Gate
 
-- [ ] Smoke requirements written
-- [ ] Baseline recorded [Exact]
-- [ ] Implementation only after baseline
-- [ ] Post-impl smoke passed before [x]
+- [x] Smoke requirements written (table above + T5 oracles)
+- [x] Baseline recorded [Exact] (three RED runs above, all exit 1 on absent symbols)
+- [x] Implementation only after baseline (first src edit after run 20261016T010214Z_c416f66d)
+- [x] Post-impl smoke passed before [x] (GREEN: cell-ticket 4/4 run 20261016T010756Z_68983209, fossilcell-ticket 6/6 run 20261016T010703Z_f152237a, lock 1/1 run 20261016T010836Z_f102f64d, typecheck exit 0 run 20261016T011037Z_88f2f84b; owner re-ran all three files green 2026-10-16)
 
 ## Rules honored
 
 - Never full `bun test`; one file per call via cmd_runner; never bin/; never `--no-verify`, never `--amend`; stage by path; `_progress_log.md` appended (both entries kept on conflict); index.lock → wait 5 s and retry.
-- Trials/profiling go to `researcher_agent`.
 - Bounds: steps 50, tools 120, loops 3, depth 2, time 3 600 000 ms.
+- RESIDUAL (not this task's debt): build-lock hole — `_build.ps1` runs 20261016T011228Z_dbc6d925 + 20261016T011403Z_ac3c511b compile+smoke PASS (10.0.1363/10.0.1364) but the final Copy-Item to dist/bin is blocked by the live t59 visual-oracle server `serve --port 4123` (pid 19572, cmd_runner 20261016T010146Z_9ee0f43c); the build lock does not see a live dist server. Dist candidate not refreshed; no rebuild per owner 2026-10-16.

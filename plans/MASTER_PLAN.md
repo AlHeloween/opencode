@@ -132,10 +132,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 249 |
-| plans active | 24 |
-| tasks passed / total | 1092 / 1354 |
-| open boxes | 119 |
+| plans completed | 261 |
+| plans active | 28 |
+| tasks passed / total | 1177 / 1456 |
+| open boxes | 136 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -317,6 +317,16 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-15_activators-vs-training-data.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
+  sv: intention "no systematic mapping kernel activators to pretraining corpora -> REPORT.md inventory plus corpus mapping plus synthesis plus two measurement designs with source stamps" · keywords [Keywords: activators 0.30, training-corpora 0.25, source-routing 0.20, hybrid-reasoning 0.15, engram-multimodality 0.10; Semantic dominant: Map every kernel named authority to its documented pretraining-corpus presence and turn the gaps into measured experiments. md5: a1b2c3d4e5f60718293a4b5c6d7e8f90 prev-md5: 00000000000000000000000000000000 parent-goal-md5: 00000000000000000000000000000000]
+  - TASK-1 [PENDING] · sv [Keywords: activators 0.40, source-routing 0.30, kernel-inventory 0.20, standards 0.10; Semantic dominant: List every named authority, method and structural term exactly as the kernel spells it. md5: 11111111111111111111111111111111 prev-md5: 00000000000000000000000000000000 parent-goal-md5: a1b2c3d4e5f60718293a4b5c6d7e8f90] · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv [Keywords: corpora 0.35, pile-redpajama-dolma 0.30, open-paywalled 0.20, shares 0.15; Semantic dominant: Ground each activator in the documented corpus that does or does not contain its source. md5: 22222222222222222222222222222222 prev-md5: 00000000000000000000000000000000 parent-goal-md5: a1b2c3d4e5f60718293a4b5c6d7e8f90] · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv [Keywords: reward 0.35, falsification 0.30, gates-density 0.20, corpora-papers 0.15; Semantic dominant: Locate where reward, falsification and gate/FSM language is dense in the corpora. md5: 33333333333333333333333333333333 prev-md5: 00000000000000000000000000000000 parent-goal-md5: a1b2c3d4e5f60718293a4b5c6d7e8f90] · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv [Keywords: hybrid-reasoning 0.35, thinking-switch 0.30, gates-oracle 0.20, sv-marker 0.15; Semantic dominant: Establish how hybrid models select thinking mode and design the token-count plus SV-emission measurement. md5: 44444444444444444444444444444444 prev-md5: 00000000000000000000000000000000 parent-goal-md5: a1b2c3d4e5f60718293a4b5c6d7e8f90] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv [Keywords: 3fs 0.30, engram 0.30, kv-cache 0.20, lookup-keys 0.20; Semantic dominant: Separate 3FS prefix-cache infrastructure from Engram lookup memory and test the exact-name-as-key hypothesis. md5: 55555555555555555555555555555555 prev-md5: 00000000000000000000000000000000 parent-goal-md5: a1b2c3d4e5f60718293a4b5c6d7e8f90] · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv [Keywords: multimodality 0.35, code-structure 0.30, vision-models 0.20, text-vs-image 0.15; Semantic dominant: Document natively multimodal pretraining effects on code and design the text-vs-image structure probe. md5: 66666666666666666666666666666666 prev-md5: 00000000000000000000000000000000 parent-goal-md5: a1b2c3d4e5f60718293a4b5c6d7e8f90] · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv [Keywords: synthesis 0.40, activation-strength 0.30, weak-strong 0.20, resonance-map 0.10; Semantic dominant: Reduce all findings to one activator table with documented versus inferred strength and the resonance-map consequences. md5: 77777777777777777777777777777777 prev-md5: 00000000000000000000000000000000 parent-goal-md5: a1b2c3d4e5f60718293a4b5c6d7e8f90] · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-15_dais-peer-trust-reward.md` — 4 open / 5 box(es) · lifecycle ACTIVE
   sv: intention "the reward sees one run alone and the syndicate has no memory of whose claims held -> peer trust, earned only by claims that survived independent verification, enters the reward and routes delegation" · keywords [peer-trust-ledger 0.40, verification-not-votes 0.30, reward-integration 0.20, delegation-routing 0.10]
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -328,8 +338,30 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "Unknown и чужая ответственность превращаются в BLOCKED и остановку -> пробел ведёт к проверке/декомпозиции, чужой исполнитель к тикету/наблюдению/follow-up, родитель остаётся открыт до проверенного done" · keywords [task-continuation 0.45, unknown-decomposition 0.30, verified-delegation 0.25]
   - TASK-6 [PENDING] · sv [pct-denominator 0.35, receipt-readback 0.30, quoted-postpone 0.20, budget-67000 0.15] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_kernel-one-copy-ticket-route.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
-  sv: intention "kernel rules restated in memory/AGENTS.md/skills/briefs (drift, paid 2-3x per session), kernel/skill defects patched locally or not at all -> the kernel is the single copy; memory/AGENTS.md/skills/briefs point to the rule tag; kernel/skill defects are filed as tickets to the kernel owner (org login `claude`) with evidence, never patched or restated locally" · keywords []
+- `plans/2026-10-15_kernel-undefined-contract-audit.md` — 1 open / 2 box(es) · lifecycle ACTIVE
+  sv: intention "расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source" · keywords [contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20]
+  - TASK-2 [PENDING] · sv [independent-verification 0.6, evidence 0.4] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-15_project-fossil-cell.md` — 5 open / 17 box(es) · lifecycle UNKNOWN
+  sv: intention "fossilgrep searches only FILE CONTENT across history -> it searches check-in COMMENTS too (the
+semantic dominants live there), and the project's own snapshot.fsl becomes a local cell (wiki card + automatic
+chat report per turn) with a read-only cross-project federation over `fossil all list`" · keywords [Keywords: fossilgrep-comments 0.30, project-cell 0.25, semantic-timeline 0.20, federation 0.15, read-only 0.10
+Semantic dominant: The snapshot timeline becomes searchable by MEANING through its check-in comments, and each project's fossil becomes a local cell (wiki + chat) readable across the syndicate.
+md5: 7a2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000]
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-14 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-16 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-17 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-15_tui-active-sessions-panel.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
+  sv: intention "TUI sidebar has no live view of running sessions (owner must open the sessions dialog to guess what is running) -> a sidebar block lists every busy/retrying session of THIS server (API robots included), refreshed ~1 s, with an explicit «none active» when idle" · keywords [Keywords: sidebar-active-sessions 0.35, event-synced-store 0.25, elapsed-tick 0.20, none-active-invariant 0.20
+Semantic dominant: The owner sees at a glance which sessions of this server are running — robots included — read from the store the TUI already event-syncs, with the 1 s tick spent only on elapsed time and an explicit «none active» when idle.
+md5: b7e2c41d90a85f3671d4c0e2f8a6b593
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: e31df24e5415d6a594172176f48af8e0]
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -338,12 +370,23 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_kernel-undefined-contract-audit.md` — 1 open / 2 box(es) · lifecycle ACTIVE
-  sv: intention "расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source" · keywords [contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20]
-  - TASK-2 [PENDING] · sv [independent-verification 0.6, evidence 0.4] · manifest: MISSING — nobody has written down what this box is
+- `plans/2026-10-15_web-tui-parity.md` — 3 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "browser form shows only part of what the TUI shows (no active-sessions block, no sidebar status rows, no scoped agent/model write path) -> the web app reaches parity surface by surface through the SAME server routes/events the TUI uses, with a measured parity table and a value-or-unknown invariant on every status" · keywords [Keywords: web-tui-parity 0.35, same-server-source 0.25, active-sessions-web 0.20, status-or-unknown 0.20
+Semantic dominant: The browser form shows everything the TUI shows by reading the same server data, starting with the active-sessions block the owner needs to not kill a running session.
+md5: 9f3a7c2d1e4b4f6a8d2c5e7f1a3b4c5d
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000]
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-16_haiku-omp-controlled-latency.md` — 2 open / 5 box(es) · lifecycle UNKNOWN
+  sv: intention "Haiku в OpenCode даёт длительные паузы, в omp с загруженным kernel пользователь наблюдает быстрый ответ -> воспроизводимое сравнение actual запросов и изолированных факторов, с установленной областью причинного вывода и непокрытым остатком" · keywords [controlled-latency, wire-equivalence, protocol-grounding, causal-boundaries]
+  - P2 [PENDING] · sv [actual-wire, payload-diff, source-provenance] · manifest: MISSING — nobody has written down what this box is
+  - P5 [PENDING] · sv [measured-outcome, continuation-receipt, research-closure] · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 26 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 30 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

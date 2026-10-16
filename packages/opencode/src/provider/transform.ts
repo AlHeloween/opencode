@@ -68,6 +68,38 @@ function reasoningCensus(msgs: ModelMessage[]) {
 function shape(msgs: ModelMessage[]) {
   return { messages: msgs.length, parts: partCount(msgs) }
 }
+/**
+ * Opaque reasoning metadata that makes an empty-text reasoning part meaningful.
+ * t65 slice 1 (owner 2026-10-16 «ничего резать не надо»): an empty thinking block
+ * WITH a signature/redacted payload is the protocol-normal shape (Haiku migration
+ * guide; installed @ai-sdk/anthropic 4.0.57 / amazon-bedrock 5.0.87 send it).
+ * Bare-empty (no such metadata) is still dropped by the branches below.
+ */
+function hasOpaqueReasoning(part: unknown): boolean {
+  const opts = (part as { providerOptions?: unknown })?.providerOptions
+  if (!opts || typeof opts !== "object") return false
+  const nonEmpty = (value: unknown): value is string => typeof value === "string" && value.length > 0
+  const anthropic = (opts as Record<string, unknown>).anthropic
+  if (
+    anthropic &&
+    typeof anthropic === "object" &&
+    (nonEmpty((anthropic as Record<string, unknown>).signature) ||
+      nonEmpty((anthropic as Record<string, unknown>).redactedData))
+  )
+    return true
+  for (const key of ["bedrock", "amazonBedrock"] as const) {
+    const dialect = (opts as Record<string, unknown>)[key]
+    if (
+      dialect &&
+      typeof dialect === "object" &&
+      (nonEmpty((dialect as Record<string, unknown>).signature) ||
+        nonEmpty((dialect as Record<string, unknown>).redactedData) ||
+        nonEmpty((dialect as Record<string, unknown>).redactedContent))
+    )
+      return true
+  }
+  return false
+}
 
 function normalizeMessages(
   msgs: ModelMessage[],
@@ -86,8 +118,12 @@ function normalizeMessages(
         }
         if (!Array.isArray(msg.content)) return msg
         const filtered = msg.content.filter((part) => {
-          if (part.type === "text" || part.type === "reasoning") {
+          if (part.type === "text") {
             return part.text !== ""
+          }
+          if (part.type === "reasoning") {
+            if (part.text !== "") return true
+            return hasOpaqueReasoning(part)
           }
           return true
         })
@@ -115,8 +151,12 @@ function normalizeMessages(
         }
         if (!Array.isArray(msg.content)) return msg
         const filtered = msg.content.filter((part) => {
-          if (part.type === "text" || part.type === "reasoning") {
+          if (part.type === "text") {
             return part.text !== ""
+          }
+          if (part.type === "reasoning") {
+            if (part.text !== "") return true
+            return hasOpaqueReasoning(part)
           }
           return true
         })

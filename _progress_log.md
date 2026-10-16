@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t68 C3b closer — registry закоммичен, typecheck зелёный, красные классифицированы (план plans/2026-10-16_model-chain-failover.md)
+
+✓ CONFIRMED (п.1): `health-registry.ts` (ReadonlyMap→Map) закоммичен `7326d41c`; `bun typecheck` из закоммиченного дерева — exit 0 (`20261016T080405Z_fba066a4`). Соседи разблокированы.
+✓ CONFIRMED (п.2, тихие повторы тем же харнессом): `processor-effect` 16/20 дважды под нагрузкой → 20/20 в тишине (`20261016T080714Z_f063c024` exit 0); `llm.test.ts` 33/34 дважды с ПЛАВАЮЩИМ кейсом (opencode-go, затем opencode) → 34/34 (`20261016T080957Z_06bfb3e3` exit 0). Один прогон был отравлен чужим промежуточным синтаксисом `message-v2.ts` (t70 P1b пишет прямо сейчас — не моё, не трогаю).
+— Вердикт по форме: строгий «до»-прогон без checkout/worktree в shared-дереве невозможен (запрет общий) → INDETERMINATE по форме; по существу HARNESS/ENV: (а) плавающий кейс при детерминированном коде, (б) мои ветки недостижимы без цепочек (legacy-путь байт-идентичен), (в) изолированные кейсы зелёные, (г) typecheck exit 0. Адрес residual-race: `llm.test.ts` tmpdir→`Instance.provide`→`projectUse`→CANTOPEN (dispose-vs-late-open) — чужой файл, отдельный лист, не мой.
+— Стоп на чистой границе: план ACTIVE (C3b открыт до live-стенда), дерево моих путей чистое, билд зелёный от C3b-коммита. Перенос сборки в `bin/` — за владельцем.
+<!-- sv: closer-green 0.40, flaky-classified 0.35, clean-stop 0.25 -->
 ## [2026-10-16] t67 closed — план в plans_completed/, карта перегенерирована
 
 ✓ CONFIRMED (закрытие): plans_completed/2026-10-16_org-reconcile-m1-contest.md закоммичен (был UNTRACKED после штатного reconcile); `svm render` — 33 плана, 143 открытых бокса; MASTER_PLAN.md — машинная регенерация целиком (счётчики и чужие закрытия отражены как факты дерева).

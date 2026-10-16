@@ -18,7 +18,7 @@
 
 ✓ CONFIRMED (smoke first): scripts/org-genesis/test_ticket_slugs.py RED до правок (8 errors — в схеме нет slug) → GREEN 8/8 после; регрессии test_cross_handoff.py 9/9, test_queue_contract.py 8/8 (их хелперы получили --slug; чужой S11-чанк не тронут).
 ✓ CONFIRMED (реализация): delegate --slug required (kebab, уникален среди READY/WORKING/BLOCKED/DONE; VERIFIED/CANCELLED освобождают); ticket() резолвит slug|id; inbox --json/текст и «Active tasks» показывают slug + title (legacy «-»); cancel --successor пишет failure_code «superseded by <slug>: …»; slug TEXT в ticket-schema.sql + ensure_ticket_fields + раздел в Protocol.md.
-— Коммиты через commit_own + private-index hunk-staging для org.py и test_cross_handoff.py (чужие S11-hunks ещё не в HEAD, целым файлом коммитить нельзя). _build.ps1 пропущен по bounds задачи (только scripts/**.py, bin/ не тронут).
+— Коммиты: 12c4da8a (schema/docs/tests/plan) + 675dfbf2 (org.py и test_cross_handoff.py — только свои hunks через commit_own --shared/--apply-patch; чужие S11-hunks ещё не в HEAD, целым файлом коммитить нельзя). _build.ps1 пропущен по bounds задачи (только scripts/**.py, bin/ не тронут). План закрыт → plans_completed/.
 <!-- sv: ticket-slug 0.35, kebab-uniqueness 0.25, slug-resolution 0.20, inbox-report 0.20 -->
 ## [2026-10-16] t65 slice 2 — message-v2 reasoning-only + differentModel + interleaved observe (план plans/2026-10-16_reasoning-lossless-replay.md)
 

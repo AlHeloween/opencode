@@ -19,6 +19,11 @@ parent-goal-md5: 00000000000000000000000000000000
 падали))) Кстати реально хитовый был бы проект заточить телефонный ИИ чтобы работать с руотванным фаерволом, но не
 сейчас.»
 
+Same day: «Кстати реально - в наше время поиска по открытым источникам... Это был бы хитовый проект.» — the demand
+side: in an OSINT era whatever a phone leaks (trackers, ad IDs, location pings, contact uploads) becomes searchable and
+joinable into a profile. The product's measurable value is the shrunken surface: third-party destinations and leaked
+data categories per app, before vs after, with every allowed service still healthy.
+
 ## The idea in our terms
 
 The pain is not writing rules once — it is that rules are a REPRESENTATION that breaks when the OS changes (new

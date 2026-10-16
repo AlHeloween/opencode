@@ -1,6 +1,13 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t73 cantopen-race + promote argv — оба листа закрыты (план plans/2026-10-16_cantopen-race-and-promote-argv.md)
+
+✓ CONFIRMED (L1, механизм): адрес t68 подтверждён живым стеком — `projectUse → getOrCreateDb → createAndInitDb → init → SQLITE_CANTOPEN errno 14` под 6× нагрузкой. Deleter — внешний чистильщик общего `.temp/test/` (билд t68 `5a58cb46` с чисткой лёг ровно в окно моего батча 10:47–10:49Z: pid-директории процессов исчезали в середине прогона) — late open упирался в снесённый каталог. Фикс: `db.ts` — `closeWorktreeDb` (выселение клиента одного worktree) + `withCantOpenRetry` (re-mkdir + backoff, genuine failures rethrow); `fixture.ts` — экспорт `withTmpdirInstanceLock`; `llm.test.ts` — `withDisposedInstance` (dispose+close внутри callback до сноса tmpdir, сериализация на локе фикстуры) + файловый `setDefaultTimeout(60_000)` (замер: 121 с стена при 6×); `config.ts` `ensureGitignore` — `ensureDir` перед записью (стёртый scratch-конфиг больше не DIEит boot через `orDie`).
+✓ CONFIRMED (L1, оракулы): тихо 34/34 ×5 (`843edb18`, `7c86b162`, `99294029`, `8fcb2147`, `ec16e1c9`); 3× параллельно 34/34 ×3; детерминированный wipe-оракул (снос `configs/` pid-директории в середине прогона) — RED до закалки (5× ENOENT DIE `80c905ea` 25/9, `41da5941` 32/2, `5f20dfdc` 33/1) → GREEN 34/34 после (`a258b373`, `57c74e71` exit 0); финальные 6× — 5/6 GREEN 34/34, шестой 30/4 только по стене (4 теста упёрлись в 60-секундный потолок при ~10× инфляции, ноль CANTOPEN, ноль ошибок ассёртов). `bun typecheck` exit 0 (`71e5b5b5`). CANTOPEN после retry-закалки — ноль в 8 прогонах.
+✓ CONFIRMED (L2, RED→GREEN): `parse_cmdline_args` возвращал одиночный exe-токен (quoted и нет) как ARGUMENTS + рвал quoted-пути с пробелами — `split_cmdline` по правилам CommandLineToArgvW + `is_exe_token`, одиночный exe → `[]`. Новый `test/promote-bin-argv.test.ts`: RED exit 1 (4 неверных разбора) → GREEN exit 0 (`f8c26174`); регрессия `promote-bin-cold.test.ts` 1/1 (`8c4aca05`). Реальный `bin/` не тронут.
+— Остаток: хвост 6×-самоконтеншена (harness-граница, reopen_when: более быстрая машина или меньший N); неопознанный внешний чистильщик `.temp/test` в 11:01Z (ведущая гипотеза — чужой `_build.ps1`, квитанции живых CANTOPEN-стеков сохранены в run-логах).
+<!-- sv: cantopen-fixed 0.35, argv-split 0.25, load-oracles 0.25, residual-tail 0.15 -->
 ## [2026-10-16] t68 stream-phase failover — retry-after за порогом терминален, runChainStream ведёт любую фазу через decideStreamError (план plans/2026-10-16_model-chain-failover.md, боксы не тронуты)
 
 ✓ CONFIRMED (RED→GREEN): `classify`: 429 + retryAfterMs 49_715_000 без текста тела → terminal, ≤ пола → transient; `parseRetryAfterMs` (ms-ключ/секунды/HTTP-date/мусор). `decideStreamError`: тот же кейс → next + DOWN за один ответ. `runChainStream` на заглушках (Effect/Stream, fake-clock): стрим free бросает 429 + FreeUsageLimitError + retry-after 49715 → free DOWN ровно за 1 вызов, switch-note перед чанками Go, без ожидания (весь файл — 2.32 с; сон 49715 с упёрся бы в 20-секундный таймаут). RED: оба файла exit 1 (нет экспорта: `parseRetryAfterMs not found`) → GREEN stream 15/15 (20261016T104459Z_2a920fb4), failover 29/29 (20261016T104514Z_46b4075c).
@@ -29,7 +36,6 @@
 ✓ CONFIRMED (render): `20261016T095324Z_582e25d3` exit 0; EXPECTED_FAIL missing marker, два одинаковых SHA256, hand-owned head и 7 manifests сохранены. Предыдущий stamp `20261016T095122Z_68af993e` ОТОЗВАН: cwd привязал неверный store; исправлено Global.initFromWorktree(root) и known-present manifest control. Inline eval ранее упал на quoting (`20261016T094941Z_7c55e72b`); полные журналы прочитаны, workaround file-launch, launcher не исправлен.
 — Продолжение: разрешённое cloning → integrity → Zoekt fixture → SCIP parity → consumer cutover; задача ACTIVE, background job отсутствует. Полной замены CodeGraph и ускорения не заявлено.
 <!-- sv: fossil-provenance 0.30, zoekt-search 0.25, migration-seams 0.20, scip-navigation 0.15, oracle-boundaries 0.10 -->
-
 
 ## [2026-10-16] Утечка доставок закрыта + PRESENCE отозваны (план plans/2026-10-16_presence-revoke-and-test-guard.md, G1-G3 закрыты)
 

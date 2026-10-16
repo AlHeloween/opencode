@@ -7267,3 +7267,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ SHARED (правка 4): cdbea9c27c унёс _progress_log.md целиком (t65 зафиксировал: контент цел, 9bd5ecac74) — историю не переписываю; этот entry идёт маршрутом --shared/--apply-patch (только свой ханк).
 — P1 НЕ начат: GO — решение владельца (правка 2). Residual: svm render для MASTER_PLAN-mapping (план пока не в карте) — вместе с P1 по слову владельца.
 <!-- sv: t70-fixes 0.35, tail-decided 0.25, cost-unknown 0.20, archive-shared 0.20 -->
+## [2026-10-16] t69 Revision R2 — переводить, не удалять: реализовано, протестировано, кампания уперлась в 429 (Smit)
+
+✓ OWNER WORD (дословно): «Смотри гемма мультиязычная, надо не удалять иероглифы, а их переводить.» + «тут важно переводить в зависимости от контекста если это размышление на английском - ну значит это английский, если это русский ну значит русский.» Записано в план как Revision R2 (v1-промпт и v1-правила помечены superseded, тексты сохранены).
+✓ CORPUS E7: +125 reasoning-строк (всего 195; deepseek 95, longcat 16, stealth 8, mimo 3, glm 2, bunny 1), DB read-only неизменна.
+✓ DETECTOR v3: precision 1.000, recall 0.869 (TP 152, FN 23, FP 0, TN 20); ru 3763 / en 1757 хитов (32% английского — кейс владельца реален); fixable 150/175 (33 text + 117 reasoning); selftest 4/4.
+✓ VALIDATOR v2 (translate-or-gloss, кавычки через глоссу — закрывает R-Q): selftest 8/8 (старые 5 + delete→REJECT rule4, gloss-in-quote→ACCEPT, en-translate→ACCEPT); sha 18c47b99. По пути селфтесты поймали 4 настоящих бага реализации (for-else вместо if-else, посимвольная вместо по-рановая проверка глоссы, пробел перед глоссой, аддитивный bound против канонического en-примера) — всё записано в REPORT S2, план поправлен с причинами.
+✓ FIXER v2 probe (31b, новый промпт): 3×429 за 182 117 мс → PROBE REFUSAL, кампания не слалась. Итого ≈15 попыток, 0 ответов, платных ноль.
+— VERDICT: NO-GO стоит (пул мёртв на 2 id × 2 промпта). Rerun-правило зафиксировано точно: 33 text + 76 reasoning ≤12KB = 109 отправок (только 81KB-исключение), одна попытка после чистой пробы, жёсткий стоп на 120. E7 [x], E8 BLOCKED. REPORT S2 + архив (всё identical) → коммит следом.
+<!-- sv: translate-dont-delete 0.35, v2-tested-green 0.30, pool-still-429 0.20, rerun-rule-fixed 0.15 -->

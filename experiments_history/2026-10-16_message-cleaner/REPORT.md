@@ -149,3 +149,36 @@ zero observations on either id; detector/validator/corpus/prompt/harness are unc
 reusable. Residual R-E3 updated: re-run `fixer_run.py --model <id> --all` (resume-aware)
 when a probe receipt shows `ok=True` on either allowlisted id; then E4 + REPORT supplement S2.
 No third id without the owner's explicit word.
+
+## Supplement S2 — Revision R2: translate, don't delete (owner word, implemented + tested, campaign blocked)
+
+Owner, verbatim: «Смотри гемма мультиязычная, надо не удалять иероглифы, а их переводить.»
+Owner, verbatim (context language): «тут важно переводить в зависимости от контекста если это
+размышление на английском - ну значит это английский, если это русский ну значит русский.»
+Recorded in plan as Revision R2 (prompt v1 + validator v1 marked superseded, texts kept).
+
+Corpus: +125 `reasoning-flagged` rows (195 lines total), DB read-only unchanged.
+By model: deepseek-flash 95, longcat-2.5-preview-free 16, stealth/space-bunny-alpha 8,
+mimo-v2.6-flash-free 3, glm-5.3-flash 2, space-bunny-free 1. 102 also-Cyrillic (mixed).
+Detector v3: precision **1.000**, recall **0.869** (TP 152, FN 23 = inline-code 17, fence 3,
+fence+inline 2, sv 1; FP 0, TN 20); context langs on sendable hits: ru 3763, en 1757
+(32% English — the owner's reasoning-in-English case is real); fixable **150/175**
+(33 text + 117 reasoning); selftest 4/4 (ru-slip, en-slip, code-exclusion, quote-glossable).
+Validator v2 (translate-or-gloss, quotes via gloss — closes R-Q): selftest **8/8** (old 5 +
+delete-not-translate→REJECT rule4, gloss-in-quote→ACCEPT, en-translate→ACCEPT);
+sha256 `18c47b99b4657c22409ae8c07c83740a34ff5c75ae1fb028bc6987acfb9dfbf6`.
+Implementation corrections found by the selftests (recorded, not hidden): a `for-else`
+masquerading as `if-else` (false-rejected every preserved token), per-char instead of
+per-run gloss check, gloss space per the owner's own «ошибка» format, additive bound
+replaced by a window-sized insertion cap after it false-rejected the owner's canonical
+下一步→next step case (plan rule 3 corrected with the reason).
+Fixer v2 probe (31b, new prompt): 3×429 over 182 117 ms → PROBE REFUSAL, nothing sent.
+Campaign total: ≈15 attempts, 0 outputs, paid zero. v1 produced 0 outputs, so no v1/v2
+output comparison exists (empty baseline, stated in R2).
+Rerun sampling rule (pre-decided, exact): 33 text fixable (incl. the 2 big longcats —
+truncation→reject is itself a measured outcome) + 76 reasoning fixable ≤12KB chars =
+109 sends; only `msg_1172b8e7e001` (81KB, >5× the 16384-token output cap) excluded with
+reason; single attempt per send after a clean probe; hard stop at 120 rerun attempts
+(probe ≤3 + 109 sends = ≤112, margin 9 for mid-run 429s, logged without retry).
+Renewed go/no-go: **NO-GO stands (pool dead across 2 ids × 2 prompts).** Acceptance and
+latency predictions re-enter UNSCORED for the v2 campaign. Residual: rerun on `ok=True`.

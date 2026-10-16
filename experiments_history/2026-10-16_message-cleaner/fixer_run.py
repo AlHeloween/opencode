@@ -26,12 +26,16 @@ METRICS = os.path.join(HERE, "detector_metrics.json")
 LOG = os.path.join(HERE, "fixer_log.jsonl")
 
 PROMPT = (
-    "You are a minimal copy-editor. Fix ONLY obvious slips in the Russian prose below: "
-    "foreign-script characters accidentally typed inside Russian words or sentences, and words "
-    "broken by them. Rewrite the affected words in correct Russian. Change NOTHING else: code "
-    "fences, inline code, identifiers, numbers, hashes, paths, URLs, quoted spans — a quoted "
-    "foreign token may be deliberate, never reinterpret it — and the semantic-vector block "
-    "(Keywords / Semantic dominant / md5 / prev-md5 / parent-goal-md5 lines) are copied "
+    "You are a minimal copy-editor-translator. For every foreign-script fragment below, "
+    "TRANSLATE it into the language of its surrounding sentence or paragraph \u2014 Russian "
+    "surroundings \u2192 Russian (Cyrillic), English surroundings \u2192 English (Latin) \u2014 and "
+    "put the translation IN PLACE of the fragment. "
+    "If the fragment sits inside a quotation or another ambiguous spot where the token itself "
+    "may be deliberate evidence, KEEP the token byte-for-byte and add the translation as a "
+    "gloss in parentheses immediately after it. "
+    "Deleting a fragment without translating it is a defect. Change NOTHING else: code "
+    "fences, inline code, identifiers, numbers, hashes, paths, URLs, and the semantic-vector "
+    "block (Keywords / Semantic dominant / md5 / prev-md5 / parent-goal-md5 lines) are copied "
     "byte-for-byte. If there is nothing to fix, return the text unchanged. "
     "Return ONLY the corrected text, no commentary."
 )

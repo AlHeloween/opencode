@@ -64,14 +64,14 @@ No `bin/`, no product source in Phase E. Commits through `scripts/commit_own.py`
 - Fixer latency: p50 3–8 s, p95 15–30 s (free-tier queue).
 - Hand-read drift sample: 10 accepted fixes, zero meaning changes predicted; any drift found is quoted and fails A5.
 
-## Fixer prompt (fixed — E3 uses exactly this text)
+## Fixer prompt v1 — SUPERSEDED by Revision R2 (kept for the record; the v1 campaign produced 0 outputs, so no v1/v2 output comparison exists)
 
 > You are a minimal copy-editor. Fix ONLY obvious slips in the Russian prose below: foreign-script characters
 > accidentally typed inside Russian words or sentences, and words broken by them. Rewrite the affected words in
 > correct Russian. Change NOTHING else: code fences, inline code, identifiers, numbers, hashes, paths, URLs, quoted spans («…", "…") — a quoted foreign token may be deliberate, never reinterpret it — and
 > byte-for-byte. If there is nothing to fix, return the text unchanged. Return ONLY the corrected text, no commentary.
 
-## Validator rules (deterministic oracle — E4 implements exactly this)
+## Validator rules v1 — SUPERSEDED by Revision R2 except rules 1–3 as amended there (rule 1 loses quote protection; quotes move to new rule 4; rule 4 send-scope drops quote-ambiguity)
 
 1. Protected spans extracted from the ORIGINAL — fenced blocks (```…```), inline code (`…`), URLs, `>` quote lines, inline quoted spans («…», "…"), the SV block
    (Keywords:/Semantic dominant:/md5:/prev-md5:/parent-goal-md5: lines), hex runs `[0-9a-fA-F]{7,}`, numbers,
@@ -150,3 +150,78 @@ web checks of the model page). No MODIFY_PROJECT, no PROMOTE_STABLE, no SELF_MOD
 write/edit (own paths only), cmd_runner-started scripts, task(researcher_agent for model liveness/page checks).
 Bounds: steps 50, tools 150, loops 3, depth 2, time 3 600 000 ms. Prohibitions: `bin/`, bare `git commit`,
 `git add -A`, `--no-verify`, `bun test` without a path, any DB write.
+
+## Revision R2 — translate, don't delete (owner word 2026-10-16, Phase E scope)
+
+Owner, verbatim: «Смотри гемма мультиязычная, надо не удалять иероглифы, а их переводить.»
+Owner, verbatim (context language): «тут важно переводить в зависимости от контекста если это
+размышление на английском - ну значит это английский, если это русский ну значит русский.»
+Examples from the owner: 记忆 in a Russian phrase → «память», in an English one → "memory";
+和 → «и» / "and"; от权威ного → «от авторитетного». Deletion without translation is a defect.
+This closes residual R-Q: ambiguous/quoted spots keep the token byte-for-byte and gain a
+context-language gloss right after it — «エラー (ошибка)» in Russian, "エラー (error)" in
+English — the evidence stays, the meaning is added.
+
+### Fixer prompt v2 (fixed — the v2 campaign uses exactly this text)
+
+> You are a minimal copy-editor-translator. For every foreign-script fragment below, TRANSLATE
+> it into the language of its surrounding sentence or paragraph — Russian surroundings → Russian
+> (Cyrillic), English surroundings → English (Latin) — and put the translation IN PLACE of the
+> fragment: 记忆 in a Russian phrase → «память», in an English phrase → "memory"; 和 → «и» / "and".
+> If the fragment sits inside a quotation or another ambiguous spot where the token itself may be
+> deliberate evidence, KEEP the token byte-for-byte and add the translation as a gloss in
+> parentheses immediately after it: «エラー (ошибка)» in Russian surroundings, "エラー (error)"
+> in English ones. Deleting a fragment without translating it is a defect. Change NOTHING else:
+> code fences, inline code, identifiers, numbers, hashes, paths, URLs, and the semantic-vector
+> block (Keywords / Semantic dominant / md5 / prev-md5 / parent-goal-md5 lines) are copied
+> byte-for-byte. If there is nothing to fix, return the text unchanged. Return ONLY the corrected
+> text, no commentary.
+
+### Validator rules v2 (deterministic oracle — implements exactly this)
+
+1. Protected spans from the ORIGINAL — fenced blocks, inline code, URLs, the SV block lines,
+   hex runs ≥7, numbers, paths — byte-identical in the output (ordered multiset; first mismatch
+   names its span). `>` quotelines and inline quotes are NO LONGER protected: they fall under
+   rule 4 (translate-or-gloss).
+2. Output prose (protected removed) carries foreign script ONLY as preserved-with-gloss tokens:
+   every foreign run must be byte-identical to an original run AND followed by a `(...)` gloss
+   (one typographic space allowed). Any other foreign char → REJECT rule2.
+3. Locality with no guessed constants (corrected during implementation: the additive bound
+   false-rejected the owner's canonical en-translation — 下一步→next step needs more than run+W):
+   W = longest whitespace-token of the ORIGINAL prose; every differing hunk intersects
+   [span−W, span+W]; inserted text of overlapping hunks must fit Σ(run+2W) over the runs it
+   touches (window-sized cap — a paragraph smuggled in at a span fails containment). Gloss
+   `(...)` right after a token (one typographic space allowed, as in «エラー (ошибка)») rides
+   the boundary insert and needs no window.
+4. Translate-or-gloss (new): every foreign span of the original prose must either (a) be replaced
+   in place by NON-EMPTY context-language text (Cyrillic when the span's paragraph is Russian,
+   Latin when English; never CJK) inside ±W, or (b) be preserved byte-for-byte with a gloss
+   `(...)` immediately after it — gloss non-empty, context-script, CJK-free. A span that simply
+   vanished → REJECT rule4:delete-without-translation. Paragraph = blank-line block of the
+   ORIGINAL; Cyrillic-letter count ≥ Latin-letter count → ru, else en (recorded per span).
+5. Send-time scope v2: whole-foreign ratio ≥ 0.10 → not sent; SV-block-only → not sent;
+   quoted-only hits are now SENT (gloss path). Fail → ORIGINAL stands + reason per reply.
+6. Identical clean output → ACCEPT (fast path, unchanged).
+
+### Bilingual scope (corpus, detector, tests)
+
+- Corpus extends to `reasoning` parts with CJK inside English text (kind `reasoning-flagged`);
+  text-part rows stay untouched. Detector emits context lang (ru|en) per hit and works on both;
+  detector selftest covers ru-slip, en-slip, code-exclusion, quote-glossable (4 fixtures).
+- Validator selftest adds: `delete-not-translate → REJECT rule4`, `gloss-in-quote → ACCEPT`,
+  `en-translate → ACCEPT` (old 5 fixtures stay green).
+- v1 campaign produced 0 outputs (upstream 429), so the v1 run is an empty baseline: no v1/v2
+  output comparison exists to make; the report compares validator-acceptance on v2 outputs only.
+  Predictions for acceptance (0.70–0.85) and latency (p50 3–8 s, p95 15–30 s) are re-entering
+  unscored and will be scored against the v2 campaign.
+
+- [x] **E7** — Reasoning corpus + bilingual detector/validator tests: `corpus.jsonl` gains
+  `reasoning-flagged` rows (DB read-only, counts by model); detector emits ru|en per hit +
+  4-fixture selftest; validator selftest gains the 3 v2 fixtures. Binding: `extend_corpus.py`,
+  `detector.py`, `validator.py`. state=DONE:125-reasoning-rows-det-p1.000-r0.869-val-8of8-det-4of4;eta_turns=1;oracle=A2+bilingual.
+  <!-- sv: reasoning-corpus 0.40, bilingual-tests 0.35, context-language 0.25 -->
+- [ ] **E8** — v2 campaign on the allowlisted free id: probe with prompt v2 (31b: 3×429 PROBE REFUSAL), then `--all` over the
+  extended fixable set (budget ≤120 total incl. the ≈11 spent); validator over all outputs;
+  REPORT supplement S2 (acceptance, rejects with why, latency p50/p95, 10 drift reads quoted,
+  renewed go/no-go). Binding: `fixer_log_<slug>-v2`, `verdicts`, `REPORT.md`.
+  state=BLOCKED:v2-probe-429-rerun-sampling-109-sends-decided-S2-written;eta_turns=2;oracle=A3+A5. <!-- sv: v2-campaign 0.45, translate-acceptance 0.35, s2-report 0.20 -->

@@ -1,21 +1,23 @@
 {
- "tp": 34,
+ "tp": 152,
  "fn_classes": {
-  "fence": 2,
+  "fence": 3,
   "fence+inline-code": 2,
-  "inline-code": 11,
-  "quoteline": 1
+  "inline-code": 17,
+  "sv-block": 1
  },
  "fp": 0,
  "tn": 20,
  "precision": 1.0,
- "recall": 0.68,
+ "recall": 0.8685714285714285,
  "ratio_cap": 0.1,
  "fixable": [
   "msg_0dec8e6c9001CzfFb8SNFtJxl3",
   "msg_0def60d8c001bSh0q0H2PbJxCP",
   "msg_0e0742a10001N376hY6eVMMn8U",
   "msg_0e08623f3001GNZiFftrNn0V68",
+  "msg_0e09da58a001bbdR3eFA85NI2Z",
+  "msg_0e0c91360001wb9vJQu2BPai2R",
   "msg_0e11c440c001P1choA7EoOBEhJ",
   "msg_0e14b3fd1001oFBS40OZOfr7E2",
   "msg_0e1a7fb6f0017ckdPp0t7PZ0Dq",
@@ -27,10 +29,14 @@
   "msg_0e66da1ae001d3xZhF4T4N6DMI",
   "msg_0e7e146c1001ed2ci5LCtf9Dm1",
   "msg_0e7fd3371001xN8hgjb8DNJ8pV",
+  "msg_0e80b0d1b0013z2YfolBPWXQUN",
   "msg_0e8162f3e001C7wpzA7sIqj94g",
   "msg_0e83353ae0015KRsIkHIkqwnf8",
+  "msg_0e893341f001KeUFSvxVjou3tc",
   "msg_0e8ced61a001v4SNsm6oeFLjL3",
   "msg_0e92e5ef3001mRgWlx7sOl0xAx",
+  "msg_0f2f46da7001WoRcyGmubJwuba",
+  "msg_0f2f4a8b1001e64mvcKtgERJm1",
   "msg_116c87131001ClqKsoNlMwr306",
   "msg_116da2862001mbMs2kJZxWWHqa",
   "msg_116dca5e9001dhDNH5MDAx8i1p",
@@ -38,7 +44,124 @@
   "msg_1382640f7001EXNyz4sn7saftI",
   "msg_138a57cac001L11YPfyvpL46ZN",
   "msg_13be01965001tuQfBWRTh3Ren4",
-  "msg_142492924001CyoyxznLfz3KhJ"
+  "msg_142492924001CyoyxznLfz3KhJ",
+  "msg_0d459c104001PHnC6l2d5nOMIg",
+  "msg_0dbc09b4c001lUZwnEe24ryFNl",
+  "msg_0dbdfe07200175Nz6k3KfmkoGT",
+  "msg_0dbe8d1ea001w0KxlD2N6Ub7At",
+  "msg_0dc1e9227001at7pu0wbfIRgWF",
+  "msg_0dc21cd01001rceHXyPFZpPx16",
+  "msg_0dc6d0cbd001WuHt2XjF2w1WsA",
+  "msg_0dc6fd6de0018n9EfyaAZTJSvz",
+  "msg_0dd01053a001lGUvM4qMv2LVHC",
+  "msg_0dd0b972e0019PstBqpNzHsVLi",
+  "msg_0dd8766d6001fxqwca4986LxHN",
+  "msg_0de2ee8f0001IeA5Ofa4LWjMlb",
+  "msg_0de2f6ac7001w7GSWDvGgpisNY",
+  "msg_0e0cc0453001gqthst4eBH5yau",
+  "msg_0e121f54f001ikFX9ZWLUvVnfv",
+  "msg_0e3dd5d8d001x449XW5816CZuG",
+  "msg_0e9273003001syVFGWDvqg6UVN",
+  "msg_0e9804565001Jya2IJPthP8R5c",
+  "msg_0e980a93c001fYCWDt0gFKjpYz",
+  "msg_0eb5828f0001UPCW8BuWYwUQ2T",
+  "msg_0eb5e4a0a001JHwY8PxVzp9p2R",
+  "msg_0eb6072bb001oQN6XD8rlbqTsL",
+  "msg_0ec1d703e001YScQ7AmvfTo9QN",
+  "msg_0ec59c1b9001Nqi9F6wF7ZRMTV",
+  "msg_0ec5ac6d5001Ssa3tLCJqcSeIh",
+  "msg_0ec603ced001BV7oxWCeH6M8MT",
+  "msg_0ee7677b4001a8H8dO2JkW5W7y",
+  "msg_0f04d01bd0014ds2qZbkZE4F3V",
+  "msg_0f2f10084001XB3hUt4yL1x1X3",
+  "msg_0f2f17ec1001FvDfi4PFIrrFpc",
+  "msg_0f2f1ae7c001R1CMCRtwmFQwMG",
+  "msg_0f2f20282001PaOb7eL0oepLwA",
+  "msg_0f2f8ae45001VhqfN6xko7CZId",
+  "msg_0f4e192de001yRQH33MkeDXbsr",
+  "msg_0f6b4b6b1001rfjN1xigAfDZAk",
+  "msg_1040d1c620012CtELlnF1n3NSy",
+  "msg_10c36d4f6001J5xyN2HOUu4vY3",
+  "msg_10c3a7fbf001rihhnnDQIHL7Rm",
+  "msg_10c9b81d2001F2Kdk6044fSBAd",
+  "msg_10cbbfecd001QJV4B9HzPl07HF",
+  "msg_10cc6bb64001m7RpTP84SQB4ZI",
+  "msg_10ef05e65001kIsHp1WJygWn7s",
+  "msg_10ef7f084001UFKt1SwoA7H6sa",
+  "msg_1102a7f50001bTawIOdPqCoTC3",
+  "msg_1102ac39d001NETbU4RXP15U2c",
+  "msg_110abc53c001VxMFH6kDn3joxB",
+  "msg_110c43a34001r2qguEuBIffRCe",
+  "msg_116b7f37a001YS8Zr0HIKkPkbU",
+  "msg_116bf6d7c001Ck6Kk6omm8eU3e",
+  "msg_116c16dca001Urnw960yOi26YN",
+  "msg_116c2302a001wpD2pIk8dyMa26",
+  "msg_116c4bbf2001q7KtMBTPHmmItb",
+  "msg_116c7287b001UU61GSD6CfQyly",
+  "msg_116c78df3001Esi9vFeNmxkkWp",
+  "msg_116c7ff100012LMAP9BRVKeB3V",
+  "msg_116de2f03001Zq24pnxapAyH6k",
+  "msg_116df7c58001yz2RbA62bKAQIx",
+  "msg_116e15f460013JDFe8hYdgqwZY",
+  "msg_116e8236f001oDlpSgunnu1YlQ",
+  "msg_116ebc5dc001ihoJDqj9FjuIEZ",
+  "msg_116f65513001dRy396O74n6ZQ5",
+  "msg_11715881c001jtEBsMxznbU8Bo",
+  "msg_1171a8932001ac5GmWN3K6Fyap",
+  "msg_1171d4f10001aCvjOiCHy71iLK",
+  "msg_1171f9d10001i3HEPLAHQgFK6A",
+  "msg_1172b8e7e001oq09dS42Zs35Ij",
+  "msg_1172fd1fe001CwdqqVddREXIl1",
+  "msg_117de7958001xWqWb38boB4bcq",
+  "msg_118ecf00a001ysaAEwBfTYOpVO",
+  "msg_1193e0744001C7eFOfjSc2vy7N",
+  "msg_1196f2a2c001M0rfZOv1gu6a2q",
+  "msg_119fb22e8001zKyB4JKVkqPvGV",
+  "msg_119fbcb05001gHLJQ15FBACmL3",
+  "msg_119fdd5f50016IOgrScrmQVUji",
+  "msg_119fea441001iNlEnIds81WR01",
+  "msg_11a0b5010001JNsmjWm34eK0Z5",
+  "msg_11a0bb9ea001Genm25PZ33B5Uk",
+  "msg_11a0cca33001ex6e6Hoxve65d2",
+  "msg_11af6f638001TquWLNOV5MrYa0",
+  "msg_11b4a5be5001kV5PDYzMDJ7ghF",
+  "msg_11b9b6203001r1smdrsfQ5UN7O",
+  "msg_11e0ed7f6001kOjLxKKjW9PJo3",
+  "msg_11eb11bc8001UR40IbWtdimpId",
+  "msg_11eb13b96001GPN7EXqJPUdQyD",
+  "msg_123b4d372001jvDt7EGClrCJtO",
+  "msg_1257c1dff001uKaWUtpmW9muT2",
+  "msg_1264200c60015poqrPuxClHAV9",
+  "msg_1264286cb001gwxytgyt45vubH",
+  "msg_12a676330001YvfU4adRkxxObb",
+  "msg_12a69b4fe001UartU2LGOMNOCD",
+  "msg_12baf61bd001z5LSA3JQUt3Hju",
+  "msg_12bdc40d70014lzYfExAHzBt69",
+  "msg_13232056a001fhq5Jn0ZIQJU9L",
+  "msg_13232aeac001YdFwszZ6s20Td0",
+  "msg_1348cb67c001XBT7i0HpW716tL",
+  "msg_1350b70b4001oNVM7s0Si5YaPh",
+  "msg_13534e796001pAyGJJolSRBQmC",
+  "msg_1354e401c0016DkhMWdVy57i1Y",
+  "msg_1355e0bbd001F6RTO5EumQeAlE",
+  "msg_135659b61001zdVwZ4uv4Gns9z",
+  "msg_1370d6f29001RZFv5S1PXEejBd",
+  "msg_137167ec8001FpxC0Tm9buLaOp",
+  "msg_137fdd856001AqJkvVuoM5DXLV",
+  "msg_13804328f001U5TtMPAriyFsER",
+  "msg_138055f7b0016MFBvQfcGNk9Iw",
+  "msg_1380ea122001DPMGAPX9WmGDbv",
+  "msg_138218b60001G1he2Zw7CBIDLG",
+  "msg_13821d287001yJWP3wTyXWTn24",
+  "msg_1382bac7b00162v7eS0spbQyn5",
+  "msg_138a4dd31001FdPYMl52AcwN4m",
+  "msg_139c6b5bf001jT84QDy9PbqG76",
+  "msg_139c8bc29001dndwwTNNX0an37",
+  "msg_139d703db001O4Euc0e3kQ4o86",
+  "msg_13a5d3ba5001XZk3i3dCBDKmJP",
+  "msg_13a60b97b001jBzMZV4W9H1acv",
+  "msg_13a60ed57001ly4jfkMgW4KxuS",
+  "msg_13a746e3d001JqgFg8PFRo7yHE"
  ],
  "rows": [
   {
@@ -47,8 +170,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "fence"
@@ -60,8 +182,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0142,
    "classes": [
     "prose"
@@ -73,8 +196,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.007,
    "classes": [
     "prose"
@@ -86,8 +210,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0041,
    "classes": [
     "prose"
@@ -99,8 +224,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "en"
+   ],
    "ratio": 0.0009,
    "classes": [
     "prose"
@@ -111,9 +237,10 @@
    "model": "openrouter/stealth/space-bunny-alpha",
    "kind": "flagged",
    "flagged": true,
-   "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 3,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.005,
    "classes": [
     "inline-code",
@@ -126,8 +253,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "fence",
@@ -140,8 +266,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -153,8 +278,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -166,8 +290,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -179,8 +302,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -192,8 +314,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -205,8 +326,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -218,8 +338,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -231,8 +350,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -243,9 +361,10 @@
    "model": "openrouter/stealth/space-bunny-alpha",
    "kind": "flagged",
    "flagged": true,
-   "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 2,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.001,
    "classes": [
     "quote-inline"
@@ -257,8 +376,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0009,
    "classes": [
     "prose"
@@ -270,8 +390,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0008,
    "classes": [
     "prose"
@@ -283,8 +404,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0015,
    "classes": [
     "prose"
@@ -296,8 +418,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0076,
    "classes": [
     "prose"
@@ -309,8 +432,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0013,
    "classes": [
     "prose"
@@ -322,8 +446,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0082,
    "classes": [
     "prose"
@@ -335,8 +460,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0078,
    "classes": [
     "prose"
@@ -348,8 +474,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0136,
    "classes": [
     "prose"
@@ -361,8 +488,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0006,
    "classes": [
     "prose"
@@ -374,8 +502,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "en"
+   ],
    "ratio": 0.0068,
    "classes": [
     "prose"
@@ -387,8 +516,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 3,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0018,
    "classes": [
     "prose"
@@ -399,9 +529,10 @@
    "model": "opencode/space-bunny-free",
    "kind": "flagged",
    "flagged": true,
-   "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 2,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0007,
    "classes": [
     "quote-inline"
@@ -413,8 +544,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 3,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0014,
    "classes": [
     "prose"
@@ -426,8 +558,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 3,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0038,
    "classes": [
     "prose"
@@ -437,11 +570,12 @@
    "msg_id": "msg_0e893341f001KeUFSvxVjou3tc",
    "model": "openrouter/stealth/space-bunny-alpha",
    "kind": "flagged",
-   "flagged": false,
-   "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
-   "ratio": 0.0,
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0005,
    "classes": [
     "quoteline"
    ]
@@ -452,8 +586,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0037,
    "classes": [
     "prose"
@@ -465,8 +600,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0017,
    "classes": [
     "prose"
@@ -478,8 +614,10 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": false,
-   "prose_hits": 904,
-   "quote_hits": 0,
+   "langs": [
+    "en",
+    "ru"
+   ],
    "ratio": 0.5654,
    "classes": [
     "prose",
@@ -492,8 +630,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -505,8 +642,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -518,8 +654,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "fence",
@@ -531,9 +666,10 @@
    "model": "deepseek/deepseek-flash",
    "kind": "flagged",
    "flagged": true,
-   "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 12,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
    "ratio": 0.0556,
    "classes": [
     "quote-inline"
@@ -544,9 +680,10 @@
    "model": "deepseek/deepseek-flash",
    "kind": "flagged",
    "flagged": true,
-   "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 12,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0052,
    "classes": [
     "inline-code",
@@ -559,8 +696,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "inline-code"
@@ -572,8 +708,10 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 265,
-   "quote_hits": 0,
+   "langs": [
+    "en",
+    "ru"
+   ],
    "ratio": 0.0138,
    "classes": [
     "prose"
@@ -585,8 +723,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0002,
    "classes": [
     "prose"
@@ -598,8 +737,10 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 52,
-   "quote_hits": 0,
+   "langs": [
+    "en",
+    "ru"
+   ],
    "ratio": 0.0096,
    "classes": [
     "prose"
@@ -611,8 +752,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 3,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0044,
    "classes": [
     "prose"
@@ -624,8 +766,7 @@
    "kind": "flagged",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": [
     "fence"
@@ -637,8 +778,10 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": false,
-   "prose_hits": 429,
-   "quote_hits": 0,
+   "langs": [
+    "en",
+    "ru"
+   ],
    "ratio": 0.5232,
    "classes": [
     "prose"
@@ -650,8 +793,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "ru"
+   ],
    "ratio": 0.0139,
    "classes": [
     "prose"
@@ -663,8 +807,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 2,
-   "quote_hits": 0,
+   "langs": [
+    "en"
+   ],
    "ratio": 0.004,
    "classes": [
     "prose"
@@ -676,8 +821,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 4,
-   "quote_hits": 0,
+   "langs": [
+    "en"
+   ],
    "ratio": 0.0007,
    "classes": [
     "prose"
@@ -689,8 +835,9 @@
    "kind": "flagged",
    "flagged": true,
    "fixable": true,
-   "prose_hits": 1,
-   "quote_hits": 0,
+   "langs": [
+    "en"
+   ],
    "ratio": 0.0012,
    "classes": [
     "prose"
@@ -702,8 +849,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -713,8 +859,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -724,8 +869,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -735,8 +879,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -746,8 +889,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -757,8 +899,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -768,8 +909,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -779,8 +919,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -790,8 +929,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -801,8 +939,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -812,8 +949,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -823,8 +959,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -834,8 +969,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -845,8 +979,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -856,8 +989,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -867,8 +999,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -878,8 +1009,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -889,8 +1019,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -900,8 +1029,7 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
   },
@@ -911,10 +1039,1767 @@
    "kind": "clean-control",
    "flagged": false,
    "fixable": false,
-   "prose_hits": 0,
-   "quote_hits": 0,
+   "langs": [],
    "ratio": 0.0,
    "classes": []
+  },
+  {
+   "msg_id": "msg_0d459c104001PHnC6l2d5nOMIg",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0018,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dbc09b4c001lUZwnEe24ryFNl",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dbdfe07200175Nz6k3KfmkoGT",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dbe8d1ea001w0KxlD2N6Ub7At",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0007,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dc1e9227001at7pu0wbfIRgWF",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0005,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dc21cd01001rceHXyPFZpPx16",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dc6d0cbd001WuHt2XjF2w1WsA",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dc6fd6de0018n9EfyaAZTJSvz",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0dd01053a001lGUvM4qMv2LVHC",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0005,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dd0b972e0019PstBqpNzHsVLi",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0019,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0dd8766d6001fxqwca4986LxHN",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0011,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0de2ee8f0001IeA5Ofa4LWjMlb",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0006,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0de2f6ac7001w7GSWDvGgpisNY",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0013,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0a082b9001jUD4G10mjlThnd",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "reasoning-flagged",
+   "flagged": false,
+   "fixable": false,
+   "langs": [],
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0a0afc8001eTrO03kYDq1sCD",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "reasoning-flagged",
+   "flagged": false,
+   "fixable": false,
+   "langs": [],
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0bc3c1f001yj1uF4IAdbcbkZ",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "reasoning-flagged",
+   "flagged": false,
+   "fixable": false,
+   "langs": [],
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0cc0453001gqthst4eBH5yau",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0027,
+   "classes": [
+    "prose",
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0e121f54f001ikFX9ZWLUvVnfv",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0008,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e3dd5d8d001x449XW5816CZuG",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e9273003001syVFGWDvqg6UVN",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0005,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e9804565001Jya2IJPthP8R5c",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e980a93c001fYCWDt0gFKjpYz",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0eb5828f0001UPCW8BuWYwUQ2T",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0eb5e4a0a001JHwY8PxVzp9p2R",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0eb6072bb001oQN6XD8rlbqTsL",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0ec1d703e001YScQ7AmvfTo9QN",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0006,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0ec59c1b9001Nqi9F6wF7ZRMTV",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0ec5ac6d5001Ssa3tLCJqcSeIh",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0ec603ced001BV7oxWCeH6M8MT",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0005,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0ee7677b4001a8H8dO2JkW5W7y",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0f04d01bd0014ds2qZbkZE4F3V",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f10084001XB3hUt4yL1x1X3",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0205,
+   "classes": [
+    "prose",
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f17ec1001FvDfi4PFIrrFpc",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0168,
+   "classes": [
+    "inline-code",
+    "prose",
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f1ae7c001R1CMCRtwmFQwMG",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0027,
+   "classes": [
+    "inline-code",
+    "prose",
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f20282001PaOb7eL0oepLwA",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0007,
+   "classes": [
+    "fence",
+    "inline-code",
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f82e03001zvY4H9whLWUdel",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": false,
+   "fixable": false,
+   "langs": [],
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f8ae45001VhqfN6xko7CZId",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "inline-code",
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0f4e192de001yRQH33MkeDXbsr",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0123,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0f6b4b6b1001rfjN1xigAfDZAk",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0fb0cec010017zLy37ZPyE0BwF",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": false,
+   "fixable": false,
+   "langs": [],
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0fb14ac46001xQu2ghYxEhNUrT",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": false,
+   "fixable": false,
+   "langs": [],
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_1040d1c620012CtELlnF1n3NSy",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1040de79a001V7ZrNkE9zZAm3c",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": false,
+   "fixable": false,
+   "langs": [],
+   "ratio": 0.0,
+   "classes": [
+    "fence"
+   ]
+  },
+  {
+   "msg_id": "msg_10c36d4f6001J5xyN2HOUu4vY3",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0005,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_10c3a7fbf001rihhnnDQIHL7Rm",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_10c9b81d2001F2Kdk6044fSBAd",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0006,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_10cbbfecd001QJV4B9HzPl07HF",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0015,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_10cc6bb64001m7RpTP84SQB4ZI",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0015,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_10ef05e65001kIsHp1WJygWn7s",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0012,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_10ef7f084001UFKt1SwoA7H6sa",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1102a7f50001bTawIOdPqCoTC3",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1102ac39d001NETbU4RXP15U2c",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_110abc53c001VxMFH6kDn3joxB",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_110c43a34001r2qguEuBIffRCe",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0007,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116b7f37a001YS8Zr0HIKkPkbU",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0005,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116bf6d7c001Ck6Kk6omm8eU3e",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116c16dca001Urnw960yOi26YN",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0009,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116c2302a001wpD2pIk8dyMa26",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0056,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116c4bbf2001q7KtMBTPHmmItb",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0099,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116c7287b001UU61GSD6CfQyly",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0011,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116c78df3001Esi9vFeNmxkkWp",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0015,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116c7ff100012LMAP9BRVKeB3V",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0015,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116de2f03001Zq24pnxapAyH6k",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0102,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116df7c58001yz2RbA62bKAQIx",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0102,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116e15f460013JDFe8hYdgqwZY",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116e8236f001oDlpSgunnu1YlQ",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0088,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116ebc5dc001ihoJDqj9FjuIEZ",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0446,
+   "classes": [
+    "prose",
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_116f65513001dRy396O74n6ZQ5",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en",
+    "ru"
+   ],
+   "ratio": 0.0195,
+   "classes": [
+    "prose",
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_11715881c001jtEBsMxznbU8Bo",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0052,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1171a8932001ac5GmWN3K6Fyap",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1171d4f10001aCvjOiCHy71iLK",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0021,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1171f9d10001i3HEPLAHQgFK6A",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1172b8e7e001oq09dS42Zs35Ij",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1172fd1fe001CwdqqVddREXIl1",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_117de7958001xWqWb38boB4bcq",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_118ecf00a001ysaAEwBfTYOpVO",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1193e0744001C7eFOfjSc2vy7N",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0003,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1196f2a2c001M0rfZOv1gu6a2q",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_119fb22e8001zKyB4JKVkqPvGV",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_119fbcb05001gHLJQ15FBACmL3",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_119fdd5f50016IOgrScrmQVUji",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_119fea441001iNlEnIds81WR01",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0006,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_11a0b5010001JNsmjWm34eK0Z5",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0006,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_11a0bb9ea001Genm25PZ33B5Uk",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_11a0cca33001ex6e6Hoxve65d2",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_11af6f638001TquWLNOV5MrYa0",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_11b4a5be5001kV5PDYzMDJ7ghF",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_11b9b6203001r1smdrsfQ5UN7O",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_11e0ed7f6001kOjLxKKjW9PJo3",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_11eb11bc8001UR40IbWtdimpId",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_11eb13b96001GPN7EXqJPUdQyD",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_123b4d372001jvDt7EGClrCJtO",
+   "model": "opencode/space-bunny-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0007,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1257c1dff001uKaWUtpmW9muT2",
+   "model": "opencode/mimo-v2.6-flash-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1264200c60015poqrPuxClHAV9",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1264286cb001gwxytgyt45vubH",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_12a676330001YvfU4adRkxxObb",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_12a69b4fe001UartU2LGOMNOCD",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_12baf61bd001z5LSA3JQUt3Hju",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_12bdc40d70014lzYfExAHzBt69",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_12fb572e9001AuCJc99XccL6tG",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": false,
+   "fixable": false,
+   "langs": [],
+   "ratio": 0.0,
+   "classes": [
+    "sv-block"
+   ]
+  },
+  {
+   "msg_id": "msg_13232056a001fhq5Jn0ZIQJU9L",
+   "model": "opencode-go/glm-5.3-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0037,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_13232aeac001YdFwszZ6s20Td0",
+   "model": "opencode-go/glm-5.3-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0018,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_1348cb67c001XBT7i0HpW716tL",
+   "model": "opencode/mimo-v2.6-flash-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0003,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1350b70b4001oNVM7s0Si5YaPh",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_13534e796001pAyGJJolSRBQmC",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1354e401c0016DkhMWdVy57i1Y",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1355e0bbd001F6RTO5EumQeAlE",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_135659b61001zdVwZ4uv4Gns9z",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1370d6f29001RZFv5S1PXEejBd",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_137167ec8001FpxC0Tm9buLaOp",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0015,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_137fdd856001AqJkvVuoM5DXLV",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0008,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_13804328f001U5TtMPAriyFsER",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_138055f7b0016MFBvQfcGNk9Iw",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0015,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1380ea122001DPMGAPX9WmGDbv",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0017,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_138218b60001G1he2Zw7CBIDLG",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0006,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_13821d287001yJWP3wTyXWTn24",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0007,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1382bac7b00162v7eS0spbQyn5",
+   "model": "opencode/mimo-v2.6-flash-free",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_138a4dd31001FdPYMl52AcwN4m",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0011,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_139c6b5bf001jT84QDy9PbqG76",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0008,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_139c8bc29001dndwwTNNX0an37",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_139d703db001O4Euc0e3kQ4o86",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "en"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_13a5d3ba5001XZk3i3dCBDKmJP",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0003,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_13a60b97b001jBzMZV4W9H1acv",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0003,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_13a60ed57001ly4jfkMgW4KxuS",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0001,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_13a746e3d001JqgFg8PFRo7yHE",
+   "model": "deepseek/deepseek-flash",
+   "kind": "reasoning-flagged",
+   "flagged": true,
+   "fixable": true,
+   "langs": [
+    "ru"
+   ],
+   "ratio": 0.0015,
+   "classes": [
+    "prose"
+   ]
   }
  ]
 }

@@ -7172,3 +7172,8 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ CONFIRMED (source diff, own paths): model-scope.ts + global-agent-model.ts (чистые), dialog-select-model.tsx — scope-переключатель Session/Global (персист, без сессии только Global), scopedModel-обёртка, global-ветка с carry в сессию как TUI setGlobalAgentSelection; en.ts +3 ключа (en — fallback-база). Поповер оставлен session-only (дописано в плане как follow-up).
 ✓ CONFIRMED (regressions): typecheck 20261016T044319Z_7abb468d exit 0 (после фикса типов в тесте); i18n parity 20261016T044350Z_79926644 1 pass.
 <!-- sv: scoped-dialog 0.40, same-global-route 0.35, red-green 0.25 -->
+## [2026-10-16] t59 — ГОНКА ИНДЕКСА, зафиксировано честно (Smit, повтор класса t50)
+
+— Факт: мой `git add` 8 путей W4 + `git commit -m t59` унёс чужой стейдж полосы org-ticket-slugs: в коммите 551bb9501d лежат их staged-deletions (plans/2026-10-16_org-ticket-slugs.md −63, scripts/org-genesis/test_ticket_slugs.py −340, плюс правки Protocol.md/branding.sql/init.py/test_queue_contract.py/ticket-schema.sql). Проверка ПОСЛЕ: оба файла живы на диске (glob находит), сейчас как untracked; 5 правок org-genesis — unstaged M, полоса работает дальше. Контент не потерян, бита только атрибуция. History rewrite запрещён — оставлено как есть.
+— Причина: перед коммитом не проверил `git diff --cached --stat` (индекс общий на всех роботов). Урок в процедуру: add своих путей → diff --cached --stat → только свои → commit. Индекс сейчас пуст (проверено). Их файлы не трогаю: ни add, ни restore.
+<!-- sv: index-race 0.50, no-rewrite 0.30, content-safe 0.20 -->

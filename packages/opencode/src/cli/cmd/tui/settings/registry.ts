@@ -250,8 +250,84 @@ function envRows(): SettingRow[] {
   }))
 }
 
-/** Full registry — config rows are generated from the live schema. */
-export const SETTINGS_REGISTRY: SettingRow[] = [...configRows(), ...sessionRows(), ...modelStateRows(), ...envRows()]
+// ── t76-minimum feature gates (nested features.* keys, one editable row each) ──
+
+export interface FeatureFlagMeta {
+  /** Leaf under `features` (schemaKey is `features.<leaf>`). */
+  leaf: string
+  /** Env override name — wins over config when set (priority env > config). */
+  env: string
+  /** "opt-out": gate ON unless env carries 0/false/off/no or config is false. "opt-in": ON only when env is true/1 or config is true. */
+  mode: "opt-out" | "opt-in"
+  /** Rendered when neither env nor config sets the key (never blank). */
+  def: boolean
+  title: string
+  description: string
+}
+
+export const FEATURE_FLAGS: FeatureFlagMeta[] = [
+  {
+    leaf: "graphFirst",
+    env: "OPENCODE_GRAPH_FIRST",
+    mode: "opt-out",
+    def: true,
+    title: "Graph-first gate",
+    description:
+      "Codegraph-before-scanners discipline for agents. Env wins when set; default on.",
+  },
+  {
+    leaf: "docReadGate",
+    env: "OPENCODE_DOC_READ_GATE",
+    mode: "opt-out",
+    def: true,
+    title: "Doc-read gate",
+    description:
+      "Refuses script reads of docs, routes to the read tool. Env wins when set; default on.",
+  },
+  {
+    leaf: "stopCheck",
+    env: "OPENCODE_STOP_CHECK",
+    mode: "opt-out",
+    def: true,
+    title: "Stop check",
+    description:
+      "Blocks turn exit on prose questions and hand-offs. Env wins when set; default on.",
+  },
+  {
+    leaf: "codegraphMcp",
+    env: "OPENCODE_CODEGRAPH_MCP",
+    mode: "opt-out",
+    def: true,
+    title: "CodeGraph MCP auto-enable",
+    description:
+      "Auto-injects mcp.codegraph when eligible. Env opt-out wins when set; default on.",
+  },
+  {
+    leaf: "selfEditDirective",
+    env: "OPENCODE_SELF_EDIT_DIRECTIVE",
+    mode: "opt-in",
+    def: false,
+    title: "Self-edit directive",
+    description:
+      "Agent narrows its own replayed representation. Env wins when set; default off.",
+  },
+]
+
+function featureFlagRows(): SettingRow[] {
+  return FEATURE_FLAGS.map((flag) => ({
+    id: `config.features.${flag.leaf}`,
+    group: "Agent Gates",
+    title: flag.title,
+    kind: "boolean" as const,
+    source: "config" as const,
+    schemaKey: `features.${flag.leaf}`,
+    layers: ["global", "worktree"] as SettingLayer[],
+    description: `${flag.description} (env ${flag.env} overrides)`,
+  }))
+}
+
+/** Full registry — config rows are generated from the live schema; t76-minimum gates ride as nested rows. */
+export const SETTINGS_REGISTRY: SettingRow[] = [...configRows(), ...featureFlagRows(), ...sessionRows(), ...modelStateRows(), ...envRows()]
 
 /** Current value of an env row from the TUI process environment. */
 export function envValue(name: string): string | undefined {

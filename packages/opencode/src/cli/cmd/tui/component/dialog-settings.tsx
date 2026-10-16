@@ -5,7 +5,7 @@ import { DialogSelect, type DialogSelectOption } from "@tui/ui/dialog-select"
 import { DialogPrompt } from "@tui/ui/dialog-prompt"
 import { DialogConfirm } from "./dialog-confirm"
 import { useTheme } from "../context/theme"
-import { envValue, SETTINGS_REGISTRY, type SettingRow } from "../settings/registry"
+import { envValue, FEATURE_FLAGS, SETTINGS_REGISTRY, type SettingRow } from "../settings/registry"
 import * as Log from "@opencode-ai/core/util/log"
 import { useKV } from "@tui/context/kv"
 import { coerceScope, cycleScope, readScope, SCOPE_KV_KEY, type ConfigScope } from "./config-scope"
@@ -97,11 +97,34 @@ export function DialogSettings() {
     setStatus("failed to load config values — see logs")
   })
 
+  /** t76-minimum: dotted schemaKeys (`features.<leaf>`) walk the layers; feature-flag rows resolve the effective value env > config > default, so the preview is never blank. */
+  function readPath(source: Record<string, any> | undefined, schemaKey: string): unknown {
+    return schemaKey.split(".").reduce<unknown>((node, part) => {
+      if (node === null || node === undefined || typeof node !== "object") return undefined
+      return (node as Record<string, unknown>)[part]
+    }, source)
+  }
+
+  function featureMeta(row: SettingRow) {
+    return row.source === "config" ? FEATURE_FLAGS.find((flag) => `features.${flag.leaf}` === row.schemaKey) : undefined
+  }
+
   function scopeValue(row: SettingRow): unknown {
     if (row.source === "env") return envValue(row.schemaKey!)
     if (row.source === "config") {
       const source = scope() === "global" ? global() : merged()
-      return source?.[row.schemaKey!]
+      const meta = featureMeta(row)
+      if (meta) {
+        const envRaw = envValue(meta.env)
+        if (envRaw !== undefined && envRaw.trim() !== "") {
+          const spelled = envRaw.trim().toLowerCase()
+          if (meta.mode === "opt-in") return spelled === "true" || spelled === "1"
+          return !(spelled === "0" || spelled === "false" || spelled === "off" || spelled === "no")
+        }
+        const configured = readPath(source, row.schemaKey!)
+        return typeof configured === "boolean" ? configured : meta.def
+      }
+      return readPath(source, row.schemaKey!)
     }
     return undefined
   }
@@ -109,7 +132,12 @@ export function DialogSettings() {
   function preview(row: SettingRow): string {
     const value = scopeValue(row)
     if (value === undefined) return "(unset)"
-    if (typeof value === "boolean") return value ? "true" : "false"
+    if (typeof value === "boolean") {
+      const meta = featureMeta(row)
+      const envRaw = meta ? envValue(meta.env) : undefined
+      const fromEnv = envRaw !== undefined && envRaw.trim() !== ""
+      return value ? (fromEnv ? "true (env)" : "true") : fromEnv ? "false (env)" : "false"
+    }
     const text = typeof value === "string" ? value : JSON.stringify(value)
     return text.length > 42 ? `${text.slice(0, 42)}…` : text
   }
@@ -142,11 +170,30 @@ export function DialogSettings() {
     setScope(next)
   }
 
+  /** t76-minimum: dotted schemaKeys patch a minimal nested subtree ({features:{<leaf>:value}}). */
+  function patchBody(row: SettingRow, value: unknown): Record<string, unknown> {
+    const parts = row.schemaKey!.split(".")
+    if (parts.length === 1) return { [parts[0]]: value }
+    return { [parts[0]]: { [parts.slice(1).join(".")]: value } }
+  }
+
   async function writeWorktree(row: SettingRow, value: unknown) {
-    await corePatch("/config", { [row.schemaKey!]: value })
+    await corePatch("/config", patchBody(row, value))
     setStatus(`${row.schemaKey} saved → ${SCOPE_LABEL[scope()]}`)
     await refresh()
     backToSettings()
+  }
+  /** t76-minimum: immutable nested set for dotted global writes (depth-n). */
+  function setNested(
+    base: Record<string, unknown>,
+    parts: string[],
+    value: unknown,
+  ): Record<string, unknown> {
+    if (parts.length === 0) return base
+    const [head, ...tail] = parts
+    if (tail.length === 0) return { ...base, [head]: value }
+    const child = base[head] !== null && typeof base[head] === "object" ? base[head] : {}
+    return { ...base, [head]: setNested({ ...(child as Record<string, unknown>) }, tail, value) }
   }
 
   async function writeGlobal(row: SettingRow, value: unknown) {
@@ -156,7 +203,7 @@ export function DialogSettings() {
     // the dialog entirely (dialog.replace would leave an empty stack on ESC).
     backToSettings()
     const current = (global() ?? {}) as Record<string, unknown>
-    const next = { ...current, [row.schemaKey!]: value }
+    const next = setNested({ ...current }, row.schemaKey!.split("."), value)
     dialog.push(() => (
       <DialogConfirm
         title={`Write ${row.schemaKey} to GLOBAL config?`}

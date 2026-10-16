@@ -34,8 +34,38 @@ export function fromConfig(values: Record<string, unknown>): void {
 }
 
 /** Reset config overrides (for testing). */
+/** Reset config overrides (for testing). */
 export function resetConfig(): void {
   _configValues = {}
+}
+
+/**
+ * Read-only view of the config-derived cache (NO env fallback). Gates that
+ * take an injected env (tests, callers with their own env object) use this
+ * for the config leg, so the priority env > config stays in one place.
+ */
+export function configValue(key: string): unknown {
+  return _configValues[key]
+}
+
+/** The repo's opt-out spelling for gate switches (stop-check.ts convention). */
+export function isOptOutSpelling(raw: string): boolean {
+  const value = raw.trim().toLowerCase()
+  return value === "0" || value === "false" || value === "off" || value === "no"
+}
+
+/**
+ * Enabled-state of an opt-out gate (default ON) with priority env > config.
+ * Env set (non-blank) always decides; otherwise a config boolean wins;
+ * otherwise the default. t76-minimum: GRAPH_FIRST, DOC_READ_GATE,
+ * STOP_CHECK, CODEGRAPH_MCP share this shape.
+ */
+function gateEnabled(key: string, defaultOn: boolean): boolean {
+  const raw = process.env[key]
+  if (raw !== undefined && raw.trim() !== "") return !isOptOutSpelling(raw)
+  const cfg = _configValues[key]
+  if (typeof cfg === "boolean") return cfg
+  return defaultOn
 }
 
 const OPENCODE_EXPERIMENTAL = truthy("OPENCODE_EXPERIMENTAL")
@@ -68,9 +98,31 @@ export const Flag = {  get OPENCODE_AUTO_SHARE() { return (_configValues["OPENCO
   OPENCODE_SERVER_PASSWORD: process.env["OPENCODE_SERVER_PASSWORD"],
   OPENCODE_SERVER_USERNAME: process.env["OPENCODE_SERVER_USERNAME"],
   get OPENCODE_ENABLE_QUESTION_TOOL() { return (_configValues["OPENCODE_ENABLE_QUESTION_TOOL"] as boolean) ?? truthy("OPENCODE_ENABLE_QUESTION_TOOL") },
-  // t70 self-edit directive: the agent narrows its OWN replayed representation
+// t70 self-edit directive: the agent narrows its OWN replayed representation
   // (Continuity rule 4). OFF unless explicitly enabled — rollback is the switch.
-  get OPENCODE_SELF_EDIT_DIRECTIVE() { return (_configValues["OPENCODE_SELF_EDIT_DIRECTIVE"] as boolean) ?? truthy("OPENCODE_SELF_EDIT_DIRECTIVE") },
+  // t76-minimum: priority env > config (env set always decides, even "0").
+  get OPENCODE_SELF_EDIT_DIRECTIVE() {
+    const raw = process.env["OPENCODE_SELF_EDIT_DIRECTIVE"]
+    if (raw !== undefined && raw.trim() !== "") return truthy("OPENCODE_SELF_EDIT_DIRECTIVE")
+    const cfg = _configValues["OPENCODE_SELF_EDIT_DIRECTIVE"]
+    if (typeof cfg === "boolean") return cfg
+    return false
+  },
+
+  // t76-minimum: the four opt-out gates as first-class config-backed flags.
+  // Priority env > config, default ON (same shape as the gate modules).
+  get OPENCODE_GRAPH_FIRST() {
+    return gateEnabled("OPENCODE_GRAPH_FIRST", true)
+  },
+  get OPENCODE_DOC_READ_GATE() {
+    return gateEnabled("OPENCODE_DOC_READ_GATE", true)
+  },
+  get OPENCODE_STOP_CHECK() {
+    return gateEnabled("OPENCODE_STOP_CHECK", true)
+  },
+  get OPENCODE_CODEGRAPH_MCP() {
+    return gateEnabled("OPENCODE_CODEGRAPH_MCP", true)
+  },
 
   // Experimental
   OPENCODE_EXPERIMENTAL,

@@ -14,6 +14,7 @@
  *
  * [KV-CACHE SAFE] — runtime gate on shell execution; never touches prompts.
  */
+import { configValue } from "@opencode-ai/core/flag/flag"
 
 /** Opt-out switch: OPENCODE_DOC_READ_GATE=0|false|off|no (the repo's convention — stop-check.ts). */
 export const OPT_OUT_ENV = "OPENCODE_DOC_READ_GATE"
@@ -30,10 +31,16 @@ const NODE_TEXT_READ = /read(?:File|FileSync)\s*\([^)]*['"]utf-?8['"]/i
  */
 const BYTE_OR_WRITE = /read_bytes\s*\(|write_text\s*\(|write_bytes\s*\(|['"](?:rb|br|rb\+|br\+|w|a|x|w\+|a\+|x\+|wb|ab|wb\+|ab\+)['"]/
 
-/** True when OPENCODE_DOC_READ_GATE carries the repo's opt-out spelling. */
+/** Disabled-state with priority env > config > default-on (t76-minimum). */
 export function docReadDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const value = (env[OPT_OUT_ENV] ?? "").trim().toLowerCase()
-  return value === "0" || value === "false" || value === "off" || value === "no"
+  const raw = env[OPT_OUT_ENV]
+  if (raw !== undefined && raw.trim() !== "") {
+    const value = raw.trim().toLowerCase()
+    return value === "0" || value === "false" || value === "off" || value === "no"
+  }
+  const cfg = configValue(OPT_OUT_ENV)
+  if (typeof cfg === "boolean") return !cfg
+  return false
 }
 
 export function docReadRoute(): string {

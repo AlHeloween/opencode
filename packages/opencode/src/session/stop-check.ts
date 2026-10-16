@@ -20,6 +20,7 @@
  * blocks, and a sub-agent turn is never blocked at all.
  */
 
+import { configValue } from "@opencode-ai/core/flag/flag"
 import { isPrimaryModeIdentity } from "./mode-identity"
 import { hasValidCleanNextState } from "../util/stop-claim"
 
@@ -93,10 +94,16 @@ export function handsOff(text: string): boolean {
   return HANDOFF.test(body)
 }
 
-/** True when OPENCODE_STOP_CHECK carries the repo's opt-out spelling. */
+/** Stop-check disabled-state with priority env > config > default-on (t76-minimum). */
 export function stopCheckDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const value = (env[OPT_OUT_ENV] ?? "").trim().toLowerCase()
-  return value === "0" || value === "false" || value === "off" || value === "no"
+  const raw = env[OPT_OUT_ENV]
+  if (raw !== undefined && raw.trim() !== "") {
+    const value = raw.trim().toLowerCase()
+    return value === "0" || value === "false" || value === "off" || value === "no"
+  }
+  const cfg = configValue(OPT_OUT_ENV)
+  if (typeof cfg === "boolean") return !cfg
+  return false
 }
 
 /** A turn whose last paragraph DECLARES the work stopped — the BLOCKED-family verdict line. */

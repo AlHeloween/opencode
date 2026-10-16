@@ -33,7 +33,14 @@ test("registry covers every Config.Info schema top-level field — zero diff", (
 
 test("registry config rows never reference unknown schema keys", () => {
   const keys = new Set(schemaKeys())
-  const unknown = configRows().filter((row) => row.schemaKey && !keys.has(row.schemaKey!))
+  // t76-minimum: nested rows use dotted schemaKeys (`features.<leaf>`); the root
+  // must still be a known top-level field — an unknown root still fails.
+  const unknown = configRows().filter((row) => {
+    if (!row.schemaKey) return true
+    if (keys.has(row.schemaKey)) return false
+    const [root] = row.schemaKey.split(".")
+    return !keys.has(root)
+  })
   expect(unknown.map((row) => row.id)).toEqual([])
 })
 

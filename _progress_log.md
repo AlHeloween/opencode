@@ -1,5 +1,20 @@
 ﻿# Progress Log
 
+## [2026-10-17] DAIS M1 — нативный Fossil provider (план 2026-10-16_zoekt-scip-fossil-sv)
+
+CONFIRMED ✓ parent run 20261016T160250Z_3a37d7bc: real Fossil full revisions, endpoint changes через branch/merge/reverse, immutable artifact SHA1/SHA3, batch reads, canonical historical comment, invalid/path/cancel/readonly controls; focused package PASS. Actual diff: новый packages/dais-code-intelligence/internal/fossil/**, без live Fossil mutations. Evidence: experiments_history/2026-10-16_dais-evidence-graph/runs/. Следующий oracle в родительском плане: native producer на рабочем corpus; M1 закрыт, общий переход с CodeGraph открыт.
+<!-- sv: fossil-provider 0.45, artifact-identity 0.30, revision-provenance 0.25 -->
+
+## [2026-10-17] DAIS M2 — native Zoekt full/delta + SV (план 2026-10-16_zoekt-scip-fossil-sv)
+
+CONFIRMED ✓ parent run 20261016T160250Z_3a37d7bc и compiled CLI 20261016T160746Z_a0d80ed8: full/delta, stale/empty/invalid controls, canonical SV, no-op, failed publication, exact encoded bound и searcher cache. Actual diff: internal/search/**, cmd/dais-ci/**, pinned Windows overlay/tooling; external checkout не менялся. Исходные RED 20261016T154254Z_5e1ccdbb / 20261016T155250Z_10ca6569 сохранены. Residual: safe disk retirement, real corpus timing/RSS/5M и consumers parity. Actual compiled search/graph совместно используют metadata.sqlite; source repo SHA256 неизменен.
+<!-- sv: zoekt-search 0.40, delta-equivalence 0.35, sv-provenance 0.25 -->
+
+## [2026-10-17] DAIS E1–E3 — первый граф утверждений и квитанций (план 2026-10-16_dais-evidence-graph)
+
+CONFIRMED ✓ parent packages 20261016T160250Z_3a37d7bc и external compiled-CLI 20261016T160358Z_3673c425: 26 predicates, независимый wire fixture, реальные Fossil A/B/no-op, source identity, local scopes/package versions, byte roundtrip, shared SCs endpoints, сохранённые FAIL/STALE и SHA256 реально запущенного verifier. Actual diff: internal/evidencegraph/**, vendored pinned scipwire/license pipeline, cmd/dais-graph/**, docs/README/архив; profile UTF8. _build.ps1 20261016T160358Z_b3889489 exit0; candidate dist, без promotion. Отчёт experiments_history/2026-10-16_dais-evidence-graph/REPORT.md, module source pins MANIFEST.json. Проверенный дочерний срез перенесён в plans_completed/; родитель ACTIVE. Semantic correctness indexer/real producer/UTF16/OSTIS parser/MCP/scale — named residual, next route в родительском плане с runtime receipt и fixture path. Чужие shared-tree изменения сохранены.
+<!-- sv: evidence-graph 0.40, falsification 0.30, native-runtime 0.20, continuation 0.10 -->
+
 
 ## [2026-10-16] t65 T7 live + T8-пакет (план plans/2026-10-16_reasoning-lossless-replay.md)
 
@@ -7447,3 +7462,9 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - Plan `plans/2026-10-16_unmanaged-options.md` (INVENTORY + PLAN, no product code): 88 distinct `OPENCODE_*` names confirmed on this host; classes PLUMBING 30 / USER 45 / DEV 7 / DEAD 6; where-read, effect, default, class+reason, TUI visible/changeable per row; t68 chain rows named as owned-by-t68; hardcoded thresholds (FIRST_TOKEN_FLOOR_MS etc) + API-only routes in extra tables. Proposed surface: extend existing `/settings` (registry.ts + dialog-settings.tsx), zero new endpoints, defaults always rendered; smoke S1–S5 named. No VALUES read or printed (names only). No bin/, no kernel, no t68 files.
 - Next: owner decides which USER rows get surfaced first.
 <!-- sv: unmanaged-inventory 0.35, settings-reuse 0.30, user-surface 0.20, plan-only 0.15 -->
+## [2026-10-16] t76-minimum — 5 гейтов в схему конфига, приоритет env > config (Smit)
+
+- RED: `test/config/gate-flags.test.ts` (new, 11 tests) — run `20261016T160433Z_f1ef0893`, exit 1, 1 pass / 10 fail: ключей нет в схеме, рядов нет в реестре, config-leg нет, геттеров нет.
+- GREEN: run `20261016T161053Z_f210ea16`, exit 0, 11 pass / 0 fail. Регрессии: settings-registry 6/6 (`20261016T161106Z_1f391616`), codegraph-mcp-auto 13/13 (`20261016T161140Z_80c33d3a`), message-v2-self-edit 11/11 (`20261016T161156Z_234989fa`). Typecheck: 1 ошибка в чужом `test/provider/model-chain-failover.test.ts` (t68 in-flight, `favoritesToChain`; мои пути чисты) — не трогаю.
+- Схема: `features.graphFirst/docReadGate/stopCheck/codegraphMcp/selfEditDirective` (config.ts) + `Flag.fromConfig` + геттеры env>config (flag.ts: `configValue`, `isOptOutSpelling`, `gateEnabled`; SELF_EDIT перевёрнут с config>env на env>config). Гейты: graph-first/doc-read/stop-check/codegraph-mcp-auto/self-edit — env решает, иначе config, иначе default (gates on, self-edit off). Реестр: 5 рядов `config.features.*` (boolean, editable, группа Agent Gates, дефолт всегда); диалог: точечные ключи, эффективное значение env>config>default, маркер (env), запись минимальным subtree + setNested для global. MARKDOWN не тронут. /edit-config правит те же ключи без кода (тот же config.json).
+<!-- sv: gate-flags-green 0.35, env-over-config 0.30, registry-rows 0.20, t68-residual 0.15 -->

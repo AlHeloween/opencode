@@ -387,6 +387,11 @@ rules: Schema.optional(Schema.Record(Schema.String, Schema.Union([Schema.Boolean
       pure: Schema.optional(Schema.Boolean),
       strictConfigDeps: Schema.optional(Schema.Boolean),
       fastBoot: Schema.optional(Schema.Boolean),
+      graphFirst: Schema.optional(Schema.Boolean),
+      docReadGate: Schema.optional(Schema.Boolean),
+      stopCheck: Schema.optional(Schema.Boolean),
+      codegraphMcp: Schema.optional(Schema.Boolean),
+      selfEditDirective: Schema.optional(Schema.Boolean),
     }),
   ).annotate({ description: "Feature flags" }),
   gateway: Schema.optional(
@@ -1023,6 +1028,11 @@ export const layer = Layer.effect(
           OPENCODE_AUTO_SHARE: result.features?.autoShare,
           OPENCODE_PURE: result.features?.pure,
           OPENCODE_STRICT_CONFIG_DEPS: result.features?.strictConfigDeps,
+          OPENCODE_GRAPH_FIRST: result.features?.graphFirst,
+          OPENCODE_DOC_READ_GATE: result.features?.docReadGate,
+          OPENCODE_STOP_CHECK: result.features?.stopCheck,
+          OPENCODE_CODEGRAPH_MCP: result.features?.codegraphMcp,
+          OPENCODE_SELF_EDIT_DIRECTIVE: result.features?.selfEditDirective,
           // Experimental
           OPENCODE_EXPERIMENTAL: result.experimental?.masterSwitch,
           OPENCODE_EXPERIMENTAL_FILEWATCHER: result.experimental?.fileWatcher,

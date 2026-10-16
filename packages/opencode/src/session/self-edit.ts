@@ -1,4 +1,5 @@
 import { createHash } from "crypto"
+import { configValue } from "@opencode-ai/core/flag/flag"
 
 /**
  * Self-edit directive (t70 P1): the agent narrows its OWN replayed
@@ -61,10 +62,16 @@ export function messageMd5(text: string): string {
   return createHash("md5").update(text, "utf8").digest("hex")
 }
 
-/** The switch. OFF unless explicitly enabled — P1b reads this. */
+/** The switch (OFF unless enabled — P1b reads this) with priority env > config (t76-minimum). */
 export function isSelfEditEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const value = env["OPENCODE_SELF_EDIT_DIRECTIVE"]?.toLowerCase()
-  return value === "true" || value === "1"
+  const raw = env["OPENCODE_SELF_EDIT_DIRECTIVE"]
+  if (raw !== undefined && raw.trim() !== "") {
+    const value = raw.toLowerCase()
+    return value === "true" || value === "1"
+  }
+  const cfg = configValue("OPENCODE_SELF_EDIT_DIRECTIVE")
+  if (typeof cfg === "boolean") return cfg
+  return false
 }
 
 export const SELF_EDIT_ENABLED = isSelfEditEnabled()

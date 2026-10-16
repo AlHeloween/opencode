@@ -7,6 +7,7 @@
  * - Activates when .codegraph exists and/or resolveCodegraphBin finds the binary (beside the exe, then PATH).
  */
 import { existsSync } from "fs"
+import { configValue } from "@opencode-ai/core/flag/flag"
 import path from "path"
 import { which } from "@/util/which"
 import * as Log from "@opencode-ai/core/util/log"
@@ -42,9 +43,16 @@ export function resolveCodegraphCommand(
   return [resolveCodegraphBin(env, exeDir) ?? "codegraph", "serve", "--mcp"]
 }
 
+/** Opt-out state with priority env > config > default-on (t76-minimum). */
 export function isCodegraphMcpOptOut(env: NodeJS.ProcessEnv = process.env): boolean {
-  const v = (env.OPENCODE_CODEGRAPH_MCP ?? "").trim().toLowerCase()
-  return v === "0" || v === "false" || v === "off" || v === "no"
+  const raw = env.OPENCODE_CODEGRAPH_MCP
+  if (raw !== undefined && raw.trim() !== "") {
+    const v = raw.trim().toLowerCase()
+    return v === "0" || v === "false" || v === "off" || v === "no"
+  }
+  const cfg = configValue("OPENCODE_CODEGRAPH_MCP")
+  if (typeof cfg === "boolean") return !cfg
+  return false
 }
 
 export function shouldAutoEnableCodegraphMcp(

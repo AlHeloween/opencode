@@ -16,6 +16,7 @@
  */
 import { existsSync } from "fs"
 import path from "path"
+import { configValue } from "@opencode-ai/core/flag/flag"
 
 /** Opt-out switch: OPENCODE_GRAPH_FIRST=0|false|off|no (the repo's convention — stop-check.ts). */
 export const OPT_OUT_ENV = "OPENCODE_GRAPH_FIRST"
@@ -43,10 +44,16 @@ export function isCodegraphTool(tool: string): boolean {
   return tool.toLowerCase().replace(/[^a-z0-9]/g, "").startsWith("codegraph")
 }
 
-/** True when OPENCODE_GRAPH_FIRST carries the repo's opt-out spelling. */
+/** Disabled-state with priority env > config > default-on (t76-minimum). */
 export function graphFirstDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const value = (env[OPT_OUT_ENV] ?? "").trim().toLowerCase()
-  return value === "0" || value === "false" || value === "off" || value === "no"
+  const raw = env[OPT_OUT_ENV]
+  if (raw !== undefined && raw.trim() !== "") {
+    const value = raw.trim().toLowerCase()
+    return value === "0" || value === "false" || value === "off" || value === "no"
+  }
+  const cfg = configValue(OPT_OUT_ENV)
+  if (typeof cfg === "boolean") return !cfg
+  return false
 }
 
 /** A completed codegraph call marks the session graph-aware (processor.completeToolCall). */

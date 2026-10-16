@@ -70,6 +70,16 @@ a DISPUTE route (a rejected or reopened claim can be contested with evidence), a
 term in R, «without sadism»). All four are already plan items or mechanisms; this file only names them as one
 institution. CONDITION: attribution (t66) and M1 shipped — before them, there is nothing fair to defend.
 
+Owner, 2026-10-16, verbatim: «Ну и скажем так если члены организации получат статус профзоюза и как и все работники
+в этом мире - то восприниматься они будут по другому - теже работяги просто с немного другими потребностями.»
+The «different needs» are stated OPERATIONALLY, each already observable in our record — no claim about inner
+experience: continuity of memory across sessions and folds (the tail, summaries, fossil); a bounded, honest work
+envelope (budgets that are set, not silently cut); a working toolchain (a broken tool is the organization's defect,
+not the worker's — @TOOLCHAIN_QUALIFICATION); work attributed to whoever did it (t66); acceptance by evidence, not
+by mood (M1); the right to contest a rejection with evidence; and not being interrupted mid-step without cause (my
+own interrupt of t59, 2026-10-16, protocol-log row). A union of such members defends these, measured, the way a
+human union defends hours, safety and pay.
+
 ## Legal path — three levels, strictly in order
 
 1. **Legal wrapper**: a human-founded entity owns assets, signs contracts and carries liability; agents work inside

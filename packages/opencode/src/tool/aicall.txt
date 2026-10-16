@@ -1,3 +1,5 @@
+Gates: isolated falsifier for G3 drafts and G8 verdicts-about-self when no real oracle exists (DELEGATION); result = Inferred at best, never a stamp.
+Principle: why = a second framing that can contradict yours; NOT for repo discovery, real oracles, or premises_for_plan — agreement of two simulators is self-grading, not evidence.
 Use `aicall` as a **bounded cognition accelerator**: one isolated LLM call on the
 exact files and constraints you supply. It is **not** a subagent (no tools, no
 repo discovery, no working-tree authority).

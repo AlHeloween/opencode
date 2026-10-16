@@ -123,6 +123,7 @@ export const TempEnableTool = Tool.define(
     const session = yield* Session.Service
     return {
       description:
+        "Gates: content-lifecycle hold of a heavy result across turns (bounded; reason required). Principle: why = keep what the next turns still need on the wire; NOT storage — nothing is stored twice, a fold releases on schedule. " +
         "Hold a heavy result that was already delivered — a tool result or an attached file — for a bounded number of turns, so it keeps riding the wire and is not released, and so a fold can let it go on schedule. The address is the part id a placeholder prints (id=…). `reason` is required (WHY it has to survive) and `scope` optionally binds the hold to a named group. Nothing is stored twice: the declaration lives on the part itself, and removing it (TempDisable) restores the piece.",
       parameters: EnableParameters,
       execute: (params: { id: string; turns?: number; scope?: string; reason: string }, ctx: Tool.Context) =>
@@ -185,6 +186,7 @@ export const TempDisableTool = Tool.define(
     const session = yield* Session.Service
     return {
       description:
+        "Gates: content-lifecycle release of a hold (reason required). Principle: why = let the wire go back to normal once the work no longer needs the payload; NOT deletion — the record always kept the bytes. " +
         "Remove a declared hold from a piece, so its payload is permanent again and rides the wire in full. The counterpart of tempenable, on the same address (the part id); `reason` is required and says why it is safe to let the piece go. Nothing is deleted: the record always kept the payload, and a hold only ever affected what was SENT.",
       parameters: DisableParameters,
       execute: (params: { id: string; reason: string }, ctx: Tool.Context) =>

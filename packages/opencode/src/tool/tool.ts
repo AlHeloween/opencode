@@ -101,6 +101,16 @@ export function resolveAlias(name: string): string | undefined {
   return undefined
 }
 
+/**
+ * Wire-offered tool names for `activeTools` (t63 M1): every resolved tool except the
+ * synthetic fallback and short-name aliases. An alias no longer ships as a duplicate
+ * schema — the spelling still routes via `TOOL_ALIASES` (session/tools registration)
+ * and the repair step in `session/tool-call-repair.ts`.
+ */
+export function offeredNames(tools: Record<string, unknown>): string[] {
+  return Object.keys(tools).filter((name) => name !== "invalid" && !(name in TOOL_ALIASES))
+}
+
 function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadata>(
   id: string,
   init: Init<Parameters, Result>,

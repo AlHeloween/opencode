@@ -1,3 +1,5 @@
+Gates: G1 prior decisions and conversation facts (spine, then one epoch) → G2 premise check; result = Inferred locator, Exact provenance of what was said.
+Principle: why = recall what was decided before re-deriving it; NOT current truth — a record's rank is about its own window, and rank is not currency.
 Search or browse conversation history across all sessions in the current project.
 Ground conversation facts before judgment. Epistemic ranking: Exact > Inferred > Hypothetical > Guess > Unknown.
 

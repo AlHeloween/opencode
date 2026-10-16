@@ -1,3 +1,5 @@
+Gates: G6/G8 directory-inventory divergence (size/mtime), read-only.
+Principle: why = "what changed between two trees" without reading each file; NOT byte equality — same size+mtime never means same content.
 Recursively compare two directories and report differences: files only in A, only in B, or different (by size/timestamp).
 Observe — read-only evidence.
 

@@ -1,3 +1,5 @@
+Gates: any-gate prep — load domain instructions when the task matches; guidance only.
+Principle: why = the surface's own workflow without re-deriving it; NOT authority — kernel gates and oracles still decide done.
 Load a specialized skill that provides domain-specific instructions and workflows.
 The skill name must match one of the **available skills the runtime listed for this session** (host-injected; not part of the kernel).
 

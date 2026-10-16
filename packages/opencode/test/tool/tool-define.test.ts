@@ -103,3 +103,18 @@ describe("Tool.define", () => {
     )
   })
 })
+
+  describe("offeredNames (t63 M1: no duplicate alias schema on the wire)", () => {
+    test("excludes the synthetic fallback and short-name aliases, keeps the rest", () => {
+      const offered = Tool.offeredNames({ invalid: {}, todo: {}, todowrite: {}, bash: {}, read: {} })
+      expect(offered).toContain("todowrite")
+      expect(offered).toContain("bash")
+      expect(offered).toContain("read")
+      expect(offered).not.toContain("invalid")
+      expect(offered).not.toContain("todo")
+    })
+
+    test("control: a catalog with only an alias still offers nothing aliased", () => {
+      expect(Tool.offeredNames({ todo: {} })).toEqual([])
+    })
+  })

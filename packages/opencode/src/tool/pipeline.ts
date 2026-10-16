@@ -52,7 +52,8 @@ export const Parameters = Schema.Struct({
   }),
 })
 
-const DESCRIPTION = `Chain multiple sub-agents sequentially. The steps array is the whole pipeline — each step names an agent and a prompt; each agent's output feeds as context to the next.
+const DESCRIPTION = `Gates: ordered multi-agent chain (each step's output feeds the next) across G1–G8. Principle: why = research→code and explore→plan sequences with declared context flow; NOT a way around authority — each step keeps its own gates.
+Chain multiple sub-agents sequentially. The steps array is the whole pipeline — each step names an agent and a prompt; each agent's output feeds as context to the next.
 
 Use this tool for complex tasks that require a sequence of specialized agents:
 - Research -> Code: researcher gathers evidence, coder implements

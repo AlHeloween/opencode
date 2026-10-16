@@ -1,3 +1,5 @@
+Gates: G1 snapshot-history search (file versions plus the sv-timeline comments); result = Inferred version matches, newest first.
+Principle: why = the only search over every committed version, including meaning; NOT the VCS — Fossil is the agent undo timeline, git is source control; POSIX-ERE only (no backtracking).
 Fossil in this project is an AUTOMATIC AGENT SNAPSHOT SYSTEM — NOT the project VCS.
 It records every file change the agent makes so you can undo/redo/review agent work.
 For source control, use GIT — Fossil is a sidecar, not the repository.
@@ -44,7 +46,7 @@ Search functionality:
 
 ## Comment mode — search the timeline by MEANING
 
-Every snapshot check-in's comment carries the turn's SEMANTIC VECTOR (docs/fossil-snapshot.md §2.0.1):
+Every snapshot check-in's comment carries the turn's semantic vector (format `auto-snapshot sv:<md5> dominant=<one-line focus> Keywords: … md5: … prev-md5: …`),
 
     auto-snapshot sv:<md5> dominant=<one-line focus> Keywords: topic 0.35, … md5: … prev-md5: …
 

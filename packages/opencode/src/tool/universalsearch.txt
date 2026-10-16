@@ -1,3 +1,5 @@
+Gates: G1 external prior art after the local graph (@SOURCE_ROUTING; default source hybrid); result = Guess snippets, Inferred only from a fetched primary authority with source_stamp.
+Principle: why = the cheapest grounding for code-in-the-wild, papers and web in one call; NOT before codegraph/messagesearch — generic web never becomes Inferred.
 Search the web, indexed git (Sourcegraph), or a heavy research agent via the
 Universal Search Service. Follow kernel REUSE.BEFORE and SOURCE_ROUTING.
 Ground in G1 — external prior art after local codegraph/messagesearch.

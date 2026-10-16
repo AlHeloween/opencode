@@ -1,3 +1,5 @@
+Gates: G8 visual SMOKE oracle for TUI/web claims (screenshots, UIA tree, verify_state predicates).
+Principle: why = looking at the real window instead of type-checking; NOT for anything a test can assert — and a screenshot path alone is not a model-visible image.
 Computer-use visual oracle — self-built cua-driver (trycua/cua, MIT) as a CLI bridge.
 
 Drive GUI apps and browsers in background sessions: screenshots, UIA tree
@@ -45,20 +47,8 @@ PowerShell 5.1 quote stripping.
   The reply states source and attached-image pixel dimensions, target, named
   session, and `capture_id`. A path alone is NOT a model-visible image; a
   text-only model gets no actionable observation. Other tools do not create one.
-- For a pixel `click` after a model-visible image, pass `pid` and `x,y` in
-  **attached-image** pixels; use `scope:"desktop"` for a desktop image. The
-  wrapper fills `capture_id` and (when unambiguous) `window_id` from the latest
-  matching image in THIS conversation and validates the target and one-shot ID.
-  You may pass both IDs explicitly for reproducibility. Multiple windows for a
-  PID or missing/used images require a fresh observation or explicit target;
-  NEVER fall back to an unbound pixel click. Element and zoom-addressed clicks
-  retain their own rules. A provider-resized preview is NOT an exact coordinate
-  source: prefer UIA, DOM or keyboard for tiny targets.
-- A `capture_id` binds only `click`; the wrapper refuses it on any other tool (the driver
-  ignores it silently — measured in run `20260930T024021Z`). Driver `drag` and other coordinate
-  gestures do not share `click`'s capture-id admission contract; this packet does not certify
-  those actions. Re-observe and verify the outcome separately rather than treating a gesture as
-  proof.
+- For a pixel `click` after a model-visible image, pass `pid` and `x,y` in **attached-image** pixels (`scope:"desktop"` for a desktop image); the wrapper fills `capture_id` and (when unambiguous) `window_id` from the latest matching image in THIS conversation — you may pass both IDs explicitly for reproducibility. Multiple windows for a PID, or missing/used images, require a fresh observation or explicit target; NEVER fall back to an unbound pixel click. Element and zoom-addressed clicks retain their own rules; a provider-resized preview is NOT an exact coordinate source — prefer UIA, DOM or keyboard for tiny targets.
+- A `capture_id` binds only `click` (the driver ignores it silently elsewhere — measured in run `20260930T024021Z`); `drag` and other coordinate gestures are not certified here — re-observe and verify the outcome separately rather than treating a gesture as proof.
 - Writes to disk count as PERSISTENT_WRITE — verify the artifact by reading
   it back, not by exit code alone.
 

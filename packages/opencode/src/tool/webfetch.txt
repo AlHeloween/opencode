@@ -1,3 +1,5 @@
+Gates: G1 primary-authority fetch at a known URL (never invented); result = Hypothetical page, Inferred only with source_stamp.
+Principle: why = official docs, specs and repos the model cannot quote from memory; NOT a substitute for local files or history, never a guessed URL.
 Fetches content from a specified URL and converts it to the requested format.
 Follow G1: never invent URLs; discover first (universalsearch). Each successful
 fetch emits a software `source_stamp` (authority_class, url_provenance, content_hash).

@@ -1,3 +1,5 @@
+Gates: DELEGATION across G1/G2/G6/G7/G8 — explorer_agent grounds (read-only), general_agent designs, coder/media implement; each result returns with its own vector for the parent to verify.
+Principle: why = independently checkable work in one bounded brief; NOT to skip G4 approval or mark a G8 PASS — a delegate's "done" is testimony, and a brief naming the conclusion is confirmation, not evidence.
 Launch a specialized sub-agent in an isolated child session. The live agent
 inventory is appended to this description by the tool registry — do not invent
 types. Runtime ACL still decides who may spawn whom.

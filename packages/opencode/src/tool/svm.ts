@@ -61,6 +61,7 @@ export const SvmTool = Tool.define<typeof Parameters, Metadata, Storage.Service>
 
     return {
       description:
+        "Gates: G3/G9 per-task manifest (sv, eta, oracle, state) and MASTER_PLAN render. Principle: why = one task, one verifiable state; NOT memory — a manifest without its vector is refused, never stored partial. " +
         "The manifest (SVM, kernel §1.4) of a task; `state` records where it stands (default: doing). action='read' returns the stored manifest, or says plainly " +
         "that the task has none — nothing is invented. action='set' writes one and REQUIRES sv, etaTurns and " +
         "oracle: a manifest without its vector is the hole this store exists to close, so a partial one is " +

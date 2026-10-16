@@ -1,3 +1,5 @@
+Gates: G3 entry — propose plan_mode when the request needs planning first (G1–G5 discipline).
+Principle: why = research and design before mutation; NOT for simple tasks or when the user wants immediate implementation.
 Use this tool to suggest switching to **plan_mode** when the user's request would benefit from planning before implementation. Follow kernel plan_mode rules (G1–G5).
 
 If they explicitly mention wanting to create a plan, ALWAYS call this tool first.

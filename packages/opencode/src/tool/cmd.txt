@@ -1,3 +1,5 @@
+Gates: G7 Windows-shell orchestration (cmd/pwsh); EXECUTE_TEST runs are G8 oracles per declared claim, like bash on win32.
+Principle: why = win32 process execution under the same constitution and job contract; NOT for enumeration or bare launches — interactive sessions go through cmd_runner.
 Executes a Windows cmd.exe command as a **non-blocking background job** by default. Use `joboutput`, `jobwait`, or `jobkill`. For quick synchronous commands, set `run_in_background: false`.
 
 Be aware: OS: ${os}, Shell: cmd

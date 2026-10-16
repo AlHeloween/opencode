@@ -19,6 +19,7 @@ export const JobKillTool = Tool.define(
     const jobs = yield* Jobs.Service
     return {
       description:
+        "Gates: G7/G8 abort of a stuck or unneeded background job. Principle: why = stop the line on a defect or dead end; NOT progress — killing ends the run, it never proves the claim. " +
         "Kill a running or stalled background job by `job_id`. Use this when a job is taking too long (stalled) or no longer needed. The job's output up to the kill point is preserved and can be read with joboutput.",
       parameters: JobKillParameters,
       execute: (params: { job_id: string }, ctx: Tool.Context) =>

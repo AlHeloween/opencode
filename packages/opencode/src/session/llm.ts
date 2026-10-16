@@ -27,7 +27,7 @@ import { Installation } from "@/installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { EffectBridge } from "@/effect/bridge"
 import * as Option from "effect/Option"
-import { canonicalName, TOOL_ALIASES } from "@/tool/tool"
+import { canonicalName, TOOL_ALIASES, offeredNames } from "@/tool/tool"
 import { repairToolCall } from "./tool-call-repair"
 import { REQUEST_OVERHEAD_TOKENS, usable } from "./overflow"
 import { isPrimaryModeIdentity } from "./mode-identity"
@@ -909,7 +909,7 @@ const live: Layer.Layer<
         topP: params.topP,
         topK: params.topK,
         providerOptions: ProviderTransform.providerOptions(input.model, params.options),
-        activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
+        activeTools: offeredNames(tools),
         tools,
         toolChoice: input.toolChoice,
         maxOutputTokens: maxOut,

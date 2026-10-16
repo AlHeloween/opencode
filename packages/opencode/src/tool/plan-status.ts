@@ -33,6 +33,7 @@ export const PlanStatusTool = Tool.define(
   Effect.gen(function* () {
     return {
       description:
+        "Gates: G3/G9 portfolio audit — progress, active/complete/debt across plans/. Principle: why = the one check that sees every plan's boxes; NOT completion — filename presence and DONE testimony prove nothing, only checked boxes do. " +
         "The repository's plan/tick report: the progress bar, which plans are active, which are complete, which sit in the WRONG terminal, and the full debt (open boxes across every plan). Reads plans/ and plans_completed/ only — plans_deferred/, plans/futures/ and plans/postponed/ are invisible BY DESIGN, because deferred, future and paused work is neither debt nor completion. Pass reconcile:true to move the misplaced plans it names.",
       parameters: Parameters,
       execute: (params: { reconcile?: boolean }, ctx: Tool.Context) =>

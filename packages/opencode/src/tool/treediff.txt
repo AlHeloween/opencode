@@ -1,3 +1,5 @@
+Gates: G6/G8 git-textual tree divergence (names/numstat/patch), read-only.
+Principle: why = the complete machine-readable map of divergence; NOT for a single known file — and text diff never proves behavior.
 Compare two arbitrary files or directory trees with Git's text-native
 `diff --no-index`. Neither path needs to be a Git repository. Read-only:
 exit code 1 means differences were found, not failure.

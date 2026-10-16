@@ -1,3 +1,5 @@
+Gates: re-acquire delivered evidence by id across G1–G9 (content lifecycle: keep/release); result = the stored bytes, Exact as an address.
+Principle: why = read the part that matters instead of paying for all of it; NOT a verdict — claims keep the rung they were written with.
 Recover anything you were sent earlier — a heavy tool result OR an attachment — by its id, with line numbers,
 so you can read the part that matters instead of paying for all of it.
 

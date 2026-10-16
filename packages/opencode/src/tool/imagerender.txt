@@ -1,3 +1,5 @@
+Gates: G1/G8 picture-as-structure (ink bands, text map, SVG); GUI-change plans drawn in the picture's own pixels.
+Principle: why = state structure about an image that prose cannot; NOT a screenshot — screenshots come from cua.
 Render a picture as structure: ink bands, a text map, and an SVG diagram.
 
 `source` is a file path, or a `prt_…` id of a stored image part — a screenshot attached to the session.

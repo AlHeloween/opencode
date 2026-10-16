@@ -1,3 +1,5 @@
+Gates: G1 cross-project LOCAL CELL reads (list/wiki/chat/tickets), read-only over local files.
+Principle: why = ground on neighbours' state before inventing (REUSE.BEFORE); NOT the organization repo — another project's report is testimony, verify before using.
 FossilCell — the read route into every project's LOCAL CELL (plan 2026-10-15_project-fossil-cell.md) plus the write route into THIS project's own ticket table (plan 2026-10-15_local-ticket-write.md).
 
 Each project's snapshot repo (`{worktree}/.opencode/data/fossil/<id>/snapshot.fsl`) carries, beside

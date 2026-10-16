@@ -147,3 +147,64 @@ describe("tool description integrity (parameters named)", () => {
     20_000,
   )
 })
+
+describe("tool description gate marks (t63)", () => {
+  const GATE_LINE = /^Gates: /m
+  // A pointer OUTSIDE the request: a docs/ file reference carrying a rule the model
+  // would have to open in 2-3 extra moves. Example paths inside code/JSON samples
+  // (write.txt's docs/note.md) are not pointers — only rule-carrying references are.
+  const DOC_POINTER = /see docs\/|\(docs\/[a-z0-9-]+\.md|docs\/[a-z0-9-]+\.md §/
+
+  test("every .txt description carries a Gates: line near the top", async () => {
+    const files = await descriptionFiles()
+    expect(files.length).toBeGreaterThan(20)
+    const offenders: string[] = []
+    for (const file of files) {
+      const head = file.text.split(/\r?\n/).slice(0, 6).join("\n")
+      if (!GATE_LINE.test(head)) offenders.push(`${file.name}: no Gates: line in first 6 lines`)
+    }
+    expect(offenders).toEqual([])
+  })
+
+  test("no .txt description points outside the request", async () => {
+    const files = await descriptionFiles()
+    expect(files.length).toBeGreaterThan(20)
+    const offenders: string[] = []
+    for (const file of files) {
+      const match = file.text.match(DOC_POINTER)
+      if (match) offenders.push(`${file.name}: outside pointer \`${match[0]}\``)
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it.live(
+    "every live registry description carries a Gates: line and no outside pointer",
+    () =>
+      provideTmpdirInstance(() =>
+        Effect.gen(function* () {
+          const registry = yield* ToolRegistry.Service
+          const agents = yield* Agent.Service
+          const build = yield* agents.get("build")
+          expect(build).toBeDefined()
+          const tools = yield* registry.tools({
+            providerID: ProviderID.make("test"),
+            modelID: ModelID.make("test-model"),
+            agent: build!,
+            sessionID: SessionID.descending(),
+          })
+          expect(tools.length).toBeGreaterThan(20)
+          const offenders: string[] = []
+          for (const tool of tools) {
+            if (tool.description.trim() === SYNTHETIC_DESCRIPTION) continue
+            if (!GATE_LINE.test(tool.description)) offenders.push(`${tool.id}: no Gates: line`)
+            else if (tool.description.search(GATE_LINE) > 500)
+              offenders.push(`${tool.id}: Gates: line past 500 chars`)
+            const pointer = tool.description.match(DOC_POINTER)
+            if (pointer) offenders.push(`${tool.id}: outside pointer \`${pointer[0]}\``)
+          }
+          expect(offenders).toEqual([])
+        }),
+      ),
+    20_000,
+  )
+})

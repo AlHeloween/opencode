@@ -1,3 +1,5 @@
+Gates: G1 whole-tree listing (no ignores by default) → G6 bind; result = Inferred tree shape.
+Principle: why = the one listing that cannot hide paths; NOT for content — read the files it names.
 Directory tree listing. Product `list` replaces shell ls/dir/tree.
 
 Default: lists the WHOLE tree. The noise list (node_modules/, __pycache__/, .git/, dist/, build/, target/, vendor/, bin/, obj/, .idea/, .vscode/, .zig-cache/, zig-out, .coverage, coverage/, tmp/, temp/, .cache/, cache/, logs/, .venv/, venv/, env/) is NOT applied and .gitignore is NOT honoured — a listing that hides paths cannot support «absent», which is how `bin/` was once declared empty while `bin/opencode.exe` sat in it. Pass `gitignore: true` for the quiet shape; explicit `ignore` globs always apply.

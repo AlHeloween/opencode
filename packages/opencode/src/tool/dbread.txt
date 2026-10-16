@@ -1,3 +1,5 @@
+Gates: G1/G8 read-only inspection of project state (.opencode/data/, SELECT only).
+Principle: why = read state before adding a log; NOT a writer — mutations are refused, and state outside its scope needs another instrument.
 Query any SQLite database under the project's .opencode/data/ directory with read-only SQL.
 Ground evidence before judgment; never destructive DDL (constitution blocks).
 

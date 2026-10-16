@@ -22,6 +22,7 @@ export const JobResetTool = Tool.define(
     const jobs = yield* Jobs.Service
     return {
       description:
+        "Gates: G7/G8 stall-deadline extension for a legitimately long job. Principle: why = builds and suites outrun the watchdog; NOT a fix — a truly stuck job gets killed, not extended. " +
         "Reset the stall deadline of a running/stalled background job (`job_id`) so it is not auto-killed. Call this after a stall warning when the job is legitimately long (builds, test suites, downloads); it does not touch the job's output or result.",
       parameters: JobResetParameters,
       execute: (params: { job_id: string }, ctx: Tool.Context) =>

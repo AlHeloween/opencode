@@ -1,3 +1,5 @@
+Gates: G1 structure first (symbols, callers, impact) → G6 bind; result = Inferred structural evidence.
+Principle: why = the only instrument that answers "what breaks if this changes"; NOT after grep — graph before scanners; an empty or irrelevant graph is a gap, never absence.
 Pre-indexed code knowledge graph — **hybrid: MCP touch → SQLite pack** (low noise for agents).
 
 Prefer this for structure (symbols, callers, impact) before grep/glob/read loops on indexed code. Use at G1 grounding and G6 Phase 0.

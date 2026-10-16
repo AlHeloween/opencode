@@ -131,6 +131,7 @@ export const CheckStateTool = Tool.define<
 
     return {
       description:
+        "Gates: G4/G6/G9 — identity, effective rights, and window state before deciding, binding, or closing. Principle: why = the runtime's own answer about what this identity may do; NOT the catalog — a remembered tool name is not a binding. " +
         "Return the current identity, its complete ordered execute-time permission rules, delegable agents, " +
         "available agents, the runtime version, and this session's context-window state: where the automatic " +
         "fold threshold sits, how much headroom is left, roughly how many turns that is at the recent rate, " +

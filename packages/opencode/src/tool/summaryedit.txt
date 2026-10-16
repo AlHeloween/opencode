@@ -1,3 +1,5 @@
+Gates: G9 pre-fold correction of a Layer-1 summary body; structure stays Exact and untouchable.
+Principle: why = fix the account before the fold inherits it; NOT to delete failures or add ungrounded facts — replaced text is kept anyway.
 Read or correct the prose of a Layer-1 summary before it is folded into `m*`.
 
 A summary has two halves and they do not have the same standing:
@@ -10,18 +12,13 @@ A summary has two halves and they do not have the same standing:
   cannot touch it, by construction: the update names one column.
 
 ## When to use
-- `checkstate` listed an open summary whose body misstates what happened, omits
-  a decision that must survive, or records a claim that was later refuted.
-- Before calling `compact`. After the fold the body is in `m*` and correcting it
-  there is no longer a correction — it is a contradiction between two records.
+- `checkstate` listed an open summary whose body misstates what happened, omits a decision that must survive, or records a refuted claim.
+- Before calling `compact`: after the fold the body is in `m*`, and a fix there is a contradiction between two records, not a correction.
 
 ## When NOT to use
-- To delete an inconvenient record. A summary that says the work failed is
-  evidence; rewriting it is not a fix, and the replaced text is kept anyway.
-- To add facts you have not grounded. The body stays Inferred after your edit —
-  editing it does not promote anything. @EVIDENCE_ORDER still applies.
-- To restate the structure in prose. If you find yourself writing message ids
-  into the body, the handles are already there and Exact.
+- To delete an inconvenient record: a failed-work summary is evidence; rewriting it is not a fix, and the replaced text is kept anyway.
+- To add ungrounded facts: the body stays Inferred after your edit — editing promotes nothing (@EVIDENCE_ORDER still applies).
+- To restate the structure in prose: message ids are already there as Exact handles.
 
 ## Parameters
 

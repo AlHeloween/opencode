@@ -1,3 +1,5 @@
+Gates: G8 CPU-profile evidence (sampling profiler, save-only).
+Principle: why = measured hot paths instead of guessed ones; NOT an opener — profiles are inspected later, never served live.
 CPU profiler — vendored `samply` (github.com/mstange/samply, MIT) as `bin/tools/samply.exe`.
 
 Records a sampling CPU profile (default 1000 Hz) and saves it as a Firefox-Profiler file (`*.jslb.gz`).

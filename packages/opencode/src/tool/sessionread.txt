@@ -1,3 +1,5 @@
+Gates: G1/G9 transcript provenance by index; result = Exact record of what was said.
+Principle: why = the ground-truth archive that outranks recall and summaries on conflicts; NOT current applicability — re-ground before relying on it.
 Reads messages from a conversation session by index position. Use this to get full context around messages found by messagesearch.
 
 **Epistemic rank:** output is **Exact** (ground-truth archive). Memory ranking: Exact > Inferred > Hypothetical > Guess > Unknown.

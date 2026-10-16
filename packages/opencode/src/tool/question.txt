@@ -1,3 +1,5 @@
+Gates: G4 AUTHORIZE — owner decisions and ambiguity resolution mid-run (also G0 when the intention itself is unclear).
+Principle: why = explicit approval before unauthorized MODIFY; NOT for what grounding can answer — ask only what the user's words alone can settle.
 Use this tool when you need to ask the user questions during execution. Follow G4 (AUTHORIZE):
 explicit approval / clarify before unauthorized MODIFY. This allows you to:
 1. Gather user preferences or requirements
@@ -26,11 +28,7 @@ This call takes ONLY `questions`, each of them a `Question.Prompt`: `question`, 
 
 ## Return Value
 
-Answers are returned as an array of arrays of labels: `ReadonlyArray<ReadonlyArray<string>>` — one inner array per question, each containing the selected option labels. Example:
-
-```
-User has answered your questions: "Which approach?"="Option A, Option B", "Proceed?"="Yes". You can now continue...
-```
+Answers are returned as an array of arrays of labels (`ReadonlyArray<ReadonlyArray<string>>` — one inner array per question). Example: `"Which approach?"="Option A, Option B"`. You can now continue...
 
 ## Tips
 

@@ -70,6 +70,7 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
 
     return {
       description:
+        "Gates: G1 read durable criteria before grounding; G9 persist them (append, never silent replace). Principle: why = local, measured, unrepeatable facts the next cycle must not re-derive; NOT protocol — it never restates kernel rules, it points at them. " +
         "Read or write the project's permanent reasoning memory file " +
         `(${MEMORY_FILE}, per-project, gitignored). ` +
         "action='read' reviews past self-assessments; action='write' replaces the file " +

@@ -1,3 +1,5 @@
+Gates: G7 post-edit diagnostics per file; complements codegraph.
+Principle: why = compiler-grade feedback on the file just written; NOT a G8 oracle — diagnostics passing proves nothing about behavior.
 Interact with Language Server Protocol (LSP) servers to get code intelligence features.
 Language Server Protocol diagnostics tool. Complements codegraph — not a substitute for G8 oracles.
 

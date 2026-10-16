@@ -66,6 +66,7 @@ export const ReasoningEnterTool = Tool.define(
 
     return {
       description:
+        "Gates: build → reasoning_mode entry on repeat failure (STALL) or user call; protected memory and host inspection only. Principle: why = name the contradictory self-states from the trace, persist criteria, resume at G0; NOT a second attempt — reasoning never mutates. " +
         "Move a build session into protected reasoning mode. Only native build_mode may enter; reasoning_mode permits checkstate, permanent memory, and its own exit.",
       parameters: ReasoningEnterParameters,
       execute: (_params: {}, ctx: Tool.Context) =>
@@ -125,6 +126,7 @@ export const ReasoningExitTool = Tool.define(
 
     return {
       description:
+        "Gates: reasoning_mode → build_mode return with persisted falsifiers. Principle: why = close the reflection with something the next cycle can check; NOT an apology — the product is a durable falsifier. " +
         "Return a controlled session from protected reasoning mode to build_mode. Only native reasoning_mode may use this transition.",
       parameters: ReasoningExitParameters,
       execute: (_params: {}, ctx: Tool.Context) =>

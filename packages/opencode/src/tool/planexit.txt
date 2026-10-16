@@ -1,3 +1,5 @@
+Gates: plan_mode → build_mode return when the plan under plans/ is complete with its smoke contract.
+Principle: why = close the planning phase explicitly; NOT before the plan exists or while questions are still open.
 Use this tool when you have completed the planning phase and are ready to exit **plan_mode**. Follow kernel: plan_mode → build_mode transition.
 
 The switch is permission-gated (`planexit`): allowed silently by default, prompted only when configured as `ask`, refused when denied.

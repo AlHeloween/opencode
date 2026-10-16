@@ -1,3 +1,5 @@
+Gates: G1 ground (read the whole file before judging) → G6 bind; result = Inferred content with Exact addresses.
+Principle: why = every mutation starts from an address this tool printed; NOT for browsing — list/glob locate, read reads.
 Read a file or a directory. Read the whole file before judging or changing it. Read independent files in parallel.
 
 ## The call

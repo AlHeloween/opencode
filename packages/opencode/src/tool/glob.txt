@@ -1,3 +1,5 @@
+Gates: G1 locate by name → G6 bind; result = Inferred path sample.
+Principle: why = finding files by pattern; NOT an inventory — a capped listing never proves "no more" or "absent".
 Path/name file search. Use for finding files by name pattern; use Grep for content, CodeGraph for structure.
 
 ## The call

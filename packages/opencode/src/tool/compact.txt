@@ -1,3 +1,5 @@
+Gates: G9 boundary fold (also before EVOLUTION_LOOP re-entry, on STALL, on INTENTION_RESET); armed at turn end, never mid-task.
+Principle: why = start the next turn from a rebuilt window instead of dragging the trace; NOT for room, not to hide failure — a fold is not closure.
 Re-assemble yourself at a boundary. Finish what can be finished, call this, and
 the next turn starts on a rebuilt window instead of dragging the last task's
 trace behind it. Mechanistic Layer-2 compaction — see @COMPACTION_CADENCE.
@@ -30,24 +32,8 @@ trace behind it. Mechanistic Layer-2 compaction — see @COMPACTION_CADENCE.
 - To hide a failure. A fold is not closure; @CLOSURE needs an oracle.
 
 ## What happens
-Nothing immediately. The request is armed and consumed at the end of this turn:
-the window folds to `m*` = a head READ from what already exists + the recent
-tail. **No model is asked for anything at the boundary** — the fold costs zero
-LLM tokens, and it costs them because there is no request, not because one is
-cheap.
+Nothing immediately. The request is armed and consumed at the end of this turn: the window folds to `m*` = a head READ from what already exists + the recent tail. **No model is asked for anything at the boundary** — the fold costs zero LLM tokens because there is no request, not because one is cheap.
 
-The head is read, carrier by carrier:
+The head is read, carrier by carrier: `<memory>` verbatim; `--- Goal ---` (the plan's `<!-- intention: … -->` + the request that opened the window, quoted); `--- Window topics ---` (a COUNT of the vectors carrying each term); `--- Table of contents ---` (one line per folded message: its dominant, top-3 terms, address); `--- Recent ---` (the last 32k, verbatim and unsummarised). An absent carrier is recorded as `Unknown` — never invented. Legacy `--- Summary N ---` blocks still render for sessions folded before the revision.
 
-| block | read from |
-|---|---|
-| `<memory>` | `memory/reasoning.md`, verbatim |
-| `--- Goal ---` | the plan's `<!-- intention: … -->` + the request that opened the window, quoted |
-| `--- Window topics ---` | a COUNT of the vectors carrying each term |
-| `--- Table of contents ---` | one line per folded message: its own dominant, its top-3 weighted terms, its address |
-| `--- Recent ---` | the last 32k of messages, verbatim and unsummarised |
-
-A carrier that is absent is recorded as `Unknown` — never invented. Legacy
-`--- Summary N ---` blocks still render for sessions folded before the revision.
-
-Compaction is never lossy about handles — `message*` keeps the Exact references
-and nothing is deleted. Recover detail with `sessionread`.
+Compaction is never lossy about handles — `message*` keeps the Exact references and nothing is deleted. Recover detail with `sessionread`.

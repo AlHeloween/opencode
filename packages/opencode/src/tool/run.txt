@@ -1,3 +1,5 @@
+Gates: G7 exact-argv execution (no shell parsing); test and probe runs are G8 oracles per declared claim.
+Principle: why = run a binary with DATA arguments the shell cannot mangle; NOT a shell — pipelines, globs and compound commands belong to bash/cmd.
 Executes a binary directly with arguments — no shell interpretation, no quoting issues.
 
 `run` is **not** a shell: pipelines, globs, and compound commands must use `bash`/`cmd`. Each argument is a separate string — no globbing or quote interpretation. Argument contents are DATA: a multi-line script passed to `-c` is never read as shell commands (measured 2026-10-05).

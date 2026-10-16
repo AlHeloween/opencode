@@ -1,3 +1,5 @@
+Gates: G7 process orchestration; EXECUTE_TEST runs (typecheck, tests, linters, builds) are G8 oracles — PASS on a declared claim supports Exact for that claim.
+Principle: why = the only way to run and observe processes; NOT for file browsing (use list/read/glob/grep) — a shell that mutates the tree is MODIFY, prefer edit/write for source files.
 Executes a bash command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands (e.g., `echo`, `git status`), set `run_in_background: false`.
 
 ## Classification & oracles

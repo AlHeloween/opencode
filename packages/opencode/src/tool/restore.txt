@@ -1,3 +1,5 @@
+Gates: G7 recovery — restore a file from this session's edit pre-change backup.
+Principle: why = undoing our own bad edit (works outside the worktree too); NOT version control — no history, no other branch; whole-worktree undo belongs to the snapshot timeline.
 ## Purpose
 
 Restore a file from an **edit pre-change backup** (`.bak`). No git, no Fossil —

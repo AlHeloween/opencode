@@ -1,3 +1,5 @@
+Gates: G7 MODIFY under a G4 envelope — only on a G6 binding with its sv, READY surface and named smoke (@SURFACE_PREPARATION, @PLAN_BINDING_ENFORCEMENT); proven by reading back (@ORACLE).
+Principle: why = address-pinned change with no silent clobber across agents; NOT for unaddressed text — every hash comes from `read`, and a stale hash means read again.
 Change files by the line addresses `read` printed. **MODIFY / PERSISTENT_WRITE / ELEVATED** — read before you edit, state what the change means, run the declared oracle after it.
 
 ## One call, every file
@@ -33,30 +35,7 @@ The chain runs over the WHOLE file, so an address fingerprints a POSITION and ne
 
 Every example below is one full call; `<file>` stands for the `filePath` of the `files` element that carries the entry.
 
-Replace lines A..B — both inclusive; `newString` must carry every line you want to KEEP from that span, as it should read:
-```json
-{"files":[{"filePath":"<file>","edits":[{"fromHash":"<hash of A>","toHash":"<hash of B>","newString":"<lines A..B as they should read>"}]}]}
-```
-
-Replace exactly one line A — `toHash` omitted, **or passed equal to `fromHash`**: both spell the same thing, and the equal-hash form is NOT an insertion (measured 2026-10-10: a three-line file stayed three lines). Insertion is `insertAfter`, further down.
-```json
-{"files":[{"filePath":"<file>","edits":[{"fromHash":"<hash of A>","newString":"<that line as it should read>"}]}]}
-```
-
-Delete lines A..B (empty `newString`):
-```json
-{"files":[{"filePath":"<file>","edits":[{"fromHash":"<hash of A>","toHash":"<hash of B>","newString":""}]}]}
-```
-
-Insert lines after line X:
-```json
-{"files":[{"filePath":"<file>","edits":[{"insertAfter":"<hash of X>","newString":"<lines to insert>"}]}]}
-```
-
-Insert lines before line 1 (`insertAfter` `00000000`; also works into an empty file):
-```json
-{"files":[{"filePath":"<file>","edits":[{"insertAfter":"00000000","newString":"<lines to insert>"}]}]}
-```
+Entry shapes (all exercised in the canonical `files` example above): replace lines A..B — both inclusive, and `newString` must carry every line you want to KEEP from that span, as it should read; replace exactly one line A — `toHash` omitted, **or passed equal to `fromHash`** (the equal-hash form is NOT an insertion); delete lines A..B (empty `newString`); insert lines after line X (`insertAfter`); insert before line 1 (`insertAfter` `00000000`; also into an empty file).
 
 Rules that hold for every entry:
 
@@ -85,46 +64,13 @@ The result then closes with the file's FRESH ADDRESSES, so the next edit needs n
 - below the change EVERY line's address has moved (the chain runs over the whole file), and the result restates those labels (`N  hash`). Labels above the change are unchanged and are not repeated;
 - a list cut for length says so and names the offset to `read` for the rest.
 
-### `write` prints no addresses; `edit` does — and its block chains the next edit
+**`write` prints no addresses; `edit` does** — its result ends with the full fresh label list, so the next edit chains straight off it with no re-read; a `write` result carries no address block at all, so the next edit needs a `read` even for a file just written (measured 2026-10-10).
 
-This is the trap that costs the most turns. A `write` result carries **no address block at all**
-(the file was created or replaced wholesale), so the next edit needs a `read` even when the file is
-one you just wrote. `edit` DOES print them — its result ends with the full fresh label list, so the
-next edit chains straight off it with no re-read (measured 2026-10-10).
+**The `N  hash: text` prefix is metadata, not content** — copying a `read` line whole writes e.g. `86fa63b8: }` literally (measured 2026-10-10: `fromHash`=line 574 → LSP error, one extra edit to repair); `newString` takes the text after the first `: `, at its absolute indent.
 
-### The `N  hash: text` prefix is an address, not content
+**One edit per file per call; one entry, one span** — a `files` element without `filePath` is a schema error before any address is checked; two changes to one file are two `files` elements or two `edits` entries in ONE element, never a bare second entry. A replacing span (`fromHash`..`toHash`) is replaced WHOLE — omitting a line you meant to preserve deletes it (visible only on read-back); one entry carrying unrelated ranges fails or writes one span where several were intended. A rejected multi-file call writes NOTHING.
 
-The label is metadata the tool strips; it is NOT the line. Copying it into `newString` writes a line
-that literally reads `86fa63b8: }`, and the result then shows `78f7b028: 86fa63b8: }` — a mangled
-file that looks edited and parses. It happens when a `read` line is pasted whole instead of just its
-text. `newString` takes the text after the first `: `, at its absolute indent (measured
-2026-10-10: `fromHash`=line 574, `newString`=`86fa63b8: }` → LSP error, one extra edit to repair).
-
-### One edit per file per call — an entry does not carry the file name
-
-A `files` element without `filePath` is a schema error before any address is even checked, so two
-changes to the same file are two `files` elements or two `edits` entries in ONE element — never a
-bare second entry. A rejected multi-file call writes NOTHING, so a typo in element 3 does not
-silently apply elements 1-2.
-
-### A replacing span must carry every line you mean to KEEP
-
-`fromHash`..`toHash` is replaced by `newString` WHOLE. Omitting a line you meant to preserve deletes
-it — the tool reports success and the damage is only visible when you read the file back. When the
-span is large, quote the whole intended result rather than the delta.
-
-### One entry, one span — no speculative multi-range replacements
-
-Several changes to one file are SEVERAL entries, each with its own `fromHash`/`toHash`. One entry
-carrying a block of unrelated ranges either fails to resolve or writes one span where several were
-intended.
-
-### A diagnostic in another file is not a verdict on this edit
-
-LSP errors reported for OTHER files are pre-existing and say nothing about whether the write
-succeeded — the write already happened before the diagnostics run. Only errors on the file you
-addressed indicate that the newString did not parse; check the file's own section, then read it back
-(`@ORACLE`: a persistent write is proven by reading the artifact, not by a clean exit).
+**A diagnostic in another file is not a verdict on this edit** — the write already happened before the diagnostics run. Only errors on the file you addressed indicate that the newString did not parse; check the file's own section, then read it back (`@ORACLE`: a persistent write is proven by reading the artifact, not by a clean exit).
 
 ## Parameters
 

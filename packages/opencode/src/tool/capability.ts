@@ -5,7 +5,8 @@ import { Provider } from "@/provider/provider"
 
 // ─── Tool Definition ─────────────────────────────────────────────────────────
 
-const DESCRIPTION = `Look up which models support a given capability, or list all available models with limits and costs.
+const DESCRIPTION = `Gates: G6 bind prep for media work — which models support the needed modality. Principle: why = choose the instrument before spending the call; NOT a verdict on quality — lookup, not proof.
+Look up which models support a given capability, or list all available models with limits and costs.
 
 Use this tool before:
 - Generating images, audio, or video (to find capable models)

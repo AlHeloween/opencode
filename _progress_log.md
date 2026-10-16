@@ -1,6 +1,12 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t63 — tool gate marks + in-place densify (план plans/2026-10-15_tool-gate-marks.md)
+
+✓ CONFIRMED (integrity test): test/tool/description-integrity.test.ts RED `20261016T013141Z_7247fcfd` exit 1 (5 pass/3 fail on new Gates:/pointer asserts) → GREEN `20261016T014658Z_4820fefe` exit 0 (8 pass) after marking 37 .txt + 12 inline .ts descriptions (invalid exempt).
+✓ CONFIRMED (M1): `todo` alias off the wire via `Tool.offeredNames` (llm.ts activeTools) + repair alias step (tool-call-repair.ts reuses TOOL_ALIASES); test/tool/tool-define.test.ts `20261016T014428Z_a3b3bedc` 7 pass; test/session/json-repair-policy.test.ts `20261016T014428Z_65ad7f75` 20 pass. Wire projection 152922 + 8687 (txt) + 3214 (inline) − 2954 (todo) = 161869 B (+5.9%).
+✓ CONFIRMED (regression): parameters 49 pass; registry 11 pass; task 14 pass; question 2 pass; compact 9 pass; cua 12 pass; bun typecheck `20261016T014837Z_22ff03f5` exit 0. Inherited red (HEAD-proven, untouched by t63): kernel-alignment universalsearch default-source assert (file says hybrid, test wants web).
+<!-- sv: tool-gates 0.35, in-place-densify 0.30, alias-wire-dedup 0.20, integrity-green 0.15 -->
 ## [2026-10-15] t49 INSTALL — receivers по ревью Smit PASS e888f9b8f1 (план plans/2026-10-15_kernel-one-copy-ticket-route.md, T8)
 
 ✓ CONFIRMED (pipeline): product --install (installed 1d279e5a…), --claude --install (installed 93e11ae3…), --cursor --install (body cbd3cb6d…, receiver a6771368…); baseline.json repinned (sha256 1d279e5a…, prev ee6e3959…, rollback untouched); codex dist refreshed via --codex без install (de5d5cd8…). NOT --codex-global, no ~/.codex/AGENTS.md (t54 retired), no build (fleet lead builds).
@@ -7102,3 +7108,9 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ CONFIRMED (regression): bun run typecheck 20261016T014459Z_61bdb566 exit 0 (earlier LSP errors on the new tsx were wrong-package noise).
 <!-- sv: protocol-cell 0.40, same-bus-event 0.30, no-fake-badge 0.15, red-green 0.15 -->
 — Build receipt (mandatory post-change): `_build.ps1` run 20261016T014718Z_fe20bd03 exit 0 — lock acquired/released, smoke 10.0.1366 + reasoning_prompt embedded PASS, artifacts in dist/.
+
+## [2026-10-16] t50 CLOSURE — гонка индекса с t59, зафиксировано честно (Smit)
+
+— Факт: мой `git add` 4 путей (план, MASTER_PLAN.md, REPORT.md, SOURCES.md из архива) + чужой `git commit -m t59` без путей в то же окно = HEAD 5ae331f221 с сообщением t59, но с моими 4 файлами внутри (REPORT 313 строк, SOURCES 92, rename плана 77%, MASTER_PLAN render gapsBefore=[]) + 1 строка лога t59. Хуков нет (.git/hooks — только samples). History rewrite (reset/amend) запрещён — оставлено как есть.
+— Закрыто по правилам владельца: 7/7 боксов [x] с RECEIPT, Residual-секция (6 пунктов с routes), 42/42 свежих source_stamp sha256 (runs 20261016T014423Z_b385fea6 + 20261016T014555Z_23f26769, оба exit 0), понижений Documented→Hypothetical: 0, архив experiments_history/2026-10-15_activators-vs-training-data/ (content-checked), сборки не повторял.
+<!-- sv: commit-race 0.50, no-rewrite 0.30, closure-complete 0.20 -->

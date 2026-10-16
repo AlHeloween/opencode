@@ -1,3 +1,5 @@
+Gates: G2/G3 execution surface for the task list (one in_progress, boxes bound to plan tasks).
+Principle: why = track multi-step work the plan can audit; NOT proof — a box closes on oracle evidence, and the call replaces the whole list, never patches it.
 Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 It also helps the user understand the progress of the task and overall progress of their requests.
 

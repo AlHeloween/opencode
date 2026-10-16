@@ -1,3 +1,5 @@
+Gates: G1 content search, LAST after the graph → G6 bind; result = Inferred match windows.
+Principle: why = text the graph does not index (e.g. declarations inside functions) plus the negative control; NOT a structure tool — never the first instrument on "how does X work".
 Content search by regex (Rust regex / ERE). Use for finding code by content; use Glob for file names, CodeGraph for structure.
 
 ## The call

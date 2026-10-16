@@ -2,6 +2,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import type { Parser as TreeSitterParser } from "web-tree-sitter"
 import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { readWasmAsset } from "@/util/wasm-path"
+import { TOOL_ALIASES } from "@/tool/tool"
 
 /**
  * Tool-call repair — the policy a malformed tool call meets before it reaches a tool.
@@ -68,6 +69,13 @@ export async function repairToolCall<T extends { toolName: string; input: unknow
   if (lower !== toolCall.toolName && tools[lower]) {
     log.info("repairing tool call", { tool: toolCall.toolName, repaired: lower })
     return { ...toolCall, toolName: lower } as T
+  }
+  // Short-name alias fix (e.g. "todo" → "todowrite", t63 M1): the alias is no
+  // longer offered on the wire, but the spelling still routes.
+  const aliased = TOOL_ALIASES[lower]
+  if (aliased && aliased !== toolCall.toolName && tools[aliased]) {
+    log.info("repairing tool call", { tool: toolCall.toolName, repaired: aliased })
+    return { ...toolCall, toolName: aliased } as T
   }
   // Strip null bytes — they break JSON.parse.
   const rawInput = String(toolCall.input).replace(/\x00/g, "")

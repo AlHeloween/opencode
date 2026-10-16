@@ -466,7 +466,9 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     register(name, item, key)
   }
 
-  // Register short-name aliases so LLMs can use e.g. "todo" for "todowrite"
+  // Register short-name aliases so LLMs can use e.g. "todo" for "todowrite".
+  // Execution-only (t63 M1): the alias shares the canonical entry for dispatch, but
+  // `offeredNames` keeps it off the wire — no duplicate schema is published.
   for (const [alias, canonical] of Object.entries(TOOL_ALIASES)) {
     const tool = tools[canonical]
     if (tool && !tools[alias]) register(alias, tool, names.get(canonical) ?? canonical)

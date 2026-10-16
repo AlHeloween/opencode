@@ -209,3 +209,28 @@ describe("JSON repair policy", () => {
     }
   })
 })
+
+  describe("short-name alias repair (t63 M1: todo still routes)", () => {
+    test("alias toolName repairs to canonical when the catalog knows it", async () => {
+      const fixed = await repairToolCall(call('{"todos":[]}', "todo"), new Error("nope"), {
+        todowrite: {},
+      })
+      expect(fixed.toolName).toBe("todowrite")
+      expect(fixed.input).toBe('{"todos":[]}')
+    })
+
+    test("alias casing repairs to canonical (Todo → todowrite)", async () => {
+      const fixed = await repairToolCall(call('{"todos":[]}', "Todo"), new Error("nope"), {
+        todowrite: {},
+      })
+      expect(fixed.toolName).toBe("todowrite")
+    })
+
+    test("alias without a canonical target leaves the call for the JSON steps", async () => {
+      const fixed = await repairToolCall(call('{"todos":[]}', "todo"), new Error("nope"), {
+        bash: {},
+      })
+      expect(fixed.toolName).toBe("todo")
+      expect(fixed.input).toBe('{"todos":[]}')
+    })
+  })

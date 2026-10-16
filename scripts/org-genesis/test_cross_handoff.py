@@ -21,7 +21,11 @@ nothing. The cases below pin the repair:
   S7 — a login that already exists in the OTHER case is REUSED (present, one row), never duplicated, and
        the ticket records the org's real spelling — not the caller's.
   S8 — every login match folds the case: inbox, claim and heartbeat answer the assignee spelled in any
-       case, and the orgd wake finds the assignee's PRESENCE the same way.
+        case, and the orgd wake finds the assignee's PRESENCE the same way.
+  S9 — a cross delegate to a worktree WITH a live host DELIVERS the ticket into a NEW session there,
+        pinned to the fleet's model (never the worktree's recent free default), and records wake_session.
+  S10 — a READY ticket whose host appears LATER is delivered by orgd on its next tick, exactly once.
+  S11 — a READY ticket with NO wake target shows STALLED(ready/no-wake) in the watcher's inbox after N minutes.
 
 Runs against a REAL isolated Fossil repository (tempfile.mkdtemp; no service, no production ORG_HOME):
 every org.py call is a subprocess, and assertions read the repository back, never the report alone.
@@ -30,6 +34,9 @@ from __future__ import annotations
 
 import json
 import os
+import http.server
+import importlib.util
+import threading
 import re
 import shutil
 import sqlite3
@@ -74,6 +81,14 @@ MIXED = FIXTURE / "Stand-Case"     # a mixed-case path: ONE project, ONE login
 CASE_RESIDENT = "smit-stand-case"  # the canonical lowercase resident it must derive
 REUSE = FIXTURE / "Stand-Mix"      # a worktree whose resident already exists in the OTHER case
 REUSE_LOGIN = "smit-Stand-Mix"     # created by hand: it must be reused, never duplicated
+NOWAKE = FIXTURE / "nowake-stand"   # no host ever: the ticket has no wake target (S11)
+RESIDENT_NOWAKE = "smit-nowake-stand"
+LIVE = FIXTURE / "live-stand"  # a worktree WITH a live fake host: delegate delivers at once (S9)
+RESIDENT_LIVE = "smit-live-stand"
+LATE = FIXTURE / "late-stand"  # no host at delegate time; the host appears later: orgd delivers (S10)
+RESIDENT_LATE = "smit-late-stand"
+ORGD_PY = GENESIS / "orgd.py"
+DISPATCH = REPO / "experiments" / "2026-10-08_robot-wave" / "dispatch.py"  # the fleet's one model source
 
 
 def _env() -> dict:
@@ -138,6 +153,8 @@ def case_variants(login: str) -> int:
         con.close()
 
 
+
+
 def slugify(title: str) -> str:
     """Deterministic kebab slug for a test title (titles are unique per fixture)."""
     return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "task"
@@ -166,9 +183,9 @@ def watch_of(doc: dict, uuid: str) -> dict | None:
     return None
 
 
-def backdate_mtime(uuid: str, hours: int = 2) -> None:
-    out = fossil("sql", f"UPDATE ticket SET tkt_mtime = datetime('now', '-{hours} hours') WHERE tkt_uuid = '{uuid}';")
-    assert out.returncode == 0, out.stderr
+def backdate_mtime(uuid: str, hours: int = 2, minutes: int = 0) -> None:
+    ago = hours * 60 + minutes
+    out = fossil("sql", f"UPDATE ticket SET tkt_mtime = datetime('now', '-{ago} minutes') WHERE tkt_uuid = '{uuid}';")
 
 
 def setUpModule() -> None:
@@ -274,6 +291,9 @@ class CrossHandoffTest(unittest.TestCase):
         entry = watch_of(inbox_json(WATCHER), uuid)
         self.assertIsNotNone(entry)
         self.assertFalse(entry["stalled"])
+        # this ticket HAS a wake target: the >1h rule is what must fire for it (the no-wake rule is S11)
+        set_wake = fossil("ticket", "set", uuid, "wake_session", "ses-has-target")
+        self.assertEqual(set_wake.returncode, 0, set_wake.stderr)
 
         backdate_mtime(uuid, hours=2)
         entry = watch_of(inbox_json(WATCHER), uuid)
@@ -344,6 +364,168 @@ class ResidentCaseFoldTest(unittest.TestCase):
         import orgd  # noqa: E402 — imported here: the module binds $ORG_HOME at import
         session_id, why = orgd.assignee_session(CASE_RESIDENT, str(MIXED))
         self.assertEqual(session_id, "ses_casefold", why)
+
+
+
+
+class NoWakeSignalTest(unittest.TestCase):
+    """S11 — a READY ticket with NO wake target is a signal, not a delivery: the watcher's inbox flags it
+    STALLED(ready/no-wake) once it is older than N minutes."""
+
+    def test_s11_a_ready_ticket_with_no_wake_target_is_stalled_after_n_minutes(self):
+        out, uuid = cross_delegate("s11 no wake", worktree=NOWAKE, assignee=RESIDENT_NOWAKE)
+        self.assertEqual(field(uuid, "wake_session"), "")
+        entry = watch_of(inbox_json(WATCHER), uuid)
+        self.assertIsNotNone(entry)
+        self.assertFalse(entry["stalled"])
+        backdate_mtime(uuid, hours=0, minutes=11)
+        entry = watch_of(inbox_json(WATCHER), uuid)
+        self.assertTrue(entry["stalled"], "a READY ticket with no wake target must stall after N minutes")
+        self.assertEqual(entry["stalled_reason"], "ready/no-wake")
+
+class _FakeHostHandler(http.server.BaseHTTPRequestHandler):
+    """The honest stand for a worktree's live host: a real /global/health nonce echo and the real
+    /session + /prompt_async shapes (no provider spend, no session on any real host)."""
+
+    nonce = "fake-nonce-1"
+    received: list = []
+
+    def _json(self, obj, code=200):
+        data = json.dumps(obj).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        if self.path.split("?")[0] == "/global/health":
+            return self._json({"host": _FakeHostHandler.nonce})
+        return self._json({"error": "not found"}, 404)
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(length) if length else b""
+        try:
+            body = json.loads(raw.decode("utf-8")) if raw else {}
+        except ValueError:
+            body = {}
+        _FakeHostHandler.received.append((self.path.split("?")[0], body))
+        if self.path.split("?")[0] == "/session":
+            return self._json({"id": "ses_fakehost1"})
+        if self.path.split("?")[0].endswith("/prompt_async"):
+            return self._json({})
+        return self._json({"error": "not found"}, 404)
+
+    def log_message(self, *args):
+        pass
+
+
+_FAKE_HOST = None
+_FAKE_PORT = 0
+
+
+def start_fake_host() -> int:
+    """One fake host per test process (started once, on a free port)."""
+    global _FAKE_HOST, _FAKE_PORT
+    if _FAKE_HOST is not None:
+        return _FAKE_PORT
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _FakeHostHandler)
+    _FAKE_PORT = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    _FAKE_HOST = server
+    return _FAKE_PORT
+
+
+def make_host_record(worktree: Path, port: int) -> None:
+    """Point this worktree's server_host row at the fake host (the shape opencode_host.lookup reads)."""
+    data = worktree / ".opencode" / "data"
+    data.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(str(data / "opencode.db"))
+    try:
+        con.execute("CREATE TABLE IF NOT EXISTS server_host(id TEXT PRIMARY KEY, url TEXT, pid INTEGER, "
+                    "nonce TEXT, token TEXT, time_started INTEGER)")
+        con.execute("INSERT OR REPLACE INTO server_host(id, url, pid, nonce, token, time_started) "
+                    "VALUES('host', ?, ?, ?, ?, ?)",
+                    (f"http://127.0.0.1:{port}/", 424242, _FakeHostHandler.nonce, "fake-token", 0))
+        con.commit()
+    finally:
+        con.close()
+
+
+def run_orgd_once():
+    return subprocess.run(
+        [sys.executable, "-X", "utf8", str(ORGD_PY), "--once"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=str(REPO), env=_env(),
+    )
+
+
+def posts_to(suffix: str):
+    """The fake host's received POST bodies whose path is (or ends with) `suffix`."""
+    return [body for seen_path, body in _FakeHostHandler.received
+            if seen_path == suffix or seen_path.endswith(suffix)]
+
+
+class DeliveryTest(unittest.TestCase):
+    """S9-S10 — the hand-off DELIVERS the ticket into a NEW session on the target's live host, pinned to the
+    fleet's model (never the worktree's recent free default); orgd delivers when the host appears later."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.port = start_fake_host()
+        for stand in (LIVE, LATE):
+            (stand / "bin").mkdir(parents=True, exist_ok=True)
+            (stand / "bin" / "opencode.exe").write_bytes(b"")
+
+    def setUp(self):
+        _FakeHostHandler.received.clear()
+
+    def test_s9_live_host_delegate_delivers_and_pins_the_fleet_model(self):
+        make_host_record(LIVE, self.port)
+        out, uuid = cross_delegate("s9 live deliver", worktree=LIVE, assignee=RESIDENT_LIVE)
+        session = field(uuid, "wake_session")
+        self.assertTrue(session.startswith("ses_"), f"delivery must record the new session, got {session!r}")
+        self.assertEqual(field(uuid, "wake_worktree"), str(LIVE))
+        self.assertEqual(field(uuid, "woken_state"), "NEW")
+        self.assertIn("delivered into a NEW session", out.stderr)
+        self.assertEqual(len(posts_to("/session")), 1, "exactly one session is opened")
+        delivered = [body for seen_path, body in _FakeHostHandler.received
+                     if seen_path.endswith("/prompt_async")]
+        self.assertEqual(len(delivered), 1, "exactly one prompt carries the ticket")
+        self.assertIn(uuid, delivered[0].get("parts", [{}])[0].get("text", ""))
+        self.assertEqual(delivered[0].get("model"),
+                         {"providerID": "opencode-go", "modelID": "muse-spark-1.3-contributor"})
+        self.assertEqual(delivered[0].get("variant"), "xhigh")
+
+    def test_s10_orgd_delivers_when_the_host_appears_later_exactly_once(self):
+        out, uuid = cross_delegate("s10 late host", worktree=LATE, assignee=RESIDENT_LATE)
+        self.assertEqual(field(uuid, "wake_session"), "", "no host yet — nothing delivered at delegate time")
+        self.assertIn("cmd_runner start", out.stderr, "no host → the ONE launch command is printed")
+        self.assertEqual(posts_to("/session"), [], "no session opened without a host")
+        make_host_record(LATE, self.port)
+        first = run_orgd_once()
+        self.assertEqual(first.returncode, 0, (first.stdout, first.stderr))
+        session = field(uuid, "wake_session")
+        self.assertTrue(session.startswith("ses_"), f"orgd must deliver once the host appears, got {session!r}")
+        self.assertEqual(field(uuid, "woken_state"), "NEW")
+        self.assertIn(uuid, "\n".join(str(body) for body in posts_to("/prompt_async")))
+        _FakeHostHandler.received.clear()
+        second = run_orgd_once()
+        self.assertEqual(second.returncode, 0, (second.stdout, second.stderr))
+        self.assertEqual(posts_to("/session"), [], "woken NEW — the ticket is never delivered twice")
+
+
+class FleetModelMirrorTest(unittest.TestCase):
+    """The pin is a verified mirror: dispatch.py is the fleet's one model source, org.py must agree with it."""
+
+    def test_fleet_pin_mirrors_the_dispatch_source(self):
+        spec = importlib.util.spec_from_file_location("fleet_dispatch", str(DISPATCH))
+        dispatch = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(dispatch)
+        self.assertEqual(org.FLEET_MODEL, dispatch.MODEL)
+        self.assertEqual(org.FLEET_VARIANT, dispatch.VARIANT)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

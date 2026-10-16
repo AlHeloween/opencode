@@ -48,6 +48,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import orgcfg  # the ONE settings/fossil resolver, shared with init.py and org.py
+import org  # the delivery helper (org.deliver_into_new_session): one implementation, org.py owns it
 
 HOME = orgcfg.HOME
 ORG = orgcfg.ORG
@@ -324,7 +325,13 @@ def tick() -> list[str]:
                             f"Claim it or hand it on.")
                 wake_effect(t, "NEW", session_id, str(t["workspace_repo"]), text, head, actions)
             else:
-                log_once(f"{head}/new", f"{head}/new: not woken — {why}")
+                delivered, why2 = org.deliver_into_new_session(
+                    str(t["workspace_repo"]), f"ticket {head}",
+                    f"ORG ticket {uuid} is a NEW ticket in your inbox: {t['title']}. Claim it or hand it on.")
+                if delivered and ticket_set(uuid, wake_session=delivered, wake_worktree=str(t["workspace_repo"]), woken_state="NEW"):
+                    actions.append(f"{head}/new: no PRESENCE — opened a session on the live host and delivered the ticket ({delivered})")
+                else:
+                    log_once(f"{head}/new", f"{head}/new: not woken — {why}; delivery: {why2 or 'session could not be recorded'}")
     return actions
 
 

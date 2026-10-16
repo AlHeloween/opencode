@@ -1,6 +1,14 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t67 S1 — org delivery reconciled into git on Go/xhigh, gate kept (plan plans/2026-10-16_org-reconcile-m1-contest.md, S1 closed)
+
+✓ CONFIRMED (B1 RED→R1 GREEN): new S9/S10/mirror RED pre-change (3 failed as predicted) → 12/12 PASS (11.02 s); regressions run isolated per-file — the whole-dir run is a HARNESS error (each module pins its own ORG_HOME fixture at import): queue 8/8, slugs 8/8, wiki-put 15/15, forum-post 11/11.
+✓ CONFIRMED (reconcile): FLEET_MODEL opencode-go/muse-spark-1.3-contributor + FLEET_VARIANT xhigh mirrored to dispatch.py (mirror test), deliver_into_new_session with agent+variant (installed code sent neither), delegate + orgd delivery branches; maintenance gate stays first; slugs + STALL_NOWAKE hunks intact.
+✓ CONFIRMED (install S5/S6): installed == repo sha256 (org.py 17f959ae, 62453 B); init.py rc 0 (tickets=53, orgd pid 36072 untouched — the restart is the owner's).
+— Live read-back (--json --no-presence): 355f6a3d4d READY, no wake target (ready/no-wake) — delivers on Go/xhigh after the orgd restart, never here.
+— Next: S2 M1 mint rule, S3 contest verb; ticket 355f6a3d4d delivery + orgd restart await the owner via Claude.
+<!-- sv: org-reconcile 0.40, fleet-mirror 0.30, install-verified 0.20, restart-pending 0.10 -->
 ## [2026-10-16] t68 slice 3-live — изолированный стенд: роут, assign, free-отказ, висящий Go (план plans/2026-10-16_model-chain-failover.md, боксы не тронуты)
 
 ✓ CONFIRMED (live, стенд .temp/chain-stand на копии dist, порт 4099): `PUT/GET /chain/global/build_mode` — JSON, статусы `unknown`, пустой слой `[]`; hono-бридж `ChainPaths` в `InstanceRoutes` обязателен (без него SPA — измерено). Каноникализация legacy `build`→`build_mode` в `assignChainModel` + тест.

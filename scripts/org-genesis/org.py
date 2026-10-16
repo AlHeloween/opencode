@@ -47,9 +47,11 @@ transition can wake again — never to "", because an empty field value is silen
 
 Cross-worktree hand-off: `delegate --worktree W` with W outside the caller's worktree ensures W's resident login
 `smit-<project>` (created if missing; a random password, never printed), records `watcher` (default claude,
-`--watcher` to override) so `inbox --user <watcher>` lists the ticket under `watching`, and — when W has no live
-host — prints the ONE launch command for W's own opencode; the delegator's robot runs it. No bin/opencode.exe
-there → the note says so and the ticket stays READY.
+`--watcher` to override) so `inbox --user <watcher>` lists the ticket under `watching`, and — when W has a live
+host — DELIVERS the ticket into a NEW session there (pinned to FLEET_MODEL/FLEET_VARIANT: the fleet's order,
+read from experiments/2026-10-08_robot-wave/dispatch.py until the model chain route lands) and records it as
+the wake target. With no live host it prints the ONE launch command for W's own opencode; the delegator's
+robot runs it. No bin/opencode.exe there → the note says so and the ticket stays READY.
 
 DONE is the worker's testimony; the delegator closes the queue with a verdict: `verify` (VERIFIED,
 terminal), `reject` (back to READY with a findings technote — the assignee is woken to rework) or
@@ -102,6 +104,12 @@ FORUM_TITLE_MAX = 125            # the forum editor's title cap (src/forum.c for
 FORUM_WRITE_CAPS = set("34as")   # '3' WrForum, '4' WrForum-trusted; 'a'/'s' imply both (src/login.c)
 CHECKOUT = orgcfg.CHECKOUT       # the org's open check-out — forum-post writes through it (init.py creates it)
 STALL_READY_S = 3600          # a READY ticket unclaimed past this shows STALLED to its watcher
+STALL_NOWAKE_S = 600          # a READY ticket with NO wake target past this shows STALLED to its watcher
+FLEET_MODEL = {"providerID": "opencode-go", "modelID": "muse-spark-1.3-contributor"}  # the fleet's order today
+FLEET_VARIANT = "xhigh"  # (owner 2026-10-15: «muse 1.3 spark xhigh очень сильная модель»)
+# ONE source: experiments/2026-10-08_robot-wave/dispatch.py (MODEL / FALLBACK_MODEL / VARIANT) — the mirror test
+# pins this pair to it; the t68 GET/PUT /chain route is the future source. Never a hard-coded DeepSeek
+# (402 Insufficient Balance since 2026-10-14). A delivered ticket never runs on a worktree's recent free default.
 
 try:
     import opencode_host  # the ONE worktree host client, shared with orgd.py (live = /global/health nonce echo)
@@ -417,6 +425,27 @@ def launch_command(worktree: str, exe: Path) -> str:
         port = probe.getsockname()[1]
     return f"cmd_runner start --terminal wt --cwd {_quoted(worktree)} -- {_quoted(exe)} --port {port}"
 
+def deliver_into_new_session(worktree: str, title: str, text: str) -> tuple[str, str]:
+    """Open a session on that worktree's live host and deliver `text` into it, pinned to the fleet's
+    model. Returns (session_id, "") or ("", why) — the caller records the session or says why."""
+    if opencode_host is None:
+        return "", f"opencode_host unavailable ({HOST_IMPORT_ERROR})"
+    try:
+        host = opencode_host.connect(worktree)
+    except opencode_host.HostError as error:
+        return "", f"host not live — {error}"
+    try:
+        created = host.post("/session", {"title": title})
+        session_id = str((created or {}).get("id") or "")
+        if not session_id:
+            return "", f"POST /session answered no id: {created!r}"
+        host.post(f"/session/{session_id}/prompt_async",
+                  {"agent": "build", "model": FLEET_MODEL, "variant": FLEET_VARIANT,
+                   "parts": [{"type": "text", "text": text}]})
+    except Exception as error:  # the delivery IS the effect: a failure is reported, never swallowed
+        return "", f"delivery failed: {error}"
+    return session_id, ""
+
 
 def age_text(seconds: int) -> str:
     seconds = max(0, int(seconds))
@@ -432,7 +461,7 @@ def watching(user: str) -> list[dict]:
     now_s = now()
     try:
         found = rows(
-            "SELECT tkt_uuid, title, slug, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, "
+            "SELECT tkt_uuid, title, slug, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, wake_session, "
             "CAST(strftime('%s', tkt_mtime) AS INTEGER) AS mtime_epoch FROM ticket "
             "WHERE lower(watcher) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
             (user,),
@@ -441,7 +470,7 @@ def watching(user: str) -> list[dict]:
         if "no such column" not in str(error):  # a repository from before slugs
             raise
         found = rows(
-            "SELECT tkt_uuid, title, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, "
+            "SELECT tkt_uuid, title, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, wake_session, "
             "CAST(strftime('%s', tkt_mtime) AS INTEGER) AS mtime_epoch FROM ticket "
             "WHERE lower(watcher) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
             (user,),
@@ -460,7 +489,10 @@ def watching(user: str) -> list[dict]:
                 stalled, reason = True, "heartbeat"
         elif state == "READY":
             mtime = num(entry["mtime_epoch"])
-            if mtime and now_s - mtime > STALL_READY_S:
+            if not str(entry["wake_session"] or "").strip():
+                if mtime and now_s - mtime > STALL_NOWAKE_S:
+                    stalled, reason = True, "ready/no-wake"
+            elif mtime and now_s - mtime > STALL_READY_S:
                 stalled, reason = True, "ready>1h"
         out.append({
             "id": str(entry["tkt_uuid"]),
@@ -531,8 +563,16 @@ def cmd_delegate(a) -> int:
     if cross:
         live, detail = worktree_host_live(worktree)
         if live:
-            print(f"org: {worktree} has a live host ({detail}) — run `org.py inbox` there to register the resident; no launch needed",
-                  file=sys.stderr)
+            delivered, why = deliver_into_new_session(
+                worktree, f"ticket {new[:10]}",
+                f"ORG ticket {new} is a NEW ticket in your inbox: {a.title}. Claim it or hand it on.")
+            if delivered:
+                ticket_set(ticket(new), user, wake_session=delivered, wake_worktree=worktree, woken_state="NEW")
+                print(f"org: {worktree} has a live host ({detail}) — delivered into a NEW session there: {delivered} "
+                      f"(model {FLEET_MODEL['providerID']}/{FLEET_MODEL['modelID']} {FLEET_VARIANT})", file=sys.stderr)
+            else:
+                print(f"org: {worktree} has a live host ({detail}) but delivery failed ({why}) — "
+                      f"run `org.py inbox` there to register the resident; ticket {new[:10]} stays READY", file=sys.stderr)
         else:
             exe = Path(worktree) / "bin" / "opencode.exe"
             if exe.exists():

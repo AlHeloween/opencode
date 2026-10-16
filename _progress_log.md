@@ -1,6 +1,12 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t65 T4 grounding + A7 fallback-gap (план plans/2026-10-16_reasoning-lossless-replay.md)
+
+✓ CONFIRMED (T4 map, read-only, predicted findings): 9 downstream границ ниже transform → experiments/2026-10-16_reasoning-preservation/t4-grounding.md. Главные: D-S1 copilot-chat serializer `convert-to-openai-compatible-chat-messages.ts:100-101` молча роняет empty-text reasoning (`if (part.text)`, без warn/reportCut) — коллизия со слайсами 1–2; D-S7 installed openai-compatible SDK outbound/inbound молча опускает пустое; D-S6 bedrock — единственный silent skip установленного SDK.
+✓ CONFIRMED (A7, predicted PASS): adaptive-client.test.ts 8/8 (20261016T043554Z_5c6c868c exit 0) — chain-матрица + shouldDowngrade. Сквозной h3-fail→h2 фикстур отсутствует честно: H2/H1 — импортированные модули, не инжектируются; следующий leaf — transport-injection seam. A7-fallback OPEN с receipt.
+— Без изменений продукта в этом заходе; кандидаты F1–F3 (tier 2) — на T4 fix slice. Платных ноль.
+<!-- sv: adapter-contracts 0.45, actual-wire 0.35, unsupported-observability 0.20 -->
 ## [2026-10-16] org-ticket-slugs — человеческий slug у каждого тикета (план plans/2026-10-16_org-ticket-slugs.md)
 
 ✓ CONFIRMED (smoke first): scripts/org-genesis/test_ticket_slugs.py RED до правок (8 errors — в схеме нет slug) → GREEN 8/8 после; регрессии test_cross_handoff.py 9/9, test_queue_contract.py 8/8 (их хелперы получили --slug; чужой S11-чанк не тронут).

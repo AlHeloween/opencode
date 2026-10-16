@@ -90,7 +90,7 @@ describe("compact model footer", () => {
 
   test("capability glyphs keep the status line's order", () => {
     expect(capabilityGlyphs({ reasoning: true, toolcall: true, input: { image: true, video: true } })).toBe(
-      "[🎥 👁 🧠 🔧]",
+      "[🎥 👁️ 🧠 🔧]", // eye carries VS16 (t75): bare U+1F441 has no stable width
     )
     expect(capabilityGlyphs({ toolcall: true })).toBe("[🔧]")
     expect(capabilityGlyphs({})).toBeUndefined()

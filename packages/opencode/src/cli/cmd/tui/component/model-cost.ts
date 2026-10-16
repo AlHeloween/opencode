@@ -86,11 +86,17 @@ export interface ModelCapabilities {
   input?: { image?: boolean; video?: boolean }
 }
 
-/** `[🎥 👁 🧠 🔧]` — capability glyphs in the status line's order. */
+/** `[🎥 👁️ 🧠 🔧]` — capability glyphs in the status line's order.
+ *
+ * The eye is U+1F441 U+FE0F (with VS16), never bare U+1F441: the bare eye is
+ * Emoji_Presentation=No, so its width is guessed — Bun counts 1 standalone and 2
+ * in-badge, the string-width lib counts 2, native eawToWidth counts 1 — while an
+ * emoji panel advances 2. VS16 requests emoji presentation explicitly, and every
+ * side counts 2 (native: utf8.zig VS16 promotion; t75). */
 export function capabilityGlyphs(capabilities: ModelCapabilities | undefined): string | undefined {
   const glyphs: string[] = []
   if (capabilities?.input?.video) glyphs.push("🎥")
-  if (capabilities?.input?.image) glyphs.push("👁")
+  if (capabilities?.input?.image) glyphs.push("👁️")
   if (capabilities?.reasoning) glyphs.push("🧠")
   if (capabilities?.toolcall) glyphs.push("🔧")
   return glyphs.length > 0 ? `[${glyphs.join(" ")}]` : undefined

@@ -67,7 +67,7 @@ export function agentModelRef(ref: string): { providerID: string; modelID: strin
 
 /**
  * The row's model cell, in the shape the model picker uses (owner, 2026-09-21: «сам список —
- * чтобы было так», with `DeepSeek V4.1 Flash  DeepSeek  ⇣0.15 ⇡0.6 ↻0.003 [👁 🧠 🔧] · max`
+ * чтобы было так», with `DeepSeek V4.1 Flash  DeepSeek  ⇣0.15 ⇡0.6 ↻0.003 [👁️ 🧠 🔧] · max`
  * as the target). The raw `provider/modelID` it replaced named the model in the one form the
  * reader cannot price or recognise.
  *

@@ -1,6 +1,12 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t75 staircase in Claude Desktop panel — eye badge carries VS16 (plan plans/2026-10-16_tui-render-claude-panel.md)
+
+✓ CONFIRMED (mechanism): badge eye was bare U+1F441 (Emoji_Presentation=No) — width guessed on every side: Bun 1/lib 2 standalone-vs-badge, native eawToWidth 1 (table gap 1F400-1F43E/1F440/1F442-1F4FC), emoji panel 2. Every badge row overflowed by 1 cell on the panel (TERM_PROGRAM=claude-desktop matches no explicit_cursor_positioning rule, so intra-row bytes rely on terminal advance). Researcher external leg: unicode.org CONFIRMED (EAW/EP/Age), ConPTY passthrough CONFIRMED, sync-output/DECAWM/resize-race ruled out as staircase causes.
+✓ CONFIRMED (RED→GREEN): new test/tui/badge-width.test.ts RED exit 1 (20261016T120309Z_143126b4: no VS16, panel-model 25 > laid-out 24) → GREEN 3/3 exit 0 (20261016T120857Z_dee192cb). Fix: capabilityGlyphs emits U+1F441 U+FE0F — all sides count 2 (native via utf8.zig VS16 promotion), badge 13 cells everywhere. Regressions: model-cost 11/11 (20261016T120915Z_37b973c0), agent-model-cell 24/24 (20261016T120931Z_4a74207a); expectations moved in the same change. Badges kept, no per-terminal hack.
+— Residual: visual confirmation in the owner's panel (no panel access from here); ConPTY re-emission drift as alternative accumulation path unobserved — reopen_when: staircase persists in panel after this build.
+<!-- sv: badge-vs16 0.40, width-agreement 0.30, red-to-green 0.20, panel-residual 0.10 -->
 ## [2026-10-16] t74 чистка _build.ps1 против живых тестов — skip-live (план plans/2026-10-16_build-cleanup-vs-tests.md)
 
 ✓ CONFIRMED (механизм): первая фаза `_build.ps1` сносила КАЖДУЮ запись `.temp/test/` (t73: 0/6 `llm.test.ts` — 5× ENOENT + SQLITE_CANTOPEN, пока чужой билд чистил). Теперь `Clear-ScratchDir` делегирует в `scripts/test-scratch.ps1` (seams как t58): SKIP при живом owner-pid из соседнего `<dir>.owner.json` · при `opencode-test-data-<живой pid>` · при возрасте < 60 мин (30× стены файла 121 с, 3× запрещённого сюита 18 мин); мёртвое/старое уходит как раньше. Маркер именно РЯДОМ: внутри ломал бы git-porcelain (`test/git/git.test.ts:19`) и точные листинги ripgrep (`test/file/ripgrep.test.ts:158,177`) — замерено при граундинге.

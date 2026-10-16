@@ -108,7 +108,7 @@ describe("agentRowModelCell", () => {
       }),
     ).toEqual({
       description: "DeepSeek V4.1 Flash · DeepSeek",
-      footer: "⇣0.15 ⇡0.6 ↻0.003 [👁 🧠 🔧] · max",
+      footer: "⇣0.15 ⇡0.6 ↻0.003 [👁️ 🧠 🔧] · max", // eye carries VS16 (t75)
     })
   })
 
@@ -138,7 +138,7 @@ describe("agentRowModelCell", () => {
       }),
     ).toEqual({
       description: "Muse Spark 1.2 Free · OpenCode Zen",
-      footer: "Free [🎥 👁 🧠 🔧] · high",
+      footer: "Free [🎥 👁️ 🧠 🔧] · high", // eye carries VS16 (t75)
     })
   })
 

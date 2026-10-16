@@ -1,7 +1,7 @@
 import { describe, expect, setDefaultTimeout, test } from "bun:test"
 import { Effect } from "effect"
 import * as Stream from "effect/Stream"
-import { buildSwitchNote, createFirstTokenWatch, decideStreamError, runChainStream, toChainError } from "@/provider/model-chain/stream-failover"
+import { buildSwitchNote, createFirstTokenWatch, decideStreamError, isProviderShaped, runChainStream, toChainError } from "@/provider/model-chain/stream-failover"
 import type { ChainHealth, ChainMember } from "@/provider/model-chain/chain"
 import { memberKey } from "@/provider/model-chain/chain"
 
@@ -290,5 +290,33 @@ describe("runChainStream (stream-phase failover)", () => {
     expect(note?.reason).toMatch(/terminal/)
     expect(elements).toContain("hello from go")
     expect(elements.indexOf(note)).toBeLessThan(elements.indexOf("hello from go"))
+  })
+  test("provider-shaped defect (die) also fails over — the t74 hole", async () => {
+    const health = healthOf()
+    const seen = { freeCalls: 0, scheduled: [] as number[] }
+    const deps = depsOf(health, seen)
+    const dying = {
+      ...deps,
+      run: (model: StubModel, _abort: AbortSignal) =>
+        model.key === freeModel.key
+          ? (seen.freeCalls += 1, Effect.die(freeError()))
+          : deps.run(model, _abort),
+    }
+    const collected = await Effect.runPromise(Stream.runCollect(runChainStream(dying)))
+    const elements = Array.from(collected)
+    expect(seen.freeCalls).toBe(1)
+    expect(health.get(memberKey(free))?.status).toBe("DOWN")
+    const note = elements.find(
+      (element) => typeof element === "object" && element !== null && (element as { type?: string }).type === "chain-switch",
+    ) as { nextKey: string; reason: string } | undefined
+    expect(note?.nextKey).toBe(memberKey(go))
+    expect(elements).toContain("hello from go")
+  })
+  test("isProviderShaped admits only error shapes the provider can produce", () => {
+    expect(isProviderShaped({ statusCode: 429, message: "x" })).toBe(true)
+    expect(isProviderShaped({ message: "x", responseHeaders: { "retry-after": "5" } })).toBe(true)
+    expect(isProviderShaped(new TypeError("cannot read properties of undefined"))).toBe(false)
+    expect(isProviderShaped("boom")).toBe(false)
+    expect(isProviderShaped(undefined)).toBe(false)
   })
 })

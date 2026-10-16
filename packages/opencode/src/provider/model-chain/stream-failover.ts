@@ -15,7 +15,7 @@
  * - other transient: bounded retries on the SAME member, then DOWN + next;
  * - no UP member left: visible exhaustion, never an invented model.
  */
-import { Cause, Effect, Option } from "effect"
+import { Cause, Effect, Option, Result } from "effect"
 import * as Stream from "effect/Stream"
 import { firstUp, markDown, memberKey } from "./chain"
 import { classifyChainError, parseRetryAfterMs } from "./classify"
@@ -154,6 +154,21 @@ export function toChainError(e: unknown): ChainErrorInput {
   return { message, statusCode, retryAfterMs }
 }
 
+/**
+ * Defect-side gate: only values shaped like a provider refusal enter the
+ * failover decision. A numeric `statusCode` or a `responseHeaders` record is
+ * exactly what a raw provider throw carries — and what our own bugs and
+ * interrupts never do — so a TypeError from our own code still surfaces
+ * instead of marking a member DOWN.
+ */
+export function isProviderShaped(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false
+  const record = value as Record<string, unknown>
+  if (typeof record.statusCode === "number") return true
+  const headers = record.responseHeaders
+  return typeof headers === "object" && headers !== null
+}
+
 export interface ChainStreamDeps<TChunk, TModel, TErr = never, R = never> {
   chain: ChainMember[]
   initialModel: TModel
@@ -228,16 +243,34 @@ export function runChainStream<TChunk, TModel, TErr = never, R = never>(
       Stream.unwrap(
         Effect.gen(function* () {
           const failure = Cause.findErrorOption(cause)
-          if (Option.isNone(failure)) return Stream.failCause(cause)
-          const error: ChainErrorInput = state.timedOut
-            ? { code: "FIRST_TOKEN_TIMEOUT", message: `no first token within ${deps.timeoutMs}ms` }
-            : toChainError(failure.value)
+          // Failures always enter the decision. Defects enter it only when
+          // they carry a provider shape (see isProviderShaped): the t74 429
+          // reached the retry policy with no mark and no switch, which a
+          // failure cannot do — so it arrived as a defect. Anything else
+          // (interrupts, our own bugs) rethrows below.
+          let errorInput: ChainErrorInput | undefined
+          if (!Option.isNone(failure)) {
+            errorInput = state.timedOut
+              ? { code: "FIRST_TOKEN_TIMEOUT", message: `no first token within ${deps.timeoutMs}ms` }
+              : toChainError(failure.value)
+          } else {
+            const defect = Cause.findDefect(cause)
+            if (!Result.isFailure(defect)) {
+              const value = defect.success
+              if (state.timedOut || isProviderShaped(value)) {
+                errorInput = state.timedOut
+                  ? { code: "FIRST_TOKEN_TIMEOUT", message: `no first token within ${deps.timeoutMs}ms` }
+                  : toChainError(value)
+              }
+            }
+          }
+          if (errorInput === undefined) return Stream.failCause(cause)
           const decision = decideStreamError({
             chain: deps.chain,
             health: deps.health,
             now: deps.now,
             failed: current.member,
-            error,
+            error: errorInput,
             attemptsSoFar: attemptsOnCurrent,
             maxTransientAttempts,
           })

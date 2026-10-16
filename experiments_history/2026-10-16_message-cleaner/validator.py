@@ -21,7 +21,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CORPUS = os.path.join(HERE, "corpus.jsonl")
-FIXLOG = os.path.join(HERE, "fixer_log.jsonl")
+FIXLOG = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].endswith(".jsonl") else os.path.join(HERE, "fixer_log.jsonl")
 VERDICTS = os.path.join(HERE, "verdicts.jsonl")
 
 CJK = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]")
@@ -134,6 +134,11 @@ def selftest():
     return 0 if ok_all else 1
 
 def main():
+    global VERDICTS
+    base = os.path.basename(FIXLOG)
+    if base.startswith("fixer_log_") and base.endswith(".jsonl"):
+        VERDICTS = os.path.join(HERE, base.replace("fixer_log_", "verdicts_"))
+    print("fixlog: %s verdicts: %s" % (FIXLOG, VERDICTS), flush=True)
     with open(CORPUS, encoding="utf-8") as f:
         origs = {json.loads(line)["msg_id"]: json.loads(line)["text"]
                  for line in f if line.strip()}

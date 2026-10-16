@@ -7229,3 +7229,10 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ ARCHIVE (content-checked, sha попарно): experiments_history/2026-10-16_message-cleaner/ — REPORT, corpus 70, metrics, fixer_log 1, verdicts 1, 5 скриптов, всё identical.
 ✓ MAP: svm render — plans/2026-10-16_message-cleaner.md в MASTER_PLAN (gapsBefore содержал его, планов 32, боксов 144).
 <!-- sv: fixer-429-blocked 0.35, report-no-go 0.30, archive-verified 0.20, residual-rerun 0.15 -->
+## [2026-10-16] t69 Supplement S1 — 31b по слову владельца: тот же 429, NO-GO стоит (Smit)
+
+✓ AUTH (слово владельца, цитата): `openrouter/google/gemma-4-31b-it:free` — «в каталоге $0, context 262 144, output 32 768». Проверено в openrouter.json→models→`google/gemma-4-31b-it:free`: cost 0/0 ✓, limit 262144/32768 ✓ побайтово (базовый не-free отличается: $0.2/$0.4, output 16384 — :free отдельный ключ).
+✓ MEASURED (проба 31b, 1 вызов 141 B): 3×429 за 182 261 мс → PROBE REFUSAL, больше ничего не слал. Diag-пинг поймал тело: тот же upstream_provider_shared_pool (Google AI Studio, is_byok false). Итого 31b: 4/4 попыток 429; кампания по двум id: ≈11 попыток, 0 ответов. Платных ноль.
+✓ HARNESS: fixer_run.py --model с allowlist (26b|31b, остальное отказ), per-model логи (fixer_log.jsonl→fixer_log_26b.jsonl, verdicts.jsonl→verdicts_26b.jsonl, байты те же); тот же промпт, temperature 0. Validator: FIXLOG из argv, VERDICTS по имени лога.
+✓ REPORT Supplement S1 + renewed NO-GO (на двух free id), архив обновлён (REPORT, harness, переименованные логи — всё identical). E3 в плане BLOCKED на оба id.
+<!-- sv: owner-31b-authorized 0.35, same-pool-429 0.30, supplement-no-go 0.20, archive-refreshed 0.15 -->

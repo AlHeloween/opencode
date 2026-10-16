@@ -101,7 +101,7 @@ No `bin/`, no product source in Phase E. Commits through `scripts/commit_own.py`
   state=DONE:precision-1.000-recall-0.680-fixable-27/50;eta_turns=1;oracle=A2.
 - [ ] **E3** — Fixer runs: researcher verifies the `:free` model live ($0, active) first; one zero-tool call per
   flagged reply with the fixed prompt; log `{msg_id, model, latency_ms, output}`. Binding: `fixer_log.jsonl`.
-  state=BLOCKED:upstream-429-5/5-attempts-resume-rerun---all;eta_turns=2;oracle=A3.
+  state=BLOCKED:upstream-429-26b-5/5-and-31b-4/4-owner-authorized-NO-GO-stands-resume-either-id;eta_turns=2;oracle=A3.
   <!-- sv: free-model-fixer 0.50, one-reply-calls 0.30, latency-log 0.20 -->
 - [x] **E4** — Validator oracle: implements the four rules above; `validator.py` rerun byte-identical;
   per-reply `{accept, reason}`; rejects keep the original. Binding: `validator.py`, `verdicts.jsonl`.

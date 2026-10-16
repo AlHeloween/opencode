@@ -123,3 +123,29 @@ fixer_run, validator, corpus.jsonl 70 lines, detector_metrics.json, fixer_log.js
 verdicts.jsonl 1 line). Archive copies: `experiments_history/2026-10-16_message-cleaner/`
 (byte-verified). Runs: probe-only 429/862 ms; diag 429; run-1 stall-killed 124 s (no output);
 run-2 done 3×429/182 366 ms. Validator selftest 5/5, sha above.
+
+## Supplement S1 — owner-authorized fixer swap to gemma-4-31b-it:free (2026-10-16)
+
+Owner word (answer to the question, quoted): `openrouter/google/gemma-4-31b-it:free` —
+«в каталоге $0, context 262 144, output 32 768». Grounded cell-for-cell in
+`packages/opencode/src/provider/models/openrouter.json` → `models` →
+`google/gemma-4-31b-it:free`: cost {input 0, output 0} ✓, limit {context 262144,
+output 32768} ✓ (the non-free base entry differs: $0.2/$0.4, output 16384 — the `:free`
+key is its own entry, like the other `:free` keys). Same fixed prompt, temperature 0,
+same 27 fixable replies, same ≤120-call budget. Harness change only: `--model` with an
+owner-allowlist (26b|31b, anything else = refusal), per-model logs
+(`fixer_log_26b.jsonl`/`verdicts_26b.jsonl` — renamed from `fixer_log.jsonl`/`verdicts.jsonl`,
+bytes unchanged; a 31b campaign would write `fixer_log_31b.jsonl`/`verdicts_31b.jsonl`).
+
+Probe (1 call, shortest reply 141 B): 3 attempts × HTTP 429 over 182 261 ms → PROBE
+REFUSAL, nothing else sent. Diag ping captured the body: `google/gemma-4-31b-it:free is
+temporarily rate-limited upstream … provider_name: Google AI Studio, is_byok: false …
+limit_source: upstream_provider_shared_pool` — the SAME shared pool as the 26b refusal.
+31b attempts this window: 4 (3 probe + 1 diag), all 429. Campaign total across both ids:
+≈11 attempts, 0 outputs. Paid ids: zero touched.
+
+Renewed go/no-go: **NO-GO stands (now on two free ids).** The fixer-quality question has
+zero observations on either id; detector/validator/corpus/prompt/harness are unchanged and
+reusable. Residual R-E3 updated: re-run `fixer_run.py --model <id> --all` (resume-aware)
+when a probe receipt shows `ok=True` on either allowlisted id; then E4 + REPORT supplement S2.
+No third id without the owner's explicit word.

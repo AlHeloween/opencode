@@ -5,10 +5,13 @@ Direct OpenRouter HTTPS (no session, no tools, no DB touch): the Phase E questio
 fixer QUALITY, not the production route; the route decision is recorded in REPORT.md.
 Probe-first: a single probe call must return HTTP 200 with the requested :free model
 id echoed back. Any probe failure (non-200, wrong model, no key, timeout) STOPS the
-run with exit 2 — NEVER falls back to another (possibly paid) id. Usage:
-  fixer_run.py --probe-only   # 1 call, shortest fixable reply
-  fixer_run.py --all          # probe + every fixable reply, 3 s apart
-Writes fixer_log.jsonl: {msg_id, model_requested, model_served, latency_ms,
+run with exit 2 — NEVER falls back to another id. Usage:
+  fixer_run.py --model <id> [--probe-only|--all]
+<id> allowlist (owner-authorized free ids ONLY, anything else = refusal):
+  google/gemma-4-26b-a4b-it:free  (2026-10-16 probe: upstream 429)
+  google/gemma-4-31b-it:free      (owner word 2026-10-16: «gemma-4-31b-it:free»)
+  probe = 1 call on the shortest fixable reply; --all = probe + every fixable reply.
+Writes fixer_log_<slug>.jsonl: {msg_id, model_requested, model_served, latency_ms,
 status, output|error}. The API key is read from env and never printed or logged.
 """
 import json
@@ -32,7 +35,10 @@ PROMPT = (
     "byte-for-byte. If there is nothing to fix, return the text unchanged. "
     "Return ONLY the corrected text, no commentary."
 )
-MODEL = "google/gemma-4-26b-a4b-it:free"
+ALLOWED = {"google/gemma-4-26b-a4b-it:free": "26b",
+           "google/gemma-4-31b-it:free": "31b"}
+MODEL = ""
+LOG = ""
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 CALL_TIMEOUT = 100
 GAP_S = 3
@@ -79,7 +85,27 @@ def call(text, key):
 
 
 def main():
-    mode = sys.argv[1] if len(sys.argv) > 1 else "--probe-only"
+    args = sys.argv[1:]
+    model_id = ""
+    mode = "--probe-only"
+    i = 0
+    while i < len(args):
+        if args[i] == "--model" and i + 1 < len(args):
+            model_id = args[i + 1]
+            i += 2
+        elif args[i] in ("--probe-only", "--all"):
+            mode = args[i]
+            i += 1
+        else:
+            print("REFUSAL: unknown arg %r" % args[i], flush=True)
+            return 2
+    if model_id not in ALLOWED:
+        print("REFUSAL: --model required, allowlist %s" % sorted(ALLOWED), flush=True)
+        return 2
+    global MODEL, LOG
+    MODEL = model_id
+    LOG = os.path.join(HERE, "fixer_log_%s.jsonl" % ALLOWED[model_id])
+    print("model: %s" % MODEL, flush=True)
     key = os.environ.get("OPENROUTER_API_KEY", "")
     print("key present: %s" % bool(key), flush=True)
     if not key:

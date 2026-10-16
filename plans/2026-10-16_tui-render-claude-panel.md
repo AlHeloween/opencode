@@ -78,7 +78,8 @@ terminal model.
   DONE 2026-10-16: badge-width 3/3 GREEN run 20261016T120857Z_dee192cb exit 0; model-cost 11/11 run 20261016T120915Z_37b973c0; agent-model-cell 24/24 run 20261016T120931Z_4a74207a. Post-fix badge counts 13 on all sides (was 12 ours vs 13 panel).
   Same harness GREEN (rows aligned) + standard-terminal model output unchanged (no regression). Receipt: GREEN run
   ids; a red test is first a question about the TEST (AGENTS.md § Bug Policy) — never weaken it.
-- [ ] S5-close <!-- sv: docs-progress-commit,build-smoke,private-index -->
+- [x] S5-close <!-- sv: docs-progress-commit,build-smoke,private-index -->
+  DONE 2026-10-16: _progress_log.md appended (t75 entry); commit e6cb9962 via scripts/commit_own.py (7 own paths only); _build.ps1 exit 0 run 20261016T121202Z_c76d4cd8, smoke 10.0.1409.
   `_progress_log.md` append (BOTH on conflict), commits of ONLY own paths via `scripts/commit_own.py`, final
   `pwsh -NoProfile -File _build.ps1` via cmd_runner + `state.json` read. Receipt: commit hashes + build run id.
 

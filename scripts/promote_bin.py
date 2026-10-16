@@ -355,12 +355,67 @@ def relaunch_command(bin_path: Path, cmdline: str, worktree: str, launch_mode: s
     return [exe, *args]
 
 
+def split_cmdline(cmdline: str) -> list[str]:
+    """Split a Windows command line the way CommandLineToArgvW does.
+
+    Quoted spans stay one token (paths with spaces survive), backslashes before
+a quote follow the 2n / 2n+1 rule, whitespace outside quotes delimits."""
+    argv: list[str] = []
+    current: list[str] = []
+    in_quotes = False
+    backslashes = 0
+    started = False  # an (even empty) quoted span opens a token: '""' -> ['""']
+    for char in cmdline:
+        if char == "\\":
+            backslashes += 1
+            continue
+        if char == '"':
+            current.append("\\" * (backslashes // 2))
+            if backslashes % 2 == 0:
+                in_quotes = not in_quotes
+            else:
+                current.append('"')
+            started = True
+            backslashes = 0
+            continue
+        if char in (" ", "\t") and not in_quotes:
+            if backslashes:
+                current.append("\\" * backslashes)
+                backslashes = 0
+            if started or current:
+                argv.append("".join(current))
+                current = []
+                started = False
+            continue
+        if backslashes:
+            current.append("\\" * backslashes)
+            backslashes = 0
+        current.append(char)
+        started = True
+    if backslashes:
+        current.append("\\" * backslashes)
+    if started or current:
+        argv.append("".join(current))
+    return argv
+
+
+def is_exe_token(token: str) -> bool:
+    """The recorded argv[0]: a bare name or any path whose file is the opencode binary."""
+    base = norm(token).rsplit("/", 1)[-1]
+    if base in ("opencode", "opencode.exe"):
+        return True
+    return base.endswith(".exe") and "opencode" in base
+
+
 def parse_cmdline_args(cmdline: str) -> list[str]:
-    """Args after the executable token: 'opencode serve --port 4096' -> ['serve', '--port', '4096']."""
-    parts = cmdline.split()
-    if parts and norm(parts[0]) in ("opencode", "opencode.exe"):
-        return parts[1:]
-    if len(parts) > 1 and ("opencode" in norm(parts[0]) or parts[0].endswith(".exe")):
+    """Args after the executable token: 'opencode serve --port 4096' -> ['serve', '--port', '4096'].
+
+    t73: a lone executable token — quoted or not (the 2026-10-16 18:06 quoted-argv[0]
+    case) — carries no arguments, so it maps to [], never to [exe]."""
+    parts = split_cmdline(cmdline)
+    if not parts:
+        return []
+    if is_exe_token(parts[0]):
         return parts[1:]
     return parts
 

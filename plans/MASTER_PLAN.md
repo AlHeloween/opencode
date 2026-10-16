@@ -135,10 +135,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 265 |
+| plans completed | 266 |
 | plans active | 30 |
-| tasks passed / total | 1218 / 1511 |
-| open boxes | 150 |
+| tasks passed / total | 1231 / 1518 |
+| open boxes | 144 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -376,25 +376,19 @@ parent-goal-md5: 00000000000000000000000000000000]
   - P2 [PENDING] · sv [actual-wire, payload-diff, source-provenance] · manifest: MISSING — nobody has written down what this box is
   - P5 [PENDING] · sv [measured-outcome, continuation-receipt, research-closure] · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-16_message-cleaner.md` — 2 open / 7 box(es) · lifecycle UNKNOWN
+  sv: intention "raw chain replies with foreign-script slips flow into requests uncleaned -> measured go/no-go on a one-shot free-model cleaner with a deterministic validator, no product change" · keywords [message-cleaner-experiment 0.40, free-model-fixer 0.25, deterministic-validator 0.20, detector-precision-recall 0.15]
+  - E3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - E6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-16_model-chain-failover.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "blind retry loops on dead models with human failover -> explicit ordered model chain per agent/scope with automatic classified failover and 10-minute health checks" · keywords [model-chain, failover-classification, health-probe, assignment]
-  - C1 [PENDING] · sv [chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25] · manifest: MISSING — nobody has written down what this box is
+  - C1 [PENDING] · sv [chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25] · manifest: Persist the explicit model chain per agent and scope in LMDB through the TUI server path with fill-once semantics. · eta 3 · doing
   - C2 [PENDING] · sv [error-classification 0.50, reuse-existing 0.30, measured-threshold 0.20] · manifest: MISSING — nobody has written down what this box is
   - C3 [PENDING] · sv [failover-execution 0.45, visible-note 0.30, no-invention 0.25] · manifest: MISSING — nobody has written down what this box is
   - C4 [PENDING] · sv [health-probe 0.50, no-session-probe 0.30, fake-clock 0.20] · manifest: MISSING — nobody has written down what this box is
   - C5 [PENDING] · sv [chain-assignment 0.50, dispatcher-unpinned 0.30, prompt-async 0.20] · manifest: MISSING — nobody has written down what this box is
   - C6 [PENDING] · sv [tui-chain-editor 0.40, live-receipt 0.35, docs-close 0.25] · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-10-16_org-ticket-slugs.md` — 8 open / 11 box(es) · lifecycle UNKNOWN
-  sv: intention "from_state="tickets are known only by a hex id; nobody can tell what 355f6a3d4d is about" -> to_state="every ticket carries a required kebab slug, unique among open tickets, and every verb and report shows slug + title"" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-11 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-16_reasoning-lossless-replay.md` — 9 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "reasoning и metadata могут теряться до следующего запроса, поддержка HTTP3 у Anthropic на нашем сетевом пути не проверена -> reasoning сохраняется полностью и replay квалифицирован, HTTP3/QUIC и fallback установлены отдельными сетевыми измерениями" · keywords [reasoning-preservation, wire-proof, provider-contracts, continuity, transport-qualification]

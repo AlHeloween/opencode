@@ -1,0 +1,920 @@
+{
+ "tp": 34,
+ "fn_classes": {
+  "fence": 2,
+  "fence+inline-code": 2,
+  "inline-code": 11,
+  "quoteline": 1
+ },
+ "fp": 0,
+ "tn": 20,
+ "precision": 1.0,
+ "recall": 0.68,
+ "ratio_cap": 0.1,
+ "fixable": [
+  "msg_0dec8e6c9001CzfFb8SNFtJxl3",
+  "msg_0def60d8c001bSh0q0H2PbJxCP",
+  "msg_0e0742a10001N376hY6eVMMn8U",
+  "msg_0e08623f3001GNZiFftrNn0V68",
+  "msg_0e11c440c001P1choA7EoOBEhJ",
+  "msg_0e14b3fd1001oFBS40OZOfr7E2",
+  "msg_0e1a7fb6f0017ckdPp0t7PZ0Dq",
+  "msg_0e1c95ac3001Q94KVjDGTwDZvA",
+  "msg_0e2225b69001284misV7elmomI",
+  "msg_0e2f7b9c4001zoRo6aWXV5B7rk",
+  "msg_0e2f97362001XasuRC2vv36Kwt",
+  "msg_0e3129b81001QrCVIV7woSV2t3",
+  "msg_0e66da1ae001d3xZhF4T4N6DMI",
+  "msg_0e7e146c1001ed2ci5LCtf9Dm1",
+  "msg_0e7fd3371001xN8hgjb8DNJ8pV",
+  "msg_0e8162f3e001C7wpzA7sIqj94g",
+  "msg_0e83353ae0015KRsIkHIkqwnf8",
+  "msg_0e8ced61a001v4SNsm6oeFLjL3",
+  "msg_0e92e5ef3001mRgWlx7sOl0xAx",
+  "msg_116c87131001ClqKsoNlMwr306",
+  "msg_116da2862001mbMs2kJZxWWHqa",
+  "msg_116dca5e9001dhDNH5MDAx8i1p",
+  "msg_124749b82001z79dZiE1bF3zOs",
+  "msg_1382640f7001EXNyz4sn7saftI",
+  "msg_138a57cac001L11YPfyvpL46ZN",
+  "msg_13be01965001tuQfBWRTh3Ren4",
+  "msg_142492924001CyoyxznLfz3KhJ"
+ ],
+ "rows": [
+  {
+   "msg_id": "msg_0dc26cddf001pH8ln1fC4DDDUU",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "fence"
+   ]
+  },
+  {
+   "msg_id": "msg_0dec8e6c9001CzfFb8SNFtJxl3",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0142,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0def60d8c001bSh0q0H2PbJxCP",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.007,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0742a10001N376hY6eVMMn8U",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0041,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e08623f3001GNZiFftrNn0V68",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0009,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e09da58a001bbdR3eFA85NI2Z",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 3,
+   "ratio": 0.005,
+   "classes": [
+    "inline-code",
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0e09eba60001hkr5R152yI4ncP",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "fence",
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0a0ddd4001JiUBYPlh1yCwBU",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0a1e951001TARND0HvXt7sVo",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0a22fd5001YfTM3eGHrw7idz",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0a7fd68001dutn10ucKVIkMF",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0aab2ff001rxl6zzEThqVmRo",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0ad8d360019HnS6CJ1b2AFai",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0ae1480001mckGfMabPLgyVi",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0aecae9001In8jC2pZt5c4N4",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0e0c91360001wb9vJQu2BPai2R",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 2,
+   "ratio": 0.001,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0e11c440c001P1choA7EoOBEhJ",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0009,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e14b3fd1001oFBS40OZOfr7E2",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0008,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e1a7fb6f0017ckdPp0t7PZ0Dq",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0015,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e1c95ac3001Q94KVjDGTwDZvA",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0076,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e2225b69001284misV7elmomI",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0013,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e2f7b9c4001zoRo6aWXV5B7rk",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0082,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e2f97362001XasuRC2vv36Kwt",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0078,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e3129b81001QrCVIV7woSV2t3",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0136,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e66da1ae001d3xZhF4T4N6DMI",
+   "model": "opencode/space-bunny-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0006,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e7e146c1001ed2ci5LCtf9Dm1",
+   "model": "opencode/space-bunny-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0068,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e7fd3371001xN8hgjb8DNJ8pV",
+   "model": "opencode/space-bunny-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 3,
+   "quote_hits": 0,
+   "ratio": 0.0018,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e80b0d1b0013z2YfolBPWXQUN",
+   "model": "opencode/space-bunny-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 2,
+   "ratio": 0.0007,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0e8162f3e001C7wpzA7sIqj94g",
+   "model": "opencode/space-bunny-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 3,
+   "quote_hits": 0,
+   "ratio": 0.0014,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e83353ae0015KRsIkHIkqwnf8",
+   "model": "opencode/space-bunny-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 3,
+   "quote_hits": 0,
+   "ratio": 0.0038,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e893341f001KeUFSvxVjou3tc",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "quoteline"
+   ]
+  },
+  {
+   "msg_id": "msg_0e8ced61a001v4SNsm6oeFLjL3",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0037,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0e92e5ef3001mRgWlx7sOl0xAx",
+   "model": "openrouter/stealth/space-bunny-alpha",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0017,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2e96dc3001GXYg4EwDNXqqyz",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": false,
+   "prose_hits": 904,
+   "quote_hits": 0,
+   "ratio": 0.5654,
+   "classes": [
+    "prose",
+    "sv-block"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f21f1500103eCuG8syxskyq",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f2405f001l9uOADUhBGfj0L",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f261ef001oaGP3uCZWGWKMz",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "fence",
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f46da7001WoRcyGmubJwuba",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 12,
+   "ratio": 0.0556,
+   "classes": [
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f4a8b1001e64mvcKtgERJm1",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 12,
+   "ratio": 0.0052,
+   "classes": [
+    "inline-code",
+    "quote-inline"
+   ]
+  },
+  {
+   "msg_id": "msg_0f2f9111500108oIumGC4l1vt4",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "inline-code"
+   ]
+  },
+  {
+   "msg_id": "msg_116c87131001ClqKsoNlMwr306",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 265,
+   "quote_hits": 0,
+   "ratio": 0.0138,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116da2862001mbMs2kJZxWWHqa",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0002,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_116dca5e9001dhDNH5MDAx8i1p",
+   "model": "opencode/longcat-2.5-preview-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 52,
+   "quote_hits": 0,
+   "ratio": 0.0096,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_124749b82001z79dZiE1bF3zOs",
+   "model": "opencode/mimo-v2.6-flash-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 3,
+   "quote_hits": 0,
+   "ratio": 0.0044,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1258432b2001qOPH6ysQc9fLtk",
+   "model": "opencode/mimo-v2.6-flash-free",
+   "kind": "flagged",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": [
+    "fence"
+   ]
+  },
+  {
+   "msg_id": "msg_12b62854d001tqCtWtUtxn3QsM",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": false,
+   "prose_hits": 429,
+   "quote_hits": 0,
+   "ratio": 0.5232,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_1382640f7001EXNyz4sn7saftI",
+   "model": "opencode/mimo-v2.6-flash-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.0139,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_138a57cac001L11YPfyvpL46ZN",
+   "model": "deepseek/deepseek-flash",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 2,
+   "quote_hits": 0,
+   "ratio": 0.004,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_13be01965001tuQfBWRTh3Ren4",
+   "model": "opencode/muse-spark-1.3-contributor-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 4,
+   "quote_hits": 0,
+   "ratio": 0.0007,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_142492924001CyoyxznLfz3KhJ",
+   "model": "opencode/muse-spark-1.3-contributor-free",
+   "kind": "flagged",
+   "flagged": true,
+   "fixable": true,
+   "prose_hits": 1,
+   "quote_hits": 0,
+   "ratio": 0.0012,
+   "classes": [
+    "prose"
+   ]
+  },
+  {
+   "msg_id": "msg_0d44b7f69001kRSOvXRXMtX5O0",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0d44f76750012uDiCa9c14h4Il",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0d46191ef001Ewsz05uVqZzKos",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dbc2b7ba001afEpDSgoxEuQWu",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dbdda98b001dYlWx8VTU9uKqd",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dbeb5e6e001dnuLLcMSh8D6Ji",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dc1d953c0011iqAMn38l6uW7Q",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dc7146fb001BVeYCY5AoRs8Nq",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dc74d0f0001UAsG5vGhXZHd9e",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dc789dcf001yqSNP1Zn5y5cGj",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dc7a9759001La02jXI0hnnzc5",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dc7d01d1001uIw03Ql9KpTFvb",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dc7da345001XJaP4pkCV3EogB",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dcb3b999001Xbnd2Gen8zHjPe",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dd037455001BbvCocp0tI6t1s",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dd0bbb6f001wZVXJSYu7Hl50R",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dd13bfc3001LcpXmXx1pAi5A5",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dd8b0c29001hUK1PpjqiwQbYZ",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dde3b199001rIdi3SCg8kel6w",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  },
+  {
+   "msg_id": "msg_0dde664370012TbsiAHNMdEgzk",
+   "model": "deepseek/deepseek-flash",
+   "kind": "clean-control",
+   "flagged": false,
+   "fixable": false,
+   "prose_hits": 0,
+   "quote_hits": 0,
+   "ratio": 0.0,
+   "classes": []
+  }
+ ]
+}

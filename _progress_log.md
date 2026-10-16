@@ -7213,3 +7213,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ CONFIRMED (E4 smoke): validator.py --selftest 5/5 (identical-accept, slip-fix-accept edit=10 bound=10, hex-touch→rule1, rephrase→rule3, cjk-left→rule2).
 → E3: проба openrouter/google/gemma-4-26b-a4b-it:free → 429 rate-limited upstream shared pool (transient, «retry shortly»; researcher-чек страницы инконклюзивен — не основание). В harness добавлен ретрай 90с×2, запущен run-1 fixer_run.py --all (27 fixable, ≤120), в фоне. Никакого фолбэка на не-free id.
 <!-- sv: message-cleaner 0.35, corpus-detector 0.25, deterministic-validator 0.20, free-fixer-probe 0.20 -->
+## [2026-10-16] t69 Phase E — REPORT + NO-GO условный, архив, E3 residual (Smit)
+
+✓ MEASURED (E3, итог): free-пул 429 на всех 5 попытках в окне ~05:08–05:35 UTC (проба 862 мс, diag-пинг с телом upstream_provider_shared_pool, run-2 3×429 за 182 366 мс → PROBE REFUSAL остановил прогон, в логе 1 строка). Успешных вызовов 0/27, потрачено 4 free-попытки из 120. run-1 убит stall-киллером после 124 с тишины (молчаливые sleep 90 с) — урок: heartbeat каждые 15 с + инкрементальный append + resume в harness. Платный id не тронут, замены модели нет (это смена плана — нужно слово владельца).
+✓ CONFIRMED (E4 live): validator verdicts 1/1 — REJECT no-output status=error:HTTPError-429 (конвейер сквозной, судить было нечего); sha e1138628.
+✓ REPORT (E5): experiments/2026-10-16_message-cleaner/REPORT.md — 5 предсказаний оценены (recall ✗ 0.680, precision ✗ 1.000 вверх, acceptance/latency/drift — UNSCORABLE/SUBSTITUTED с причиной), таксономия 23 not-sent + 1 reject, 10 ручных чтений с цитатами (5 слипов + 5 корректных исключений), go/no-go.
+— VERDICT: NO-GO условный — качество фиксера не доказано (0 наблюдений), детектор/валидатор/корпус/промпт/harness стоят. Resume: один ре-ран fixer_run.py --all при первом ok=True (в логе уже 1 строка, resume пропустит), затем E4 + дополнение к REPORT. E3 в плане BLOCKED, остальные боксы [x] с receipt.
+✓ ARCHIVE (content-checked, sha попарно): experiments_history/2026-10-16_message-cleaner/ — REPORT, corpus 70, metrics, fixer_log 1, verdicts 1, 5 скриптов, всё identical.
+✓ MAP: svm render — plans/2026-10-16_message-cleaner.md в MASTER_PLAN (gapsBefore содержал его, планов 32, боксов 144).
+<!-- sv: fixer-429-blocked 0.35, report-no-go 0.30, archive-verified 0.20, residual-rerun 0.15 -->

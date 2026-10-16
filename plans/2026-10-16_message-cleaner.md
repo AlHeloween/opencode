@@ -89,28 +89,30 @@ No `bin/`, no product source in Phase E. Commits through `scripts/commit_own.py`
 
 ## Tasks and bindings
 
-- [ ] **E0** — Plan + predictions ledger (this file): intention, sv, boxes, Smoke Tests, fixed fixer prompt,
-  validator rules, predictions. Binding: this plan file. state=PENDING;eta_turns=1;oracle=A5-plan-half.
+- [x] **E0** — Plan + predictions ledger (this file): intention, sv, boxes, Smoke Tests, fixed fixer prompt,
+  validator rules, predictions. Binding: this plan file. state=DONE:commit-934e205c;eta_turns=1;oracle=A5-plan-half.
   <!-- sv: plan-predictions 0.50, fixed-prompt 0.30, phase-e-scope 0.20 -->
-- [ ] **E1** — Corpus: read-only DB scan → `experiments/2026-10-16_message-cleaner/corpus.jsonl`
+- [x] **E1** — Corpus: read-only DB scan → `experiments/2026-10-16_message-cleaner/corpus.jsonl`
   (`{msg_id, session_id, model, kind: flagged|clean-control|legit-cjk, text}`); every table-count reproduced in the
   report. Binding: `experiments/2026-10-16_message-cleaner/corpus.jsonl` + extractor script beside it.
-  state=PENDING;eta_turns=1;oracle=A1. <!-- sv: corpus-extraction 0.50, read-only-db 0.30, controls 0.20 -->
-- [ ] **E2** — Detector + metrics: prose/protected splitter + foreign-script regex → per-line
+  state=DONE:70-lines-50-flagged+20-controls-DB-unchanged;eta_turns=1;oracle=A1.
+- [x] **E2** — Detector + metrics: prose/protected splitter + foreign-script regex → per-line
   `{flagged, spans}` + confusion counts vs corpus labels. Binding: `detector.py`, `detector_metrics.json`.
-  state=PENDING;eta_turns=1;oracle=A2. <!-- sv: prose-detector 0.50, precision-recall 0.30, legit-negatives 0.20 -->
+  state=DONE:precision-1.000-recall-0.680-fixable-27/50;eta_turns=1;oracle=A2.
 - [ ] **E3** — Fixer runs: researcher verifies the `:free` model live ($0, active) first; one zero-tool call per
   flagged reply with the fixed prompt; log `{msg_id, model, latency_ms, output}`. Binding: `fixer_log.jsonl`.
-  state=PENDING;eta_turns=2;oracle=A3. <!-- sv: free-model-fixer 0.50, one-reply-calls 0.30, latency-log 0.20 -->
-- [ ] **E4** — Validator oracle: implements the four rules above; `validator.py` rerun byte-identical;
+  state=BLOCKED:upstream-429-5/5-attempts-resume-rerun---all;eta_turns=2;oracle=A3.
+  <!-- sv: free-model-fixer 0.50, one-reply-calls 0.30, latency-log 0.20 -->
+- [x] **E4** — Validator oracle: implements the four rules above; `validator.py` rerun byte-identical;
   per-reply `{accept, reason}`; rejects keep the original. Binding: `validator.py`, `verdicts.jsonl`.
-  state=PENDING;eta_turns=1;oracle=A4. <!-- sv: deterministic-validator 0.50, byte-identical-spans 0.30, edit-bound 0.20 -->
-- [ ] **E5** — REPORT.md: predictions vs measured for every number, rejected cases with why, latency p50/p95,
+  state=DONE:selftest-5/5-sha-e1138628;eta_turns=1;oracle=A4.
+  <!-- sv: deterministic-validator 0.50, byte-identical-spans 0.30, edit-bound 0.20 -->
+- [x] **E5** — REPORT.md: predictions vs measured for every number, rejected cases with why, latency p50/p95,
   10 hand-read drift samples quoted, go/no-go for Phase P with its reason. Binding: `REPORT.md`.
-  state=PENDING;eta_turns=1;oracle=A5. <!-- sv: experiment-report 0.50, prediction-scoring 0.30, go-no-go 0.20 -->
+  state=DONE:REPORT-written-NO-GO-conditional-429;eta_turns=1;oracle=A5.
 - [ ] **E6** — Close: `_progress_log.md` entry (shared file — own hunks only), `svm render`, plan stays in `plans/`
   until the report is accepted, commit(s) through `scripts/commit_own.py`, `_build.ps1` receipt.
-  Binding: `_progress_log.md`, this plan. state=PENDING;eta_turns=1;oracle=closure.
+  Binding: `_progress_log.md`, this plan. state=IN-PROGRESS:report-committed-next-E3-residual;eta_turns=1;oracle=closure.
   <!-- sv: hygiene-close 0.50, private-index-commit 0.30, build-receipt 0.20 -->
 
 ## Smoke Tests (PRE_FLIGHT gate — no fixer call before GREEN)

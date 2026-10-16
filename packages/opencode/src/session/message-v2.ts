@@ -1493,11 +1493,23 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     )
   }
 
+  type DirectiveOutcome =
+    | {
+        status: "applied"
+        blockRows: number
+        droppedLines: number
+        droppedBytes: number
+        reason: string
+        targetID: string
+      }
+    | { status: "refused"; blockRows: number; reason: string }
+    | undefined
+
   function applySelfEditDirective(
     outbound: WithParts[],
     result: UIMessage[],
     assistantMessage: UIMessage,
-  ): { blockRows: number; droppedLines: number; droppedBytes: number; reason: string; targetID: string } | undefined {
+  ): DirectiveOutcome {
     const firstText = assistantMessage.parts.find(isTextChunk)
     if (!firstText) return undefined
     const text = firstText.text.replace(/^\s+/, "")
@@ -1509,7 +1521,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       head.push(row)
     }
     const parsed = parseDirective(head.join("\n") + "\n")
-    if (!parsed.ok) return undefined
+    if (!parsed.ok) return { status: "refused", blockRows: head.length, reason: parsed.error }
     const directive = parsed.directive
     let prevIndex = -1
     for (let i = result.length - 1; i >= 0; i--) {
@@ -1545,19 +1557,23 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       }
     })
     if (view.length === 0) return undefined
-    if (messageMd5(view.map((l) => l.text).join("\n")) !== directive.targetMd5) return undefined
+    if (messageMd5(view.map((l) => l.text).join("\n")) !== directive.targetMd5)
+      return { status: "refused", blockRows: head.length, reason: "target hash does not match the previous assistant message" }
     for (const cut of directive.cuts) {
-      if (!resolveCut(view, cut).ok) return undefined
+      const resolved = resolveCut(view, cut)
+      if (!resolved.ok) return { status: "refused", blockRows: head.length, reason: resolved.error }
     }
-    if (!validateDirective(directive, { totalLines: view.length, hasSignedLastTurn: signedStored }).ok)
-      return undefined
+    const valid = validateDirective(directive, { totalLines: view.length, hasSignedLastTurn: signedStored })
+    if (!valid.ok) return { status: "refused", blockRows: head.length, reason: valid.error }
     const applied = applyDirective(view, directive, { signedRanges: [] })
-    if (applied.refusals.length > 0) return undefined
-    if (applied.appliedCuts.length === 0 && applied.appliedErrata.length === 0) return undefined
+    if (applied.refusals.length > 0)
+      return { status: "refused", blockRows: head.length, reason: applied.refusals.join("; ") }
+    if (applied.appliedCuts.length === 0 && applied.appliedErrata.length === 0)
+      return { status: "refused", blockRows: head.length, reason: "nothing applied" }
     const byChunk = new Map<number, string[]>()
     for (const line of applied.lines) {
       const at = chunkOf.get(line.number)
-      if (at === undefined) return undefined
+      if (at === undefined) return { status: "refused", blockRows: head.length, reason: "address lost its chunk" }
       const list = byChunk.get(at)
       if (list) list.push(line.text)
       else byChunk.set(at, [line.text])
@@ -1579,6 +1595,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       for (let n = span.from; n <= span.to; n++) droppedBytes += view[n - 1]?.text.length ?? 0
     }
     return {
+      status: "applied",
       blockRows: head.length,
       droppedLines: applied.appliedCuts.reduce((sum, span) => sum + (span.to - span.from + 1), 0),
       droppedBytes,
@@ -1960,20 +1977,37 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             const chunk = assistantMessage.parts[firstIndex]
             if (isTextChunk(chunk)) {
               const rest = chunk.text.split("\n").slice(narrowed.blockRows).join("\n").trim()
-              if (rest === "") assistantMessage.parts.splice(firstIndex, 1)
-              else assistantMessage.parts[firstIndex] = { ...chunk, text: rest }
+              // P1c: a refused directive is shown, never silently kept — the
+              // block is replaced by its refusal note, the tail survives.
+              const replacement =
+                narrowed.status === "applied"
+                  ? rest
+                  : `[self-edit refused: ${narrowed.reason}]` + (rest === "" ? "" : `\n${rest}`)
+              if (replacement === "") assistantMessage.parts.splice(firstIndex, 1)
+              else assistantMessage.parts[firstIndex] = { ...chunk, text: replacement }
             }
           }
           if (assistantMessage.parts.length === 0) delivered = false
-          reportCut({
-            site: "message-v2.self-edit",
-            kind: "directive applied",
-            dropped: narrowed.droppedLines,
-            bytes: narrowed.droppedBytes,
-            reason: narrowed.reason,
-            sessionID: msg.info.sessionID,
-            messageID: narrowed.targetID,
-          })
+          if (narrowed.status === "applied") {
+            reportCut({
+              site: "message-v2.self-edit",
+              kind: "directive applied",
+              dropped: narrowed.droppedLines,
+              bytes: narrowed.droppedBytes,
+              reason: narrowed.reason,
+              sessionID: msg.info.sessionID,
+              messageID: narrowed.targetID,
+            })
+          } else {
+            reportCut({
+              site: "message-v2.self-edit",
+              kind: "directive refused",
+              dropped: 0,
+              reason: narrowed.reason,
+              sessionID: msg.info.sessionID,
+              messageID: msg.info.id,
+            })
+          }
         }
       }
       if (assistantMessage.parts.length > 0 && delivered) {

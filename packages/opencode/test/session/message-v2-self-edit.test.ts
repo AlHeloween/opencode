@@ -128,12 +128,12 @@ describe("self-edit replay hook", () => {
     expect(curText).toContain("Real continuation text.")
   })
 
-  test("ON: a malformed block is ignored — everything stays as OFF", async () => {
+  test("ON: a malformed block is refused visibly (P1c supersedes silent ignore)", async () => {
     Flag._setTest("OPENCODE_SELF_EDIT_DIRECTIVE", true)
     const { prev, cur } = pair("EXCERPT not-a-hash\nCUT lines: 2-3\n restrict.")
     const msgs = await MessageV2.toModelMessages([prev, cur], model)
     expect(wireTexts(msgs as never[], "msg_prev")).toBe(N1_TEXT)
-    expect(wireTexts(msgs as never[], "msg_cur")).toContain("EXCERPT")
+    expect(wireTexts(msgs as never[], "msg_cur")).toContain("[self-edit refused:")
   })
 
   test("ON: signed reasoning of the last turn rides verbatim, the cut is refused", async () => {
@@ -148,13 +148,13 @@ describe("self-edit replay hook", () => {
     expect(wireTexts(msgs as never[], "msg_prev")).toContain(N1_TEXT)
   })
 
-  test("ON: a directive for a foreign hash touches nothing", async () => {
+  test("ON: a directive for a foreign hash is refused visibly (P1c supersedes)", async () => {
     Flag._setTest("OPENCODE_SELF_EDIT_DIRECTIVE", true)
-    const foreign = "EXCERPT 00000000000000000000000000000000\nCUT lines: 2-3\nREASON: x\nSIGNED: cut\nRest."
+    const foreign = "EXCERPT 00000000000000000000000000000000\nCUT lines: 2-3\nREASON: x\nSIGNED: cut\n\nRest."
     const { prev, cur } = pair(foreign)
     const msgs = await MessageV2.toModelMessages([prev, cur], model)
     expect(wireTexts(msgs as never[], "msg_prev")).toBe(N1_TEXT)
-    expect(wireTexts(msgs as never[], "msg_cur")).toContain("EXCERPT")
+    expect(wireTexts(msgs as never[], "msg_cur")).toContain("[self-edit refused:")
   })
 
   test("ON: a snippet-addressed cut resolves without tags", async () => {
@@ -204,5 +204,57 @@ describe("self-edit replay hook", () => {
     const onText = JSON.stringify(on)
     expect(offText).not.toContain("nothing useful for the task")
     expect(onText).toContain("nothing useful for the task")
+  })
+})
+
+describe("self-edit refusals are visible (P1c)", () => {
+  beforeEach(() => {
+    resetConfig()
+    clearConversionCache()
+  })
+  afterEach(() => {
+    resetConfig()
+    clearConversionCache()
+  })
+
+  function pairBody(directiveBody: string) {
+    const prev = assistant("msg_prev", [textPart("msg_prev", N1_TEXT)])
+    const cur = assistant("msg_cur", [textPart("msg_cur", directiveBody)])
+    return { prev, cur }
+  }
+
+  test("a blank-covering cut is refused with a visible note, N-1 stands", async () => {
+    Flag._setTest("OPENCODE_SELF_EDIT_DIRECTIVE", true)
+    const md5 = messageMd5(N1_TEXT)
+    const body = `EXCERPT ${md5}\nCUT lines: 1-5\nREASON: wipe it\nSIGNED: cut\n\nTail.`
+    const { prev, cur } = pairBody(body)
+    const msgs = await MessageV2.toModelMessages([prev, cur], model)
+    expect(wireTexts(msgs as never[], "msg_prev")).toBe(N1_TEXT)
+    const curText = wireTexts(msgs as never[], "msg_cur")
+    expect(curText).toContain("[self-edit refused:")
+    expect(curText).toContain("Tail.")
+    expect(curText).not.toContain("EXCERPT")
+  })
+
+  test("a signed defer is shown, not silent", async () => {
+    Flag._setTest("OPENCODE_SELF_EDIT_DIRECTIVE", true)
+    const md5 = messageMd5(N1_TEXT)
+    const signed = reasoningPart("msg_prev", "opaque thought", { anthropic: { signature: "SIG100" } })
+    const prev = assistant("msg_prev", [signed, textPart("msg_prev", N1_TEXT)])
+    const cur = assistant("msg_cur", [textPart("msg_cur", `EXCERPT ${md5}\nCUT lines: 2-3\nREASON: x\nSIGNED: cut\n\nTail.`)])
+    const msgs = await MessageV2.toModelMessages([prev, cur], model)
+    expect(wireTexts(msgs as never[], "msg_prev")).toContain(N1_TEXT)
+    expect(wireTexts(msgs as never[], "msg_cur")).toContain("[self-edit refused:")
+  })
+
+  test("rollback: OFF and ON-without-directive render byte-identical replays", async () => {
+    const plain = assistant("msg_prev", [textPart("msg_prev", N1_TEXT)])
+    const off = await MessageV2.toModelMessages([plain], model)
+    Flag._setTest("OPENCODE_SELF_EDIT_DIRECTIVE", true)
+    clearConversionCache()
+    const fresh = assistant("msg_prev", [textPart("msg_prev", N1_TEXT)])
+    const on = await MessageV2.toModelMessages([fresh], model)
+    // The switch without a directive changes nothing: off = exactly the old behavior.
+    expect(JSON.stringify(on)).toBe(JSON.stringify(off))
   })
 })

@@ -7348,6 +7348,14 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ BUILD residual (честно): 2× exit 1 — чужой процесс держит `dist\bin\opencode.exe` (Copy-Item после зелёного smoke 10.0.1394/1395 PASS, lock released). Не форсировал. Lift: re-run build, когда exe свободен.
 — P1c (видимые отказы + побайтовый rollback-тест) — следующим ходом.
 <!-- sv: p1b-green 0.35, hook-shipped 0.25, build-residual 0.20, forbidden-untouched 0.20 -->
+## [2026-10-16] t70 P1c — visible refusals + rollback proof, 11/11 GREEN (Smit, кусок 2 закрыт)
+
+✓ RED (квитанция): 2 новых note-теста (blank, signed-defer) — run 20261016T083120Z_d9465f47, exit 1, 9 pass / 2 fail; rollback-тест прошёл сразу (фиксирует отсутствие изменений — корректно).
+✓ GREEN: хук возвращает refused с причиной; блок заменяется на `[self-edit refused: reason]`, tail выживает, reportCut kind "directive refused" — run 20261016T083430Z_f71c13f1, exit 0, 11/11. P1b-тесты malformed/foreign обновлены на note-норму (superseded, с пометкой).
+✓ TYPECHECK exit 0 (`20261016T083446Z_b4aa555e`); регрессии не пострадали (P1b-набор внутри 11).
+✓ BUILD exit 0 (`20261016T083516Z_d14d810c`, smoke 10.0.1398 PASS, Build complete, lock released) — чужой exe отпущен.
+— P1 (P1a/b/c) закрыт кодом; остались P2, MASTER_PLAN-mapping, ckpt-сводки. Подключение к llm/processor НЕ понадобилось (дизайн обходится message-v2; health-registry не тронут).
+<!-- sv: p1c-green 0.35, refusal-visible 0.25, rollback-proof 0.20, p1-done 0.20 -->
 ## [2026-10-16] t71 keyless-401 — 10-07 harness re-run: 0/7, layer = SERVICE (Smit, measurement only, no product edits)
 ✓ CONFIRMED (exact re-run, detached hidden pwsh, run 20261016T082703Z, dist 10.0.1393, keyless stand 11 env NAMES removed, catalog 228): 0/7 answered (10-07: 2/7). nemotron-3-ultra-free TIMEOUT 180 s zero bytes (was ANSWERED 15.8 s); space-bunny-free 429 FreeUsageLimitError retry-after 56192 log ea0a9b6e, retried to kill (was ANSWERED); 5x local ModelNotFound SAME class; control gpt-5.4 not answered (VALID, no leak).
 ✓ CONFIRMED (same-request-on-old-build): Sept-18 client 10.0.1007, space-bunny keyless → SAME 429 FreeUsageLimitError (retry-after 55899, log fb369d3f), same URL https://opencode.ai/inference/openai/v1/chat/completions. Our-side git log --since=2026-10-07 EMPTY for provider.ts/gateway/provider-sync/auth (last provider.ts change 10-05 tariff). Layer that answered: SERVICE (free-pool 429 + t59 401s + nemotron silent stall); transport OK (h3-probe to h2 pin; old client h2 direct, 429 in 1.2 s).

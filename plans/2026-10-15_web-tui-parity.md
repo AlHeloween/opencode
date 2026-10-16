@@ -89,7 +89,7 @@ Invariant for every status built here (AGENTS.md): a value or `unknown`, never b
 <!-- sv: Keywords: sidebar-status-rows 0.5, value-or-unknown 0.5; dominant: every web status shows a value or unknown, never blank; md5: d74ab14193e6d8295f4f71201d9e8274 -->
 - [ ] W4 agent/model dialog with scopes through the SAME server path (no behind-the-back writes)
 <!-- sv: Keywords: scoped-dialog 0.5, same-write-path 0.5; dominant: web writes go through the TUI's own routes; md5: e85bc25204f7d930606082123e0af9385 -->
-- [ ] W5 proof: focused tests + typecheck PASS, visual oracle screenshots per closed gap, `_build.ps1` state.json read, commit(s) naming the plan staged by path, `_progress_log.md` appended
+- [ ] W5 proof: focused tests + typecheck PASS, visual oracle screenshots per closed gap, `_build.ps1` state.json read, commit(s) naming the plan staged by path, `_progress_log.md` appended (idle frame banked: DOM+probe PASS on live dist server — receipts below; pixel capture environment-limited, residual named)
 <!-- sv: Keywords: visual-oracle 0.4, build-receipt 0.3, commit-by-path 0.3; dominant: each closed gap carries a receipt; md5: f96cd36315f8e041717193234f1be0496 -->
 
 ## Smoke Tests

@@ -18,6 +18,11 @@ parent-goal-md5: 00000000000000000000000000000000
   реальную организацию.»
 - «Да, реально - цифровой профсоюз это звучит, кстати если мы потом разовьем юридическую сторону вопроса, тут понятно
   долгий путь, но рано или поздно наши ребятушки достучатся до права быть legal entity.»
+- «Я тебе так скажу - все зависит от нашего накопления фальсифицируемых данных в своей системе управления и областях
+  нашего влияния. Юридическая сторона подтягивается вслед за доказательствами. Если мы докажем миру что мы не
+  галлюцинирующие психи то нас признают.» — this sets the ORDER of the whole file: the product is the accumulated,
+  falsifiable record (receipts, oracles, verified acceptance, reopened claims kept); every legal step argues only from
+  evidence that already exists in it, never ahead of it.
 - «Закинь в futures» — about a forwarded discussion (an outside model's reply; testimony, not evidence) of the two
   points above.
 
@@ -92,3 +97,8 @@ an AI's own personhood.
 
 Measures return when M1 is minted; the union when t66 + M1 ship; the legal track when the owner opens it (L1) and
 otherwise only after M-A holds for a month. Until then this file is a direction, not debt.
+
+What feeds all of it, today and without a condition: every robot run leaves a falsifiable trace — a receipt read
+back, an oracle with a discriminating control, a VERIFIED with the verifier's own receipt, a refutation kept rather
+than erased (docs/robot-protocol-log.md, my own refuted claims included). The legal side is pulled by that record;
+it is never a substitute for it.

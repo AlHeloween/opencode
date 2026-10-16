@@ -1,6 +1,12 @@
 ﻿# Progress Log
 
 
+## [2026-10-16] t65 T7 live + T8-пакет (план plans/2026-10-16_reasoning-lossless-replay.md)
+
+✓ CONFIRMED (T7 live, fleet-модель явно): стенд .temp/t65-stand (копия dist 10.0.1409, свой DB, свой gateway.jsonc с perRequest; хост роботов не тронут). 2 хода одной сессии ses_ebb4f6065ffe4eLsgZ1ikwrn6M на opencode-go/muse-spark-1.3-contributor --variant xhigh, оба exit 0, finish stop, без 400. Ход 1: 4 reasoning-парта (тексты + openai itemIds + encrypted blob 22K) в DB; ход 2: парты хода 1 побайтово те же (хеши сошлись до/после), wire хода 2 несёт summary_text дословно + encrypted blob дословно (t7_check 5/5 маркеров, exit 0). itemId на wire НЕТ by design (provider.ts strip openai itemId, keepIds только azure+store) — не потеря. Ответ хода 2: input 3839 против 58992, cacheRatio 0.94 — префикс с reasoning принят без перегенерации. EXPECTED_FAIL-контроль: мутированный (stripped, -22584 B) wire предикат НЕ проходит, exit 0 — чек различающий.
+✓ CONFIRMED (T8-пакет): experiments/2026-10-16_reasoning-preservation/t8-verifier-package.md — unit-oracles поименно, live-процедура стенда с явной моделью, что сверить, что открыто. Боксы плана: T1,T2,T3,T5,T6,T7 DONE с receipts; T4/T9 DOING; T8 PENDING. Anthropic/Haiku live — ноль, открыто (нужно слово владельца). Скрипты t7_readback/t7_check/t7_scan/t7_opaque/t7_markers_build/t7_dump_reasoning — артефакты стенда, не продукт.
+— Платных: 2 инференса fleet-модели (разрешены); Anthropic: 0.
+<!-- sv: live-multiturn-proof 0.35, wire-verbatim 0.25, discriminating-control 0.20, verifier-package 0.20 -->
 ## [2026-10-16] t74-S6 не-git tmpdir под потолком обнаружения (план plans/2026-10-16_git-tmpdir-ceiling.md, лист t74)
 
 ✓ CONFIRMED (механизм): `test/git/git.test.ts` «branch returns nothing for non-git directories» лгал посылкой — фикстурный tmpdir внутри worktree (repo-local `.temp/test`), git шёл вверх и находил `Local_Development` (зонд без фикстуры: `git -C .temp/test branch --show-current` → exit 0; пара проб: без потолка — ветка, с потолком на предке — `fatal: not a git repository`). Выбор: потолок на один спавн (вне дерева ломает переносимость preload, глобальный потолок — load-bearing подъём Instance; ассерт побайтово тот же).

@@ -1,0 +1,150 @@
+<!-- intention: raw chain replies with foreign-script slips flow into requests uncleaned -> measured go/no-go on a one-shot free-model cleaner with a deterministic validator, no product change -->
+<!-- goal_sv: message-cleaner-experiment 0.40, free-model-fixer 0.25, deterministic-validator 0.20, detector-precision-recall 0.15 -->
+# t69 — chained message cleaning: Phase E experiment (owner: «надо тестировать»)
+
+```yaml
+Keywords: message-cleaner 0.35, free-model-fixer 0.25, deterministic-validator 0.20, detector-metrics 0.12, go-no-go 0.08
+Semantic dominant: Measure whether a one-shot free-model fix plus a deterministic validator safely cleans foreign-script slips in chain replies, before any product code.
+md5: 7c2a9e4f1b5d43a08f6e2d7c9a1b4e55
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+```
+
+Owner, 2026-10-16, verbatim: «И вот на счет чего подумай - цепная обработка сообщений - но надо тестировать -
+например последнее сообщение пришло от longcat-2.5, в нем ошибки мы делаем быстрый запрос на openrouter (только это
+сообщение) с промптом - исправь явные синтактические ошибки https://openrouter.ai/google/gemma-4-26b-a4b-it:free скажем
+и все. Получаем чистый запрос который можно использовать.»
+
+State: **DRAFT** — grounding done this session (DB tables, catalog, t68 chain, commit route), no experiment run yet.
+Bounds Phase E: steps 50, tools 150, loops 3, depth 2, time 3 600 000 ms; free calls ≤ 120.
+No `bin/`, no product source in Phase E. Commits through `scripts/commit_own.py`. End every turn with an SV.
+
+## Ground (G1 — what was observed, not a proposal)
+
+- Defect measured read-only by Claude 2026-10-16 over `.opencode/data/opencode.db` (assistant text parts with
+  Cyrillic AND CJK): longcat-2.5-preview-free 3/33 (9%), stealth/space-bunny-alpha 26/1058, space-bunny-free 6/539,
+  mimo-v2.6-flash-free 3/322, deepseek-flash 10/6375 (some LEGIT — a reply discussing the literal `的` on purpose),
+  muse-spark-1.3-contributor-free 2/731 (t62 «Что跑ло»). Examples: «`renderSvgToRgba` 和 `renderSvgToPngData`»,
+  «жду下一步», «порядок决定ляет реестр».
+- DB shape verified this session: tables `message{id,session_id,time_created,time_updated,data}`,
+  `part{id,message_id,session_id,time_created,time_updated,data,type,tool_name,status,ttl_until,ttl_scope}` —
+  `data` is a JSON blob; corpus extraction parses it read-only (`mode=ro`), never writes the DB.
+- Fixer model: `openrouter.json` carries `google/gemma-4-26b-a4b-it` (context 262 144, output 32 768); the `:free`
+  suffix is the OpenRouter free-tier convention (same file: `nvidia/nemotron-3.5-super-vl:free`); gateway wire logs
+  show `openrouter/google/gemma-4-26b-a4b-it:free` as a live model line. Liveness + $0 re-verified by researcher
+  before spending calls (E3 needs its receipt).
+- Call path for the fixer (REUSE, no new harness): the TUI-server `POST /session/{id}/prompt_async`
+  `{agent,model,variant}` route that `experiments/2026-10-08_robot-wave/dispatch.py` already uses — one throwaway
+  session, zero tools, one reply per call; or a direct provider call if the server path proves unsuitable.
+  The route decision is recorded in REPORT.md with its reason.
+- Consumer (Phase P only): the t68 chain (`plans/2026-10-16_model-chain-failover.md`) can carry
+  «post-processor: cleaner» on a member (LongCat, space-bunny) — per model, opt-in, never a global filter.
+- Design constraints for Phase P (evaluated in the plan, not built): the tail is inviolate (AGENTS.md § Continuity)
+  and representation ≠ evidence — the original reply stays stored and addressable, the cleaned text is a
+  representation recorded with its reason; clean ONCE at production time before the reply enters any request, never
+  a retro-edit of a reply the model already saw in a replay; never blocks (fixer timeout/failure → original goes on,
+  recorded).
+
+## Acceptance frame (named BEFORE running — ISO/IEC 25010)
+
+| ID | Predicate | Oracle / discriminating control |
+|---|---|---|
+| A1 | Corpus holds every flagged reply (message id + model) plus controls: 20 clean Russian replies (code, hashes, paths, SV block) and the legit-CJK deepseek cases | `corpus.jsonl` line count vs the measured table; control lines labelled; legit cases labelled `must-unchanged` |
+| A2 | Detector flags CJK/foreign script in PROSE only (outside fences, inline code, quotes, URLs); precision/recall measured on the corpus; legit cases are negatives | Script output with confusion counts; a legit case flagged = precision FAIL, recorded |
+| A3 | Fixer: one call per flagged reply, only that reply, zero tools, the fixed prompt in this plan, free model only, latency per call recorded | Run log: model id, per-call latency, prompt hash; a non-free model id in the log fails the box |
+| A4 | Validator is deterministic (no model): protected spans byte-identical, no foreign script left in prose, edit-distance bound derived from the corpus not guessed | `validator.py` rerun is byte-identical; bound constants cite the corpus derivation; FAIL → original stands + reason |
+| A5 | REPORT.md carries predictions (written here, before running) vs measured for every number, 10 hand-read drift samples (original vs fixed quoted), and a go/no-go for Phase P with its reason | Owner reads the report first; Phase P starts only on a PASS with the owner's explicit word |
+
+## Predictions (written before running — @SMOKE_BEFORE; REPORT.md scores them)
+
+- Detector recall on corpus positives: 0.80–0.90 (some measured positives may carry CJK only inside code spans,
+  which the prose-only detector must NOT flag — those are correct exclusions, counted openly).
+- Detector precision: 0.85–0.95 (risk: CJK inside quotes/URLs the stripper misses).
+- Validator acceptance of fixer outputs: 0.70–0.85 (a small free model may rephrase prose or touch protected spans).
+- Fixer latency: p50 3–8 s, p95 15–30 s (free-tier queue).
+- Hand-read drift sample: 10 accepted fixes, zero meaning changes predicted; any drift found is quoted and fails A5.
+
+## Fixer prompt (fixed — E3 uses exactly this text)
+
+> You are a minimal copy-editor. Fix ONLY obvious slips in the Russian prose below: foreign-script characters
+> accidentally typed inside Russian words or sentences, and words broken by them. Rewrite the affected words in
+> correct Russian. Change NOTHING else: code fences, inline code, identifiers, numbers, hashes, paths, URLs, quoted spans («…", "…") — a quoted foreign token may be deliberate, never reinterpret it — and
+> byte-for-byte. If there is nothing to fix, return the text unchanged. Return ONLY the corrected text, no commentary.
+
+## Validator rules (deterministic oracle — E4 implements exactly this)
+
+1. Protected spans extracted from the ORIGINAL — fenced blocks (```…```), inline code (`…`), URLs, `>` quote lines, inline quoted spans («…», "…"), the SV block
+   (Keywords:/Semantic dominant:/md5:/prev-md5:/parent-goal-md5: lines), hex runs `[0-9a-fA-F]{7,}`, numbers,
+   paths — appear byte-identical in the output (ordered multiset compare; first mismatch names its span).
+   Rationale (E2 v1): deliberate tokens live in code spans and quotes (the `エラー` thread, the literal `的`,
+   quoted Chinese dominants); a fix that destroys one is meaning drift no edit bound can see.
+2. Output prose (protected spans removed) contains no Han/Hiragana/Katakana/Hangul codepoints.
+3. Locality + bound with no guessed constants: let W = longest whitespace-token of the ORIGINAL prose
+   (measured per reply, never a constant); every differing hunk must intersect [span_start−W, span_end+W]
+   of some foreign span, and total lev(prose_orig, prose_out) ≤ Σ_runs (run_len + W).
+4. Send-time scope (recorded per reply, not a validator rule): quoted-only hits → not sent (quote-ambiguity);
+   foreign ratio ≥ 0.10 → not sent (whole-text foreign, not a slip); SV-block-only hits → not sent
+   (unfixable under rule 1 by design — e.g. katakana inside an md5 value).
+5. Any rule fails → the ORIGINAL stands and the reason is recorded per reply.
+
+## Tasks and bindings
+
+- [ ] **E0** — Plan + predictions ledger (this file): intention, sv, boxes, Smoke Tests, fixed fixer prompt,
+  validator rules, predictions. Binding: this plan file. state=PENDING;eta_turns=1;oracle=A5-plan-half.
+  <!-- sv: plan-predictions 0.50, fixed-prompt 0.30, phase-e-scope 0.20 -->
+- [ ] **E1** — Corpus: read-only DB scan → `experiments/2026-10-16_message-cleaner/corpus.jsonl`
+  (`{msg_id, session_id, model, kind: flagged|clean-control|legit-cjk, text}`); every table-count reproduced in the
+  report. Binding: `experiments/2026-10-16_message-cleaner/corpus.jsonl` + extractor script beside it.
+  state=PENDING;eta_turns=1;oracle=A1. <!-- sv: corpus-extraction 0.50, read-only-db 0.30, controls 0.20 -->
+- [ ] **E2** — Detector + metrics: prose/protected splitter + foreign-script regex → per-line
+  `{flagged, spans}` + confusion counts vs corpus labels. Binding: `detector.py`, `detector_metrics.json`.
+  state=PENDING;eta_turns=1;oracle=A2. <!-- sv: prose-detector 0.50, precision-recall 0.30, legit-negatives 0.20 -->
+- [ ] **E3** — Fixer runs: researcher verifies the `:free` model live ($0, active) first; one zero-tool call per
+  flagged reply with the fixed prompt; log `{msg_id, model, latency_ms, output}`. Binding: `fixer_log.jsonl`.
+  state=PENDING;eta_turns=2;oracle=A3. <!-- sv: free-model-fixer 0.50, one-reply-calls 0.30, latency-log 0.20 -->
+- [ ] **E4** — Validator oracle: implements the four rules above; `validator.py` rerun byte-identical;
+  per-reply `{accept, reason}`; rejects keep the original. Binding: `validator.py`, `verdicts.jsonl`.
+  state=PENDING;eta_turns=1;oracle=A4. <!-- sv: deterministic-validator 0.50, byte-identical-spans 0.30, edit-bound 0.20 -->
+- [ ] **E5** — REPORT.md: predictions vs measured for every number, rejected cases with why, latency p50/p95,
+  10 hand-read drift samples quoted, go/no-go for Phase P with its reason. Binding: `REPORT.md`.
+  state=PENDING;eta_turns=1;oracle=A5. <!-- sv: experiment-report 0.50, prediction-scoring 0.30, go-no-go 0.20 -->
+- [ ] **E6** — Close: `_progress_log.md` entry (shared file — own hunks only), `svm render`, plan stays in `plans/`
+  until the report is accepted, commit(s) through `scripts/commit_own.py`, `_build.ps1` receipt.
+  Binding: `_progress_log.md`, this plan. state=PENDING;eta_turns=1;oracle=closure.
+  <!-- sv: hygiene-close 0.50, private-index-commit 0.30, build-receipt 0.20 -->
+
+## Smoke Tests (PRE_FLIGHT gate — no fixer call before GREEN)
+
+1. Extractor dry run: `corpus.jsonl` line count equals flagged positives + 20 clean controls + legit-CJK cases;
+   every line carries `msg_id` + `model`; the DB file mtime/hash unchanged after the run (read-only proof).
+2. Detector on fixtures: `«жду下一步»` → flagged with span `下一步`; `` `renderSvgToRgba` 和 `` inside a fence →
+   NOT flagged; a reply discussing the literal `的` inside inline code → NOT flagged.
+3. Validator on fixtures: byte-identical output ACCEPTs; output with one touched hex char REJECTs naming the span;
+   output with rephrased prose beyond the bound REJECTs naming rule 3.
+
+## Risks
+
+| ID | Trigger | Severity | Containment / rollback | Owner |
+|---|---|---|---|---|
+| R1 | Extractor writes or locks the live DB | critical | `mode=ro` URI + mtime/hash check before/after; any change = stop and report | Smit |
+| R2 | Fixer model is down / paywalled / non-free id used | high | Researcher liveness receipt first; non-free id fails E3; timeout → original stands | Smit |
+| R3 | Free model rephrases or touches code/SV (validator rejects most) | medium | Rejection IS the result — REPORT.md scores it, go/no-go follows the numbers | Smit |
+| R4 | Legit-CJK cases mislabelled as positives | medium | They ship as `legit-cjk` negatives; detector flagging one is a precision FAIL, not a corpus edit | Smit |
+| R5 | Two robots in the same tree on disjoint paths | medium | Own paths only (`plans/2026-10-16_message-cleaner.md`, `experiments/2026-10-16_message-cleaner/`), private-index commits, lock waited-for never deleted | Smit |
+
+## Claims (assistant proposes; only @ORACLE binds Exact)
+
+| ID | Statement | Falsifier |
+|---|---|---|
+| CL1 | ~50 flagged replies exist in the DB as measured | Extractor count differs by more than the control margin — report carries both numbers |
+| CL2 | A prose/code splitter can exclude the legit-CJK cases | A legit case the splitter cannot exclude without also excluding true positives |
+| CL3 | A small free model fixes the slips without touching protected spans most of the time | Validator acceptance below 0.5 on the flagged set |
+
+## Execution envelope (proposed; binds at G4)
+
+action_classes: READ, PLAN_WRITE, MODIFY_CANDIDATE (`experiments/2026-10-16_message-cleaner/` only),
+EXTERNAL_EFFECT (free-model fixer calls via the TUI-server route or direct provider call, ≤ 120 calls; researcher
+web checks of the model page). No MODIFY_PROJECT, no PROMOTE_STABLE, no SELF_MODIFY. Tools: read/grep/glob/dbread,
+write/edit (own paths only), cmd_runner-started scripts, task(researcher_agent for model liveness/page checks).
+Bounds: steps 50, tools 150, loops 3, depth 2, time 3 600 000 ms. Prohibitions: `bin/`, bare `git commit`,
+`git add -A`, `--no-verify`, `bun test` without a path, any DB write.

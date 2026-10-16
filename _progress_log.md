@@ -7196,3 +7196,11 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ✓ BUILD (обязательная после изменений): `_build.ps1` прогон 20261016T044744Z_411d4819 exit 0 — лок взят/отпущен, smoke 10.0.1374 + reasoning_prompt embedded PASS, App пересобран (индекс с W4 внутри), артефакты в dist/.
 ✓ STAND обновлён: .temp/t59-stand/opencode.exe — копия dist/bin после этой сборки, --version 10.0.1374 (прогон 20261016T044955Z_392fc0a8 exit 0). План W5 несёт версию стенда. dist/bin свободен, серверов со стенда не поднято.
 <!-- sv: post-change-build 0.50, stand-refreshed 0.30, receipts 0.20 -->
+## [2026-10-16] t69 Phase E — план + корпус + детектор + валидатор, фиксер в фоне (Smit)
+
+✓ PLAN (план plans/2026-10-16_message-cleaner.md): intention, sv, боксы E0–E6, Smoke Tests, фикс-промпт, правила валидатора, предсказания до прогонов.
+✓ MEASURED (E1, read-only: DB 1 450 942 464 B, size+mtime до/после совпали): 50 assistant-флагов — точь-в-точь по таблице Claude (stealth/space-bunny-alpha 26, deepseek-flash 10, space-bunny-free 6, longcat 3, mimo 3, spark 2) + 20 clean-контролей → corpus.jsonl 70 строк. Расхождение сырого скана 207→50 разобрано: 45 — user-роль, остаток — non-text парты (reasoning/tool).
+✓ MEASURED (E2 v2, detector.py): precision 1.000 (предсказание 0.85–0.95 — мимо вверх), recall 0.680 (предсказание 0.80–0.90 — мимо вниз); 16 FN = 13 deliberate-в-коде (поток `エラー`, литерал `的`) + 2 SV-нечинимых (катакана в md5, 为何 в dominant — байт-идентичность SV их запрещает) + 1 quote-slip (规则 в `>`-цитате). Fixable 27/50. Находка: deliberate-токены живут в коде И в кавычках («японское «エラー»», цитаты китайских доминант) — валидатор защищает quote-спаны, иначе фикс уничтожил бы токен и был бы ACCEPT; bound без констант (W = longest token per reply, hunks в окне спанов).
+✓ CONFIRMED (E4 smoke): validator.py --selftest 5/5 (identical-accept, slip-fix-accept edit=10 bound=10, hex-touch→rule1, rephrase→rule3, cjk-left→rule2).
+→ E3: проба openrouter/google/gemma-4-26b-a4b-it:free → 429 rate-limited upstream shared pool (transient, «retry shortly»; researcher-чек страницы инконклюзивен — не основание). В harness добавлен ретрай 90с×2, запущен run-1 fixer_run.py --all (27 fixable, ≤120), в фоне. Никакого фолбэка на не-free id.
+<!-- sv: message-cleaner 0.35, corpus-detector 0.25, deterministic-validator 0.20, free-fixer-probe 0.20 -->

@@ -1,6 +1,6 @@
 """org.py — the organization's verbs over $ORG_HOME/org.fossil (one file, stdlib only).
 
-    python $ORG_HOME/genesis/org.py delegate --title "..." --assignee smit-x [--worktree D:\\proj] [--watcher claude] [--no-wake]
+    python $ORG_HOME/genesis/org.py delegate --title "..." --slug my-task --assignee smit-x [--worktree D:\\proj] [--watcher claude] [--no-wake]
     python $ORG_HOME/genesis/org.py claim <uuid> [--lease 600]
     python $ORG_HOME/genesis/org.py heartbeat <uuid> --epoch N [--what "..."] [--lease 600]
     python $ORG_HOME/genesis/org.py report <uuid> --epoch N --title NAME (--file f.md | --text "...")
@@ -142,12 +142,71 @@ def rows(query: str, params: tuple = ()) -> list[sqlite3.Row]:
         con.close()
 
 
-def ticket(prefix: str) -> sqlite3.Row:
-    found = rows("SELECT * FROM ticket WHERE tkt_uuid LIKE ? || '%'", (prefix,))
+SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+SLUG_MAX = 64  # a slug names the ticket at a glance: one line, never wrapped
+OPEN_STATES = ("READY", "WORKING", "BLOCKED", "DONE")  # open for slug uniqueness: VERIFIED/CANCELLED free the slug
+
+
+def raw_slug(t: sqlite3.Row) -> str:
+    """The ticket's slug field, "" when the repository predates slugs or the ticket has none."""
+    try:
+        keys = t.keys()
+    except (AttributeError, IndexError):
+        return ""
+    if "slug" not in keys:
+        return ""
+    value = t["slug"]
+    return "" if value is None else str(value)
+
+
+def slug_of(t: sqlite3.Row) -> str:
+    """The ticket's human name for reports: the slug, or «-» for a pre-slug ticket."""
+    return raw_slug(t) or "-"
+
+
+def check_slug(value: str | None) -> str:
+    """A required kebab slug, or a refusal naming the rule."""
+    if not value:
+        sys.exit("org: --slug is required — a kebab-case name for the ticket, e.g. --slug fix-login-retry")
+    if len(value) > SLUG_MAX or not SLUG_RE.fullmatch(value):
+        sys.exit(f"org: bad slug {value!r} — want kebab-case [a-z0-9-], 1-64 chars, no leading/trailing hyphen")
+    return value
+
+
+def slug_holder(slug: str) -> sqlite3.Row | None:
+    """The open ticket already carrying `slug` (case-insensitive), if any; a pre-slug repository holds none."""
+    try:
+        found = rows("SELECT * FROM ticket WHERE lower(slug) = lower(?)", (slug,))
+    except sqlite3.OperationalError as error:
+        if "no such column" not in str(error):
+            raise
+        return None
+    for entry in found:
+        if str(entry["agent_state"] or "").upper() in OPEN_STATES:
+            return entry
+    return None
+
+
+def ticket(ref: str) -> sqlite3.Row:
+    """A ticket by slug or by uuid prefix: an exact slug match (case-insensitive) wins."""
+    try:
+        slugged = rows("SELECT * FROM ticket WHERE lower(slug) = lower(?)", (ref,))
+    except sqlite3.OperationalError as error:
+        if "no such column" not in str(error):
+            raise
+        slugged = []
+    if slugged:
+        opened = [entry for entry in slugged if str(entry["agent_state"] or "").upper() in OPEN_STATES]
+        if len(opened) == 1:
+            return opened[0]
+        if not opened and len(slugged) == 1:
+            return slugged[0]  # closed history stays addressable by its slug
+        sys.exit(f"org: slug {ref!r} matches {len(slugged)} tickets — address the closed ones by id")
+    found = rows("SELECT * FROM ticket WHERE tkt_uuid LIKE ? || '%'", (ref,))
     if not found:
-        sys.exit(f"org: no ticket {prefix!r}")
+        sys.exit(f"org: no ticket {ref!r}")
     if len(found) > 1:
-        sys.exit(f"org: {prefix!r} matches {len(found)} tickets — give more characters")
+        sys.exit(f"org: {ref!r} matches {len(found)} tickets — give more characters")
     return found[0]
 
 
@@ -371,12 +430,22 @@ def age_text(seconds: int) -> str:
 def watching(user: str) -> list[dict]:
     """Tickets whose watcher is `user`: non-terminal, with heartbeat age and the STALLED verdict."""
     now_s = now()
-    found = rows(
-        "SELECT tkt_uuid, title, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, "
-        "CAST(strftime('%s', tkt_mtime) AS INTEGER) AS mtime_epoch FROM ticket "
-        "WHERE lower(watcher) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
-        (user,),
-    )
+    try:
+        found = rows(
+            "SELECT tkt_uuid, title, slug, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, "
+            "CAST(strftime('%s', tkt_mtime) AS INTEGER) AS mtime_epoch FROM ticket "
+            "WHERE lower(watcher) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
+            (user,),
+        )
+    except sqlite3.OperationalError as error:
+        if "no such column" not in str(error):  # a repository from before slugs
+            raise
+        found = rows(
+            "SELECT tkt_uuid, title, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, "
+            "CAST(strftime('%s', tkt_mtime) AS INTEGER) AS mtime_epoch FROM ticket "
+            "WHERE lower(watcher) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
+            (user,),
+        )
     out: list[dict] = []
     for entry in found:
         state = str(entry["agent_state"] or "").upper()
@@ -396,6 +465,7 @@ def watching(user: str) -> list[dict]:
         out.append({
             "id": str(entry["tkt_uuid"]),
             "title": str(entry["title"] or ""),
+            "slug": raw_slug(entry),
             "state": state,
             "workspace_repo": str(entry["workspace_repo"] or ""),
             "assignee": str(entry["assigned_to"] or ""),
@@ -426,17 +496,22 @@ def cmd_delegate(a) -> int:
     assignee = resolve_login(a.assignee)
     if not assignee:
         sys.exit(f"org: no such user {a.assignee!r} — create it first (fossil user new {canon_login(a.assignee)} robot <secret> -R <org>)")
+    slug = check_slug(a.slug)
+    holder = slug_holder(slug)
+    if holder is not None:
+        sys.exit(f"org: slug {slug!r} is already taken by {short(holder)} "
+                 f"({str(holder['agent_state'] or '')}) — choose another slug")
     if a.parent:
         parent = ticket(a.parent)
-        root = a.root or str(parent["root_task"] or parent["tkt_uuid"])
+        root = str(ticket(a.root)["tkt_uuid"]) if a.root else str(parent["root_task"] or parent["tkt_uuid"])
         depth = a.depth if a.depth is not None else num(parent["delegation_depth"]) + 1
         parent_args = ["parent_task", str(parent["tkt_uuid"])]
     else:
-        root, depth, parent_args = a.root or "", (a.depth if a.depth is not None else 0), []
+        root, depth, parent_args = (str(ticket(a.root)["tkt_uuid"]) if a.root else "", (a.depth if a.depth is not None else 0), [])
     out = fossil(
         "ticket", "add",
         "title", a.title, "type", "Task", "status", "Open",
-        "agent_state", "READY", "delegated_by", user, "assigned_to", assignee,
+        "agent_state", "READY", "slug", slug, "delegated_by", user, "assigned_to", assignee,
         "delegation_depth", str(depth), "workspace_repo", worktree,
         *(["wake_session", session, "wake_worktree", worktree] if session else []),
         *(["watcher", watcher] if watcher else []),
@@ -575,18 +650,34 @@ def cmd_cancel(a) -> int:
     guard_delegator(t, user, "cancel")
     if str(t["agent_state"] or "").upper() in CLOSED:
         sys.exit(f"org: {short(t)} is {str(t['agent_state'] or '').upper()} — nothing to cancel")
-    ticket_set(t, user, agent_state="CANCELLED", failure_code=a.code, woken_state=CLEARED)
-    print(f"org: {short(t)} CANCELLED: {a.code}")
+    code = a.code
+    if a.successor:
+        succ = ticket(a.successor)
+        sslug = raw_slug(succ)
+        if not sslug:
+            sys.exit(f"org: successor {short(succ)} has no slug — a supersede names the successor slug, none to name")
+        code = f"superseded by {sslug}: {a.code}"
+    ticket_set(t, user, agent_state="CANCELLED", failure_code=code, woken_state=CLEARED)
+    print(f"org: {short(t)} CANCELLED: {code}")
     return 0
 
 
 def cmd_inbox(a) -> int:
     user = need_user(a)
-    mine = rows(
-        "SELECT tkt_uuid, title, agent_state, lease_owner, lease_until, parent_task FROM ticket "
-        "WHERE lower(assigned_to) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
-        (user,),
-    )
+    try:
+        mine = rows(
+            "SELECT tkt_uuid, title, slug, agent_state, lease_owner, lease_until, parent_task FROM ticket "
+            "WHERE lower(assigned_to) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
+            (user,),
+        )
+    except sqlite3.OperationalError as error:
+        if "no such column" not in str(error):  # a repository from before slugs
+            raise
+        mine = rows(
+            "SELECT tkt_uuid, title, agent_state, lease_owner, lease_until, parent_task FROM ticket "
+            "WHERE lower(assigned_to) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
+            (user,),
+        )
     watch = watching(user)
     machine = a.json
     if machine:
@@ -596,6 +687,7 @@ def cmd_inbox(a) -> int:
                 {
                     "id": str(row["tkt_uuid"]),
                     "title": str(row["title"] or ""),
+                    "slug": raw_slug(row),
                     "state": str(row["agent_state"] or ""),
                     "lease_owner": str(row["lease_owner"] or ""),
                     "lease_until": num(row["lease_until"]),
@@ -610,7 +702,7 @@ def cmd_inbox(a) -> int:
             print(f"org: inbox empty for {user}")
         for row in mine:
             lease = f" lease={row['lease_owner']}" if row["lease_owner"] else ""
-            print(f"{str(row['tkt_uuid'])[:10]}  {str(row['agent_state']):<8}{lease}  {row['title']}")
+            print(f"{str(row['tkt_uuid'])[:10]}  {slug_of(row)}  {str(row['agent_state']):<8}{lease}  {row['title']}")
         if not watch:
             print(f"watching for {user}: none")
         else:
@@ -618,7 +710,7 @@ def cmd_inbox(a) -> int:
             for w in watch:
                 flag = f" STALLED({w['stalled_reason']})" if w["stalled"] else ""
                 age = "-" if w["heartbeat_age_s"] is None else age_text(w["heartbeat_age_s"])
-                print(f"  {w['id'][:10]}  {w['state']:<8}{flag}  repo={w['workspace_repo']}  "
+                print(f"  {w['id'][:10]}  {w['slug'] or '-'}  {w['state']:<8}{flag}  {w['title']}  repo={w['workspace_repo']}  "
                       f"assignee={w['assignee']}  hb={age}")
     if a.no_presence:
         return 0
@@ -1050,10 +1142,12 @@ def main() -> int:
 
     p = sub.add_parser("delegate", parents=[common], help="create a READY ticket for another robot")
     p.add_argument("--title", required=True)
+    p.add_argument("--slug", required=True,
+                   help="kebab-case name of the ticket, unique among open tickets (e.g. fix-login-retry)")
     p.add_argument("--assignee", required=True, help="Fossil login of the robot to work it")
     p.add_argument("--worktree", help="project path (default: cwd)")
-    p.add_argument("--parent", help="parent ticket uuid (lineage)")
-    p.add_argument("--root", help="root ticket uuid (default: the parent's root or this ticket)")
+    p.add_argument("--parent", help="parent ticket slug or uuid (lineage)")
+    p.add_argument("--root", help="root ticket slug or uuid (default: the parent's root or this ticket)")
     p.add_argument("--depth", type=int, help="delegation depth (default: parent's +1, else 0)")
     p.add_argument("--sv", help="semantic vector md5 of the delegating reasoning step")
     p.add_argument("--comment", help="one line of context")
@@ -1109,6 +1203,7 @@ def main() -> int:
     p = sub.add_parser("cancel", parents=[common], help="delegator: abandon a ticket (CANCELLED)")
     p.add_argument("ticket")
     p.add_argument("--code", required=True, help="why it is cancelled")
+    p.add_argument("--successor", help="slug or id of the ticket superseding this one: the cancel code names its slug")
     p.set_defaults(func=cmd_cancel)
 
     p = sub.add_parser("inbox", parents=[common], help="list your tickets and register this session for wakes")

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -137,8 +138,14 @@ def case_variants(login: str) -> int:
         con.close()
 
 
+def slugify(title: str) -> str:
+    """Deterministic kebab slug for a test title (titles are unique per fixture)."""
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "task"
+
+
 def cross_delegate(title: str, worktree: Path = STAND, assignee: str = RESIDENT):
-    out = run_cli("delegate", "--title", title, "--assignee", assignee, "--worktree", str(worktree),
+    out = run_cli("delegate", "--title", title, "--slug", slugify(title),
+                  "--assignee", assignee, "--worktree", str(worktree),
                   "--user", BOSS, "--no-wake")
     assert out.returncode == 0, (out.stdout, out.stderr)
     uuid = out.stdout.strip()
@@ -217,17 +224,17 @@ class CrossHandoffTest(unittest.TestCase):
         self.assertEqual(user_count(RESIDENT), 1, "the resident login is created exactly once")
 
     def test_s2_same_worktree_delegate_carries_no_watcher_and_refuses_the_override(self):
-        omitted = run_cli("delegate", "--title", "s2 omitted worktree", "--assignee", BOSS,
-                          "--user", BOSS, "--no-wake")
+        omitted = run_cli("delegate", "--title", "s2 omitted worktree", "--slug", "s2-omitted-worktree",
+                          "--assignee", BOSS, "--user", BOSS, "--no-wake")
         self.assertEqual(omitted.returncode, 0, (omitted.stdout, omitted.stderr))
         self.assertEqual(field(omitted.stdout.strip(), "watcher"), "")
 
-        explicit = run_cli("delegate", "--title", "s2 explicit own worktree", "--assignee", BOSS,
-                           "--user", BOSS, "--no-wake", "--worktree", str(REPO))
+        explicit = run_cli("delegate", "--title", "s2 explicit own worktree", "--slug", "s2-explicit-own-worktree",
+                           "--assignee", BOSS, "--user", BOSS, "--no-wake", "--worktree", str(REPO))
         self.assertEqual(explicit.returncode, 0, (explicit.stdout, explicit.stderr))
         self.assertEqual(field(explicit.stdout.strip(), "watcher"), "")
 
-        refused = run_cli("delegate", "--title", "s2 refused", "--assignee", BOSS,
+        refused = run_cli("delegate", "--title", "s2 refused", "--slug", "s2-refused", "--assignee", BOSS,
                           "--user", BOSS, "--no-wake", "--worktree", str(REPO), "--watcher", WATCHER)
         self.assertNotEqual(refused.returncode, 0, "a same-worktree --watcher must be refused, never ignored")
         self.assertIn("cross-worktree", refused.stdout + refused.stderr)
@@ -256,7 +263,8 @@ class CrossHandoffTest(unittest.TestCase):
         self.assertIn(f"watching for {WATCHER}:", text.stdout)
         self.assertIn(uuid[:10], text.stdout)
 
-        local = run_cli("delegate", "--title", "s4 unwatched", "--assignee", BOSS, "--user", BOSS, "--no-wake")
+        local = run_cli("delegate", "--title", "s4 unwatched", "--slug", "s4-unwatched",
+                          "--assignee", BOSS, "--user", BOSS, "--no-wake")
         self.assertEqual(local.returncode, 0, (local.stdout, local.stderr))
         self.assertIsNone(watch_of(inbox_json(WATCHER), local.stdout.strip()),
                           "a same-worktree ticket carries no watcher and must not appear")

@@ -67,8 +67,7 @@ proof of one's own act is layer 1 of peer trust.
 - [x] T2 Route: `scripts/commit_own.py` as designed above; GREEN `20261016T023058Z_40ca69d5` exit 0, 4 pass / 0 fail (19 expects) + strengthened-race GREEN `20261016T023237Z_c534de4f` exit 0, 4 pass / 0 fail.
 - [x] T3 Docs: one line in `experiments/2026-10-08_robot-wave/common.md` + one line in
   `docs/plan-maintenance.md` (§ JOB FAILED) pointing to the route. No kernel edit.
-- [ ] T4 Live oracle: commit this plan + route + test through the new route
-  (before green: `git commit -- <paths>`); `_progress_log.md` entry; `_build.ps1` receipt.
+- [x] T4 Live oracle: route + test + docs landed via the route as `37841fae12` (private index, hook ran, shared index untouched — verified in ancestry); this tick rides the route too in the close-out commit. `_progress_log.md` entry updated. `_build.ps1` skipped per task bounds (no `packages/**` source change — test-only file + script + docs; two robots co-work in this tree).
 
 ## Smoke Tests (required — PRE_FLIGHT gate)
 
@@ -91,7 +90,7 @@ proof of one's own act is layer 1 of peer trust.
 - [x] Smoke requirements written
 - [x] Baseline recorded [Exact]
 - [x] Implementation only after baseline
-- [ ] Post-impl smoke passed before [x]
+- [x] Post-impl smoke passed before [x]
 
 ```yaml
 Keywords: private-index-commit 0.45, shared-index-isolation 0.30, hook-still-runs 0.15, attribution-precondition 0.10

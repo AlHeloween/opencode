@@ -7442,3 +7442,8 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - Ground (report, config untouched): free-scan sorted free 0/0 by context desc — openrouter/auto-beta (cost 0/0, ctx 2M, openrouter.json) is the largest-context free entry, so free[0] WAS the router; provider.defaultModel() (provider.ts:1895-1937: cfg.model → model.json recent[] → first-provider sort()[0] → free-scan) is the second landing path. Catalog has no router flag — detection is id+name heuristic.
 ✓ BUILD exit 0 (20261016T094553Z_a113770c, smoke 10.0.1402 PASS, lock released). Plan: plans/2026-10-16_aicall-router-cost.md.
 <!-- sv: aicall-router 0.35, cost-unknown 0.25, chain-fallback 0.20, paid-refusal 0.12, free-first 0.08 -->
+## [2026-10-16] t76 unmanaged options — inventory + surface proposal (Smit, plan only)
+
+- Plan `plans/2026-10-16_unmanaged-options.md` (INVENTORY + PLAN, no product code): 88 distinct `OPENCODE_*` names confirmed on this host; classes PLUMBING 30 / USER 45 / DEV 7 / DEAD 6; where-read, effect, default, class+reason, TUI visible/changeable per row; t68 chain rows named as owned-by-t68; hardcoded thresholds (FIRST_TOKEN_FLOOR_MS etc) + API-only routes in extra tables. Proposed surface: extend existing `/settings` (registry.ts + dialog-settings.tsx), zero new endpoints, defaults always rendered; smoke S1–S5 named. No VALUES read or printed (names only). No bin/, no kernel, no t68 files.
+- Next: owner decides which USER rows get surfaced first.
+<!-- sv: unmanaged-inventory 0.35, settings-reuse 0.30, user-surface 0.20, plan-only 0.15 -->

@@ -21,17 +21,19 @@ Field case: `D:/zPascal/ Projects/ClientSoft/docs/3d-render-verification.md` §2
 
 ## Tasks
 
-- [x] S1 independence in MEDOID_SIMPLEX: neither leg yields through the other's failure — different input (data | our code | framework-or-spec) AND different instrument; own scripts over own reading = ONE source. <!-- sv: independence-legs 0.7, medoid-simplex 0.3 -->
-- [x] S2 CAUSAL_CHAIN at G3: each ACCEPTANCE_FRAME criterion names mechanism leg (path:line or formula) whose beforehand prediction the observation checks per @SMOKE_BEFORE; no mechanism-derived prediction = symptom/testimony per @ORACLE_ROLE, never oracle per @ORACLE; legs independent only per @MEDOID_SIMPLEX; user/visual alone → Unknown; computed geometry decides, render judges. <!-- sv: causal-chain 0.7, acceptance-frame 0.3 -->
-- [x] S3 invariant test + caps: `prompt_kernel/tests/test_causal_chain.py` (3 tests); bytes 67_000→68_000 (product 67_326), tokens product 8_900→9_000 (8_981), codex 8_900→9_000 (8_991), claude/cursor 9_000→9_100 (9_045/9_067); reward ceiling guard stepped to 68_000/68_001. <!-- sv: invariant-test 0.6, size-cap 0.4 -->
-- [ ] S4 commit through `scripts/commit_own.py`, STOP before `--install`; report sha, diff, counts, sizes. <!-- sv: commit 1.0 -->
+- [x] S1 independence in MEDOID_SIMPLEX (round 2): neither source yields through another's failure — inputs from DIFFERENT categories (data | our code | framework-or-spec) AND different instruments, ≥1 source computing from the mechanism; one-kind observations a single category; leg defined; agent's own scripts on its own reading = ONE source. <!-- sv: independence-legs 0.7, medoid-simplex 0.3 -->
+- [x] S2 CAUSAL_CHAIN at G3 (round 2, slot): ACCEPTANCE_FRAME tuple gains mechanismᵢ/predictionᵢ in all 4 registries; CAUSAL_CHAIN shortened to the linkage (observation tests predictionᵢ; without it symptom/testimony, claim stays Unknown; render is the observation). <!-- sv: causal-chain 0.7, acceptance-frame 0.3 -->
+- [x] S3 invariant test + caps (round 2): `test_causal_chain.py` (4 tests incl. tuple parity); bytes stay 68_000 (product 67_606), tokens product/codex 9_000→9_100 (9_023/9_033), claude/cursor 9_100→9_200 (9_087/9_109). <!-- sv: invariant-test 0.6, size-cap 0.4 -->
+- [x] S4 commit `72d2647bad1dac0401347add7dda695aa2387243` through `scripts/commit_own.py`, STOP before `--install`. <!-- sv: commit 1.0 -->
+- [x] S5 Claude/aicall review round 2 applied (5 findings: unambiguous Unknown, categories + computing leg, ACCEPTANCE_FRAME slot, defined leg, render-as-observation). <!-- sv: review-fixes 1.0 -->
+- [ ] S6 commit round 2 through `scripts/commit_own.py`, STOP before `--install`; report sha, diff, counts, sizes. <!-- sv: commit 1.0 -->
 - [ ] R1 Claude critical review + owner `--install` (out of scope here). <!-- sv: review 1.0 -->
 
 ## Smoke Tests
 
 - Baseline (before edit, measured 2026-10-17): product 66_651 B / 8_887 tok; claude 66_443 / 8_951; codex 66_362 / 8_897; cursor 66_404 / 8_973; pytest green except receivers.
 - Prediction (before runs): new `test_causal_chain.py` FAILs on pre-t79 text (no independence clause, no CAUSAL_CHAIN); PASSES after; caps PASS at next band; `test_reward_restoration` ceiling tests PASS at 68_000/68_001; the 3 stale-receiver guards (production/claude/cursor) FAIL pre-install by construction.
-- Post-change oracle: `python -m pytest prompt_kernel/tests/ -q` → 305 passed, 3 failed (stale receivers only); renders product `b2c5aa5c…`, claude `5f85d91a…`, codex `9087aed1…`, cursor `484af960…`; `working_copy=not_updated` on all four (no install).
+- Post-change oracle (round 2): `python -m pytest prompt_kernel/tests/ -q` → 306 passed, 3 failed (stale receivers only); renders product `…`, claude `…`, codex `…`, cursor `…`; `working_copy=not_updated` on all four (no install).
 
 ## Stop claim
 

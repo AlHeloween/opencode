@@ -122,7 +122,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 2026-10-15 (t44 B4/B5): run-limit exit + portfolio completion term measure 8_801 —
     # the next band above the measurement; nothing cut.
     # 2026-10-17 (t79 causal-chain): MEDOID_SIMPLEX independence + CAUSAL_CHAIN measure 8_991 — the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 9_000
+    # 2026-10-17 (t79 review): categories + computing leg + ACCEPTANCE_FRAME slot measure 9_033 — the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 9_100
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

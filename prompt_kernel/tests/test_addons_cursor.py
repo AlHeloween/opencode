@@ -96,7 +96,8 @@ def test_cursor_variant_stays_within_explicit_budget() -> None:
     # the next band above the measurement; nothing cut.
     # 2026-10-15 (t49 review, owner standing word: raise, never cut): one-copy norm in PERSISTED_CRITERION + binding-only ticket route in VCS_ROLES measure 8_973 — the next band above the measurement; nothing cut.
     # 2026-10-17 (t79 causal-chain): MEDOID_SIMPLEX independence + CAUSAL_CHAIN measure 9_067 — the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 9_100
+    # 2026-10-17 (t79 review): categories + computing leg + ACCEPTANCE_FRAME slot measure 9_109 — the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 9_200
 
 
 def test_cursor_addon_render_is_deterministic_lf() -> None:

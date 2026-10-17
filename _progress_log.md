@@ -1,4 +1,9 @@
 ﻿# Progress Log
+## [2026-10-17] t79 review round 2 — 5 findings applied (plan plans/2026-10-17_kernel-causal-chain.md)
+
+✓ CONFIRMED (edit): unambiguous `leaves the claim Unknown`; categories + ≥1 computing leg + one-kind observations one category + leg defined + agent's own scripts phrasing in MEDOID_SIMPLEX; ACCEPTANCE_FRAME tuple gains mechanismᵢ/predictionᵢ in all 4 registries (parity kept); CAUSAL_CHAIN shortened to the linkage with render-as-observation. Caps: bytes stay 68_000 (product 67_606), tokens product/codex 9_000→9_100, claude/cursor 9_100→9_200.
+✓ CONFIRMED (tests): `test_causal_chain.py` 4/4 incl. tuple parity; full pytest 306 passed, 3 failed = stale receivers only (need --install, forbidden). Renders not_updated ×4: product 67_606 B 468de95a, claude 67_398 18946390, codex 67_317 47042bc5, cursor 67_359 85311665. STOP before --install; Claude re-review pending.
+<!-- sv: causal-chain-review 0.40, acceptance-slot 0.30, size-cap 0.15, invariant-test 0.15 -->
 ## [2026-10-17] t79 kernel causal-chain — independent legs + mechanism-before-observation (plan plans/2026-10-17_kernel-causal-chain.md)
 
 ✓ CONFIRMED (edit): MEDOID_SIMPLEX gains independence = neither leg through the other's failure (data | our code | framework-or-spec AND different instrument; own scripts over own reading = ONE source); G3 CAUSAL_CHAIN binds ACCEPTANCE_FRAME (mechanism leg path:line/formula + beforehand prediction per @SMOKE_BEFORE; no prediction = symptom/testimony per @ORACLE_ROLE, never oracle per @ORACLE; user/visual alone → Unknown; computed geometry decides, render judges). Caps to next band: bytes 67_000→68_000, tokens product/codex 8_900→9_000, claude/cursor 9_000→9_100; reward guard to 68_000/68_001.

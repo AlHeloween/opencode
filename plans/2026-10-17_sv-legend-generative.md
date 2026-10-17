@@ -9,8 +9,9 @@ note: hash values are generative
 
 # t84 — kernel: SV block carries legend `note: hash values are generative`
 
-**Status:** ACTIVE — revision 1, grounding done 2026-10-17, implementation pending. KERNEL edit, STOP before `--install`.
+**Status:** ACTIVE — revision 2 (follow-up 2026-10-17, owner final legend wording). KERNEL edit, STOP before `--install`.
 
+Owner final decision, 2026-10-17, verbatim: «note: hash values are generative tags — search them, never compute them.» Do not reword it — trailing period and em dash are part of it. Why, verbatim: «это хорошая идея потому что будет подталкивать модель к поиску этих самых тегов что автоматом ведет к анализу траэкторий размышлений вместо обычного поиска.» ✓ CONFIRMED (follow-up brief)
 Owner, 2026-10-17, verbatim: «Ну можно просто легендой note: hash values are generative». Verbatim line, do not reword. ✓ CONFIRMED (owner brief text)
 
 Intention: an SV that travels without the kernel (outside model, forwarded report, another organisation) says by itself that its md5 values are generated labels, not hashes of anything. ✓ CONFIRMED (brief Intention)
@@ -56,6 +57,7 @@ Other readers unchecked → fixture matrix covers them; every reader the fixture
 - [x] S4 Zero fixture-breaking readers — no reader fixes needed (matrix all PASS)
 - [x] S5 Oracle: kernel 322 passed + 3 stale-receiver reds (expected pre-install); tools 5 passed; robot-wave 13 passed; vector-sign 6 passed (20261017T144544Z_e0ae67f9 exit 0); `_build.ps1` exit 0 (20261017T144639Z_9dcc8609, smoke 10.0.1427)
 - [x] S6 Commit via `scripts/commit_own.py` (03bfffe1 own paths + 4d23d022 progress log) + `_progress_log.md` entry; STOP before `--install` (receivers stale for Legislator + falsifier; owner gives install word)
+- [x] S7 Owner final wording (follow-up 2026-10-17): example ends with `note: hash values are generative tags — search them, never compute them.` + one-line `- note:` bullet (generated tags for searching/linking SVs, never computed or verified, uniqueness only); `test_sv_legend.py` LEGEND updated + old-short-line rejection (11 PASS); reader matrix re-run on NEW line ALL PASS incl. utf-8 read and cp1251-misread diagnostic; caps hold 9_300 (9154/9218/9164/9240, bytes 68366/69000); oracle kernel 323+3 stale/tools 5/robot-wave 13; `_build.ps1` exit 0 (20261017T153424Z_a450c608, smoke 10.0.1429); STOP before `--install`
 
 ## Smoke Tests
 

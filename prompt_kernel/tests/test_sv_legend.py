@@ -1,6 +1,6 @@
 """t84 — SV legend: the @SV_FORMAT example block carries its own legend.
 
-Owner, 2026-10-17, verbatim: «Ну можно просто легендой note: hash values are generative».
+Owner, 2026-10-17, verbatim (final): «note: hash values are generative tags — search them, never compute them.» Do not reword it — trailing period and em dash are part of it.
 Bare-SV probe (experiments/2026-10-17_sv-bare-intent/): a frameless reader
 reconstructs the intent but takes md5 for a content hash, so the block itself
 says its hash values are generative. A trailing legend line keeps every
@@ -23,7 +23,8 @@ VARIANTS = {
     "cursor": (CURSOR_GATE_ADDONS, ()),
 }
 
-LEGEND = "note: hash values are generative"
+LEGEND = "note: hash values are generative tags — search them, never compute them."
+OLD_LEGEND = "note: hash values are generative"
 
 
 def _sv_example_block(text: str) -> str:
@@ -52,6 +53,15 @@ def test_sv_legend_guard_rejects_dropped_line() -> None:
     text = render_kernel(KERNEL)
     assert LEGEND in text
     mutant = text.replace(LEGEND, "")
+    assert mutant != text
+    with pytest.raises(AssertionError):
+        assert LEGEND in mutant
+
+
+def test_sv_legend_rejects_old_short_line() -> None:
+    text = render_kernel(KERNEL)
+    assert OLD_LEGEND not in [line.strip() for line in text.splitlines()]
+    mutant = text.replace(LEGEND, OLD_LEGEND)
     assert mutant != text
     with pytest.raises(AssertionError):
         assert LEGEND in mutant

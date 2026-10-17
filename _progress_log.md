@@ -7684,3 +7684,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - SV hygiene: chaining prev-md5 from own last md5 (review finding 4) — this vector's prev is 7d2e9a1c4b5f6a83e0d1c5a8b4f6e291.
 - STOP: no `--install`, no `bin/`.
 <!-- sv: fence-glue-defect 0.40, test-hole-fence-boundary 0.30, real-predicate-mutation 0.20, prev-md5-hygiene 0.10 -->
+## [2026-10-17] t84-S9 round-2 bullet scope — target wording + content test + oracle + build, STOP before --install (Smit)
+
+- BULLET (`render.py:105` only, comma kept): target wording — emit-every-block verbatim, reader-searches-tags, form + own-md5-uniqueness; «generative» throughout, «generated» gone; yaml owner line untouched.
+- TEST: bullet-content (verbatim emit + own md5, no generated) in 4 variants — legend file 17 PASS.
+- CAPS re-measured: 9166/9230/9176/9252 + bytes 68421 — hold 9_300/69_000, no raise.
+- ORACLE: kernel 329 passed + 3 stale-receiver reds (expected pre-install); `_build.ps1` exit 0 (20261017T155129Z_e6c59ed4, smoke 10.0.1431).
+- PLAN: moved back plans_completed/→plans/ (third uncommitted D+?? move), S9 [x].
+- STOP: no `--install`, no `bin/`.
+<!-- sv: legend-bullet-scope 0.35, who-searches 0.25, emit-every-block 0.20, uniqueness-scope 0.12, falsifier-triage 0.08 -->

@@ -346,7 +346,9 @@ Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMA
 #### @ONE_STEP_AHEAD
 Estimate the immediate downstream state and verification consequence of each medoid before selection.
 
-- Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources.
+#### @MEDOID_SIMPLEX
+Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources. Independent = no single failure can produce both results: inputs from different categories (data | our code | framework-or-spec) AND different instruments, with at least one source computing from the mechanism (code or formula); observations of one kind (renders, screenshots) are one category. A leg is one independent source. The agent's own scripts built on its own reading of the code count as ONE source.
+
 #### @LEAN_RANKING
 Classify every candidate on the 4 LEAN tiers — a decision over @INFOMARK, never a second ladder: (1) Fully Verified — evidence, no logical leap, factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain (a flawless method on a false premise is not verification) → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, admissible for selection, decides nothing; (3) Major Contradiction / Hallucination → Unknown, unproven rather than weak; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected; a selected medoid must have climbed the @INFOMARK ladder. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable — an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion; @ORACLE is the only verification.
 
@@ -371,8 +373,9 @@ Define the failing/baseline oracle and its expected result at G3; capture under 
 
 - Assistant proposes claims with falsifiers; only @ORACLE binds Exact.
 - Above Guess: claim carries mechanism, falsifier, pin (path:line or authority+hash). Unpinned = Unknown, never Inferred. PASS = evidence on impl, not absent theory.
+- An ACCEPTANCE_FRAME observation tests predictionᵢ per @SMOKE_BEFORE; with no mechanism-derived beforehand prediction it is symptom or testimony per @ORACLE_ROLE, never the oracle per @ORACLE; sources are independent only per @MEDOID_SIMPLEX; user word or visual capture alone leaves the claim Unknown; computed geometry is the prediction; the render is the observation that tests it.
 - Unresolved critical entries block G4. Refresh after G7/G8, close only with oracle evidence.
-- ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).
+- ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, mechanismᵢ, predictionᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; mechanismᵢ is path:line or formula, predictionᵢ is written before the observation; an empty mechanismᵢ or predictionᵢ leaves the criterion Unknown; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).
 - plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.
 - plan carries the intention: <!-- intention: from_state -> to_state --> rides compaction.
 </G3_RULES>

@@ -1,4 +1,9 @@
 ﻿# Progress Log
+## [2026-10-17] t79 install — all variants live (plan plans/2026-10-17_kernel-causal-chain.md)
+
+✓ CONFIRMED (install, owner «Ставь все варианты»): product `432eeec2…` + claude `05aa6c96…` + cursor `cf8dfff4…` installed, codex rendered `268fa960…` (t64: no receiver); baseline repinned `432eeec2…` prev `1d279e5a…` (rollback untouched).
+✓ CONFIRMED (oracle): pytest 309 passed / 0 failed; all 4 receivers read back MATCH their renders; `_build.ps1` run `20261017T063442Z_c935aef2` exit 0, smoke 10.0.1420, prompt embedded; bin/ untouched.
+<!-- sv: install-live 0.40, receiver-readback 0.30, pytest-green 0.20, build-embed 0.10 -->
 
 ## [2026-10-17] DAIS C1 — native SCIP producer (план 2026-10-17_dais-native-producer-capture)
 

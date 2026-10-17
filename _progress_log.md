@@ -7579,3 +7579,10 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - ORACLE: `python -m pytest tests/ -q` from tools/ → 5 passed; live `python D:/zPython/opencode/tools/claude_svchain.py 27d18c11` with cwd D:/zPython/ADID_Python → 14 vectors (RESET + 13 LINK), previously `ValueError: no session matched`.
 - BUILD: `_build.ps1` NOT run — Python-tool-only change, nothing to stage into dist/ (per t81 brief).
 <!-- sv: claude-slug-fix 0.45, measured-rule 0.30, pytest-live-oracle 0.25 -->
+## [2026-10-17] t82 kernel sv-lineage — received SV md5 becomes parent-goal-md5 (Smit, STOP before --install)
+
+- GROUND: `prompt_kernel/render.py:89-107` only surface needing change; `source.py`/`validate.py`/`addons*.py` have no receiver rule (parity vacuous). Evidence re-measured: 823 assistant parts, 811 own-md5 blocks, 806 distinct, 96 bad-length, 4 md5 with >1 dominant (e.g. `7f3a9c1e4b5d6a8c9e0f1a2b3c4d5e6f` x3); fossil `sv:` same reuse shape. Researcher re-delegation blocked by ACL (dbread/fossilgrep deny) — parent measured directly.
+- RED: new `prompt_kernel/tests/test_sv_lineage.py` (4 variants + dropped-half guard) — 5 failed, run 20261017T111314Z_29fb9c8c exit 1 (bytes_written 6199, dropped 0).
+- FIX (additive, `prompt_kernel/render.py` only): md5 bullet += `Mint it fresh every turn; never reuse a received md5 — equal own-md5s are always a defect.`; parent-goal-md5 bullet += `A task arriving with an SV carries that SV's md5 here — equal parent-goal-md5s are lineage.` No cap move (product 67842 B < 68000; claude 67634, codex 67553, cursor 67595).
+- ORACLE: `python -m pytest prompt_kernel/tests/ -q` — 311 passed, 3 failed = exactly the stale-receiver guards needing `--install` (test_production_prompt_matches_next_kernel_renderer, test_cursor_rule_receiver_is_current, test_claude_kernel_is_installed_current), run 20261017T111359Z_a3b3a940 exit 1. Plan `plans/2026-10-17_kernel-sv-lineage.md` T1-T3 ticked. STOP: no `--install`, no `bin/`.
+<!-- sv: sv-lineage 0.40, parent-goal-md5 0.30, md5-uniqueness 0.20, kernel-edit 0.10 -->

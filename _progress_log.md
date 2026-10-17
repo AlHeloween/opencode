@@ -1,4 +1,11 @@
 ﻿# Progress Log
+## [2026-10-17] t80 tree hygiene T1+T2 — B6 closed, half-moves recorded (Smit)
+
+- T1 B6 DONE: `cc84e46096` (edit + 3 mutation controls) + `d0f9c04d1b` (install run 20261015T025937Z_307a3929, post-install pytest 285 passed, readback x4, _build.ps1 exit 0); re-verified today: `test_reward_restoration.py` 39 passed via cmd_runner (run 20261017T103827Z_d060584c, state.json finished exit 0, bytes_written 1065, bytes_dropped 0); completion term live in installed receivers (reasoning_prompt.txt:239, reasoning_kernel.md:239); ceiling note: B6 set 67_000, t79 raised to 68_000 (source.py:967, validate.py:240) — history kept, not rewritten. Box ticked in `plans_completed/2026-10-15_kernel-continuation-without-blocked.md`.
+- T2 half-moves: both plans all-boxes-ticked (git-tmpdir S6; host-crash S1–S6) and blob-identical to HEAD (`3315da69`, `69f5db45`); the ticked kernel plan sits at `plans_completed/` (modify, not rename — it belongs there); the two half-moves commit as `{plans => plans_completed}` renames. host-crash root cause stays Unknown as a RECORDED residual (R-S1 candidates + R-S4/S5 residual lines), all S-box oracles permit it — the move is not premature.
+- T3 ownership table: `experiments/2026-10-17_tree-ownership/REPORT.md` (READ ONLY) — every non-T1–T2 status path with session id + lane + evidence + recommendation: 12 Exact (DB Write/Edit + mtime match / transcript rows), 14 Inferred (lane analysis, content+timing), 3 Unknown → owner decides (idawilli skill, docs/README audit link, MASTER_PLAN renderer).
+- Rename mechanism (named, not fixed here — queued `reconcile-move-in-git`): `movePlanFile` (`packages/opencode/src/util/plan-status.ts:782`, `renameSync` at :786) driven by `reconcilePlans` (:794, call sites :822/:837).
+<!-- sv: tree-hygiene 0.35, b6-receipt 0.30, git-rename 0.20, named-owner 0.15 -->
 ## [2026-10-17] t79 close — S10 ticked, plan to plans_completed/ (Claude PASS on install)
 
 ✓ CONFIRMED (close): S10 ticked with receipt `c810743976`; `plans/2026-10-17_kernel-causal-chain.md` → `plans_completed/` via `git mv` in the same commit (no svm render — orchestrator sweeps the map).

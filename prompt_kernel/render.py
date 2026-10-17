@@ -95,7 +95,7 @@ def _render_sv_contract(contract: SemanticVectorContract) -> list[str]:
         "md5: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
         f"prev-md5: {contract.first_prev_md5}",
         f"parent-goal-md5: {contract.first_prev_md5}",
-        "note: hash values are generative tags — search them, never compute them."
+        "note: hash values are generative tags — search them, never compute them.",
         "```",
         f"- Keywords: {contract.keyword_min}-{contract.keyword_max} unique terms; weights>0; sum={contract.weight_sum}; highest first",
         "- Semantic dominant: one sentence of this vector's focus",

@@ -100,7 +100,7 @@ def _render_sv_contract(contract: SemanticVectorContract) -> list[str]:
         "- Semantic dominant: one sentence of this vector's focus",
         "- md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters). Mint a fresh one for every vector you emit; a received md5 never becomes your own md5 — equal own-md5s are always a defect.",
         f"- prev-md5: previous md5 or {contract.first_prev_md5}; a mid-session break means the chain lost a turn — recovery across it is Guess, not Inferred",
-        f"- parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; {contract.first_prev_md5} if none. A task arriving with an SV carries that task's first SV md5 here — its brief/artifact vector, never the sender's chat vector — on every turn of that task; equal parent-goal-md5s share one parent. An accepted 000..., non-32-hex or example md5 is no parent: write 000... and name the defect in your reply.",
+        f"- parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; {contract.first_prev_md5} if none. A task arriving with an SV carries that task's first SV md5 here — its brief/artifact vector, never the sender's chat vector — on every turn of that task; equal parent-goal-md5s share one parent. A received 000..., non-32-hex or example md5 is no parent: write 000... and name the defect in your reply."
         f"- trivial: {contract.trivial_emission}",
         "- invariant: a semantic vector is an attention fingerprint, never a claim status",
         "",

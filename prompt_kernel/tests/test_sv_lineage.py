@@ -28,7 +28,7 @@ FRESH_ONE = "Mint a fresh one for every vector you emit"
 TASK_FIRST = "that task's first SV md5 here"
 FIX2_CHUNK = "its brief/artifact vector, never the sender's chat vector — on every turn of that task"
 ONE_PARENT = "equal parent-goal-md5s share one parent"
-ACCEPTED_ZERO = "An accepted 000..., non-32-hex or example md5"
+RECEIVED_ZERO = "A received 000..., non-32-hex or example md5"
 NO_PARENT = "is no parent: write 000..."
 YOUR_REPLY = "name the defect in your reply"
 OWN_DEFECT = "equal own-md5s are always a defect"
@@ -37,9 +37,9 @@ OWN_DEFECT = "equal own-md5s are always a defect"
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
 def test_sv_lineage_round3_fixes_rendered(variant) -> None:
     text = render_kernel(KERNEL, *VARIANTS[variant])
-    for fragment in (FIELD_BAN, FRESH_ONE, TASK_FIRST, FIX2_CHUNK, ONE_PARENT, ACCEPTED_ZERO, NO_PARENT, YOUR_REPLY, OWN_DEFECT):
+    for fragment in (FIELD_BAN, FRESH_ONE, TASK_FIRST, FIX2_CHUNK, ONE_PARENT, RECEIVED_ZERO, NO_PARENT, YOUR_REPLY, OWN_DEFECT):
         assert fragment in text
-    for removed in ("Mint it fresh every turn", "Never copy 000", "in the report", "never reuse a received md5", "are lineage", "on every turn;"):
+    for removed in ("Mint it fresh every turn", "Never copy 000", "in the report", "never reuse a received md5", "are lineage", "on every turn;", "An accepted 000"):
         assert removed not in text
 
 

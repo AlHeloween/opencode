@@ -7613,3 +7613,6 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - Опечатка моя: константа `mint...` vs `Mint...` в генераторе — поймал оракул (4 failed), починил, повтор зелёный.
 - ORACLE: `python -m pytest prompt_kernel/tests/ -q` — 312 passed, 3 failed = только stale-receiver гарды под `--install`, ран 20261017T120720Z_977075fe exit 1 (bytes_written 11035, dropped 0). Капы держат без сдвига: Б 68089 < 69000; токены 9112/9122/9176/9198 ≤ 9200. Рендеры ×4: product 68089 a3e25b13… / claude 67881 8e66b2c4… / codex 67800 dca57187… / cursor 67842 9ceb14d1…. STOP: no `--install`, no `bin/`.
 <!-- sv: sv-lineage 0.40, parent-goal-md5 0.30, md5-uniqueness 0.20, kernel-edit 0.10 -->
+## [2026-10-17] t82 install — accepted→received + все варианты живьём (owner: «Ставь t82 во все варианты»)
+
+- WORD FIX (Legislator PASS c 1 правкой): `An accepted 000...` → `A received 000...` (`render.py:103`, тест `RECEIVED_ZERO` + отсутствие `An accepted 000`). Оракул шага: 312 passed, 3 failed = только stale-receiver гарды, ран 20261017T121711Z_6dacb8c1.

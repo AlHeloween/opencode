@@ -1,4 +1,11 @@
 ﻿# Progress Log
+## [2026-10-17] bin promotion 10.0.1421 -> 10.0.1426 — t82 SV-lineage kernel live (owner's word; Legislator session)
+
+✓ CONFIRMED (swap): `python scripts/promote_bin.py` from Terminal tab c2, warm path: dry-run 1 host (pid 18768, 10.0.1421, busy 0); drain 0 s, stop forced 11.5 s, swap `e225201e4d02` -> `1362bf7585b9` = `dist/bin/opencode.exe`, smoke 10.0.1426; host relaunched by the tool (pid 9672 :4096, `/global/health` 10.0.1426); maintenance marker removed; state `.opencode/data/promotion/promotion-20261017-203421.json`.
+✓ CONFIRMED (oracle, t82 kernel reaches the model): payload `1792240497041_payload_…ses_eb6752aadffe…` (20:34:57) holds «Mint a fresh one for every vector you emit» 1, «A received 000» 1 (t79's «computed geometry is the prediction» 1 kept); control: the 1421 payload `1792235250544_…` held both new phrases 0 (EXPECTED_FAIL).
+Note: the shared git index again held a stale `_progress_log.md` (38 lines behind HEAD) — unstaged before this entry, worktree was equal to HEAD.
+<!-- sv: bin-promotion 0.40, payload-oracle 0.35, stale-index-trap 0.25 -->
+
 ## [2026-10-17] t83 SV lineage mechanism — dispatch gate + watcher lineage + census (plan plans/2026-10-17_sv-lineage-mechanism.md)
 
 CONFIRMED RED-GREEN: tests/test_sv_lineage.py RED ImportError parse_brief_sv, GREEN 13 passed.

@@ -1,8 +1,8 @@
 {
   "production": {
     "path": "packages/opencode/src/session/prompt/reasoning_prompt.txt",
-    "sha256": "432eeec2fc0c842e13b2840f114ed91f379de79cbad6029499963fe9e794e331",
-    "prev_sha256": "1d279e5ab86b2b174f7a124ad566a86a34f3850dd75dc9af82fbdf31527caaef",
+    "sha256": "85b2450fa10ab6886d298f77b4847554ac16a08015fa81e8b072100c481a32f1",
+    "prev_sha256": "432eeec2fc0c842e13b2840f114ed91f379de79cbad6029499963fe9e794e331",
     "rollback": "prompt_kernel/dist/2026-09-17_23-16-37_reasoning_prompt.txt",
     "rollback_reason": "2026-09-25: rollback deliberately stays at the 09-17 artifact and does NOT advance to the 09-24 23:33 release. 09-17 is the one with real field use; the 09-24 release is the one whose closure behaviour failed, so landing on it would restore the unpriced exit to the user that this baseline replaces."
   }

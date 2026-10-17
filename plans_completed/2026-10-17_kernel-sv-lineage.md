@@ -42,3 +42,4 @@ defect; equal parent-goal-md5s are lineage.
 - Stale-receiver guards (`test_claude_kernel_is_installed_current`,
   `test_cursor_rule_receiver_is_current`, `test_codex_artifact_is_current`) need
   `--install` and stay red; named, not fixed here.
+- [x] T4 Install all variants (owner «Ставь t82 во все варианты»): word fix `An accepted` → `A received` (round 3: first-SV-block parent, `of that task`, `your reply`, fresh-per-vector) + caps 69000/9200; `--install` (product 85b2450f) + `--claude --install` (1ac01b84) + `--cursor --install` (b54b5052, receiver 8c73d285) + `--codex` render-only (f00f5337); baseline.json repinned 85b2450f (prev 432eeec2); pytest 315 passed exit 0 (run 20261017T121934Z_8f23c540); read-back MATCH ×3; `_build.ps1` exit 0 (run 20261017T122003Z_1422b36c), smoke 10.0.1426, prompt embedded.

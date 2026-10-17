@@ -7663,3 +7663,14 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - RED-GREEN: grep heavy-excludes FAIL 7/1 (20261017T144421Z_aecc2dd6) → PASS 8/8 (20261017T144632Z_cb6aac79); glob FAIL 2/1 (20261017T144729Z_0ab89deb) → PASS 3/3 (20261017T144808Z_4d43abf8). Fix: grep 20 s signal timeout + per-file limit 101 + root-wide !dir/** excludes unless named; glob same timeout+excludes (output already take(101)).
 - PLAN: plans/2026-10-17_host-fastfail-grep.md S1-S4 [x], S5 in flight; plans_completed/2026-10-17_host-crash-nemotron.md dated reopen note only (acceptance holds, no git mv).
 <!-- sv: host-fastfail 0.35, grep-bound 0.30, stand-repro 0.20, death-record 0.15 -->
+## [2026-10-17] t84-S7 owner final legend wording — render + test + matrix + oracle + build, STOP before --install (Smit)
+
+- WORDING (owner verbatim): `note: hash values are generative tags — search them, never compute them.` (period + em dash part of it); why verbatim: «это хорошая идея потому что будет подталкивать модель к поиску этих самых тегов что автоматом ведет к анализу траэкторий размышлений вместо обычного поиска.»
+- RENDER (`prompt_kernel/render.py` only): example ends with owner line; `- note:` bullet rewritten in one line (generated tags for searching/linking SVs, never computed or verified, uniqueness only); missing-comma class fixed again (bullet glued trivial → trivial test red); `source.py` untouched.
+- TEST (`prompt_kernel/tests/test_sv_legend.py`): LEGEND=new line, OLD short line rejected as full line + mutant control, 4-variant parity, trivial-no-legend — 11 PASS.
+- MATRIX (NEW line, fixture ±note): claude/codex `vector_in` SAME; dispatch parse/own/last SAME; census own/parent SAME; watch3 SAME; TS chain/header/has/sign SAME; utf-8 file read SAME; cp1251-misread SAME (note ignored); `grep generative` in tools/robot-wave: no .py reader keyed on legend text; `validate.py` no text parse (contract unchanged).
+- CAPS: hold 9_300, no raise (9154/9218/9164/9240, bytes 68366/69000).
+- ORACLE: kernel 323 passed + 3 stale-receiver reds (expected pre-install); tools 5 passed; robot-wave 13 passed; `_build.ps1` exit 0 (20261017T153424Z_a450c608, smoke 10.0.1429).
+- PLAN: moved back plans_completed/→plans/ (uncommitted reconcile move found as D+??), revision 2 with owner quote + S7 [x].
+- STOP: no `--install`, no `bin/`; receivers stale for Legislator + falsifier; owner gives install word.
+<!-- sv: legend-owner-wording 0.40, search-not-compute 0.25, reader-encoding-check 0.20, stop-before-install 0.15 -->

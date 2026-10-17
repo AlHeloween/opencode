@@ -1,5 +1,5 @@
 <!-- sv: native-producer 0.40, explicit-encoding 0.35, reproducibility 0.25 -->
-# scip-go v0.2.7: явная кодировка координат UTF8
+# scip-go v0.2.7: UTF8 и канонические пути документов
 
 CONFIRMED ✓ native runtime 20261017T054016Z_8d942cee: официальный scip-go v0.2.7
 создаёт бинарный индекс на Windows. Его Document не задаёт position_encoding.
@@ -8,6 +8,11 @@ CONFIRMED ✓ native runtime 20261017T054016Z_8d942cee: официальный s
 symbols/symbols.go:33–37 использует байтовые Go token columns и len(name).
 
 Проверяемый patch задаёт UTF8CodeUnitOffsetFromLineStart в producer ДО сериализации.
+Native production probe20261017T110642Z_d310749d обнаружил второй дефект:
+вложенный документ опубликован как `internal\capture\capture.go`, импортёр
+отверг неканонический путь. Patch также задаёт `filepath.ToSlash` при создании
+Document.RelativePath до сериализации. Исходный отказ и raw SCIP сохраняются;
+importer не исправляет путь задним числом.
 Существующий индекс не переписывается. Квитанция capture закрепляет SHA256
 реального candidate executable; ToolInfo сохраняет базовую upstream-версию v0.2.7.
 Это candidate-сборка DAIS, отличимая по хешу от официального executable.

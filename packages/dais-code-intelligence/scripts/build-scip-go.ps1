@@ -17,7 +17,7 @@ if (Test-Path -LiteralPath $Scratch) { throw 'Scratch must be a new caller-owned
 if (Test-Path -LiteralPath $Destination) { throw 'Destination must not already exist' }
 $source = Join-Path $SourceRoot 'internal/visitors/visitor_file.go'
 $expectedBefore = 'fbab6b7f228809fc670d684242f6767ae4ad704fb1fbb744360caad188556018'
-$expectedAfter = 'a1827a2106e1fd6a5ab03624999d688a91f1e3c7e5c8ceb93ad88778d02f6969'
+$expectedAfter = '6d6edb74365f881ed6f5a9c64d2957d0eca5d65663ed8707c3e6bc2511bfa4ae'
 if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedBefore) {
     throw 'scip-go v0.2.7 source pin mismatch'
 }
@@ -73,7 +73,7 @@ foreach ($relative in $pins.Keys) {
     }
 }
 [ordered]@{
-    version = 'scip-go v0.2.7 + DAIS declared UTF8 positions'
+    version = 'scip-go v0.2.7 + DAIS UTF8 positions and canonical document paths'
     executable = $Destination
     executable_sha256 = (Get-FileHash -LiteralPath $Destination).Hash.ToLowerInvariant()
     source_sha256 = $expectedBefore

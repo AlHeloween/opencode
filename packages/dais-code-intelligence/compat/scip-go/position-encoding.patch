@@ -1,6 +1,14 @@
 diff --git a/visitor_file.go b/visitor_file.go
 --- a/visitor_file.go
 +++ b/visitor_file.go
+@@ -5,6 +5,7 @@
+ 	"go/token"
+ 	"go/types"
+ 	"log/slog"
++	"path/filepath"
+ 
+ 	"github.com/scip-code/scip-go/internal/document"
+ 	"github.com/scip-code/scip-go/internal/lookup"
 @@ -359,6 +359,7 @@
  	return &scip.Document{
 -		Language:     "go",
@@ -8,7 +16,7 @@ diff --git a/visitor_file.go b/visitor_file.go
 -		Occurrences:  v.occurrences,
 -		Symbols:      documentSymbols,
 +		Language:         "go",
-+		RelativePath:     v.doc.RelativePath,
++		RelativePath:     filepath.ToSlash(v.doc.RelativePath),
 +		Occurrences:      v.occurrences,
 +		Symbols:          documentSymbols,
 +		PositionEncoding: scip.PositionEncoding_UTF8CodeUnitOffsetFromLineStart,

@@ -2,8 +2,9 @@
 # DAIS: граф утверждений и проверок
 
 Первый исполняемый срез находится в `packages/dais-code-intelligence/`.
-Три нативных Windows executable: `dais-ci.exe` для поиска Zoekt,
-`dais-capture.exe` для запуска producer и `dais-graph.exe` для графа SCIP.
+Четыре нативных Windows executable: `dais-ci.exe` для поиска Zoekt,
+`dais-capture.exe` для запуска producer, `dais-graph.exe` для графа SCIP
+и `dais-mcp.exe` для агентных запросов по stdio.
 Первичные исходники, индекс SCIP,
 manifest входов и SV comment читаются из конкретного Fossil check-in.
 
@@ -22,6 +23,9 @@ flowchart LR
     R --> G
     G --> S[SCs: общие узлы, дуги, паспорта]
     F --> Z[Zoekt full / delta]
+    G --> M[MCP: definitions / references / search / status]
+    Z --> M
+    V --> M
 ```
 
 ## Паспорт утверждения
@@ -81,8 +85,8 @@ predicate, claim/provenance nodes и квитанции. JSON links несут �
 Первый профиль `dais-scip-utf8-v1` закреплён на SCIP
 `e26a0b0fc83424dbfe6c703c0437d4703aec4aa0`. UTF16, неизвестные protobuf fields,
 неподдержанные role bits и malformed input отклоняются до publication.
-Полный call graph, межъязыковые Delphi/1С связи, производственный индексатор,
-5 млн сущностей, p95/RSS и переключение MCP consumers остаются открытыми.
+Полный call graph, межъязыковые Delphi/1С связи, языковое покрытие индексаторов,
+5 млн сущностей, p95/RSS и переключение existing consumers остаются открытыми.
 
 ## Продолжение
 
@@ -107,8 +111,24 @@ snapshot остаётся читаемым; обычный `ci/notes Ω.txt` н�
 structural capture evidence, без подписи или повышения semantic_status.
 [Повторный replay и отказы](../experiments_history/2026-10-17_dais-repeated-capture/REPORT.md).
 
-Следующий срез: рабочий корпус, запросы графа и ограниченный impact traversal
-через DAIS MCP; автоматическая публикация и incremental execution ещё открыты.
+## Агентная навигация
+
+MCP закрепляет repository, graph snapshot, applicability target и search generation
+при запуске. `symboldefinition` и `symbolreferences` разрешают координаты через
+полные SCIP identities; `codesearch` использует существующий Zoekt adapter,
+`indexstatus` возвращает исполненную проверку. Перед каждым запросом повторно
+сверяются declared inputs и cached projection. Смена search generation, STALE
+inputs или повреждённые facts вызывают явный отказ. Исторический snapshot
+доступен по его ID, без обхода цепочки родителей.
+
+Navigation пока выполняет полный ограниченный проход facts. Выдача сохраняет
+ambiguity/duplicates, origin и raw payload; входная усечённость вызывает отказ,
+выходная обозначена total/returned/truncated. Coordinates: 0-based UTF8 bytes;
+Zoekt line — 1-based. Result/frame bytes и request time ограничены. Store.Verify
+сохраняет derived execution receipts; первичный Fossil не меняется.
+
+Следующий срез: квалификация consumer cutover и ограниченный impact traversal;
+автоматическая публикация и incremental execution ещё открыты.
 Полнота внешних чтений producer, межъязыковая семантика и длительно работающий
 installed service пока не квалифицированы. Основной маршрут остаётся в
 [родительском плане](../plans/2026-10-16_zoekt-scip-fossil-sv.md).

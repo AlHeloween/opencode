@@ -19,6 +19,7 @@ build overlay из `compat/zoekt/`; generated SCIP binding переноситс�
 pwsh -NoProfile -File scripts/go.ps1 -Action build -Packages ./cmd/dais-graph -OutputName dais-graph.exe
 pwsh -NoProfile -File scripts/go.ps1 -Action build -Packages ./cmd/dais-ci -OutputName dais-ci.exe
 pwsh -NoProfile -File scripts/go.ps1 -Action build -Packages ./cmd/dais-capture -OutputName dais-capture.exe
+pwsh -NoProfile -File scripts/go.ps1 -Action build -Packages ./cmd/dais-mcp -OutputName dais-mcp.exe
 ```
 
 Результаты находятся в module `dist/`. Установку сервисов и promotion эти команды
@@ -82,7 +83,8 @@ SCIP в B должны быть структурно согласованы. Т�
 подпись или semantic PASS от структурной проверки.
 
 SCIP-go v0.2.7 требует [candidate-правки producer](compat/scip-go/README.md), чтобы
-явно объявлять байтовую кодировку координат. Получение source/dependencies:
+явно объявлять байтовую кодировку координат и канонические `/` в путях документов.
+Получение source/dependencies:
 `go mod download -json github.com/scip-code/scip-go@v0.2.7`; поле `Dir` даёт
 SourceRoot. `scripts/build-scip-go.ps1 -SourceRoot ... -Go ... -Scratch ...
 -Destination ...` принимает absolute paths и собирает candidate из побайтно
@@ -121,13 +123,54 @@ Index использует `--repository`, `--fossil`, `--fossil-home`, `--ref`,
 `--expect-revision` отклоняет устаревшую публикацию. Результат несёт check-in,
 file artifact hash, path/line, generation и canonical SV ref.
 
+## MCP: поиск и навигация
+
+`dais-mcp.exe` — stdio server на официальном Go MCP SDK v1.8.0. Вызывающий
+запускает и завершает процесс; EOF закрывает сессию. stdout содержит только
+JSON-RPC, диагностика идёт в stderr. Сервер не создаёт индекс и не делает commit.
+
+Для существующего совместного search/graph индекса:
+
+```powershell
+./dist/dais-mcp.exe --index-root <absolute-index-directory> --repository-id <namespace> --repository <absolute-source.fsl> --fossil <absolute-fossil.exe> --fossil-home <isolated-directory> --snapshot <graph-snapshot-id> --target-revision <full-fossil-checkin> --profile dais-scip-modern-utf8-v1
+```
+
+Все параметры области закреплены при старте. Search publication должна относиться
+к тому же repository/target; её generation сохраняется до завершения процесса.
+Запуск и каждый tool call исполняют проверку graph inputs. Смена search generation
+вызывает отказ: новая сессия требует явного нового scope. Исторический snapshot
+разрешён; current graph не подменяет его. Проверки создают derived receipts в
+SQLite, исходный Fossil читается без записи.
+
+| Tool | Аргументы | Результат |
+|---|---|---|
+| `symboldefinition` | `document_path`, `line`, `character`, `limit` | Определения символов в указанной позиции |
+| `symbolreferences` | те же | Вхождения без definition role |
+| `codesearch` | `kind`, `query`, `limit` | Zoekt: `code`, `regex`, `filename`, `symbol_text` |
+| `indexstatus` | пустой объект | Snapshot, search generation и исполненная verification receipt |
+
+Navigation coordinates: строки с нуля, character — UTF8 byte offset, конец range
+исключён. Search строки с единицы (`line_base:1`). Пути относительны repository,
+с `/`; `..` запрещён. Неиндексированная позиция возвращает явный пустой результат.
+Несколько перекрывающихся symbol identities и повторные вхождения сохраняются.
+Результаты несут исходные fact/origin, Fossil UUID, SV и instrument SHA256;
+`semantic_status` остаётся `unknown`. Эти tools не обещают call graph или impact.
+
+Лимиты положительны: `--max-results` (100), `--max-facts` (100000),
+`--max-response-bytes`/`--max-frame-bytes` (1 MiB), `--timeout` (10s);
+дополнительно действуют index/manifest/source/query byte bounds из `--help`.
+Навигация пока читает полный ограниченный snapshot: превышение fact bound —
+отказ, обрезание выдачи явно обозначено `total/returned/truncated`. Это первый
+функциональный интерфейс, без квалификации на пяти миллионах сущностей.
+Установка в live MCP host и переключение CodeGraph consumers выполняются отдельно.
+
 ## Проверка
 
 Из каталога модуля, с явным `DAIS_TEST_FOSSIL`:
 
 ```powershell
 $env:DAIS_TEST_FOSSIL = 'D:/zPython/opencode/external/fossil/fossil.exe'
-pwsh -NoProfile -File scripts/go.ps1 -Action test -Packages ./internal/fossil,./internal/search,./internal/evidencegraph,./internal/scipmodern,./internal/capture,./cmd/dais-graph,./cmd/dais-capture
+pwsh -NoProfile -File scripts/go.ps1 -Action test -Packages ./internal/fossil,./internal/search,./internal/evidencegraph,./internal/scipmodern,./internal/capture,./internal/mcpserver,./cmd/dais-ci,./cmd/dais-graph,./cmd/dais-capture,./cmd/dais-mcp
 ```
 
 Tests используют настоящие disposable Fossil repositories и SQLite, без mock

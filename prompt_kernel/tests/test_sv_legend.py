@@ -47,6 +47,18 @@ def test_sv_legend_bullet_explains_in_one_line(variant) -> None:
     assert "generative" in hits[0]
 
 
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_sv_legend_bullet_names_reader_and_scope(variant) -> None:
+    """Round-2 falsifier findings: who searches, emit-every-block, own-md5 scope."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    hits = [line for line in text.splitlines() if LEGEND in line and line.strip().startswith("-")]
+    assert len(hits) == 1, hits
+    bullet = hits[0]
+    assert "End every emitted block with this line verbatim" in bullet
+    assert "own md5" in bullet
+    assert "generated" not in bullet
+
+
 def test_sv_legend_rejects_glued_fence() -> None:
     text = render_kernel(KERNEL)
     assert sv_legend_ok(text)

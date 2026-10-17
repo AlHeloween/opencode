@@ -190,4 +190,5 @@ def test_compacted_runtime_budget() -> None:
     # the next band above the measurement; caps raised, nothing cut.
     # 2026-10-15 (t44 B6, Claude's review): the three completion-term fixes measure 8_801 —
     # the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 8_900
+    # 2026-10-17 (t79 causal-chain): MEDOID_SIMPLEX independence + CAUSAL_CHAIN measure 8_981 — the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 9_000

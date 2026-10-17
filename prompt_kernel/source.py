@@ -536,7 +536,7 @@ GATES = (
                 BP("AND", BP("HAS", "L1_DISTANCE"), G2_CANDIDATE_SUFFICIENCY, BP("HAS", "medoids_as_central"))),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection.",
                 BP("IMPLIES", BP("HAS", "medoid"), BP("AND", BP("HAS", "downstream_state"), BP("HAS", "verification_consequence")))),
-            _rule("G2", "MEDOID_SIMPLEX", "Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources.",
+            _rule("G2", "MEDOID_SIMPLEX", "Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources. Independent = neither leg can yield its result through the other's failure: different input (data | our code | framework-or-spec) AND different instrument; own scripts over own reading count as ONE source.",
                 BP("AND", BP("GE", value=("medoid_count", 3)), BP("HAS", "independent_sources"), BP("HAS", "Infomark"), BP("NOT", BP("HAS", "degenerate_simplex")))),
             # 2026-09-28 (owner): the candidate pipeline gained a classification step — «classify using
             # lean-4» — and the four LEAN tiers are written here as a DECISION over @INFOMARK, never
@@ -578,6 +578,7 @@ GATES = (
             _rule("G3", "SMOKE_BEFORE", "Define the failing/baseline oracle and its expected result at G3; capture under the envelope at G6; name post-change oracle before any product-source edit. Predict each case before the run — PASS, FAIL or unchanged (expected_delta); an outcome off the prediction, an unexpected PASS included, is a forecast error: the premise is wrong or the conditions changed — @DIVERGENCE_PROTOCOL, logged as a divergence, never counted as a pass. A case with no prediction runs as diagnostic only, never as evidence; a flaky outcome is a HARNESS finding under a replication criterion, not a re-grounding."),
             _rule("G3", "CLAIM_LEDGER_RULE", "Assistant proposes claims with falsifiers; only @ORACLE binds Exact."),
             _rule("G3", "CLAIM_CITATION", "Above Guess: claim carries mechanism, falsifier, pin (path:line or authority+hash). Unpinned = Unknown, never Inferred. PASS = evidence on impl, not absent theory."),
+            _rule("G3", "CAUSAL_CHAIN", "Each ACCEPTANCE_FRAME criterion names its mechanism leg (path:line or formula) whose beforehand prediction the observation checks per @SMOKE_BEFORE; an observation with no mechanism-derived beforehand prediction is symptom or testimony per @ORACLE_ROLE, never the oracle per @ORACLE; legs are independent only per @MEDOID_SIMPLEX; user word or visual capture alone closes Unknown; computed geometry decides, the render only judges the prediction."),
             _rule("G3", "RISK_LEDGER_RULE", "Unresolved critical entries block G4. Refresh after G7/G8, close only with oracle evidence."),
         ),
         fsm=G3_FSM,
@@ -962,7 +963,8 @@ KERNEL = Kernel(
     # 2026-10-15 (t44 B6, Claude's review): the three completion-term fixes measure 66_115 B —
     # utf8_budget AND the validate.py hard ceiling step to the next band, 67 000 (owner standing
     # word: «64 - 65 без разницы, главное чтобы работало»; the cap is a bloat guard, never a cut).
-    utf8_budget=67_000,
+    # 2026-10-17 (t79 causal-chain): independence in MEDOID_SIMPLEX + CAUSAL_CHAIN at G3 measure product 67_326 B — the next band above the measurement; nothing cut.
+    utf8_budget=68_000,
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

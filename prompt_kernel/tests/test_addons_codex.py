@@ -121,7 +121,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 2026-10-15: reward restoration plus task-completion term measures 8_723; finite next band.
     # 2026-10-15 (t44 B4/B5): run-limit exit + portfolio completion term measure 8_801 —
     # the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 8_900
+    # 2026-10-17 (t79 causal-chain): MEDOID_SIMPLEX independence + CAUSAL_CHAIN measure 8_991 — the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 9_000
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

@@ -7693,3 +7693,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - PLAN: moved back plans_completed/→plans/ (third uncommitted D+?? move), S9 [x].
 - STOP: no `--install`, no `bin/`.
 <!-- sv: legend-bullet-scope 0.35, who-searches 0.25, emit-every-block 0.20, uniqueness-scope 0.12, falsifier-triage 0.08 -->
+## [2026-10-18] t84-S10 INSTALL all variants + hand repin + plan to completed (owner word «Ставь t84 во все варианты», t82 order c2be09c824) (Smit)
+
+- GATE: 329 passed + 3 stale-receiver reds only; render/test confirmed clean at d1c392b088.
+- INSTALL: product 5ff2dcad (68421 B) / claude 6367e50b / cursor-receiver 2744091b / codex-dist 1e8965e8 (render-only, no receiver — as t82).
+- READ-BACK: product MATCH x2 / claude MATCH x2 / cursor-rule MATCH x2; ~/.codex/AGENTS.md DIFF x0 (de5d5cd8, global not installed — as t82, needs its own word).
+- BASELINE hand repin: 85b2450f→prev_sha256, 5ff2dcad→sha256, rollback kept; post-repin pytest 332/0.
+- PLAN: S10 [x] with receipts; moved plans/→plans_completed/ in the install commit (reconciler moves were its job — S9 left no open box).
+- BUILD: `_build.ps1` exit 0 (20261017T195712Z_c99b48d0, smoke 10.0.1432). No `bin/` (promotion is a separate word).
+<!-- sv: t84-install 0.35, all-variants 0.25, baseline-repin 0.20, read-back-receipt 0.12, open-install-box 0.08 -->

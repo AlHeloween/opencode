@@ -1,4 +1,13 @@
 ﻿# Progress Log
+## [2026-10-17] t83 SV lineage mechanism — dispatch gate + watcher lineage + census (plan plans/2026-10-17_sv-lineage-mechanism.md)
+
+CONFIRMED RED-GREEN: tests/test_sv_lineage.py RED ImportError parse_brief_sv, GREEN 13 passed.
+CONFIRMED gate: dispatch dry-run t1 refused exit 2 naming brief; t83 accepted md5 d9ffbffebfb5422daad3d05c0a339c9b; fleet pair same; sessions.json unchanged; no session created.
+CONFIRMED watcher: parent==brief and own-fresh checks, lineage print, one Russian nudge, idle-only; grandfathered skips; helpers shared in dispatch; watch.py unwraps sids.
+CONFIRMED census ro: 819 blocks, 814 distinct, 4 reused, 99 bad; briefs 2; parent-hits 2 t82 live; db mtime unchanged. Baseline 817/811/5/101.
+CONFIRMED regression and build: fleet status 87 robots no UNREADABLE; build 20261017T112824Z_ced7c2d2 exit 0 smoke 10.0.1423.
+Receipts: dispatch 8e080583, watch3 b1cfe335, fleet cd4d1b91, watch 25b85785, census a4d9a339, tests 0efe6f84; bak-t83 kept.
+<!-- sv: brief-sv-gate 0.35, lineage-check 0.30, md5-reuse-flag 0.25, watcher 0.10 -->
 ## [2026-10-17] bin promotion 10.0.1417 -> 10.0.1421 (owner's word; Legislator session)
 
 ✓ CONFIRMED (swap): `python scripts/promote_bin.py` from Terminal tab c2, cold path (owner had closed the TUIs; no holder of bin): old sha `08f764f87af6` -> new sha `e225201e4d02` = `dist/bin/opencode.exe`, smoke 10.0.1421 (dist was rebuilt by the DAIS lane's `_build.ps1` after t79's 10.0.1420); state `.opencode/data/promotion/promotion-20261017-185937.json`; rollback `bin/opencode.exe.prev`.

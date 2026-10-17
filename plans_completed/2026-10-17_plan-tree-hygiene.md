@@ -1,4 +1,4 @@
-<!-- intention: shared tree holds only named-owner work, every plan sits where its boxes say it belongs — recorded in git, not in a filesystem rename -->
+<!-- intention: tree with unnamed work and filesystem half-moves -> every path has a named owner and every plan sits where its boxes say, recorded in git, not in a filesystem rename -->
 <!-- goal_sv:
 Keywords: tree-hygiene 0.35, named-owner 0.25, git-rename 0.20, b6-receipt 0.20
 Semantic dominant: Закрыть B6 с квитанциями, оформить полупереезды через git и назвать хозяев незакоммиченного.
@@ -28,22 +28,9 @@ no file outside the binding (the three plan files, this plan, the report, `_prog
 
 ## Tasks
 
-- [ ] T1 — B6 verdict from evidence. Candidate receipts: `cc84e46096` (edit + tests), `d0f9c04d1b`
-  (install run `20261015T025937Z_307a3929`, post-install pytest 285 passed, readback x4, `_build.ps1` exit 0),
-  the three mutation controls in `prompt_kernel/tests/test_reward_restoration.py`, installed receivers
-  (`reasoning_prompt.txt:239`, `reasoning_kernel.md:239`). Re-run
-  `python -m pytest prompt_kernel/tests/test_reward_restoration.py -q` via cmd_runner. B6 names 67 000;
-  t79 raised to 68 000 (`source.py:967`, `validate.py:240`) — say so in the receipt, do not rewrite history.
-  Tick B6 in the kernel plan with receipts if DONE; else state what is missing and leave it open.
-- [ ] T2 — Half-moves. Each plan: every box ticked (git-tmpdir S6 [x]; host-crash S1–S6 [x]), blob-identical
-  to `HEAD:plans/<name>` (hashes above). host-crash root cause stays Unknown — recorded as residual
-  (R-S1 candidates + R-S4/S5 residual lines), all S-box oracles permit it (S1 honest-Unknown allowance),
-  so the move is not premature. Record the renames in git (`git show --stat` prints
-  `{plans => plans_completed}`); an open box would go back to `plans/` instead.
-- [ ] T3 — Owners of uncommitted files, READ ONLY. For every `git status --short` path not covered by T1–T2:
-  author (session id + lane) + evidence line + recommendation (its owner commits it / orphan → owner decides /
-  scratch). Sources: Claude transcripts, robot DB `part` rows, Codex sessions, `_progress_log.md`, mtimes.
-  Table → `experiments/2026-10-17_tree-ownership/REPORT.md`. Nothing committed, moved or deleted here.
+- [x] T1 — B6 verdict from evidence: DONE. Receipts `cc84e46096` + `d0f9c04d1b`; re-run `test_reward_restoration.py` 39 passed (run `20261017T103827Z_d060584c`, exit 0); receivers carry the term (`reasoning_prompt.txt:239`, `reasoning_kernel.md:239`); ceiling note 67_000 → 68_000 (t79) kept as history. B6 ticked in `plans_completed/…kernel-continuation-without-blocked.md`, committed `86736222`. <!-- sv: b6-receipt 0.60, pytest-rerun 0.25, ceiling-note 0.15 -->
+- [x] T2 — Half-moves recorded as git renames: both plans all-boxes-ticked and blob-identical to HEAD; `git diff HEAD^ HEAD --summary` prints `rename {plans => plans_completed}/…` (100%) ×2; commit `86736222`. host-crash Unknown root cause is a recorded residual, move not premature. <!-- sv: git-rename 0.60, all-boxes-ticked 0.25, residual-recorded 0.15 -->
+- [x] T3 — Ownership table written READ ONLY to `experiments/2026-10-17_tree-ownership/REPORT.md`: 12 Exact + 14 Inferred + 3 Unknown (idawilli skill, docs/README link, MASTER_PLAN renderer → owner decides). Nothing committed, moved or deleted. <!-- sv: named-owner 0.50, exact-receipts 0.30, orphan-decision 0.20 -->
 
 ## Smoke Tests
 

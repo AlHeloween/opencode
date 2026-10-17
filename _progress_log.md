@@ -1,4 +1,8 @@
 ﻿# Progress Log
+## [2026-10-17] t79 close — S10 ticked, plan to plans_completed/ (Claude PASS on install)
+
+✓ CONFIRMED (close): S10 ticked with receipt `c810743976`; `plans/2026-10-17_kernel-causal-chain.md` → `plans_completed/` via `git mv` in the same commit (no svm render — orchestrator sweeps the map).
+<!-- sv: plan-close 1.0 -->
 ## [2026-10-17] t79 install — all variants live (plan plans/2026-10-17_kernel-causal-chain.md)
 
 ✓ CONFIRMED (install, owner «Ставь все варианты»): product `432eeec2…` + claude `05aa6c96…` + cursor `cf8dfff4…` installed, codex rendered `268fa960…` (t64: no receiver); baseline repinned `432eeec2…` prev `1d279e5a…` (rollback untouched).

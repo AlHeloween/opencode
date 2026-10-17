@@ -30,7 +30,7 @@ Field case: `D:/zPascal/ Projects/ClientSoft/docs/3d-render-verification.md` §2
 - [x] S7 review round 3 applied (3 fixes: prediction-not-verdict, common-failure phrasing, empty-slot Unknown). <!-- sv: review-fixes 1.0 -->
 - [x] S8 commit round 3 `3affc108acad9a66c16c41d02de6aee7e4023a5b` through `scripts/commit_own.py`, STOP before `--install`. <!-- sv: commit 1.0 -->
 - [x] S9 install all variants (owner «Ставь все варианты»): product + claude + cursor installed, codex rendered (t64 channel); baseline repinned; pytest 309/0; receivers read back MATCH; `_build.ps1` green (10.0.1420). <!-- sv: install 0.6, readback 0.4 -->
-- [ ] S10 commit receivers + baseline through `scripts/commit_own.py`; report sha, counts, shas. <!-- sv: commit 1.0 -->
+- [x] S10 commit receivers + baseline `c810743976e3a287507b8fb8c1e6b615ffd96603` through `scripts/commit_own.py` (Claude PASS on install verified). <!-- sv: commit 1.0 -->
 - [x] R1 Claude PASS on 3affc108ac + owner «Ставь все варианты» → installed (this change). Remaining: plan-map `svm render` (orchestrator sweep). <!-- sv: review 0.5, install 0.5 -->
 
 ## Smoke Tests

@@ -1,4 +1,12 @@
 ﻿# Progress Log
+## [2026-10-17] Legislator session close before /compact — t80..t86 verified, ClientSoft memory fix, hook fix (session 60a3d22e)
+
+✓ CONFIRMED: t80 (86736222c4, ae21360cf1), t81 (f9d50d8df2), t82 installed (c2be09c824; bin 10.0.1426 payload oracle 1/1 vs 0), t83 mechanism live, t85 (d19ec8a136, ac1cdb1e5a; grep 8/0, glob 3/0 real runs), t86 (ffeb54b05f, 1ed6de592a, 8332594863; DAIS C1 PASS / C2 FAIL zoekt-Windows). t84 stopped before install (03bfffe1..3f7d58d3; pytest 322 + 3 stale).
+✓ CONFIRMED (ClientSoft): bridge log :340-341 id 111 -> 697,629,312 B; robot fix 8acda85 (giant 957,903,325 -> 4,412,457 B, priv +5719 -> +379 MB); correction msg_14a6ddc10001ZLkTCMM6XC8r0M sent 23:14:36.
+✓ CONFIRMED (hook): ~/.claude/hooks/measured_peer_message.py accepts bracket-qualified/bold headers and names the missing one; 12/12 fixtures (experiments/2026-10-17_peer-hook-fixtures/).
+✗ OPEN: shared-index trap x3 (commit_own.py suspected); legend probe partial; owner decisions listed in memory project_state_2026_10_17_cross_lane.
+<!-- sv: session-close 0.40, verified-receipts 0.35, open-residuals 0.25 -->
+
 ## [2026-10-17] bin promotion 10.0.1421 -> 10.0.1426 — t82 SV-lineage kernel live (owner's word; Legislator session)
 
 ✓ CONFIRMED (swap): `python scripts/promote_bin.py` from Terminal tab c2, warm path: dry-run 1 host (pid 18768, 10.0.1421, busy 0); drain 0 s, stop forced 11.5 s, swap `e225201e4d02` -> `1362bf7585b9` = `dist/bin/opencode.exe`, smoke 10.0.1426; host relaunched by the tool (pid 9672 :4096, `/global/health` 10.0.1426); maintenance marker removed; state `.opencode/data/promotion/promotion-20261017-203421.json`.

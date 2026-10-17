@@ -1,4 +1,24 @@
 ﻿# Progress Log
+
+## [2026-10-17] DAIS C1 — native SCIP producer (план 2026-10-17_dais-native-producer-capture)
+
+CONFIRMED ✓ 20261017T055221Z_ef2802ac: scip-go v0.2.7 candidate собран из закреплённого дерева 129 files/399003 bytes, original source hashes не изменились. Reviewed patch задаёт position encoding до сериализации; исходный неоднозначный index сохранён. Full-tree refusal 20261017T055244Z_5a6b3a6f не создал staging/executable. Source/cache/external mutation отсутствует по readback.
+<!-- sv: native-producer 0.45, explicit-encoding 0.30, source-pins 0.25 -->
+
+## [2026-10-17] DAIS C1b — modern SCIP profile (план 2026-10-17_dais-native-producer-capture)
+
+CONFIRMED ✓ parent 20261017T055220Z_130d2c50: modern и legacy graph suites PASS. Private descriptor v0.7.1 воспроизводится byte-for-byte, новые payload fields/Unicode/enclosing ranges сохраняются; unspecified/UTF16/UTF32/unknown поля отказывают. Generated legacy binding неизменен. Actual diff: internal/scipmodern, project_modern, profile dispatch/guard и vendor pipeline.
+<!-- sv: schema-compatibility 0.45, lossless-projection 0.35, regression 0.20 -->
+
+## [2026-10-17] DAIS C2 — isolated capture (план 2026-10-17_dais-native-producer-capture)
+
+CONFIRMED ✓ parent 20261017T054539Z_7d23019f и общий 20261017T055220Z_130d2c50: immutable sources, explicit env, executable pin, deadline, refusal controls и atomic bundle PASS. Actual diff: internal/capture и cmd/dais-capture. CAPTURED означает execution над declared inputs; semantic correctness unknown. Direct-child cancellation не приравнивается к sandbox descendants.
+<!-- sv: producer-capture 0.45, fossil-provenance 0.35, bounds 0.20 -->
+
+## [2026-10-17] DAIS C3 — independent archive replay (план 2026-10-17_dais-native-producer-capture)
+
+CONFIRMED ✓ 20261017T055638Z_6cfebbbf: 28 predicates из сохранённого archive oracle, actual producer → Fossil A/B → graph, golden definition/reference после emoji, raw byte roundtrip, FAIL/STALE/current preservation. Mandatory _build.ps1 20261017T055327Z_fee29dd1 exit0, candidate dist smoke10.0.1419, lock released. Доказательства: experiments_history/2026-10-17_dais-producer-capture/REPORT.md. Child проверен и перенесён в plans_completed; parent ACTIVE. Следующая leaf: repeated capture с reserved-output contract, затем corpus/MCP/parity. 5M и CodeGraph cutover остаются открыты.
+<!-- sv: independent-oracle 0.45, graph-applicability 0.30, continuation 0.25 -->
 ## [2026-10-17] t79 review round 3 — 3 fixes, final (plan plans/2026-10-17_kernel-causal-chain.md)
 
 ✓ CONFIRMED (edit): `computed geometry is the prediction; the render is the observation that tests it`; `no single failure can produce both results`; empty mechanismᵢ/predictionᵢ leaves the criterion Unknown (×4 registries, parity kept). Tests updated (pins on new phrasing + absence of old). No cap raise: product 67_654/9_030, claude 67_446/9_094, codex 67_365/9_040, cursor 67_407/9_116 — all within bands.

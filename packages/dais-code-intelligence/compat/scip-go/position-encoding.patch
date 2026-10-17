@@ -1,0 +1,15 @@
+diff --git a/visitor_file.go b/visitor_file.go
+--- a/visitor_file.go
++++ b/visitor_file.go
+@@ -359,6 +359,7 @@
+ 	return &scip.Document{
+-		Language:     "go",
+-		RelativePath: v.doc.RelativePath,
+-		Occurrences:  v.occurrences,
+-		Symbols:      documentSymbols,
++		Language:         "go",
++		RelativePath:     v.doc.RelativePath,
++		Occurrences:      v.occurrences,
++		Symbols:          documentSymbols,
++		PositionEncoding: scip.PositionEncoding_UTF8CodeUnitOffsetFromLineStart,
+ 	}

@@ -1,0 +1,37 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=D:/zPython/opencode/external/fossil/fossil.exe: The term '=D:/zPython/opencode/external/fossil/fossil.exe' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+=== RUN   TestModernProfileOpen
+    project_modern_test.go:12: explicit repository namespace, absolute metadata path, supported profile and positive bounds required
+--- FAIL: TestModernProfileOpen (0.26s)
+FAIL
+FAILdais.local/codeintelligence/internal/evidencegraph0.291s
+FAIL

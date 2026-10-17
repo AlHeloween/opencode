@@ -1,0 +1,35 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+go: overlay contains a replacement for C:\Users\Alexander\go\pkg\mod\github.com\scip-code\scip-go@v0.2.7\internal\visitors\visitor_file.go. Files beneath GOMODCACHE (C:\Users\Alexander\go\pkg\mod) must not be replaced.
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\build-scip-go.ps1:47
+Line |
+  47 |  if ($LASTEXITCODE -ne 0) { throw 'Native producer build failed' }
+     |                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Native producer build failed

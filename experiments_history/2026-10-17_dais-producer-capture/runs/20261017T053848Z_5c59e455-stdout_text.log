@@ -1,0 +1,43 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# dais.local/codeintelligence/internal/capture [dais.local/codeintelligence/internal/capture.test]
+internal\capture\capture_test.go:44:29: undefined: Config
+internal\capture\capture_test.go:56:9: undefined: Config
+internal\capture\capture_test.go:61:7: undefined: Run
+internal\capture\capture_test.go:64:8: undefined: Manifest
+internal\capture\capture_test.go:74: undefined: Run
+internal\capture\capture_test.go:75: undefined: Run
+FAILdais.local/codeintelligence/internal/capture [build failed]
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

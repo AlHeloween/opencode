@@ -1,0 +1,34 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\build-scip-go.ps1:45
+Line |
+  45 |      throw 'Producer source tree differs from the qualified v0.2.7 mod …
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Producer source tree differs from the qualified v0.2.7 module

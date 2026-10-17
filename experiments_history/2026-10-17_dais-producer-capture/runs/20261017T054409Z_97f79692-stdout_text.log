@@ -1,0 +1,103 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestReceiptsPinExecutedInstrument
+--- PASS: TestReceiptsPinExecutedInstrument (1.83s)
+=== RUN   TestSQLitePrimitive
+--- PASS: TestSQLitePrimitive (0.02s)
+=== RUN   TestModernProfileOpen
+--- PASS: TestModernProfileOpen (0.27s)
+=== RUN   TestModernNativeProducerRoundTrip
+    project_modern_test.go:77: SCIP project_root must be an absolute file URI
+--- FAIL: TestModernNativeProducerRoundTrip (0.86s)
+=== RUN   TestModernFieldsRangesAndRefusals
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-index
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-occurrence
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-enum
+=== RUN   TestModernFieldsRangesAndRefusals/utf16
+    project_modern_test.go:226: wanted position_encoding, got SCIP metadata must be first
+=== RUN   TestModernFieldsRangesAndRefusals/utf32
+    project_modern_test.go:226: wanted position_encoding, got SCIP metadata must be first
+=== RUN   TestModernFieldsRangesAndRefusals/unspecified
+=== RUN   TestModernFieldsRangesAndRefusals/different-text
+=== RUN   TestModernFieldsRangesAndRefusals/split-codepoint
+=== RUN   TestModernFieldsRangesAndRefusals/enclosing-outside
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-role
+--- FAIL: TestModernFieldsRangesAndRefusals (0.01s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-index (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-occurrence (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-enum (0.00s)
+    --- FAIL: TestModernFieldsRangesAndRefusals/utf16 (0.00s)
+    --- FAIL: TestModernFieldsRangesAndRefusals/utf32 (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unspecified (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/different-text (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/split-codepoint (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/enclosing-outside (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-role (0.00s)
+=== RUN   TestGraphProjectionProvenanceAndStaleness
+--- PASS: TestGraphProjectionProvenanceAndStaleness (4.06s)
+=== RUN   TestGraphStrictRefusalsPreserveCurrent
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf16
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/negative-range
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/bounds
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf8-split
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-field
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-role
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/path
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete
+--- PASS: TestGraphStrictRefusalsPreserveCurrent (12.75s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf16 (1.66s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/negative-range (2.10s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/bounds (1.15s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf8-split (1.18s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-field (1.51s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-role (1.29s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/path (1.31s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch (1.34s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete (1.21s)
+=== RUN   TestGraphOfflineReadsAndStoredFailure
+--- PASS: TestGraphOfflineReadsAndStoredFailure (1.06s)
+=== RUN   TestGraphCountAndReceiptIntegrity
+--- PASS: TestGraphCountAndReceiptIntegrity (1.71s)
+=== RUN   TestGraphMalformedWireRefused
+=== RUN   TestGraphMalformedWireRefused/truncated
+=== RUN   TestGraphMalformedWireRefused/duplicate-metadata
+--- PASS: TestGraphMalformedWireRefused (2.31s)
+    --- PASS: TestGraphMalformedWireRefused/truncated (1.12s)
+    --- PASS: TestGraphMalformedWireRefused/duplicate-metadata (1.19s)
+FAIL
+FAIL    dais.local/codeintelligence/internal/evidencegraph      24.903s
+?   dais.local/codeintelligence/internal/scipmodern[no test files]
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

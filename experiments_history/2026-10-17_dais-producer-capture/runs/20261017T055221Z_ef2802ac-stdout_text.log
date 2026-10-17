@@ -1,0 +1,40 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "version": "scip-go v0.2.7 + DAIS declared UTF8 positions",
+  "executable": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-final-qualified.exe",
+  "executable_sha256": "26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c",
+  "source_sha256": "fbab6b7f228809fc670d684242f6767ae4ad704fb1fbb744360caad188556018",
+  "source_tree_sha256": "9e9780c217cb827727ca876e4e8c137109f7f900fad86538d4115f8aaf159ed8",
+  "candidate_source_normalized_sha256": "a1827a2106e1fd6a5ab03624999d688a91f1e3c7e5c8ceb93ad88778d02f6969",
+  "copied_files": 129,
+  "patch_sha256": "0453fa9c5a226b9ebf9100a5dc3c37e4619bda920a51101ff6d811ae4d974b32",
+  "go_executable_sha256": "d6a71e6dc9806cb3f1fcb817d562175c5a7b1505fc3f6638299648e0b9f0f74f"
+}

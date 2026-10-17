@@ -2,8 +2,9 @@
 # DAIS: граф утверждений и проверок
 
 Первый исполняемый срез находится в `packages/dais-code-intelligence/`.
-Два нативных Windows executable: `dais-ci.exe` для поиска Zoekt и
-`dais-graph.exe` для версионного графа SCIP. Первичные исходники, индекс SCIP,
+Три нативных Windows executable: `dais-ci.exe` для поиска Zoekt,
+`dais-capture.exe` для запуска producer и `dais-graph.exe` для графа SCIP.
+Первичные исходники, индекс SCIP,
 manifest входов и SV comment читаются из конкретного Fossil check-in.
 
 CONFIRMED ✓ независимый compiled CLI oracle
@@ -53,7 +54,9 @@ Builtin predicate `projection_fidelity_ranges_declared_inputs_v1` проверя
 
 `semantic_status` остаётся `unknown`: правильность разрешения символов сторонним
 indexer требует отдельного оракула. Manifest фиксирует заявленные входы, а факт
-реального запуска стороннего indexer ещё должен подтверждаться capture pipeline.
+реального запуска стороннего indexer фиксируется отдельной capture pipeline.
+Сам graph verifier проверяет байты квитанции как manifest input; подлинность
+внешнего автора квитанции и общую semantic correctness он не устанавливает.
 JSON с надписью PASS не принимается через API как выполненная проверка.
 
 Изменение зависимости делает применимость STALE даже при неизменном файле
@@ -83,9 +86,20 @@ predicate, claim/provenance nodes и квитанции. JSON links несут �
 
 ## Продолжение
 
-Следующий срез: квалифицировать native SCIP producer на реальном проекте,
-записывать входы и доказательство его запуска, затем подключить запросы графа
-и ограниченный impact traversal к DAIS MCP. Основной маршрут остаётся в
+CONFIRMED ✓ native producer/capture: независимый oracle
+`20261017T055638Z_6cfebbbf` проверил 28 predicates на малом Go fixture: реальный
+scip-go, golden definition/reference, byte coordinates после emoji, A→B ровно
+три output files, raw roundtrip, retained failures и receipt-tamper STALE.
+Современный `dais-scip-modern-utf8-v1` использует private descriptor schema v0.7.1;
+legacy binding остаётся неизменным. Официальный scip-go v0.2.7 не объявляет
+position_encoding; candidate-сборка DAIS задаёт его до сериализации, без правки
+созданного индекса. Оригинальный неоднозначный индекс сохранён и отвергается.
+[Отчёт, replay oracle и исходные отказы](../experiments_history/2026-10-17_dais-producer-capture/REPORT.md).
+
+Следующий срез: безопасный повторный capture изменившейся ревизии и рабочий
+корпус, затем запросы графа и ограниченный impact traversal через DAIS MCP.
+Полнота внешних чтений producer, межъязыковая семантика и длительно работающий
+installed service пока не квалифицированы. Основной маршрут остаётся в
 [родительском плане](../plans/2026-10-16_zoekt-scip-fossil-sv.md).
 
 Команды сборки и интерфейс: [README модуля](../packages/dais-code-intelligence/README.md).

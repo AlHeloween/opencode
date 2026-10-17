@@ -1,0 +1,73 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestCaptureHelper
+--- PASS: TestCaptureHelper (0.00s)
+=== RUN   TestCaptureRawBundleAndReadonlyFossil
+--- PASS: TestCaptureRawBundleAndReadonlyFossil (0.89s)
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/fail
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/timeout
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/log
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/mutation
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/extra
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/oversize
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/pin
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/duplicate-env
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-env
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/traversal
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/reserved
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-output
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-collision
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/prefix-output
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/existing-bundle
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-bound
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-bound
+--- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs (1.72s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/fail (0.12s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/timeout (0.21s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/log (0.13s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing (0.14s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/mutation (0.13s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/extra (0.12s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/oversize (0.12s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/pin (0.01s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/duplicate-env (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-env (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/traversal (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/reserved (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-output (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-collision (0.07s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/prefix-output (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/existing-bundle (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-bound (0.09s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-bound (0.11s)
+PASS
+ok      dais.local/codeintelligence/internal/capture    2.641s

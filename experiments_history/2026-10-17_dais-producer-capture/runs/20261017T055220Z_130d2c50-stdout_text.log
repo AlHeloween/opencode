@@ -1,0 +1,264 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestReadArtifactsBatches
+=== RUN   TestReadArtifactsBatches/default
+=== RUN   TestReadArtifactsBatches/sha1
+--- PASS: TestReadArtifactsBatches (3.15s)
+    --- PASS: TestReadArtifactsBatches/default (1.51s)
+    --- PASS: TestReadArtifactsBatches/sha1 (1.64s)
+=== RUN   TestProviderRevisionTrees
+--- PASS: TestProviderRevisionTrees (12.92s)
+=== RUN   TestProviderRejectsInvalidInputs
+--- PASS: TestProviderRejectsInvalidInputs (0.66s)
+=== RUN   TestProviderRejectsSQLDiagnosticsAndDeadline
+--- PASS: TestProviderRejectsSQLDiagnosticsAndDeadline (0.47s)
+PASS
+ok  dais.local/codeintelligence/internal/fossil17.276s
+=== RUN   TestCanonicalHistoricalProvenance
+2026/10/17 13:52:29 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestCanonicalHistoricalProvenance553455677\002\canonical\generations\44c4c91a2ae0e12e4db545823900d88b\fixture_v16.00000.zoekt: 1641 index bytes (overhead 71.3), 1 files processed 
+2026/10/17 13:52:29 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestCanonicalHistoricalProvenance (1.13s)
+=== RUN   TestUnsignedSVAndCurrentSearcherRetention
+2026/10/17 13:52:29 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestUnsignedSVAndCurrentSearcherRetention2060555682\002\unsigned\generations\c9eb33a4d0d5c54e60939f5c1732ed55\fixture_v16.00000.zoekt: 1585 index bytes (overhead 83.4), 1 files processed 
+2026/10/17 13:52:29 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 13:52:30 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 13:52:30 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 13:52:30 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestUnsignedSVAndCurrentSearcherRetention (1.66s)
+=== RUN   TestSerializedResponseByteBound
+2026/10/17 13:52:31 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSerializedResponseByteBound2616245829\002\bo
+ounds\generations\8a3ab4b05575fff826582f042260f70a\fixture_v16.00000.zoekt: 2643 index bytes (overhead 5.1), 1 files proc
+cessed
+2026/10/17 13:52:31 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-1
+2026/10/17 13:52:31 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-1024
+2026/10/17 13:52:31 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-8192
+2026/10/17 13:52:31 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSerializedResponseByteBound (0.64s)
+    --- PASS: TestSerializedResponseByteBound/bytes-1 (0.01s)
+    --- PASS: TestSerializedResponseByteBound/bytes-1024 (0.01s)
+    --- PASS: TestSerializedResponseByteBound/bytes-8192 (0.01s)
+=== RUN   TestFullDeltaRevisionAndReopen
+2026/10/17 13:52:31 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen3129718369\002\ind
+dex\generations\bcba1efd6ec14cddb7ed6832ee4c8797\fixture_v16.00000.zoekt: 2711 index bytes (overhead 19.4), 3 files proce
+essed
+2026/10/17 13:52:31 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 13:52:32 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen3129718369\002\ind
+dex\generations\34ec8ce92917e24b20af3e260935663b\fixture_v16.00001.zoekt: 2340 index bytes (overhead 25.2), 2 files proce
+essed
+2026/10/17 13:52:32 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+2026/10/17 13:52:32 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen3129718369\003\ful
+ll\generations\68283a627f7216d9a5a33ef3bf66c75f\fixture_v16.00000.zoekt: 2721 index bytes (overhead 19.6), 3 files proces
+ssed
+2026/10/17 13:52:32 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 13:52:32 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen3129718369\002\ind
+dex\generations\1bfee36fc801d85fdf292d4761afdab6\fixture_v16.00002.zoekt: 2109 index bytes (overhead 33.0), 1 files proce
+essed
+2026/10/17 13:52:32 [INFO] loading 3 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt, fixture_v16.00002.zoekt
+2026/10/17 13:52:32 [INFO] loading 3 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt, fixture_v16.00002.zoekt
+--- PASS: TestFullDeltaRevisionAndReopen (1.53s)
+=== RUN   TestLimitsCancellationConfigAndFailedPublication
+2026/10/17 13:52:33 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n1051958891\002\index\generations\7fdc1a2008a1b1cb83f4655174f685c7\fixture_v16.00000.zoekt: 1605 index bytes (overhead 47
+7.2), 1 files processed
+2026/10/17 13:52:33 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 13:52:33 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n1051958891\002\index\generations\bc90b5eff6053a154d5d7abc9d170e6f\fixture_v16.00001.zoekt: 1655 index bytes (overhead 69
+9.0), 1 files processed
+2026/10/17 13:52:33 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+2026/10/17 13:52:33 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n1051958891\002\index\generations\47fdc6ae7d5be00d781f474752bd7577\fixture_v16.00001.zoekt: 1655 index bytes (overhead 69
+9.0), 1 files processed
+2026/10/17 13:52:33 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+--- PASS: TestLimitsCancellationConfigAndFailedPublication (1.06s)
+PASS
+ok      dais.local/codeintelligence/internal/search     6.241s
+=== RUN   TestReceiptsPinExecutedInstrument
+--- PASS: TestReceiptsPinExecutedInstrument (2.52s)
+=== RUN   TestSQLitePrimitive
+--- PASS: TestSQLitePrimitive (0.02s)
+=== RUN   TestModernProfileOpen
+--- PASS: TestModernProfileOpen (0.29s)
+=== RUN   TestModernOfficialUnspecifiedPositionsRefused
+--- PASS: TestModernOfficialUnspecifiedPositionsRefused (0.00s)
+=== RUN   TestModernNativeProducerRoundTrip
+--- PASS: TestModernNativeProducerRoundTrip (2.76s)
+=== RUN   TestModernFieldsRangesAndRefusals
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-index
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-occurrence
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-enum
+=== RUN   TestModernFieldsRangesAndRefusals/utf16
+=== RUN   TestModernFieldsRangesAndRefusals/utf32
+=== RUN   TestModernFieldsRangesAndRefusals/unspecified
+=== RUN   TestModernFieldsRangesAndRefusals/different-text
+=== RUN   TestModernFieldsRangesAndRefusals/split-codepoint
+=== RUN   TestModernFieldsRangesAndRefusals/enclosing-outside
+=== RUN   TestModernFieldsRangesAndRefusals/enclosing-does-not-contain
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-role
+--- PASS: TestModernFieldsRangesAndRefusals (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-index (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-occurrence (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-enum (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/utf16 (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/utf32 (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unspecified (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/different-text (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/split-codepoint (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/enclosing-outside (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/enclosing-does-not-contain (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-role (0.00s)
+=== RUN   TestModernWindowsProjectRootDialect
+--- PASS: TestModernWindowsProjectRootDialect (0.00s)
+=== RUN   TestGraphProjectionProvenanceAndStaleness
+--- PASS: TestGraphProjectionProvenanceAndStaleness (3.79s)
+=== RUN   TestGraphStrictRefusalsPreserveCurrent
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf16
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/negative-range
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/bounds
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf8-split
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-field
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-role
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/path
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete
+--- PASS: TestGraphStrictRefusalsPreserveCurrent (11.17s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf16 (1.18s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/negative-range (1.22s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/bounds (1.28s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf8-split (1.19s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-field (1.22s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-role (1.23s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/path (1.26s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch (1.43s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete (1.16s)
+=== RUN   TestGraphOfflineReadsAndStoredFailure
+--- PASS: TestGraphOfflineReadsAndStoredFailure (0.97s)
+=== RUN   TestGraphCountAndReceiptIntegrity
+--- PASS: TestGraphCountAndReceiptIntegrity (1.49s)
+=== RUN   TestGraphMalformedWireRefused
+=== RUN   TestGraphMalformedWireRefused/truncated
+=== RUN   TestGraphMalformedWireRefused/duplicate-metadata
+--- PASS: TestGraphMalformedWireRefused (2.40s)
+    --- PASS: TestGraphMalformedWireRefused/truncated (1.24s)
+    --- PASS: TestGraphMalformedWireRefused/duplicate-metadata (1.16s)
+PASS
+ok      dais.local/codeintelligence/internal/evidencegraph      25.524s
+=== RUN   TestPinnedDescriptorAndPrivateRegistry
+--- PASS: TestPinnedDescriptorAndPrivateRegistry (0.00s)
+PASS
+ok      dais.local/codeintelligence/internal/scipmodern 0.068s
+=== RUN   TestCaptureHelper
+--- PASS: TestCaptureHelper (0.00s)
+=== RUN   TestCaptureRawBundleAndReadonlyFossil
+--- PASS: TestCaptureRawBundleAndReadonlyFossil (0.86s)
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/fail
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/timeout
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/log
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/empty
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/invalid-text
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/mutation
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/extra
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/oversize
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/pin
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/duplicate-env
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-env
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing-systemroot
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/traversal
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/reserved
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-output
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-collision
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/prefix-output
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/existing-bundle
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-bound
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-bound
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-count
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/placeholder
+--- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs (2.53s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/fail (0.21s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/timeout (0.10s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/log (0.21s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing (0.17s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/empty (0.18s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/invalid-text (0.19s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/mutation (0.17s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/extra (0.19s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/oversize (0.17s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/pin (0.02s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/duplicate-env (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-env (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing-systemroot (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/traversal (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/reserved (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-output (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-collision (0.08s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/prefix-output (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/existing-bundle (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-bound (0.12s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-bound (0.11s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-count (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/placeholder (0.00s)
+=== RUN   TestNativePathPredicates
+--- PASS: TestNativePathPredicates (0.01s)
+=== RUN   TestCaptureDeadlineStartsBeforeInputs
+--- PASS: TestCaptureDeadlineStartsBeforeInputs (0.47s)
+=== RUN   TestCancelledPublicationKeepsCandidate
+--- PASS: TestCancelledPublicationKeepsCandidate (0.00s)
+PASS
+ok      dais.local/codeintelligence/internal/capture    3.933s
+=== RUN   TestReadCommandsRequireExplicitSnapshot
+=== RUN   TestReadCommandsRequireExplicitSnapshot/facts
+=== RUN   TestReadCommandsRequireExplicitSnapshot/verify
+=== RUN   TestReadCommandsRequireExplicitSnapshot/export-scs
+=== RUN   TestReadCommandsRequireExplicitSnapshot/export-scip
+--- PASS: TestReadCommandsRequireExplicitSnapshot (0.02s)
+    --- PASS: TestReadCommandsRequireExplicitSnapshot/facts (0.00s)
+    --- PASS: TestReadCommandsRequireExplicitSnapshot/verify (0.01s)
+    --- PASS: TestReadCommandsRequireExplicitSnapshot/export-scs (0.00s)
+    --- PASS: TestReadCommandsRequireExplicitSnapshot/export-scip (0.00s)
+=== RUN   TestInvalidBoundsHaveNoPersistentEffects
+--- PASS: TestInvalidBoundsHaveNoPersistentEffects (0.01s)
+PASS
+ok      dais.local/codeintelligence/cmd/dais-graph      0.110s
+=== RUN   TestInvalidCaptureDoesNotCreateBundle
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--timeout
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--max-files
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--ref
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--indexer-sha256
+--- PASS: TestInvalidCaptureDoesNotCreateBundle (0.02s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--timeout (0.01s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--max-files (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--ref (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--indexer-sha256 (0.00s)
+PASS
+ok      dais.local/codeintelligence/cmd/dais-capture    0.073s

@@ -56,7 +56,7 @@ type sourceBundle struct {
 }
 
 func Open(config Config) (*Store, error) {
-	if config.RepositoryID == "" || !filepath.IsAbs(config.MetadataPath) || config.Profile != ProfileUTF8 || config.MaxIndexBytes <= 0 || config.MaxManifestBytes <= 0 || config.MaxSourceBytes <= 0 || config.MaxFacts <= 0 {
+	if config.RepositoryID == "" || !filepath.IsAbs(config.MetadataPath) || (config.Profile != ProfileUTF8 && config.Profile != ProfileModernUTF8) || config.MaxIndexBytes <= 0 || config.MaxManifestBytes <= 0 || config.MaxSourceBytes <= 0 || config.MaxFacts <= 0 {
 		return nil, errors.New("explicit repository namespace, absolute metadata path, supported profile and positive bounds required")
 	}
 	instrument, err := executedInstrument()
@@ -126,8 +126,11 @@ func (s *Store) load(ctx context.Context, id string) (Snapshot, []byte, []byte, 
 	if err := json.Unmarshal(encoded, &snapshot); err != nil {
 		return Snapshot{}, nil, nil, err
 	}
-	if snapshot.ID != id || snapshotID(snapshot) != id || snapshot.Profile != s.config.Profile || hash(raw) != snapshot.IndexSHA256 || hash(manifest) != snapshot.ManifestSHA256 {
+	if snapshot.ID != id || snapshotID(snapshot) != id || hash(raw) != snapshot.IndexSHA256 || hash(manifest) != snapshot.ManifestSHA256 {
 		return Snapshot{}, nil, nil, errors.New("stored graph snapshot digest mismatch")
+	}
+	if snapshot.Profile != s.config.Profile {
+		return Snapshot{}, nil, nil, fmt.Errorf("stored graph profile %q does not match configured profile %q", snapshot.Profile, s.config.Profile)
 	}
 	return snapshot, raw, manifest, nil
 }

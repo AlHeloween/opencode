@@ -8,6 +8,7 @@ import (
 )
 
 const ProfileUTF8 = "dais-scip-utf8-v1"
+const ProfileModernUTF8 = "dais-scip-modern-utf8-v1"
 
 type Config struct {
 	Provider         *fossil.Provider

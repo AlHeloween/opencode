@@ -1,0 +1,35 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestModernProfileOpen
+    project_modern_test.go:12: explicit repository namespace, absolute metadata path, supported profile and positive bounds required
+--- FAIL: TestModernProfileOpen (0.28s)
+FAIL
+FAILdais.local/codeintelligence/internal/evidencegraph0.316s
+FAIL

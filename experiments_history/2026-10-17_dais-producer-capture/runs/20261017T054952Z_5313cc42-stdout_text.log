@@ -1,0 +1,103 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestReceiptsPinExecutedInstrument
+--- PASS: TestReceiptsPinExecutedInstrument (1.96s)
+=== RUN   TestSQLitePrimitive
+--- PASS: TestSQLitePrimitive (0.02s)
+=== RUN   TestModernProfileOpen
+--- PASS: TestModernProfileOpen (0.34s)
+=== RUN   TestModernOfficialUnspecifiedPositionsRefused
+--- PASS: TestModernOfficialUnspecifiedPositionsRefused (0.00s)
+=== RUN   TestModernNativeProducerRoundTrip
+--- PASS: TestModernNativeProducerRoundTrip (2.51s)
+=== RUN   TestModernFieldsRangesAndRefusals
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-index
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-occurrence
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-enum
+=== RUN   TestModernFieldsRangesAndRefusals/utf16
+=== RUN   TestModernFieldsRangesAndRefusals/utf32
+=== RUN   TestModernFieldsRangesAndRefusals/unspecified
+=== RUN   TestModernFieldsRangesAndRefusals/different-text
+=== RUN   TestModernFieldsRangesAndRefusals/split-codepoint
+=== RUN   TestModernFieldsRangesAndRefusals/enclosing-outside
+=== RUN   TestModernFieldsRangesAndRefusals/enclosing-does-not-contain
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-role
+--- PASS: TestModernFieldsRangesAndRefusals (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-index (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-occurrence (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-enum (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/utf16 (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/utf32 (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unspecified (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/different-text (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/split-codepoint (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/enclosing-outside (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/enclosing-does-not-contain (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-role (0.00s)
+=== RUN   TestModernWindowsProjectRootDialect
+--- PASS: TestModernWindowsProjectRootDialect (0.00s)
+=== RUN   TestGraphProjectionProvenanceAndStaleness
+--- PASS: TestGraphProjectionProvenanceAndStaleness (3.90s)
+=== RUN   TestGraphStrictRefusalsPreserveCurrent
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf16
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/negative-range
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/bounds
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf8-split
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-field
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-role
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/path
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete
+--- PASS: TestGraphStrictRefusalsPreserveCurrent (11.51s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf16 (1.21s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/negative-range (1.20s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/bounds (1.26s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf8-split (1.26s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-field (1.20s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-role (1.41s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/path (1.29s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch (1.38s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete (1.30s)
+=== RUN   TestGraphOfflineReadsAndStoredFailure
+--- PASS: TestGraphOfflineReadsAndStoredFailure (1.21s)
+=== RUN   TestGraphCountAndReceiptIntegrity
+--- PASS: TestGraphCountAndReceiptIntegrity (2.20s)
+=== RUN   TestGraphMalformedWireRefused
+=== RUN   TestGraphMalformedWireRefused/truncated
+=== RUN   TestGraphMalformedWireRefused/duplicate-metadata
+--- PASS: TestGraphMalformedWireRefused (3.06s)
+    --- PASS: TestGraphMalformedWireRefused/truncated (1.68s)
+    --- PASS: TestGraphMalformedWireRefused/duplicate-metadata (1.38s)
+PASS
+ok      dais.local/codeintelligence/internal/evidencegraph      26.757s
+=== RUN   TestPinnedDescriptorAndPrivateRegistry
+--- PASS: TestPinnedDescriptorAndPrivateRegistry (0.00s)
+PASS
+ok      dais.local/codeintelligence/internal/scipmodern 0.041s

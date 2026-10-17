@@ -1,0 +1,34 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Exception: D:\zPython\opencode\experiments\2026-10-17_dais-producer-capture\stage-check.ps1:18
+Line |
+  18 |  … _progress_log.md$') { throw "unexpected combined index diff: $stat" }
+     |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | unexpected combined index diff: 17 12 _progress_log.md

@@ -1,0 +1,63 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestModernOfficialUnspecifiedPositionsRefused
+--- PASS: TestModernOfficialUnspecifiedPositionsRefused (0.00s)
+=== RUN   TestModernFieldsRangesAndRefusals
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-index
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-occurrence
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-enum
+=== RUN   TestModernFieldsRangesAndRefusals/utf16
+=== RUN   TestModernFieldsRangesAndRefusals/utf32
+=== RUN   TestModernFieldsRangesAndRefusals/unspecified
+=== RUN   TestModernFieldsRangesAndRefusals/different-text
+=== RUN   TestModernFieldsRangesAndRefusals/split-codepoint
+=== RUN   TestModernFieldsRangesAndRefusals/enclosing-outside
+=== RUN   TestModernFieldsRangesAndRefusals/enclosing-does-not-contain
+=== RUN   TestModernFieldsRangesAndRefusals/unknown-role
+--- PASS: TestModernFieldsRangesAndRefusals (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-index (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-occurrence (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-enum (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/utf16 (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/utf32 (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unspecified (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/different-text (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/split-codepoint (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/enclosing-outside (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/enclosing-does-not-contain (0.00s)
+    --- PASS: TestModernFieldsRangesAndRefusals/unknown-role (0.00s)
+=== RUN   TestModernWindowsProjectRootDialect
+--- PASS: TestModernWindowsProjectRootDialect (0.00s)
+PASS
+ok  dais.local/codeintelligence/internal/evidencegraph0.045s
+=== RUN   TestPinnedDescriptorAndPrivateRegistry
+--- PASS: TestPinnedDescriptorAndPrivateRegistry (0.00s)
+PASS
+ok      dais.local/codeintelligence/internal/scipmodern 0.037s

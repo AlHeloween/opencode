@@ -15,6 +15,11 @@ parent-goal-md5: 00000000000000000000000000000000
 [DAIS evidence graph](../plans_completed/2026-10-16_dais-evidence-graph.md). Он расширяет направление
 SCIP/Fossil/SV; M0–M2 и будущая замена CodeGraph остаются задачами этого родителя.
 
+Продолжение 2026-10-17 «Респект. Продолжим!» закрывает второй ограниченный child:
+[native producer/capture](../plans_completed/2026-10-17_dais-native-producer-capture.md).
+Его native scip-go candidate, modern schema и capture проверены отдельными
+runtime receipts; это ещё не production corpus или CodeGraph consumer parity.
+
 Уточнение владельца: «Все надо бы нативно, WSL это точно не вариант.»
 Windows runtime — нативные Go executable / Fossil executable / SQLite / Win32 mmap.
 WSL, контейнеры и Linux bridge для Windows исключены. Linux qualification относится
@@ -284,8 +289,12 @@ candidate dist, без promotion. [Evidence archive](../experiments_history/2026
 
 План ACTIVE: Z1/Z2/Z3, M0a Windows/M1/M2 подтверждены своими receipts.
 Первый исполняемый graph/evidence slice вынесен в completed child plan.
-Следующий маршрут G1/G2: квалификация реального native SCIP producer и capture
-входов, затем graph-query/MCP binding и сравнительный oracle на рабочем корпусе
+Native producer/capture child подтверждён archive replay 20261017T055638Z_6cfebbbf:
+28 predicates, семь Go packages и mandatory build. Modern profile явно требует
+UTF8 position encoding; official producer ambiguity сохранена как отказ, candidate
+объявляет encoding до сериализации. Receipt не выдаётся за semantic correctness.
+Следующий маршрут G1/G2: repeated capture изменившейся ревизии с контрактом
+замены reserved outputs, затем graph-query/MCP binding и oracle рабочего корпуса
 (Z4), после parity consumer cutover (Z5). M0b остаётся частичным structural
 baseline без index_time/RSS/fulltext parity/5M verdict. Continuation receipt:
 20261016T160746Z_a0d80ed8 и заархивированный cli-final-report.json с fixture path.

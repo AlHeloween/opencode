@@ -1,0 +1,22 @@
+{
+  "status": "finished",
+  "pids": [
+    20356
+  ],
+  "exit_code": 0,
+  "started_utc": "2026-10-17T05:52:22Z",
+  "finished_utc": "2026-10-17T05:52:28Z",
+  "stopped_utc": null,
+  "timeout_utc": null,
+  "backend": "windows-conpty",
+  "log": {
+    "limit_bytes": 52428800,
+    "bytes_written": 1001,
+    "bytes_dropped": 0,
+    "truncated": false
+  },
+  "creation_tick": 134366899422783832,
+  "host_pid": 21204,
+  "host_creation_tick": 134366899419135142,
+  "notes": "log final"
+}

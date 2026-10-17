@@ -1,0 +1,100 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestCaptureHelper
+--- PASS: TestCaptureHelper (0.00s)
+=== RUN   TestCaptureRawBundleAndReadonlyFossil
+--- PASS: TestCaptureRawBundleAndReadonlyFossil (0.62s)
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/fail
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/timeout
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/log
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/empty
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/invalid-text
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/mutation
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/extra
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/oversize
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/pin
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/duplicate-env
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-env
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing-systemroot
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/traversal
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/reserved
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-output
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-collision
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/prefix-output
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/existing-bundle
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-bound
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-bound
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-count
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/placeholder
+--- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs (6.24s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/fail (0.15s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/timeout (0.10s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/log (0.28s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing (0.30s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/empty (0.32s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/invalid-text (1.57s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/mutation (0.52s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/extra (0.68s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/oversize (0.58s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/pin (0.02s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/duplicate-env (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-env (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing-systemroot (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/traversal (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/reserved (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-output (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-collision (0.14s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/prefix-output (0.01s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/existing-bundle (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-bound (0.28s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-bound (0.86s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-count (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/placeholder (0.00s)
+=== RUN   TestNativePathPredicates
+--- PASS: TestNativePathPredicates (0.01s)
+=== RUN   TestCaptureDeadlineStartsBeforeInputs
+    capture_test.go:329: expired whole-capture deadline reached input materialization: receipt={Version:1 SourceRevision
+n:b2474a30c203ebf2149f2c9d84c89e74870bae3923b60342e91dc017c7b09717 SourceInputs:[] SourceInputDigest: Indexer:{Path:C:\Us
+sers\ALEXAN~1\AppData\Local\Temp\go-build3811195970\b001\capture.test.exe SHA256:14ff965a4401b9b30cfd20abd95036fcf59ee396
+624fd7fca1d6f722724519aca Args:[]} Environment:[DAIS_CAPTURE_HELPER=1 SystemRoot=C:\WINDOWS] IndexSHA256: Result:FAILED E
+ExitCode:-1 Stdout: Stderr: Diagnostics:context deadline exceeded SemanticStatus:unknown} err=context deadline exceeded  
+--- FAIL: TestCaptureDeadlineStartsBeforeInputs (1.49s)
+=== RUN   TestCancelledPublicationKeepsCandidate
+--- PASS: TestCancelledPublicationKeepsCandidate (0.01s)
+FAIL
+FAILdais.local/codeintelligence/internal/capture8.411s
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

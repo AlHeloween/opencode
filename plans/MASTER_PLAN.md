@@ -104,6 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 [Первый нативный граф DAIS с квитанциями](../plans_completed/2026-10-16_dais-evidence-graph.md) — проверенный ограниченный срез SCIP/Fossil/SV; исполненные оракулы, область PASS и продолжение находятся в плане и evidence archive.
 <!-- sv: evidence-graph 0.40, fossil-provenance 0.30, falsification 0.30 -->
 
+[Нативный DAIS producer/capture](../plans_completed/2026-10-17_dais-native-producer-capture.md) — реальный запуск индексатора, immutable Fossil bundle, modern schema и независимые byte/range controls; критерии и остатки находятся в плане и evidence archive.
+<!-- sv: producer-capture 0.40, fossil-provenance 0.30, independent-oracle 0.30 -->
+
 ## Standing rules that outlive any plan
 
 [Исследование Haiku 5.5](../plans_completed/2026-10-16_haiku-end-to-end-research.md) — wire/SDK/replay/cancellation receipts и явно непроверенная граница actual TUI; результаты и остатки находятся в плане и отчёте.
@@ -138,10 +141,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 274 |
-| plans active | 33 |
-| tasks passed / total | 1296 / 1584 |
-| open boxes | 145 |
+| plans completed | 276 |
+| plans active | 34 |
+| tasks passed / total | 1307 / 1597 |
+| open boxes | 147 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -414,9 +417,10 @@ parent-goal-md5: 00000000000000000000000000000000]
   - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-17_host-crash-nemotron.md` — 0 open / 6 box(es) · lifecycle UNKNOWN
-  sv: intention "silent host death on nemotron-3-ultra-free h2 streaming request -> diagnosed cause with worker-death oracle and multi-word model picker match" · keywords []
-  - no open box
+- `plans/2026-10-17_kernel-causal-chain.md` — 2 open / 9 box(es) · lifecycle UNKNOWN
+  sv: intention "robots close on user/visual-only without mechanism or math -> kernel binds independent legs (MEDOID_SIMPLEX) and the causal chain mechanism-prediction-observation at G3 ACCEPTANCE_FRAME, user/visual-only closes Unknown" · keywords []
+  - TASK-8 [PENDING] · sv [commit 1.0] · manifest: MISSING — nobody has written down what this box is
+  - TASK-9 [PENDING] · sv [review 1.0] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-17_portable-binary-hermetic.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "portable install dir with exe-adjacent config -> hermetic binary that reads only exe-adjacent and data-root sources, never parent folders" · keywords []

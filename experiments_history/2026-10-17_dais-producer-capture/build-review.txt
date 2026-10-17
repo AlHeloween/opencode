@@ -1,0 +1,25 @@
+29: 
+30: BUILD LOCK acquired (pid=31824, caller=manual): D:\zPython\opencode\.opencode\data\build\build.lock
+31: 
+32: ════════════════════════════════════════
+65:     Finished `release` profile [optimized] target(s) in 0.31s
+66: warning: the following packages contain code that will be rejected by a future version of Rust: syn v0.11.11
+67: note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibil
+68: lities --id 2`
+81:   "channel": "Local_Development",
+82:   "version": "10.0.1419",
+83:   "preview": true,
+84:   "release": false,
+430: anualchunks
+431: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+432: dist/assets/systemd-4A_iFExJ.js                               7.87 kB │ gzip:   2.55 kB
+433: dist/assets/monokai-D4h5O-jR.js                               7.88 kB │ gzip:   1.91 kB
+656: building opencode-windows-x64
+657: Running smoke test: dist/opencode-windows-x64/bin/opencode.exe --version
+658: Smoke test passed: 10.0.1419
+659: Smoke test passed: reasoning_prompt.txt embedded (BunFS asset present)
+660:   Collecting release artifacts...
+661:   [OK] Native binary copied
+667:   [OK] Build complete - artifacts in dist/
+668: BUILD LOCK released: D:\zPython\opencode\.opencode\data\build\build.lock
+669: 

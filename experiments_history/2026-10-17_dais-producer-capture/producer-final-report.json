@@ -1,0 +1,895 @@
+{
+  "status": "PASS",
+  "work": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz",
+  "checks": [
+    "capture_source_fossil_unchanged",
+    "captured_is_execution_not_semantic_pass",
+    "receipt_stdout_equals_artifact",
+    "exact_three_bundle_files",
+    "actual_producer_pin",
+    "explicit_offline_environment",
+    "all_source_bytes_pinned",
+    "source_digest_independent",
+    "raw_index_and_manifest_hashes",
+    "acyclic_receipt_manifest",
+    "native_producer_both_go_documents",
+    "golden_definition_reference_identity",
+    "golden_utf8_after_emoji",
+    "publication_changes_exact_three_paths",
+    "source_and_publication_revisions_distinct",
+    "published_sv_preserved",
+    "modern_projection_verifies",
+    "raw_producer_bytes_roundtrip",
+    "graph_retains_golden_reference_payload",
+    "graph_definition_and_reference_share_identity",
+    "distinct_global_symbols_remain_distinct",
+    "wrong_pin_retained_failure_no_bundle",
+    "producer_nonzero_retained_failure_no_bundle",
+    "output_bound_retained_failure_no_bundle",
+    "reserved_outputs_cannot_be_reindexed_as_sources",
+    "receipt_tampering_invalidates_applicability",
+    "failed_import_keeps_previous_current"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "init",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "4b1ed101a7fb586a01a8107a832809d7502c6a1f11ca1bd64b983bab65274df3",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "open",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--nested"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "dd18663d5ebc5c4b7475b61b77971f7ddeb40ca8930a2dc805c89c634d278e2a",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "835daff3054f01883aec75eda07f564f9af719c6e2e181d49d504ac97fd638ab",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "source sv:11111111111111111111111111111111",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "3a740247a4a80fb8e8ad3761bc188c20f737aa307416256083418a22b91a0475",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "f0c5d5dc4da0a0fe0dd60a1baba4ce04dd21e909b0704f6894948f5648bba635",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\bundle",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-tree-qualified.exe",
+        "--indexer-sha256",
+        "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+        "--timeout",
+        "90s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+        "--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--arg=--module-path=example.test/evidence",
+        "--arg=--module-version=v0.0.1",
+        "--arg=--repository-remote=example.test/evidence",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--output={index}",
+        "--arg=.",
+        "--ref",
+        "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "571c6597ac276d9dedd02b0bfcf864d19a3f2a49fa78793ff1bcc8111ff784b6",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "831cf2ab40f6f5beb7a5cacfca42d8e9f6c1076dd1c4c2872943a99fb1144123",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "published capture sv:22222222222222222222222222222222",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "d6e41efca2ab70be1717b136a91c3ccbbe5c2801de634335046fd605e2ef1ebb",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "6acf8c46ba9ca85c96080730ab0ad4e3b975f6101e10784dc921365323fd2541",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "SELECT filename AS path,uuid AS hash FROM files_of_checkin('7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "81d1324178db2fc2b778637f894acc545ca6e736d1469bf0fb01d736311200c8",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "SELECT filename AS path,uuid AS hash FROM files_of_checkin('cf890b6d598b75231a47371a5d1c950eba1a6cdbb842439d4e6aa04428267f89')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "212b8af7a2f1d68f385078fbcba0dcb223a5ae7c3b417dbf625672a356a284b1",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "import",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\derived",
+        "--repository-id",
+        "real-producer",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--ref",
+        "cf890b6d598b75231a47371a5d1c950eba1a6cdbb842439d4e6aa04428267f89",
+        "--scip",
+        "ci/index.scip",
+        "--manifest",
+        "ci/inputs.json",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "8843895fc77f45e1efc8059374133752790a35935f08a3c7eec366452cd5460c",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "verify",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\derived",
+        "--repository-id",
+        "real-producer",
+        "--snapshot",
+        "c15be0c9d66ddd40e1af5b7a65222cf02120751c1d40a42979c71de6ee5f6873",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--target-revision",
+        "cf890b6d598b75231a47371a5d1c950eba1a6cdbb842439d4e6aa04428267f89",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "6624accdbb01ff0c28a189497ed6c639614bd7fabd2a272adcfb77aa106460ab",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "export-scip",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\derived",
+        "--repository-id",
+        "real-producer",
+        "--snapshot",
+        "c15be0c9d66ddd40e1af5b7a65222cf02120751c1d40a42979c71de6ee5f6873",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "7111e8de2652a1d4577d4a4238f4ab11445b7b4e32bfd36f789abf0f96715dab",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "facts",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\derived",
+        "--repository-id",
+        "real-producer",
+        "--snapshot",
+        "c15be0c9d66ddd40e1af5b7a65222cf02120751c1d40a42979c71de6ee5f6873",
+        "--limit",
+        "1000",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "9a75a8e0a63aa053de76f994ee0b9f4ce97d045a88b2c3536b8cfb1fa9aeebbd",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\bundle",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-tree-qualified.exe",
+        "--indexer-sha256",
+        "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+        "--timeout",
+        "90s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+        "--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--arg=--module-path=example.test/evidence",
+        "--arg=--module-version=v0.0.1",
+        "--arg=--repository-remote=example.test/evidence",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--output={index}",
+        "--arg=.",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\refused-wrong_pin",
+        "--ref",
+        "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540",
+        "--indexer-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "601f5fe1bb40353f150db0cc0635cb7b4b6b05f319a5b8a773b2016e5e95e3dc",
+      "stderr": "{\"error\":\"indexer SHA256 does not match required pin\"}\n"
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\bundle",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-tree-qualified.exe",
+        "--indexer-sha256",
+        "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+        "--timeout",
+        "90s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+        "--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--arg=--module-path=example.test/evidence",
+        "--arg=--module-version=v0.0.1",
+        "--arg=--repository-remote=example.test/evidence",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--output={index}",
+        "--arg=.",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\refused-producer_nonzero",
+        "--ref",
+        "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540",
+        "--arg=--invalid-native-producer-flag"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "99b01817a9b951c4f23ed8552c30c55252785cc8b063bf4aa647b34685fd18cd",
+      "stderr": "{\"error\":\"indexer execution: exit status 1\"}\n"
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\bundle",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-tree-qualified.exe",
+        "--indexer-sha256",
+        "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+        "--timeout",
+        "90s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+        "--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--arg=--module-path=example.test/evidence",
+        "--arg=--module-version=v0.0.1",
+        "--arg=--repository-remote=example.test/evidence",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--output={index}",
+        "--arg=.",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\refused-output_bound",
+        "--ref",
+        "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540",
+        "--max-index-bytes",
+        "1"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "c84e4ab2724fa827fae57ccd1d0a0a730d61c99a0feccde7e4dcec41d009c31d",
+      "stderr": "{\"error\":\"file outside regular/byte bounds\"}\n"
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\bundle",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-tree-qualified.exe",
+        "--indexer-sha256",
+        "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+        "--timeout",
+        "90s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+        "--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+        "--arg=--module-path=example.test/evidence",
+        "--arg=--module-version=v0.0.1",
+        "--arg=--repository-remote=example.test/evidence",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--output={index}",
+        "--arg=.",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\collision",
+        "--ref",
+        "cf890b6d598b75231a47371a5d1c950eba1a6cdbb842439d4e6aa04428267f89"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "c7d224ee0dd2f0f3029a2013eb471d557402c6b181113ba5ce54ebd346e614d4",
+      "stderr": "{\"error\":\"source/output path collision: ci/capture.json\"}\n"
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "6ca772be79ebaa3427bd52ad3cc854901f0a7822a3ea3f228bd64fe7d9569e70",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "receipt byte tamper",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "a4c8a88dca50d4717d60a162c13d41602a25c487233890823f180f9bd60fdf06",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "d77689d4d9a8c72230cf1f141306d03a842dd2aef516de72760c687f7e03887a",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "verify",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\derived",
+        "--repository-id",
+        "real-producer",
+        "--snapshot",
+        "c15be0c9d66ddd40e1af5b7a65222cf02120751c1d40a42979c71de6ee5f6873",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--target-revision",
+        "5ecba4ce94c42c33dc533b0e0fcde2ad5ec17bfc096cc5d73d6d3d23e5c13f10",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "5f9efbf5430f4a61a68906eda1296775d1df4001af6b5c75322bdefca4d61dcb",
+      "stderr": "{\"error\":\"verification STALE; retained receipt 111555171a4e9072bc0274513a3ad83cbbd882c458e844e6f64d5c8242ef9baa\"}\n"
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "6ca772be79ebaa3427bd52ad3cc854901f0a7822a3ea3f228bd64fe7d9569e70",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "malformed index bytes",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "e05b77359820720e23e9cf329f1feef465a87cdd27acd2a1ee02974db77ed9cb",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "3c18ce3070bef0cd3952b0ff3389758a7048a9615b9d170d11893af83c3c9847",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "import",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\derived",
+        "--repository-id",
+        "real-producer",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\home",
+        "--ref",
+        "d9904a5b8d582f87e0f86f61e7713070845a1397430104e5712cf4aab298c2ea",
+        "--scip",
+        "ci/index.scip",
+        "--manifest",
+        "ci/inputs.json",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "{\"error\":\"manifest index SHA256 mismatch\"}\n"
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "status",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\derived",
+        "--repository-id",
+        "real-producer",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "8843895fc77f45e1efc8059374133752790a35935f08a3c7eec366452cd5460c",
+      "stderr": ""
+    }
+  ],
+  "controls": [
+    {
+      "name": "wrong_pin",
+      "receipt": {
+        "version": 1,
+        "source_revision": "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540",
+        "source_inputs": [],
+        "source_input_digest": "",
+        "indexer": {
+          "path": "",
+          "sha256": "",
+          "args": null
+        },
+        "environment": [
+          "CGO_ENABLED=0",
+          "GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+          "GOENV=off",
+          "GOFLAGS=-mod=readonly",
+          "GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+          "GOPACKAGESDRIVER=off",
+          "GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+          "GOPROXY=off",
+          "GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+          "GOSUMDB=off",
+          "GOTOOLCHAIN=local",
+          "GOWORK=off",
+          "PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+          "SystemRoot=C:\\WINDOWS",
+          "TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+          "TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp"
+        ],
+        "index_sha256": "",
+        "result": "FAILED",
+        "exit_code": -1,
+        "stdout": "",
+        "stderr": "",
+        "diagnostics": "indexer SHA256 does not match required pin",
+        "semantic_status": "unknown"
+      }
+    },
+    {
+      "name": "producer_nonzero",
+      "receipt": {
+        "version": 1,
+        "source_revision": "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540",
+        "source_inputs": [
+          {
+            "path": "go.mod",
+            "sha256": "f96d1c15514ed47c7bc55498c12c13403d6e792100bb18aa2d27282accda78fd"
+          },
+          {
+            "path": "math.go",
+            "sha256": "928cd23b68c2db07b8afe335b76404ade8b916098844adbed044da2e21338da7"
+          },
+          {
+            "path": "notes Ω.txt",
+            "sha256": "840e7dfe0d047bbaa9732c8b368af17079a7e0ce5795762234d1e762ef8afdb7"
+          },
+          {
+            "path": "use.go",
+            "sha256": "bf438f375c90cf631f167eb8f9fdbebb1aa87d10bdc81d0017d7ab5eaed985bd"
+          }
+        ],
+        "source_input_digest": "36a00f2a22aabc21ac294ca8fc26cd0587686fba010ce6e4612d55e5f904aa51",
+        "indexer": {
+          "path": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-tree-qualified.exe",
+          "sha256": "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+          "args": [
+            "--module-path=example.test/evidence",
+            "--module-version=v0.0.1",
+            "--repository-remote=example.test/evidence",
+            "--go-version=go1.26.5",
+            "--output=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\scratch\\dais-capture-723886980\\ci\\index.scip",
+            ".",
+            "--invalid-native-producer-flag"
+          ]
+        },
+        "environment": [
+          "CGO_ENABLED=0",
+          "GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+          "GOENV=off",
+          "GOFLAGS=-mod=readonly",
+          "GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+          "GOPACKAGESDRIVER=off",
+          "GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+          "GOPROXY=off",
+          "GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+          "GOSUMDB=off",
+          "GOTOOLCHAIN=local",
+          "GOWORK=off",
+          "PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+          "SystemRoot=C:\\WINDOWS",
+          "TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+          "TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp"
+        ],
+        "index_sha256": "",
+        "result": "FAILED",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "error: failed to parse args: unknown flag --invalid-native-producer-flag\n",
+        "diagnostics": "indexer execution: exit status 1",
+        "semantic_status": "unknown"
+      }
+    },
+    {
+      "name": "output_bound",
+      "receipt": {
+        "version": 1,
+        "source_revision": "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540",
+        "source_inputs": [
+          {
+            "path": "go.mod",
+            "sha256": "f96d1c15514ed47c7bc55498c12c13403d6e792100bb18aa2d27282accda78fd"
+          },
+          {
+            "path": "math.go",
+            "sha256": "928cd23b68c2db07b8afe335b76404ade8b916098844adbed044da2e21338da7"
+          },
+          {
+            "path": "notes Ω.txt",
+            "sha256": "840e7dfe0d047bbaa9732c8b368af17079a7e0ce5795762234d1e762ef8afdb7"
+          },
+          {
+            "path": "use.go",
+            "sha256": "bf438f375c90cf631f167eb8f9fdbebb1aa87d10bdc81d0017d7ab5eaed985bd"
+          }
+        ],
+        "source_input_digest": "36a00f2a22aabc21ac294ca8fc26cd0587686fba010ce6e4612d55e5f904aa51",
+        "indexer": {
+          "path": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-tree-qualified.exe",
+          "sha256": "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+          "args": [
+            "--module-path=example.test/evidence",
+            "--module-version=v0.0.1",
+            "--repository-remote=example.test/evidence",
+            "--go-version=go1.26.5",
+            "--output=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\scratch\\dais-capture-1489330711\\ci\\index.scip",
+            "."
+          ]
+        },
+        "environment": [
+          "CGO_ENABLED=0",
+          "GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+          "GOENV=off",
+          "GOFLAGS=-mod=readonly",
+          "GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+          "GOPACKAGESDRIVER=off",
+          "GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+          "GOPROXY=off",
+          "GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+          "GOSUMDB=off",
+          "GOTOOLCHAIN=local",
+          "GOWORK=off",
+          "PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+          "SystemRoot=C:\\WINDOWS",
+          "TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+          "TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp"
+        ],
+        "index_sha256": "",
+        "result": "FAILED",
+        "exit_code": 0,
+        "stdout": "Resolving module name\nLoading Packages\n\rVisiting Packages [0/1]\rVisiting Packages [1/1]\n\rIndexing Implementations [0/0]\rIndexing Implementations [0/0]\n\rVisiting Project Files [0/1]\rVisiting Project Files [1/1]\n",
+        "stderr": "",
+        "diagnostics": "file outside regular/byte bounds",
+        "semantic_status": "unknown"
+      }
+    }
+  ],
+  "capture_exe_sha256": "b9f09ae1cabb8a016398a046b39d27e8eb842c959d70b6fe411f2074e73ebc70",
+  "producer_sha256": "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+  "go_exe_sha256": "d6a71e6dc9806cb3f1fcb817d562175c5a7b1505fc3f6638299648e0b9f0f74f",
+  "source_revision": "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540",
+  "receipt": {
+    "version": 1,
+    "source_revision": "7b0968d19ff24cf4e480dba7136c941945df86b55eac067b84eb865e6af62540",
+    "source_inputs": [
+      {
+        "path": "go.mod",
+        "sha256": "f96d1c15514ed47c7bc55498c12c13403d6e792100bb18aa2d27282accda78fd"
+      },
+      {
+        "path": "math.go",
+        "sha256": "928cd23b68c2db07b8afe335b76404ade8b916098844adbed044da2e21338da7"
+      },
+      {
+        "path": "notes Ω.txt",
+        "sha256": "840e7dfe0d047bbaa9732c8b368af17079a7e0ce5795762234d1e762ef8afdb7"
+      },
+      {
+        "path": "use.go",
+        "sha256": "bf438f375c90cf631f167eb8f9fdbebb1aa87d10bdc81d0017d7ab5eaed985bd"
+      }
+    ],
+    "source_input_digest": "36a00f2a22aabc21ac294ca8fc26cd0587686fba010ce6e4612d55e5f904aa51",
+    "indexer": {
+      "path": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-tree-qualified.exe",
+      "sha256": "3065704727a62b34dd92a1cc9413b07e4402537d58ff6a416a2f5a2dae8cb834",
+      "args": [
+        "--module-path=example.test/evidence",
+        "--module-version=v0.0.1",
+        "--repository-remote=example.test/evidence",
+        "--go-version=go1.26.5",
+        "--output=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\scratch\\dais-capture-804395269\\ci\\index.scip",
+        "."
+      ]
+    },
+    "environment": [
+      "CGO_ENABLED=0",
+      "GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\cache",
+      "GOENV=off",
+      "GOFLAGS=-mod=readonly",
+      "GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+      "GOPACKAGESDRIVER=off",
+      "GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\modules",
+      "GOPROXY=off",
+      "GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+      "GOSUMDB=off",
+      "GOTOOLCHAIN=local",
+      "GOWORK=off",
+      "PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+      "SystemRoot=C:\\WINDOWS",
+      "TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp",
+      "TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer Ω-lny3v3hz\\tmp"
+    ],
+    "index_sha256": "7111e8de2652a1d4577d4a4238f4ab11445b7b4e32bfd36f789abf0f96715dab",
+    "result": "CAPTURED",
+    "exit_code": 0,
+    "stdout": "Resolving module name\nLoading Packages\n\rVisiting Packages [0/1]\rVisiting Packages [1/1]\n\rIndexing Implementations [0/0]\rIndexing Implementations [0/0]\n\rVisiting Project Files [0/1]\rVisiting Project Files [1/1]\n",
+    "stderr": "",
+    "diagnostics": "",
+    "semantic_status": "unknown"
+  },
+  "published_revision": "cf890b6d598b75231a47371a5d1c950eba1a6cdbb842439d4e6aa04428267f89",
+  "snapshot": {
+    "id": "c15be0c9d66ddd40e1af5b7a65222cf02120751c1d40a42979c71de6ee5f6873",
+    "repository_id": "real-producer",
+    "revision": "cf890b6d598b75231a47371a5d1c950eba1a6cdbb842439d4e6aa04428267f89",
+    "index_path": "ci/index.scip",
+    "manifest_path": "ci/inputs.json",
+    "index_sha256": "7111e8de2652a1d4577d4a4238f4ab11445b7b4e32bfd36f789abf0f96715dab",
+    "manifest_sha256": "a83bb932e67d9133076073904b9620517b6243b2bf859d39dbab9f32afefb7b7",
+    "input_digest": "858007471bc7ced5bc80ee0a56e3ee3566f2fad3a4f9d01d13ec67d1eb607320",
+    "profile": "dais-scip-modern-utf8-v1",
+    "comment": "published capture sv:22222222222222222222222222222222",
+    "sv_ref": "22222222222222222222222222222222",
+    "fact_count": 14
+  }
+}

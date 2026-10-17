@@ -18,6 +18,7 @@ build overlay из `compat/zoekt/`; generated SCIP binding переноситс�
 ```powershell
 pwsh -NoProfile -File scripts/go.ps1 -Action build -Packages ./cmd/dais-graph -OutputName dais-graph.exe
 pwsh -NoProfile -File scripts/go.ps1 -Action build -Packages ./cmd/dais-ci -OutputName dais-ci.exe
+pwsh -NoProfile -File scripts/go.ps1 -Action build -Packages ./cmd/dais-capture -OutputName dais-capture.exe
 ```
 
 Результаты находятся в module `dist/`. Установку сервисов и promotion эти команды
@@ -51,6 +52,55 @@ Export SCIP пишет binary stdout; Export SCs — text stdout.
 `--max-source-bytes` (aggregate workspace bytes), `--max-facts`, `--limit`, `--timeout`.
 Профиль UTF8 задан явно; несовместимый вход отклоняется целиком.
 
+## Native producer и capture
+
+`dais-capture.exe` читает полный `--ref` из Fossil, создаёт отдельный workspace,
+запускает pinned `--indexer` и публикует новый immutable bundle. Обязательны
+`--indexer-sha256`, absolute `--bundle`/`--scratch` и source-флаги Fossil из Graph
+CLI. Аргументы индексатора задаются повторяемым `--arg`; ровно один `{index}`
+заменяется на output path. Окружение передаётся только повторяемым `--env=KEY=VALUE`.
+На Windows требуется явный SystemRoot. Ambient env и его секреты не наследуются.
+
+В bundle ровно три файла: `ci/index.scip`, `ci/capture.json`, `ci/inputs.json`;
+пути меняются флагами `--scip`/`--receipt`/`--manifest`. Все три должны отсутствовать
+в source revision. Квитанция хранит source revision, sorted input hashes, hash
+реального executable, раскрытый argv, env и результат `CAPTURED` либо `FAILED`.
+Digest входов: SHA256 UTF8 `json.Marshal(sorted []Input)`, без graph-домена digest.
+Manifest добавляет хеш квитанции, сама квитанция manifest/self hash не содержит.
+Квитанция `FAILED` также возвращается JSON stdout при ненулевом exit, good bundle
+не создаётся. Публикация не заменяет уже существующий каталог назначения.
+
+SCIP-go v0.2.7 требует [candidate-правки producer](compat/scip-go/README.md), чтобы
+явно объявлять байтовую кодировку координат. Получение source/dependencies:
+`go mod download -json github.com/scip-code/scip-go@v0.2.7`; поле `Dir` даёт
+SourceRoot. `scripts/build-scip-go.ps1 -SourceRoot ... -Go ... -Scratch ...
+-Destination ...` принимает absolute paths и собирает candidate из побайтно
+проверенной копии 129 файлов. Значение Go получают через `go env GOROOT` +
+`bin/go.exe`; qualifier использовал Go1.26.5 Windows/amd64. Каталоги Scratch и
+Destination должны быть новыми. Кэш модулей и external не редактируются.
+
+Для этого producer проверен offline env: SystemRoot, PATH на Go bin, GOROOT,
+GOTOOLCHAIN=local, GOENV=off, GOWORK=off, GOPROXY=off, GOSUMDB=off,
+GOPACKAGESDRIVER=off, CGO_ENABLED=0, GOFLAGS=-mod=readonly и отдельные
+GOCACHE/GOMODCACHE/GOPATH/TEMP/TMP за пределами workspace. Его argv:
+`--module-path=... --module-version=... --repository-remote=...
+--go-version=go1.26.5 --output={index} .`.
+
+Capture не делает Fossil commit. Вызывающий публикует три bundle-файла отдельным
+check-in B после source A; импорт B требует явный
+`--profile dais-scip-modern-utf8-v1`. Modern-профиль закреплён на schema v0.7.1,
+сохраняет новые поля и требует explicit UTF8 position_encoding. Legacy-профиль
+`dais-scip-utf8-v1` остаётся прежним; UTF16/UTF32/unspecified отклоняются.
+Флаг `--profile` нужен и при последующем чтении/verify этого snapshot.
+
+Общий deadline, размеры исходников/SCIP/log и число файлов ограничены флагами.
+Неизменность workspace и executable проверяется после исполнения. Это capture
+заявленных входов, не sandbox фактических чтений: toolchain/external dependencies
+и descendants остаются границей квалификации. Timeout отменяет прямой процесс;
+успешная публикация после истечения deadline запрещена. Статус CAPTURED не
+приравнивается к semantic PASS. Повторный capture опубликованной ревизии пока
+отвергает reserved outputs; автоматизация обновлений требует следующего среза.
+
 ## Text search CLI
 
 `dais-ci index|search|status` принимает те же index-root/repository-id.
@@ -66,7 +116,7 @@ file artifact hash, path/line, generation и canonical SV ref.
 
 ```powershell
 $env:DAIS_TEST_FOSSIL = 'D:/zPython/opencode/external/fossil/fossil.exe'
-pwsh -NoProfile -File scripts/go.ps1 -Action test -Packages ./internal/fossil,./internal/search,./internal/evidencegraph,./cmd/dais-graph
+pwsh -NoProfile -File scripts/go.ps1 -Action test -Packages ./internal/fossil,./internal/search,./internal/evidencegraph,./internal/scipmodern,./internal/capture,./cmd/dais-graph,./cmd/dais-capture
 ```
 
 Tests используют настоящие disposable Fossil repositories и SQLite, без mock

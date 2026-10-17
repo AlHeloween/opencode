@@ -1,0 +1,40 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{"status": "FAIL", "checks": 18, "report": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\producer-first-report.json", "work": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\native producer \u03a9-o3dv70c3"}
+Traceback (most recent call last):
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-producer-capture\producer_oracle.py", line 232, in <module>
+    main()
+    ~~~~^^
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-producer-capture\producer_oracle.py", line 202, in main
+    check("graph_retains_golden_reference_payload", len(use) == 1 and use[0]["payload"]["range"] == reference[0][1])
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-producer-capture\producer_oracle.py", line 88, in check
+    raise AssertionError(name)
+AssertionError: graph_retains_golden_reference_payload

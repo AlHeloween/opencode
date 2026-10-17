@@ -96,6 +96,9 @@ func validateMessage(message protoreflect.Message) error {
 }
 
 func (s *Store) project(raw []byte, snapshot Snapshot, bundle sourceBundle) ([]Fact, error) {
+	if s.config.Profile == ProfileModernUTF8 {
+		return s.projectModern(raw, snapshot, bundle)
+	}
 	index, err := decodeIndex(raw)
 	if err != nil {
 		return nil, err

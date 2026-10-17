@@ -37,7 +37,11 @@ delegator of new work. Owner, 2026-10-08: «оркестратор чтобы о
 
    - Every address must be loopback (127.0.0.1 or ::1). Any other address is a SECURITY line at the top of the
      report.
-   - Record the pid. If it differs from the previous run's pid (cursor file), say that orgd restarted.
+   - Record two pids; they are different processes (measured 2026-10-17: listener 16268, orgd 4364):
+     - `server_pid` — the fossil server that owns the 8079 listener;
+     - `orgd_pid` — the daemon, as printed by `init.py` («orgd pid N»).
+
+     If either one differs from the previous run's value in the cursor file, say which one restarted.
 2. **My tickets.** Run `python $HOME/.org/genesis/org.py inbox --user claude --no-presence --json`. For each ticket
    under `tickets`, print the title, the short id (first 10 hex), the state and the age.
    - Never print a bare id. Use the form «смысл — id10».
@@ -57,7 +61,7 @@ delegator of new work. Owner, 2026-10-08: «оркестратор чтобы о
      one line per missing receipt.
    - Otherwise leave it DONE and list it as «ждёт проверки оракулом» for the interactive Claude session. You do not
      run oracles and you never `verify`.
-5. **Chat and forum.** Read the cursor from `experiments/2026-10-17_org-watch/state.json` (`{chat_msgid, orgd_pid,
+5. **Chat and forum.** Read the cursor from `experiments/2026-10-17_org-watch/state.json` (`{chat_msgid, server_pid, orgd_pid,
    last_run}`; create it if missing). Then run `org.py chat --since <chat_msgid>` and `org.py forum`.
    - Report the count of new chat lines and quote at most 5 that name `claude`, the owner, a failure or a stop.
    - Report the forum threads that are new since `last_run`.

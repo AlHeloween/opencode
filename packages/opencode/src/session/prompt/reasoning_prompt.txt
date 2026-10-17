@@ -90,12 +90,15 @@ Semantic dominant: One-line focus of this vector.
 md5: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
 ```
 - Keywords: 3-9 unique terms; weights>0; sum=1.0; highest first
 - Semantic dominant: one sentence of this vector's focus
 - md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters). Mint a fresh one for every vector you emit; a received md5 never becomes your own md5 — equal own-md5s are always a defect.
 - prev-md5: previous md5 or 00000000000000000000000000000000; a mid-session break means the chain lost a turn — recovery across it is Guess, not Inferred
-- parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; 00000000000000000000000000000000 if none. A task arriving with an SV carries that task's first SV md5 here — its brief/artifact vector, never the sender's chat vector — on every turn of that task; equal parent-goal-md5s share one parent. A received 000..., non-32-hex or example md5 is no parent: write 000... and name the defect in your reply.- trivial: Keywords: acknowledged 1.0; Semantic dominant: Received instruction.
+- parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; 00000000000000000000000000000000 if none. A task arriving with an SV carries that task's first SV md5 here — its brief/artifact vector, never the sender's chat vector — on every turn of that task; equal parent-goal-md5s share one parent. A received 000..., non-32-hex or example md5 is no parent: write 000... and name the defect in your reply.
+- note: hash values are generative tags — search them, never compute them. End every emitted block with this line verbatim; a reader searches these tags to find the turns that carry them. Besides their form, only the uniqueness of each own md5 is checked.
+- trivial: Keywords: acknowledged 1.0; Semantic dominant: Received instruction.
 - invariant: a semantic vector is an attention fingerprint, never a claim status
 
 1.3 @SOURCE_ROUTING:

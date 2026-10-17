@@ -96,8 +96,19 @@ position_encoding; candidate-сборка DAIS задаёт его до сери
 созданного индекса. Оригинальный неоднозначный индекс сохранён и отвергается.
 [Отчёт, replay oracle и исходные отказы](../experiments_history/2026-10-17_dais-producer-capture/REPORT.md).
 
-Следующий срез: безопасный повторный capture изменившейся ревизии и рабочий
-корпус, затем запросы графа и ограниченный impact traversal через DAIS MCP.
+CONFIRMED ✓ повторный capture: `20261017T104937Z_76d2dc79` прошёл47 predicates
+на реальном native producer. Изменение вызова Twice→Thrice в source C делает
+старый graph STALE; новый bundle опубликован в fixture D, его graph PASS и
+raw export побайтно совпадает. Подмена previous artifacts отвергается, старый
+snapshot остаётся читаемым; обычный `ci/notes Ω.txt` не теряется среди входов.
+`--previous-bundle-ref B` явно привязывает ровно три заменяемых artifacts к B,
+а `--ref C` — актуальные исходники. Receipt хранит прямые hashes B; цепочка
+прошлых запусков не обходится, третий повтор проверен. Это полный reindex,
+structural capture evidence, без подписи или повышения semantic_status.
+[Повторный replay и отказы](../experiments_history/2026-10-17_dais-repeated-capture/REPORT.md).
+
+Следующий срез: рабочий корпус, запросы графа и ограниченный impact traversal
+через DAIS MCP; автоматическая публикация и incremental execution ещё открыты.
 Полнота внешних чтений producer, межъязыковая семантика и длительно работающий
 installed service пока не квалифицированы. Основной маршрут остаётся в
 [родительском плане](../plans/2026-10-16_zoekt-scip-fossil-sv.md).

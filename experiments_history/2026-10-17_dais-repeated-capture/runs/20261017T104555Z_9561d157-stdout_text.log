@@ -1,0 +1,62 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# dais.local/codeintelligence/internal/capture [dais.local/codeintelligence/internal/capture.test]
+internal\capture\repeated_test.go:23:45: c.PreviousBundleRevision undefined (type Config has no field or method PreviousBundleRevision)
+internal\capture\repeated_test.go:29:21: without.PreviousBundleRevision undefined (type Config has no field or method PreviousBundleRevision)
+internal\capture\repeated_test.go:30:68: r.PreviousBundle undefined (type Receipt has no field or method PreviousBundle)
+internal\capture\repeated_test.go:32:192: r.PreviousBundle undefined (type Receipt has no field or method PreviousBundle)
+internal\capture\repeated_test.go:34: c.PreviousBundleRevision undefined (type Config has no field or method PreviousBundleRevision)
+internal\capture\repeated_test.go:35:58: next.PreviousBundle undefined (type Receipt has no field or method PreviousBundle)
+internal\capture\repeated_test.go:41:51: c.PreviousBundleRevision undefined (type Config has no field or method PreviousBundleRevision)
+internal\capture\repeated_test.go:51:35: receipt.PreviousBundle undefined (type Receipt has no field or method PreviousBundle)
+internal\capture\repeated_test.go:51:51: undefined: PreviousBundle
+internal\capture\repeated_test.go:58: c.PreviousBundleRevision undefined (type Config has no field or method PreviousBundleRevision)
+internal\capture\repeated_test.go:58: too many errors
+FAILdais.local/codeintelligence/internal/capture [build failed]
+=== RUN   TestInvalidCaptureDoesNotCreateBundle
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--timeout
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--max-files
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--ref
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--indexer-sha256
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--previous-bundle-ref
+--- PASS: TestInvalidCaptureDoesNotCreateBundle (0.02s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--timeout (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--max-files (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--ref (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--indexer-sha256 (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--previous-bundle-ref (0.00s)
+PASS
+ok      dais.local/codeintelligence/cmd/dais-capture    0.068s
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

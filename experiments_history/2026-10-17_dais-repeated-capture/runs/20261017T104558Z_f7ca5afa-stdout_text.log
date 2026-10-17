@@ -1,0 +1,59 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{"status": "FAIL", "checks": 11, "report": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\before-ordered-report.json", "work": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat \u03a9-pmykpv0e"}
+Traceback (most recent call last):
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-repeated-capture\repeated_oracle.py", line 246, in <module>
+    main()
+    ~~~~^^
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-repeated-capture\repeated_oracle.py", line 187, in main
+    fresh, receipt = execute(c, 'second', previous=b)
+                     ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-repeated-capture\repeated_oracle.py", line 143, in execute
+    output = run(argv, failure=failure)
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-repeated-capture\repeated_oracle.py", line 96, in run
+    raise AssertionError((argv, result.returncode, result.stdout, result.stderr))
+AssertionError: ([WindowsPath('D:/zPython/opencode/packages/dais-code-intelligence/dist/dais-capture.exe'), '--scratch', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-repeated-capture/repeat Ω-pmykpv0e/scratch'), '--repository', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-repeated-capture/repeat Ω-pmykpv0e/source.fsl'), '--fossil', WindowsPath('D:/zPython/opencode/external/fossil/fossil.exe'), '--fossil-home', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-repeated-capture/repeat Ω-pmykpv0e/home'), '--indexer', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-producer-capture/toolchain/scip-go-final-qualified.exe'), '--indexer-sha256', '26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c', '--timeout', '90s', '--env=SystemRoot=C:\\WINDOWS', '--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin', '--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64', '--env=GOTOOLCHAIN=local', '--env=GOENV=off', '--env=GOWORK=off', '--env=GOPROXY=off', '--env=GOSUMDB=off', '--env=GOPACKAGESDRIVER=off', '--env=CGO_ENABLED=0', '--env=GOFLAGS=-mod=readonly', '--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-pmykpv0e\\cache', '--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-pmykpv0e\\modules', '--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-pmykpv0e\\modules', '--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-pmykpv0e\\tmp', '--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-pmykpv0e\\tmp', '--arg=--module-path=example.test/evidence', '--arg=--module-version=v0.0.1', '--arg=--repository-remote=example.test/evidence', '--arg=--go
+o-version=go1.26.5', '--arg=--output={index}', '--arg=.', '--ref', '757b6938f406485710529b404fe73eb8ce459ebda57ce64ca6fc6
+6d6ff664ca40', '--bundle', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-repeated-capture/repeat Ω-pmykpv0
+0e/second'), '--previous-bundle-ref', '1d73614ac781f3b20e8f2e415151987d3026b2d9184af09bace29e727eb10563'], 1, b'', b'flag
+g provided but not defined: -previous-bundle-ref\nUsage of dais-capture:\n  -arg value\n    \tLiteral indexer argument; r
+repeat, with exactly one {index} placeholder\n  -bundle string\n    \tNew absolute directory for the immutable candidate 
+ bundle\n  -env value\n    \tExplicit nonsecret KEY=VALUE environment entry; repeat; ambient environment is not inherited
+d\n  -fossil string\n    \tNative Fossil executable\n  -fossil-home string\n    \tExisting isolated Fossil configuration 
+ directory\n  -indexer string\n    \tAbsolute native indexer executable\n  -indexer-sha256 string\n    \tExpected SHA256 
+ of the executable before launch\n  -manifest string\n    \tNew repository-relative input manifest path (default "ci/inpu
+uts.json")\n  -max-file-bytes int\n    \tMaximum individual source file bytes (default 8388608)\n  -max-files int\n    \t
+tMaximum source file count (default 10000)\n  -max-index-bytes int\n    \tMaximum raw SCIP bytes (default 16777216)\n  -m
+max-log-bytes int\n    \tCombined process stdout/stderr hard bound (default 1048576)\n  -max-source-bytes int\n    \tMaxi
+imum aggregate source bytes (default 67108864)\n  -receipt string\n    \tNew repository-relative execution receipt path (
+(default "ci/capture.json")\n  -ref string\n    \tFull immutable source Fossil check-in hash\n  -repository string\n    \
+\tAbsolute readonly source Fossil repository\n  -scip string\n    \tNew repository-relative SCIP artifact path (default "
+"ci/index.scip")\n  -scratch string\n    \tExisting caller-owned directory for isolated source materialization\n  -timeou
+ut duration\n    \tCapture deadline (default 2m0s)\n{"error":"flag provided but not defined: -previous-bundle-ref"}\n')  

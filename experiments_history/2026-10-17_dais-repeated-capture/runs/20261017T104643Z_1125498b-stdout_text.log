@@ -1,0 +1,211 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestCaptureHelper
+--- PASS: TestCaptureHelper (0.00s)
+=== RUN   TestCaptureRawBundleAndReadonlyFossil
+--- PASS: TestCaptureRawBundleAndReadonlyFossil (0.73s)
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/fail
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/timeout
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/log
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/empty
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/invalid-text
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/mutation
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/extra
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/oversize
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/pin
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/duplicate-env
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-env
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing-systemroot
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/traversal
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/reserved
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-output
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-collision
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/prefix-output
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/existing-bundle
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-bound
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-bound
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-count
+=== RUN   TestCaptureRejectsFailedLaunchesAndUnsafeInputs/placeholder
+--- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs (2.20s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/fail (0.23s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/timeout (0.10s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/log (0.18s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing (0.15s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/empty (0.15s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/invalid-text (0.15s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/mutation (0.18s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/extra (0.18s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/oversize (0.15s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/pin (0.01s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/duplicate-env (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-env (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/missing-systemroot (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/traversal (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/reserved (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/case-output (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-collision (0.07s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/prefix-output (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/existing-bundle (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-bound (0.09s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/source-bound (0.12s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/file-count (0.00s)
+    --- PASS: TestCaptureRejectsFailedLaunchesAndUnsafeInputs/placeholder (0.00s)
+=== RUN   TestNativePathPredicates
+--- PASS: TestNativePathPredicates (0.00s)
+=== RUN   TestCaptureDeadlineStartsBeforeInputs
+--- PASS: TestCaptureDeadlineStartsBeforeInputs (0.45s)
+=== RUN   TestCancelledPublicationKeepsCandidate
+--- PASS: TestCancelledPublicationKeepsCandidate (0.00s)
+=== RUN   TestRepeatedCaptureExplicitIdentityAndDirectProvenance
+--- PASS: TestRepeatedCaptureExplicitIdentityAndDirectProvenance (2.02s)
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/invalid-ref
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/missing-ref
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/partial
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/current-mismatch
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/receipt-result
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: fa5add35c7b6d4a5ae29efec4dbd57a7e0ce771a1875f0d42c9f84541f0d73dc
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-e345f8d6a0ca7785]
+        working check-out does not match what would have ended up in the repository:  75439f6c606b205e389c0bf178b38cea v
+versus eabe762fb1f7007c7b0044703495187f
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/receipt-source-digest
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: 2554389c940d6ad12b109259b86e3ed96f6ba99bbbda97e2107c17e21cf061fa
+        ERROR: [derived/capture.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/capture.json] stored in [file-e13196ac26fab95]
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-742c67e7040e91c2]
+        working check-out does not match what would have ended up in the repository:  6036465ce55610cf2c27576512bc3030 v
+versus f7ae15633a75c0c092cc6697a57a05c2
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/receipt-index-digest
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/manifest-index-digest
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: 4d3ae5d396d53add2f5d1706e4af2d6fd324726eea984cbad1db56b3bc7d3103
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-48a72f85fec194a5]
+        working check-out does not match what would have ended up in the repository:  8bff2cb97a92436177100692c8f855ec v
+versus 2a7122c2913721582c1f0ae2e56021e9
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/manifest-receipt-digest
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: 70e4464fbdd69a426186e05898a8ff971467b12e56981409e87a07351d7f11c8
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-3984f2292905bb6e]
+        working check-out does not match what would have ended up in the repository:  9e2cc6755f19d067aa76b761ef8a34ac v
+versus 83581f59a40c3c806c4790c878fa1cb7
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/manifest-extra
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/input-alias
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: c7e3e14a200ade307144ce213d46318807977c074856ab26f404a1e17e8f13c2
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-5708c364f6891db9]
+        working check-out does not match what would have ended up in the repository:  5d1c95a5e9a89989bee1ac6263bdde77 v
+versus 9b75ad4753905044349bd8e4ab3ff2bd
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/input-output-prefix
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: 5b520d62c46dbf7ef74103765f34e6660a8ced27ed2b65687e32f8acfd382655
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-cd6e47b64464e6f8]
+        working check-out does not match what would have ended up in the repository:  23c623b152f448839a0d15a57cfcb29d v
+versus 76b32a843df925108973eb3aeb20246e
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/duplicate-json
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: dc865a515f5e192951e58ccd92ef45665d251b0fab576530fc48c3f31e0032a9
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-51d3c54cbcde1ffe]
+        working check-out does not match what would have ended up in the repository:  3c175db7d6518497e05280217cca907a v
+versus f9d5e3430306d651bd311abd98bbc4c3
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/unknown-json
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: 7f1d25cd40cbf6a877c7760a8bbfea63e7e9643a6a6a5dbd84304ba2d1c14eff
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-f4891defbd3cb5cc]
+        working check-out does not match what would have ended up in the repository:  433843cc20f78f4a8381a416661ac8c7 v
+versus cd058198ee6110f40cb65a5db622f683
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/trailing-json
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: 7d4c9889515b31f53a665e4d1debb037b0af231d46cb23cde8045ecf1ef1422f
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-49ab85b08a5e6319]
+        working check-out does not match what would have ended up in the repository:  d3d46df61ed5dc15ae7155521c1fac6c v
+versus 095909d29bc1a1e65b17c20fe6e6d885
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/prior-provenance
+    repeated_test.go:218: fixture commit [commit -m repeated fixture --no-warnings --no-prompt --nosign --nosync --allow
+w-empty]: exit status 1: New_Version: 752af39189685938bed53e96545395a019bef7b80f94ae03c17e5e404b46b039
+        ERROR: [derived/inputs.json] is different on disk compared to the repository
+        NOTICE: Repository version of [derived/inputs.json] stored in [file-1343214c885f2dc5]
+        working check-out does not match what would have ended up in the repository:  92307b45b966577cfb0ea863e0827979 v
+versus c4a85302502ed53f4fcbbad65de364e1
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/index-bound
+=== RUN   TestRepeatedCaptureRefusesInvalidPriorBundles/receipt-bound
+--- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles (20.36s)
+    --- PASS: TestRepeatedCaptureRefusesInvalidPriorBundles/invalid-ref (0.91s)
+    --- PASS: TestRepeatedCaptureRefusesInvalidPriorBundles/missing-ref (1.09s)
+    --- PASS: TestRepeatedCaptureRefusesInvalidPriorBundles/partial (1.33s)
+    --- PASS: TestRepeatedCaptureRefusesInvalidPriorBundles/current-mismatch (1.43s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/receipt-result (1.25s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/receipt-source-digest (1.17s)
+    --- PASS: TestRepeatedCaptureRefusesInvalidPriorBundles/receipt-index-digest (1.41s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/manifest-index-digest (1.05s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/manifest-receipt-digest (0.99s)
+    --- PASS: TestRepeatedCaptureRefusesInvalidPriorBundles/manifest-extra (1.28s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/input-alias (0.98s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/input-output-prefix (1.04s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/duplicate-json (1.05s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/unknown-json (1.03s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/trailing-json (1.09s)
+    --- FAIL: TestRepeatedCaptureRefusesInvalidPriorBundles/prior-provenance (1.13s)
+    --- PASS: TestRepeatedCaptureRefusesInvalidPriorBundles/index-bound (1.10s)
+    --- PASS: TestRepeatedCaptureRefusesInvalidPriorBundles/receipt-bound (1.04s)
+FAIL
+FAIL    dais.local/codeintelligence/internal/capture    25.802s
+=== RUN   TestInvalidCaptureDoesNotCreateBundle
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--timeout
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--max-files
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--ref
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--indexer-sha256
+=== RUN   TestInvalidCaptureDoesNotCreateBundle/--previous-bundle-ref
+--- PASS: TestInvalidCaptureDoesNotCreateBundle (0.01s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--timeout (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--max-files (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--ref (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--indexer-sha256 (0.00s)
+    --- PASS: TestInvalidCaptureDoesNotCreateBundle/--previous-bundle-ref (0.00s)
+PASS
+ok      dais.local/codeintelligence/cmd/dais-capture    0.045s
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

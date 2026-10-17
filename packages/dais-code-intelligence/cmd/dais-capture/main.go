@@ -45,6 +45,7 @@ func run(ctx context.Context, args []string, out, diagnostics io.Writer) error {
 	fossilExecutable := flags.String("fossil", "", "Native Fossil executable")
 	fossilHome := flags.String("fossil-home", "", "Existing isolated Fossil configuration directory")
 	revision := flags.String("ref", "", "Full immutable source Fossil check-in hash")
+	previousBundle := flags.String("previous-bundle-ref", "", "Explicit immutable prior publication whose exact three artifacts may be replaced")
 	indexer := flags.String("indexer", "", "Absolute native indexer executable")
 	pin := flags.String("indexer-sha256", "", "Expected SHA256 of the executable before launch")
 	indexPath := flags.String("scip", "ci/index.scip", "New repository-relative SCIP artifact path")
@@ -71,6 +72,9 @@ func run(ctx context.Context, args []string, out, diagnostics io.Writer) error {
 	if !regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`).MatchString(*revision) {
 		return errors.New("--ref requires a full lowercase Fossil check-in hash")
 	}
+	if *previousBundle != "" && !regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`).MatchString(*previousBundle) {
+		return errors.New("--previous-bundle-ref requires a full lowercase Fossil check-in hash")
+	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(*pin) {
 		return errors.New("--indexer-sha256 requires a full lowercase SHA256")
 	}
@@ -86,7 +90,8 @@ func run(ctx context.Context, args []string, out, diagnostics io.Writer) error {
 	}
 	receipt, captureErr := capture.Run(ctx, capture.Config{
 		Provider: provider, SourceRevision: *revision, Indexer: filepath.Clean(*indexer), IndexerSHA256: *pin,
-		Args: argv, Environment: environment, ScratchRoot: filepath.Clean(*scratch), BundleDirectory: filepath.Clean(*bundle),
+		PreviousBundleRevision: *previousBundle,
+		Args:                   argv, Environment: environment, ScratchRoot: filepath.Clean(*scratch), BundleDirectory: filepath.Clean(*bundle),
 		IndexPath: *indexPath, ManifestPath: *manifestPath, ReceiptPath: *receiptPath,
 		MaxFiles: *maxFiles, MaxSourceBytes: *maxSourceBytes, MaxFileBytes: *maxFileBytes,
 		MaxIndexBytes: *maxIndexBytes, MaxLogBytes: *maxLogBytes, Timeout: *timeout,

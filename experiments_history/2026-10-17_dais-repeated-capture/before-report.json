@@ -1,0 +1,386 @@
+{
+  "status": "FAIL",
+  "work": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k",
+  "checks": [
+    "readonly_capture_first",
+    "captured_first",
+    "exact_three_first",
+    "readonly_graph_import",
+    "readonly_graph_verify",
+    "old_snapshot_passes_B",
+    "source_diff_exact_math_and_use",
+    "readonly_capture_without-explicit-previous",
+    "refused_without-explicit-previous"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "init",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "fb5ad47d411bf65194e2fa53e5a3580b6dc2f57e6c20937a4280a19aaed25eeb",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "open",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "--nested"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "c21c3246f62e11d537b3a2991d5f61cd551996ad7bb99eeceae5ca4516df2c1e",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "ac497efdd3c4e6898757629972e1cce0e25c7963a7e167a4d6fede43f2fc3045",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "source sv:11111111111111111111111111111111",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "f00136ac819e317e9849f0c1f893f96932de8650d728f3ed8b175bbba2ac11e9",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "3a85d5f7e623be06c483e362aa72a1e0b8c025dc06d94f19897fed2dee50ac3b",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\home",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-final-qualified.exe",
+        "--indexer-sha256",
+        "26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c",
+        "--timeout",
+        "90s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\cache",
+        "--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\modules",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\modules",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\tmp",
+        "--arg=--module-path=example.test/evidence",
+        "--arg=--module-version=v0.0.1",
+        "--arg=--repository-remote=example.test/evidence",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--output={index}",
+        "--arg=.",
+        "--ref",
+        "a76dc2b48979528a1e271a6fe7f0350e12ea6e8b60574850ee6db64c0051ff4d",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\first"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "4771a3610b75b855d981c0de88bae8a8133101ad98e14e54c8077742e6db90c0",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "831cf2ab40f6f5beb7a5cacfca42d8e9f6c1076dd1c4c2872943a99fb1144123",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "first bundle sv:22222222222222222222222222222222",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "110e4ac90dd2f13d083c5bc361849b6800cae68a6cded4f05dee893525ae3581",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "c1e01fcd46d767ca36a83286514f9eb1fb298741513adb70a483b01b94c18c87",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "import",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\derived",
+        "--repository-id",
+        "repeat-native",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\home",
+        "--ref",
+        "c9fbdda6013b3511d4e393d9f601c9faf49de9487298e9be09d36a6493f8024e",
+        "--scip",
+        "ci/index.scip",
+        "--manifest",
+        "ci/inputs.json",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "b20c6192189f7ee5374a302323c852a717b23f2b5c3012c8e4b059757825596b",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "verify",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\derived",
+        "--repository-id",
+        "repeat-native",
+        "--snapshot",
+        "711c4175590f8d30cba7470d24f7fef83538f8981d550ffe0500086cb09b6887",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\home",
+        "--target-revision",
+        "c9fbdda6013b3511d4e393d9f601c9faf49de9487298e9be09d36a6493f8024e",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "b70284bb7730d47cc72fb8f7c0e3ab9454a347a658cdfab5a8fb2eee8a84f482",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "6ca772be79ebaa3427bd52ad3cc854901f0a7822a3ea3f228bd64fe7d9569e70",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "call changed sv:33333333333333333333333333333333",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "6aff7090c314ae7c3f88c667ed3a9da61c004d9e2e33687884428710d0975d0d",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "5fc09d0a53ff4cd72d824935084fe5d6af1010443a7fc7d76bd1f836019843cb",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "SELECT filename AS path,uuid AS hash FROM files_of_checkin('c9fbdda6013b3511d4e393d9f601c9faf49de9487298e9be09d36a6493f8024e')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "688aebee6c7f4a4f772122497d7a22c90f981f28f85c56edcbd2fa8f0adaf8f4",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "SELECT filename AS path,uuid AS hash FROM files_of_checkin('e8ec8cbee9f6a483ab675dff3e67c403d87594428a30d117cb4c09ce90e632ee')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "01da146f0c96875147374776689b1c821b33a63cdb32c63ac8f0d0cea98466e5",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\home",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-final-qualified.exe",
+        "--indexer-sha256",
+        "26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c",
+        "--timeout",
+        "90s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\cache",
+        "--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\modules",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\modules",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\tmp",
+        "--arg=--module-path=example.test/evidence",
+        "--arg=--module-version=v0.0.1",
+        "--arg=--repository-remote=example.test/evidence",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--output={index}",
+        "--arg=.",
+        "--ref",
+        "e8ec8cbee9f6a483ab675dff3e67c403d87594428a30d117cb4c09ce90e632ee",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\without-explicit-previous"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "3b4e61976af534be9dbb3cfd8c36cd2c6823a362fa1c641dad9c4f744bfc85a7",
+      "stderr": "{\"error\":\"source/output path collision: ci/capture.json\"}\n"
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\home",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-final-qualified.exe",
+        "--indexer-sha256",
+        "26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c",
+        "--timeout",
+        "90s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\cache",
+        "--env=GOMODCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\modules",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\modules",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\tmp",
+        "--arg=--module-path=example.test/evidence",
+        "--arg=--module-version=v0.0.1",
+        "--arg=--repository-remote=example.test/evidence",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--output={index}",
+        "--arg=.",
+        "--ref",
+        "e8ec8cbee9f6a483ab675dff3e67c403d87594428a30d117cb4c09ce90e632ee",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-repeated-capture\\repeat Ω-r7lsxk8k\\previous-has-no-bundle",
+        "--previous-bundle-ref",
+        "a76dc2b48979528a1e271a6fe7f0350e12ea6e8b60574850ee6db64c0051ff4d"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "flag provided but not defined: -previous-bundle-ref\nUsage of dais-capture:\n  -arg value\n    \tLiteral indexer argument; repeat, with exactly one {index} placeholder\n  -bundle string\n    \tNew absolute directory for the immutable candidate bundle\n  -env value\n    \tExplicit nonsecret KEY=VALUE environment entry; repeat; ambient environment is not inherited\n  -fossil string\n    \tNative Fossil executable\n  -fossil-home string\n    \tExisting isolated Fossil configuration directory\n  -indexer string\n    \tAbsolute native indexer executable\n  -indexer-sha256 string\n    \tExpected SHA256 of the executable before launch\n  -manifest string\n    \tNew repository-relative input manifest path (default \"ci/inputs.json\")\n  -max-file-bytes int\n    \tMaximum individual source file bytes (default 8388608)\n  -max-files int\n    \tMaximum source file count (default 10000)\n  -max-index-bytes int\n    \tMaximum raw SCIP bytes (default 16777216)\n  -max-log-bytes int\n    \tCombined process stdout/stderr hard bound (default 1048576)\n  -max-source-bytes int\n    \tMaximum aggregate source bytes (default 67108864)\n  -receipt string\n    \tNew repository-relative execution receipt path (default \"ci/capture.json\")\n  -ref string\n    \tFull immutable source Fossil check-in hash\n  -repository string\n    \tAbsolute readonly source Fossil repository\n  -scip string\n    \tNew repository-relative SCIP artifact path (default \"ci/index.scip\")\n  -scratch string\n    \tExisting caller-owned directory for isolated source materialization\n  -timeout duration\n    \tCapture deadline (default 2m0s)\n{\"error\":\"flag provided but not defined: -previous-bundle-ref\"}\n"
+    }
+  ],
+  "producer_sha256": "26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c",
+  "capture_sha256": "b9f09ae1cabb8a016398a046b39d27e8eb842c959d70b6fe411f2074e73ebc70",
+  "graph_sha256": "a7a25b15306ea1815558b2d0bab4be766414199ec38383b9e5aeb8f890f85b9f",
+  "go_sha256": "d6a71e6dc9806cb3f1fcb817d562175c5a7b1505fc3f6638299648e0b9f0f74f",
+  "error": "JSONDecodeError('Expecting value: line 1 column 1 (char 0)')"
+}

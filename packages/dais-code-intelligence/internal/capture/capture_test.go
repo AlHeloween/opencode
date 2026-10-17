@@ -72,6 +72,16 @@ func TestCaptureHelper(t *testing.T) {
 	if os.Getenv("DAIS_CAPTURE_PARENT_SECRET") != "" {
 		os.Exit(25)
 	}
+	if os.Getenv("DAIS_CAPTURE_REPEATED") == "1" {
+		for _, name := range []string{"derived/index.scip", "derived/inputs.json", "derived/capture.json"} {
+			if _, err := os.Stat(name); !os.IsNotExist(err) {
+				os.Exit(30)
+			}
+		}
+		if data, err := os.ReadFile("derived/notes Ω.txt"); err != nil || string(data) != "ordinary source" {
+			os.Exit(31)
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(output), 0700); err != nil {
 		os.Exit(26)
 	}

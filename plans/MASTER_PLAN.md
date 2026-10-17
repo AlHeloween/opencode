@@ -107,6 +107,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 [Нативный DAIS producer/capture](../plans_completed/2026-10-17_dais-native-producer-capture.md) — реальный запуск индексатора, immutable Fossil bundle, modern schema и независимые byte/range controls; критерии и остатки находятся в плане и evidence archive.
 <!-- sv: producer-capture 0.40, fossil-provenance 0.30, independent-oracle 0.30 -->
 
+[Повторный DAIS capture](../plans_completed/2026-10-17_dais-repeated-capture.md) — exact previous bundle, Fossil source/publication diff и проверенная смена graph freshness; native replay, границы и продолжение находятся в child и evidence archive.
+<!-- sv: repeated-capture 0.40, fossil-diff 0.30, graph-freshness 0.30 -->
+
 ## Standing rules that outlive any plan
 
 [Исследование Haiku 5.5](../plans_completed/2026-10-16_haiku-end-to-end-research.md) — wire/SDK/replay/cancellation receipts и явно непроверенная граница actual TUI; результаты и остатки находятся в плане и отчёте.
@@ -141,10 +144,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 276 |
-| plans active | 34 |
-| tasks passed / total | 1307 / 1597 |
-| open boxes | 147 |
+| plans completed | 280 |
+| plans active | 32 |
+| tasks passed / total | 1318 / 1605 |
+| open boxes | 144 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -333,10 +336,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-15_kernel-continuation-without-blocked.md` — 1 open / 6 box(es) · lifecycle ACTIVE
-  sv: intention "Unknown и чужая ответственность превращаются в BLOCKED и остановку -> пробел ведёт к проверке/декомпозиции, чужой исполнитель к тикету/наблюдению/follow-up, родитель остаётся открыт до проверенного done" · keywords [task-continuation 0.45, unknown-decomposition 0.30, verified-delegation 0.25]
-  - TASK-6 [PENDING] · sv [pct-denominator 0.35, receipt-readback 0.30, quoted-postpone 0.20, budget-67000 0.15] · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-15_kernel-undefined-contract-audit.md` — 1 open / 2 box(es) · lifecycle ACTIVE
   sv: intention "расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source" · keywords [contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20]
   - TASK-2 [PENDING] · sv [independent-verification 0.6, evidence 0.4] · manifest: MISSING — nobody has written down what this box is
@@ -417,11 +416,6 @@ parent-goal-md5: 00000000000000000000000000000000]
   - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-17_kernel-causal-chain.md` — 2 open / 9 box(es) · lifecycle UNKNOWN
-  sv: intention "robots close on user/visual-only without mechanism or math -> kernel binds independent legs (MEDOID_SIMPLEX) and the causal chain mechanism-prediction-observation at G3 ACCEPTANCE_FRAME, user/visual-only closes Unknown" · keywords []
-  - TASK-8 [PENDING] · sv [commit 1.0] · manifest: MISSING — nobody has written down what this box is
-  - TASK-9 [PENDING] · sv [review 1.0] · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-17_portable-binary-hermetic.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "portable install dir with exe-adjacent config -> hermetic binary that reads only exe-adjacent and data-root sources, never parent folders" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -433,6 +427,6 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 ## The checks
 
-This body names all 37 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 35 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

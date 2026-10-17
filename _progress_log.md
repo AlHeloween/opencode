@@ -1,4 +1,19 @@
 ﻿# Progress Log
+
+## [2026-10-17] DAIS R1 — explicit repeated capture (план 2026-10-17_dais-repeated-capture)
+
+CONFIRMED ✓ parent regression20261017T104913Z_a30059d7: семь focused Go packages PASS; exact3 current/prior hashes, strict prior JSON/digests, direct provenance и default refusal. Actual diff: capture previous.go/types/Run, CLI flag, real Fossil tests. RED104555Z_9561d157 и HARNESS104643Z_1125498b сохранены; fixture commit --hash исправляет same-size mtime пропуск, отрицательные assertions сохранены.
+<!-- sv: repeated-capture 0.50, provenance 0.30, refusal-controls 0.20 -->
+
+## [2026-10-17] DAIS R2 — native Fossil diff и graph freshness
+
+CONFIRMED ✓ independent runtime20261017T104937Z_76d2dc79 и archive replay20261017T105055Z_cd1d9330:47 predicates PASS каждый. Twice→Thrice меняет ровно math.go/use.go; C→D publication ровно3 outputs. Старый graph STALE, новый PASS, third capture, Unicode range/raw export/old snapshot сохранены. Ordinary ci/notes Ω.txt остаётся declared input. Это full reindex, semantic_status unknown.
+<!-- sv: independent-oracle 0.45, fossil-diff 0.30, graph-freshness 0.25 -->
+
+## [2026-10-17] DAIS R3 — archive и bounded closure
+
+CONFIRMED ✓ mandatory _build.ps1 run20261017T105012Z_92c5a8a0 exit0: dist candidate smoke10.0.1421, lock released; no bin promotion. Evidence: experiments_history/2026-10-17_dais-repeated-capture/REPORT.md и exact byte MANIFEST. Child закрывается в plans_completed с named commit; parent ACTIVE, следующий маршрут corpus/query/MCP/parity. Production CodeGraph consumers не переключены.
+<!-- sv: evidence-archive 0.40, clean-state 0.35, continuation 0.25 -->
 ## [2026-10-17] t80 tree hygiene T1+T2 — B6 closed, half-moves recorded (Smit)
 
 - T1 B6 DONE: `cc84e46096` (edit + 3 mutation controls) + `d0f9c04d1b` (install run 20261015T025937Z_307a3929, post-install pytest 285 passed, readback x4, _build.ps1 exit 0); re-verified today: `test_reward_restoration.py` 39 passed via cmd_runner (run 20261017T103827Z_d060584c, state.json finished exit 0, bytes_written 1065, bytes_dropped 0); completion term live in installed receivers (reasoning_prompt.txt:239, reasoning_kernel.md:239); ceiling note: B6 set 67_000, t79 raised to 68_000 (source.py:967, validate.py:240) — history kept, not rewritten. Box ticked in `plans_completed/2026-10-15_kernel-continuation-without-blocked.md`.

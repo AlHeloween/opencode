@@ -1,0 +1,22 @@
+29: 
+30: BUILD LOCK acquired (pid=19008, caller=manual): D:\zPython\opencode\.opencode\data\build\build.lock
+31: 
+32: ════════════════════════════════════════
+65:     Finished `release` profile [optimized] target(s) in 0.20s
+66: warning: the following packages contain code that will be rejected by a future version of Rust: syn v0.11.11
+67: note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibil
+68: lities --id 2`
+453: anualchunks
+454: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+455: dist/assets/light-plus-B7mTdjB0.js                            9.94 kB │ gzip:   2.27 kB
+456: dist/assets/file-icon-BuS7SVHd.js                            10.02 kB │ gzip:   3.66 kB
+656: building opencode-windows-x64
+657: Running smoke test: dist/opencode-windows-x64/bin/opencode.exe --version
+658: Smoke test passed: 10.0.1421
+659: Smoke test passed: reasoning_prompt.txt embedded (BunFS asset present)
+660:   Collecting release artifacts...
+661:   [OK] Native binary copied
+666:   [OK] App build copied
+667:   [OK] Build complete - artifacts in dist/
+668: BUILD LOCK released: D:\zPython\opencode\.opencode\data\build\build.lock
+669: 

@@ -15,6 +15,7 @@ func TestInvalidCaptureDoesNotCreateBundle(t *testing.T) {
 		{"--max-files", "0"},
 		{"--ref", "trunk"},
 		{"--indexer-sha256", "unverified"},
+		{"--previous-bundle-ref", "trunk"},
 	} {
 		t.Run(args[0], func(t *testing.T) {
 			bundle := filepath.Join(t.TempDir(), "bundle")

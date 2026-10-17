@@ -27,6 +27,7 @@ import (
 type Config struct {
 	Provider                                                           *fossil.Provider
 	SourceRevision, Indexer, IndexerSHA256                             string
+	PreviousBundleRevision                                             string
 	Args, Environment                                                  []string
 	ScratchRoot, BundleDirectory, IndexPath, ManifestPath, ReceiptPath string
 	MaxFiles                                                           int
@@ -46,19 +47,25 @@ type Indexer struct {
 }
 
 type Receipt struct {
-	Version           int      `json:"version"`
-	SourceRevision    string   `json:"source_revision"`
-	SourceInputs      []Input  `json:"source_inputs"`
-	SourceInputDigest string   `json:"source_input_digest"`
-	Indexer           Indexer  `json:"indexer"`
-	Environment       []string `json:"environment"`
-	IndexSHA256       string   `json:"index_sha256"`
-	Result            string   `json:"result"`
-	ExitCode          int      `json:"exit_code"`
-	Stdout            string   `json:"stdout"`
-	Stderr            string   `json:"stderr"`
-	Diagnostics       string   `json:"diagnostics"`
-	SemanticStatus    string   `json:"semantic_status"`
+	Version           int             `json:"version"`
+	SourceRevision    string          `json:"source_revision"`
+	SourceInputs      []Input         `json:"source_inputs"`
+	SourceInputDigest string          `json:"source_input_digest"`
+	Indexer           Indexer         `json:"indexer"`
+	Environment       []string        `json:"environment"`
+	IndexSHA256       string          `json:"index_sha256"`
+	Result            string          `json:"result"`
+	ExitCode          int             `json:"exit_code"`
+	Stdout            string          `json:"stdout"`
+	Stderr            string          `json:"stderr"`
+	Diagnostics       string          `json:"diagnostics"`
+	SemanticStatus    string          `json:"semantic_status"`
+	PreviousBundle    *PreviousBundle `json:"previous_bundle,omitempty"`
+}
+
+type PreviousBundle struct {
+	Revision  string  `json:"revision"`
+	Artifacts []Input `json:"artifacts"`
 }
 
 type Manifest struct {
@@ -158,6 +165,9 @@ func validate(c Config) ([]string, error) {
 	if !hexDigest.MatchString(c.IndexerSHA256) {
 		return nil, errors.New("expected lowercase SHA256 required")
 	}
+	if c.PreviousBundleRevision != "" && !revisionDigest.MatchString(c.PreviousBundleRevision) {
+		return nil, errors.New("previous bundle revision must be a full lowercase Fossil check-in hash")
+	}
 	if err := existingPath(c.Indexer, false); err != nil {
 		return nil, err
 	}
@@ -252,6 +262,12 @@ func Run(ctx context.Context, c Config) (receipt Receipt, err error) {
 	files, err := c.Provider.ListFiles(ctx, c.SourceRevision)
 	if err != nil {
 		return receipt, err
+	}
+	if c.PreviousBundleRevision != "" {
+		files, receipt.PreviousBundle, err = replacePrevious(ctx, c, files)
+		if err != nil {
+			return receipt, err
+		}
 	}
 	if len(files) == 0 || len(files) > c.MaxFiles {
 		return receipt, errors.New("source file count outside bounds")

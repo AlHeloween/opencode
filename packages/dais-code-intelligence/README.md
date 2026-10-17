@@ -62,13 +62,24 @@ CLI. Аргументы индексатора задаются повторяе
 На Windows требуется явный SystemRoot. Ambient env и его секреты не наследуются.
 
 В bundle ровно три файла: `ci/index.scip`, `ci/capture.json`, `ci/inputs.json`;
-пути меняются флагами `--scip`/`--receipt`/`--manifest`. Все три должны отсутствовать
-в source revision. Квитанция хранит source revision, sorted input hashes, hash
+пути меняются флагами `--scip`/`--receipt`/`--manifest`. По умолчанию все три должны
+отсутствовать в source revision. Квитанция хранит source revision, sorted input hashes, hash
 реального executable, раскрытый argv, env и результат `CAPTURED` либо `FAILED`.
 Digest входов: SHA256 UTF8 `json.Marshal(sorted []Input)`, без graph-домена digest.
 Manifest добавляет хеш квитанции, сама квитанция manifest/self hash не содержит.
 Квитанция `FAILED` также возвращается JSON stdout при ненулевом exit, good bundle
 не создаётся. Публикация не заменяет уже существующий каталог назначения.
+
+Для повторной индексации задаются отдельные полные hashes:
+`--ref <changed-source-C> --previous-bundle-ref <previous-publication-B>`.
+Три tracked outputs в C должны побайтно совпадать с B; receipt, manifest и raw
+SCIP в B должны быть структурно согласованы. Только эти три paths исключаются
+из нового workspace. Обычные файлы под `ci/` остаются входами. Новый receipt
+содержит `previous_bundle:{revision,artifacts:[{path,sha256}]}`; предыдущая цепочка
+не обходится. Этот режим создаёт новый каталог bundle и выполняет полный reindex.
+Служебные JSON каждый ограничены `--max-file-bytes`, суммарные prior artifacts —
+`--max-source-bytes`, SCIP — `--max-index-bytes`. Предыдущая квитанция не получает
+подпись или semantic PASS от структурной проверки.
 
 SCIP-go v0.2.7 требует [candidate-правки producer](compat/scip-go/README.md), чтобы
 явно объявлять байтовую кодировку координат. Получение source/dependencies:
@@ -98,8 +109,8 @@ check-in B после source A; импорт B требует явный
 заявленных входов, не sandbox фактических чтений: toolchain/external dependencies
 и descendants остаются границей квалификации. Timeout отменяет прямой процесс;
 успешная публикация после истечения deadline запрещена. Статус CAPTURED не
-приравнивается к semantic PASS. Повторный capture опубликованной ревизии пока
-отвергает reserved outputs; автоматизация обновлений требует следующего среза.
+приравнивается к semantic PASS. Повтор с явным previous bundle описан выше;
+автоматическая публикация и incremental execution требуют следующего среза.
 
 ## Text search CLI
 

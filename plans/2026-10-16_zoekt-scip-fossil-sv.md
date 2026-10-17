@@ -293,11 +293,16 @@ Native producer/capture child подтверждён archive replay 20261017T055
 28 predicates, семь Go packages и mandatory build. Modern profile явно требует
 UTF8 position encoding; official producer ambiguity сохранена как отказ, candidate
 объявляет encoding до сериализации. Receipt не выдаётся за semantic correctness.
-Следующий маршрут G1/G2: repeated capture изменившейся ревизии с контрактом
-замены reserved outputs, затем graph-query/MCP binding и oracle рабочего корпуса
+Повторный capture выделен в [завершённый child](../plans_completed/2026-10-17_dais-repeated-capture.md).
+Его independent native oracle 20261017T104937Z_76d2dc79 прошёл47 predicates:
+изменённый вызов Twice→Thrice, exact source/publication diffs, old graph STALE,
+new graph PASS, third capture и refusal controls. Это полный reindex, не
+incremental producer execution. Следующий маршрут G1/G2: graph-query/MCP binding
+и oracle рабочего корпуса
 (Z4), после parity consumer cutover (Z5). M0b остаётся частичным structural
 baseline без index_time/RSS/fulltext parity/5M verdict. Continuation receipt:
-20261016T160746Z_a0d80ed8 и заархивированный cli-final-report.json с fixture path.
+20261017T104937Z_76d2dc79 и repeated-capture after-report.json с fixture path;
+исторический search oracle 20261016T160746Z_a0d80ed8 сохранён отдельно.
 Disk retirement и долговечная Fossil publication execution receipts — residual.
 В рамках этого среза production consumers и bin/ не менялись; чужие concurrent
 изменения в общем checkout сохранены. Whole-portfolio SUCCESS не установлен.

@@ -147,15 +147,15 @@ def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> N
         assert clause in _render_reward(mutant, "product")
 
 
-def test_reward_restoration_budget_accepts_declared_68000_ceiling() -> None:
-    # 2026-10-17 (t79 causal-chain): MEDOID_SIMPLEX independence + CAUSAL_CHAIN step utf8_budget AND the
-    # validate.py hard ceiling to the next band, 68_000 (owner standing word: raise, never cut).
-    assert validate_kernel(replace(KERNEL, utf8_budget=68_000)) == []
+def test_reward_restoration_budget_accepts_declared_69000_ceiling() -> None:
+    # 2026-10-17 (t82 review): four SV-lineage fixes step utf8_budget AND the
+    # validate.py hard ceiling to the next band, 69_000 (owner standing word: raise, never cut).
+    assert validate_kernel(replace(KERNEL, utf8_budget=69_000)) == []
 
 
-def test_reward_restoration_budget_rejects_68001_above_finite_ceiling() -> None:
-    errors = validate_kernel(replace(KERNEL, utf8_budget=68_001))
-    assert any("68_000" in error or "68000" in error for error in errors), errors
+def test_reward_restoration_budget_rejects_69001_above_finite_ceiling() -> None:
+    errors = validate_kernel(replace(KERNEL, utf8_budget=69_001))
+    assert any("69_000" in error or "69000" in error for error in errors), errors
 
 
 # 2026-10-15 (t44 B6, Claude's review of a0e15e87b5): the rejected shapes are mutation controls:

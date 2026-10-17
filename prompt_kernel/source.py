@@ -964,7 +964,8 @@ KERNEL = Kernel(
     # utf8_budget AND the validate.py hard ceiling step to the next band, 67 000 (owner standing
     # word: «64 - 65 без разницы, главное чтобы работало»; the cap is a bloat guard, never a cut).
     # 2026-10-17 (t79 causal-chain): independence in MEDOID_SIMPLEX + CAUSAL_CHAIN at G3 measure product 67_326 B — the next band above the measurement; nothing cut.
-    utf8_budget=68_000,
+    # 2026-10-17 (t82 review, Legislator + outside falsifier): four SV-lineage fixes (field-scoped ban, task-own parent on every turn, one-parent siblings, no zero/non-hex/example copy) measure product 68_032 B — the next band above the measurement; nothing cut.
+    utf8_budget=69_000,
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

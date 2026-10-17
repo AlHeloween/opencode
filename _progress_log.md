@@ -7674,3 +7674,13 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - PLAN: moved back plans_completed/→plans/ (uncommitted reconcile move found as D+??), revision 2 with owner quote + S7 [x].
 - STOP: no `--install`, no `bin/`; receivers stale for Legislator + falsifier; owner gives install word.
 <!-- sv: legend-owner-wording 0.40, search-not-compute 0.25, reader-encoding-check 0.20, stop-before-install 0.15 -->
+## [2026-10-17] t84-S8 review-FAIL fence glue — comma + class test + real-predicate boundary, STOP before --install (Smit)
+
+- DEFECT (Legislator on 4d54b5aa): `render.py:98` legend without trailing comma glued the fence (`'...never compute them.```'`); reproduced via `_render_sv_contract` repr.
+- CLASS (not instance): tokenize walk over every list literal in `render.py` (ast folds adjacent literals, blind) — RED flagged exactly `(99, 8)` and nothing else; recorded 8 failed / 5 passed run.
+- TEST: boundary `\nLEGEND\n```\n` in 4 variants; mutation controls run real `sv_legend_ok` on glued/dropped/old-short mutants — 13 PASS.
+- ORACLE: kernel 325 passed + 3 stale-receiver reds (expected pre-install); tools 5 passed; robot-wave 13 passed; `_build.ps1` exit 0 (20261017T154236Z_2d76aabd, smoke 10.0.1430).
+- PLAN: moved back plans_completed/→plans/ again (same uncommitted D+?? move), S8 [x].
+- SV hygiene: chaining prev-md5 from own last md5 (review finding 4) — this vector's prev is 7d2e9a1c4b5f6a83e0d1c5a8b4f6e291.
+- STOP: no `--install`, no `bin/`.
+<!-- sv: fence-glue-defect 0.40, test-hole-fence-boundary 0.30, real-predicate-mutation 0.20, prev-md5-hygiene 0.10 -->

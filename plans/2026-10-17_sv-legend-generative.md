@@ -54,8 +54,8 @@ Other readers unchecked → fixture matrix covers them; every reader the fixture
 - [x] S2 RED test in `prompt_kernel/tests/test_sv_legend.py`: 10 FAIL before S3, 10 PASS after; mutation control + 4-variant parity + trivial-no-legend
 - [x] S3 Edit generator only (`prompt_kernel/render.py` `_render_sv_contract`): yaml example ends with `note: hash values are generative`, one-line `- note:` bullet; missing comma after parent-goal bullet fixed (was gluing trivial); trivial carries no legend (no hashes); caps 9_200→9_300 next band (product 9146/claude 9210/codex 9156/cursor 9232, bytes 68294/69000)
 - [x] S4 Zero fixture-breaking readers — no reader fixes needed (matrix all PASS)
-- [ ] S5 Oracle: `python -m pytest prompt_kernel/tests/ -q` (only 3 stale-receiver reds), `cd tools && python -m pytest tests/ -q`, `python -m pytest experiments/2026-10-08_robot-wave/tests/ -q`, plus touched product test files; then `_build.ps1` via cmd_runner
-- [ ] S6 Commit via `scripts/commit_own.py` + `_progress_log.md` entry; STOP before `--install` (Claude Legislator reviews diff + outside falsifier; owner gives install word)
+- [x] S5 Oracle: kernel 322 passed + 3 stale-receiver reds (expected pre-install); tools 5 passed; robot-wave 13 passed; vector-sign 6 passed (20261017T144544Z_e0ae67f9 exit 0); `_build.ps1` exit 0 (20261017T144639Z_9dcc8609, smoke 10.0.1427)
+- [x] S6 Commit via `scripts/commit_own.py` (03bfffe1 own paths + 4d23d022 progress log) + `_progress_log.md` entry; STOP before `--install` (receivers stale for Legislator + falsifier; owner gives install word)
 
 ## Smoke Tests
 

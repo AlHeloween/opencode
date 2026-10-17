@@ -8,7 +8,19 @@ import { Ripgrep } from "../file/ripgrep"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import DESCRIPTION from "./glob.txt"
 import * as Tool from "./tool"
-
+// t85 (2026-10-17 host FAST_FAIL on path-less scan): root-wide glob gets the same
+// bound as grep — 20 s signal timeout (output already capped via take(101)) and
+// heavy-dir excludes unless explicitly named.
+const GLOB_TIMEOUT_MS = 20_000
+const GLOB_ROOT_EXCLUDES = [
+  "node_modules",
+  ".opencode",
+  "logs",
+  "external",
+  "dist",
+  ".temp",
+  ".codegraph",
+]
 export const Parameters = Schema.Struct({
   pattern: Schema.String.annotate({ description: "The glob pattern to match files against" }),
   path: Schema.optional(Schema.String).annotate({
@@ -67,7 +79,14 @@ export const GlobTool = Tool.define(
           // 100 newest». Sorting every match by mtime would mean enumerating the whole tree to
           // order one page, so the sample stays; the truncation notice is what keeps it honest, and
           // a caller who needs the newest must narrow the pattern or the path.
-          const files = yield* rg.files({ cwd: search, glob: [params.pattern], signal: ctx.abort, gitignore: params.gitignore }).pipe(
+          // t85 bound: root-wide (no path) never walks heavy data dirs unless named.
+          const rootWide = !params.path || params.path === "."
+          const excludeGlobs = rootWide ? GLOB_ROOT_EXCLUDES.map((d) => `!${d}/**`) : []
+          const globs = [params.pattern, ...excludeGlobs]
+          const signal = ctx.abort.aborted
+            ? ctx.abort
+            : AbortSignal.any([ctx.abort, AbortSignal.timeout(GLOB_TIMEOUT_MS)])
+          const files = yield* rg.files({ cwd: search, glob: globs, signal, gitignore: params.gitignore }).pipe(
             Stream.mapEffect((file) =>
               Effect.gen(function* () {
                 const full = path.resolve(search, file)

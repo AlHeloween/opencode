@@ -153,3 +153,17 @@ prohibitions: no bin/, no kernel, no robots-host restart, no bare git commit, no
   reverted at once (address 4b8d33ba identical); rpc.ts edit dropped 2 declaration lines + duplicated 1 → repaired
   same-turn, read back clean. Shared-tree collision: another robot's error.ts/paths.ts refactor broke the test
   preload 16:28–16:33 (import SyntaxErrors); waited, re-ran green — no foreign files touched.
+
+## Reopen note 2026-10-17 (t85 host FAST_FAIL 0xC0000409, plan stays completed)
+
+- New death `logs/cmd_runner/20261017T123439Z_4239f0f0/state.json:6` exit `-1073740791`
+  (FAST_FAIL), `stderr.log` 0 B, `stdout_text.log` spinner only; last t84 part
+  `prt_149ec8e25001fHTfmEPINNafWO` is path-less `grep` (no path → worktree root) 5 min
+  before death. Different code from t77 (exit 1 nemotron) and t81 (exit −1) — common cause
+  NOT established.
+- t77 acceptance still holds: `thread.ts:184-198` + `rpc.ts:46-50,126-138` `server died`
+  watches the WORKER from the host; here the HOST (`bin/opencode.exe`) fast-failed, so that
+  path could not run and stderr stayed empty (FAST_FAIL bypasses JS/stderr) — expected,
+  not a second bug. Silent-native residual (t77 R-S4/S5) covers it.
+- Bound lands in t85 (`packages/opencode/src/tool/grep.ts`, `glob.ts` + tests); this plan is
+  NOT moved back (`git mv` not run) — its boxes stay earned.

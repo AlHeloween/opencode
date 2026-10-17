@@ -11,7 +11,22 @@ import * as Tool from "./tool"
 
 const SNIPPET_MARGIN = 160
 const MAX_MATCH_TEXT = 200
-
+// t85 (2026-10-17 host FAST_FAIL 0xC0000409 on path-less grep): a worktree-root-wide
+// search walked node_modules/.opencode/logs/external/dist with no timeout and an
+// unbounded collect (ripgrep runCollect + per-file stat + full sort). Bound it: 20 s
+// enforced timeout (makes the kernel «20 s at the repo root» claim true), per-file
+// --max-count via limit, and default heavy-dir excludes unless explicitly named.
+const GREP_TIMEOUT_MS = 20_000
+const GREP_PER_FILE_LIMIT = 101
+const GREP_ROOT_EXCLUDES = [
+  "node_modules",
+  ".opencode",
+  "logs",
+  "external",
+  "dist",
+  ".temp",
+  ".codegraph",
+]
 // `toRustRegex` used to stand here and rewrite a BRE-style `\|` into `|` — i.e. into OR — while
 // the shipped description says «`|` is OR; `\|` is a literal pipe», which is also what ripgrep's
 // own dialect (Rust regex / ERE) means. A caller who read the description and asked for a literal
@@ -120,14 +135,38 @@ export const GrepTool = Tool.define(
             kind: info?.type === "Directory" ? "directory" : "file",
           })
 
-          const result = yield* rg.search({
-            cwd,
-            pattern,
-            glob: params.include ? [params.include] : undefined,
-            file,
-            signal: ctx.abort,
-            gitignore: params.gitignore,
-          })
+          // t85 bound: root-wide (no path) never walks heavy data dirs unless named.
+          // An explicitly named heavy dir takes another branch (cwd = that dir).
+          const rootWide = !params.path || params.path === "."
+          const excludeGlobs = rootWide ? GREP_ROOT_EXCLUDES.map((d) => `!${d}/**`) : []
+          const globs = [...(params.include ? [params.include] : []), ...excludeGlobs]
+          const result = yield* rg
+            .search({
+              cwd,
+              pattern,
+              glob: globs.length > 0 ? globs : undefined,
+              file,
+              signal: ctx.abort.aborted
+                ? ctx.abort
+                : AbortSignal.any([ctx.abort, AbortSignal.timeout(GREP_TIMEOUT_MS)]),
+              gitignore: params.gitignore,
+              limit: GREP_PER_FILE_LIMIT,
+            })
+            .pipe(
+              Effect.catch((cause) => {
+                const name =
+                  cause instanceof Error
+                    ? cause.name
+                    : (cause as { _tag?: unknown } | null)?._tag
+                if (name === "AbortError" || name === "TimeoutException" || name === "TimeoutError")
+                  return Effect.fail(
+                    new Error(
+                      `grep timed out after ${GREP_TIMEOUT_MS}ms on ${cwd}: narrow the path or pattern (t85 bound: path-less worktree-root search is capped)`,
+                    ),
+                  )
+                return Effect.fail(cause)
+              }),
+            )
           // The transparency probe that used to stand here is GONE, for the same reason as in
           // glob.ts: it existed to explain a «No matches found» produced by the DEFAULT hide. The
           // default now searches everything, so an empty result is simply an empty result.

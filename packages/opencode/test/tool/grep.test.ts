@@ -204,6 +204,46 @@ describe("tool.grep", () => {
       }),
     ),
   )
+  // t85 (2026-10-17 host FAST_FAIL 0xC0000409 on path-less grep): a worktree-root-wide
+  // search must not walk heavy data dirs. RED on current code (it searches everything
+  // via --no-ignore): heavy hits appear. GREEN after the bound: only keep.txt matches,
+  // while an explicitly named heavy dir still searches (unless-named-explicitly).
+  it.live("excludes heavy data dirs on worktree-root-wide search", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const mkdirp = (p: string) =>
+          Effect.promise(() => import("node:fs/promises").then((m) => m.mkdir(p, { recursive: true })))
+        yield* Effect.promise(() => Bun.write(path.join(dir, "keep.txt"), "NEEDLE here\n"))
+        const heavies = [
+          ".opencode/data/skip.txt",
+          "logs/skip.log",
+          "node_modules/skip.js",
+          "external/skip.txt",
+          "dist/skip.js",
+        ]
+        for (const rel of heavies) {
+          const full = path.join(dir, rel)
+          yield* mkdirp(path.dirname(full))
+          yield* Effect.promise(() => Bun.write(full, "NEEDLE in heavy\n"))
+        }
+        const info = yield* GrepTool
+        const grep = yield* info.init()
+        // Path-less = worktree root (provideTmpdirInstance sets directory=dir): must exclude heavies.
+        const rootWide = yield* grep.execute({ pattern: "NEEDLE" }, ctx)
+        expect(rootWide.output).toContain(path.join(dir, "keep.txt"))
+        for (const rel of heavies) {
+          expect(rootWide.output).not.toContain(path.join(dir, rel))
+        }
+        // Explicitly named heavy dir still searches.
+        const named = yield* grep.execute(
+          { pattern: "NEEDLE", path: path.join(dir, "logs") },
+          ctx,
+        )
+        expect(named.metadata.matches).toBeGreaterThan(0)
+        expect(named.output).toContain(path.join(dir, "logs", "skip.log"))
+      }),
+    ),
+  )
 
   // WITHDRAWN with provenance, 2026-09-30 (`75f1033ee7`, explanation corrected in `80c352e0a3`):
   // «reports files ripgrep treated as BINARY» asserted `metadata.binary === 1` from ripgrep's

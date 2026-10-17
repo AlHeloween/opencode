@@ -78,4 +78,29 @@ describe("tool.glob", () => {
       }),
     ),
   )
+  // t85: path-less glob at worktree root must skip heavy data dirs.
+  it.live("excludes heavy data dirs on worktree-root-wide glob", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const mkdirp = (p: string) =>
+          Effect.promise(() => import("node:fs/promises").then((m) => m.mkdir(p, { recursive: true })))
+        yield* Effect.promise(() => Bun.write(path.join(dir, "keep.ts"), "export const k = 1\n"))
+        const heavies = [".opencode/data/skip.ts", "logs/skip.ts", "node_modules/skip.ts"]
+        for (const rel of heavies) {
+          const full = path.join(dir, rel)
+          yield* mkdirp(path.dirname(full))
+          yield* Effect.promise(() => Bun.write(full, "export const h = 1\n"))
+        }
+        const info = yield* GlobTool
+        const glob = yield* info.init()
+        const rootWide = yield* glob.execute({ pattern: "*.ts" }, ctx)
+        expect(rootWide.output).toContain(path.join(dir, "keep.ts"))
+        for (const rel of heavies) {
+          expect(rootWide.output).not.toContain(path.join(dir, rel))
+        }
+        const named = yield* glob.execute({ pattern: "*.ts", path: path.join(dir, "logs") }, ctx)
+        expect(named.output).toContain(path.join(dir, "logs", "skip.ts"))
+      }),
+    ),
+  )
 })

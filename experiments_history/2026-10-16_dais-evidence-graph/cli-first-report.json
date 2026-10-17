@@ -1,0 +1,45 @@
+{
+  "status": "FAIL",
+  "checks": [
+    "idempotent import",
+    "bounded facts expose completeness",
+    "independent wire golden counts",
+    "local 0 remains document scoped",
+    "duplicate occurrences retained and global entity reused",
+    "all relationship flags preserved",
+    "package versions remain distinct",
+    "combined occurrence roles retained",
+    "every fact has source address",
+    "limit reports truncation",
+    "byte-exact protobuf roundtrip",
+    "projection verified, semantic truth unknown",
+    "EXPECTED_FAIL altered assertion cannot keep PASS",
+    "restored assertion verifies again",
+    "SCs carries snapshot and executed receipt"
+  ],
+  "receipts": [
+    {
+      "id": "2e5bd1dd42395a8f5868ccd3bfd7353e738fe8a25fb1c299d8ec76b262665f2b",
+      "snapshot_id": "01e09cfec968e3bbc5ec8cb938371ac8162f2fb5844d5b1fba67de76d367d53e",
+      "target_revision": "22987ff2018d8bcae83b65935a1222fdb185f5d394328307998de5e4c28747d5",
+      "input_digest": "153b33404ea335666760ee91199c029988244541ffa57ba25ce82d581e406b9b",
+      "predicate": "projection_fidelity_ranges_declared_inputs_v1",
+      "result": "PASS",
+      "semantic_status": "unknown",
+      "details": "SCIP projection and ranges match bound bytes; indexer semantic correctness is unknown"
+    },
+    {
+      "id": "7bbde65a514c742702591c1e71614c16eb414401e87fb60ac3a964cedcf96ca7",
+      "snapshot_id": "01e09cfec968e3bbc5ec8cb938371ac8162f2fb5844d5b1fba67de76d367d53e",
+      "target_revision": "22987ff2018d8bcae83b65935a1222fdb185f5d394328307998de5e4c28747d5",
+      "input_digest": "153b33404ea335666760ee91199c029988244541ffa57ba25ce82d581e406b9b",
+      "predicate": "projection_fidelity_ranges_declared_inputs_v1",
+      "result": "FAIL",
+      "semantic_status": "unknown",
+      "details": "stored fact digest mismatch"
+    }
+  ],
+  "fixture": "D:\\zPython\\opencode\\experiments\\2026-10-16_dais-evidence-graph\\native-cli-jh0_vuv5",
+  "error": "missing or duplicate SCs assertion arc for 7ae9576140a4667ba4a9ff731882f6c9bbf3c72146144974106b427fbf8f8ef2",
+  "traceback": "Traceback (most recent call last):\n  File \"D:\\zPython\\opencode\\experiments\\2026-10-16_dais-evidence-graph\\cli_oracle.py\", line 167, in main\n    relation_nodes = endpoints(relation)\n  File \"D:\\zPython\\opencode\\experiments\\2026-10-16_dais-evidence-graph\\cli_oracle.py\", line 164, in endpoints\n    raise AssertionError(f\"missing or duplicate SCs assertion arc for {fact['id']}\")\nAssertionError: missing or duplicate SCs assertion arc for 7ae9576140a4667ba4a9ff731882f6c9bbf3c72146144974106b427fbf8f8ef2\n"
+}

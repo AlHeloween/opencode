@@ -1,0 +1,34 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# dais.local/codeintelligence/internal/evidencegraph [dais.local/codeintelligence/internal/evidencegraph.test]
+internal\evidencegraph\instrument_test.go:36:55: receipt.InstrumentSHA256 undefined (type Receipt has no field or method InstrumentSHA256)
+internal\evidencegraph\instrument_test.go:47:194: stored.InstrumentSHA256 undefined (type Receipt has no field or method InstrumentSHA256)
+FAILdais.local/codeintelligence/internal/evidencegraph [build failed]
+FAIL

@@ -1,0 +1,67 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestReceiptsPinExecutedInstrument
+--- PASS: TestReceiptsPinExecutedInstrument (1.91s)
+=== RUN   TestSQLitePrimitive
+--- PASS: TestSQLitePrimitive (0.02s)
+=== RUN   TestGraphProjectionProvenanceAndStaleness
+--- PASS: TestGraphProjectionProvenanceAndStaleness (4.18s)
+=== RUN   TestGraphStrictRefusalsPreserveCurrent
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf16
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/negative-range
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/bounds
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf8-split
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-field
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-role
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/path
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete
+--- PASS: TestGraphStrictRefusalsPreserveCurrent (11.40s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf16 (1.27s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/negative-range (1.26s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/bounds (1.29s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf8-split (1.30s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-field (1.23s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-role (1.25s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/path (1.23s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch (1.19s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete (1.38s)
+=== RUN   TestGraphOfflineReadsAndStoredFailure
+--- PASS: TestGraphOfflineReadsAndStoredFailure (1.08s)
+=== RUN   TestGraphCountAndReceiptIntegrity
+--- PASS: TestGraphCountAndReceiptIntegrity (1.57s)
+=== RUN   TestGraphMalformedWireRefused
+=== RUN   TestGraphMalformedWireRefused/truncated
+=== RUN   TestGraphMalformedWireRefused/duplicate-metadata
+--- PASS: TestGraphMalformedWireRefused (2.48s)
+    --- PASS: TestGraphMalformedWireRefused/truncated (1.24s)
+    --- PASS: TestGraphMalformedWireRefused/duplicate-metadata (1.24s)
+PASS
+ok      dais.local/codeintelligence/internal/evidencegraph      22.681s

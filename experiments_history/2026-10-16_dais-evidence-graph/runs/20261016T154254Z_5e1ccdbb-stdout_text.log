@@ -1,0 +1,55 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestFullDeltaRevisionAndReopen
+2026/10/16 23:43:00 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen515086410\002\index\generations\9989049380371cb392d9f62d2eaa82cc\fixture_v16.00000.zoekt: 2711 index bytes (overhead 19.4), 3 files processed 
+2026/10/16 23:43:00 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+    adapter_test.go:50: fossil [commit -m changed sv:11111111111111111111111111111111 --no-warnings --no-prompt --nosign --nosync --allow-empty]: exit status 1 New_Version: 268831e26bf88039eb71c5a07da67c3d0646f5925f6cb0d1d04c4b1326578ae7
+        ERROR: [renamed.go] is different on disk compared to the repository
+        NOTICE: Repository version of [renamed.go] stored in [file-42496bc24e228140]
+        working check-out does not match what would have ended up in the repository:  16e4092a11b1465c31eb991a67ad6441 versus 4ae3aa919e522f1b21d502e5a8402111
+    testing.go:1464: TempDir RemoveAll cleanup: unlinkat C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen515086410\002\index\generations\9989049380371cb392d9f62d2eaa82cc\fixture_v16.00000.zoekt: Access is denied.
+--- FAIL: TestFullDeltaRevisionAndReopen (2.38s)
+=== RUN   TestLimitsCancellationConfigAndFailedPublication
+2026/10/16 23:43:02 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication2887921843\002\index\generations\d14f54aefe468a64605ada2cddf8e0b2\fixture_v16.00000.zoekt: 1604 index bytes (overhead 47.2), 1 files processed 
+2026/10/16 23:43:02 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/16 23:43:03 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication2887921843\002\index\generations\18d3eba4b45c22080aed456c7ee0d94b\fixture_v16.00001.zoekt: 1653 index bytes (overhead 68.9), 1 files processed 
+2026/10/16 23:43:03 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+2026/10/16 23:43:03 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication2887921843\002\index\generations\9002a5d1fee8cf0d67ad1324f8e78817\fixture_v16.00001.zoekt: 1655 index bytes (overhead 69.0), 1 files processed 
+2026/10/16 23:43:03 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+    testing.go:1464: TempDir RemoveAll cleanup: unlinkat C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication2887921843\002\index\generations\9002a5d1fee8cf0d67ad1324f8e78817\fixture_v16.00000.zoekt: Access is denied.
+--- FAIL: TestLimitsCancellationConfigAndFailedPublication (3.00s)
+FAIL
+FAILdais.local/codeintelligence/internal/search5.486s
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

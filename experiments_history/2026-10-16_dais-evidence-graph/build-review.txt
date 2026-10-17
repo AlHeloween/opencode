@@ -1,0 +1,58 @@
+29: 
+30: BUILD LOCK acquired (pid=26108, caller=manual): D:\zPython\opencode\.opencode\data\build\build.lock
+31: 
+32: ════════════════════════════════════════
+33:   Building
+34: ════════════════════════════════════════  Cleaning .temp/test/...
+35:   [SKIP] .temp/test/ - 5 live entries left in place:
+36:     .opencode (recent (41 min old, no live owner))
+37:     opencode-test-0436c8k5am62 (recent (30 min old, no live owner))
+40:     opencode-test-pwudtvts889 (recent (5 min old, no live owner))
+41:   [OK] .temp/test/ swept (0 removed, 5 live kept)
+42:   Building Rust WASM modules...
+43: Native binary up to date, skipping rebuild.
+47: [INFO]: Compiling to Wasm...
+48:     Finished `release` profile [optimized] target(s) in 0.12s
+49: [INFO]: Installing wasm-bindgen...
+50: [INFO]: found wasm-opt at "D:\\zPython\\binaryen\\bin\\wasm-opt.exe"
+54: [INFO]: :-) Your wasm pkg is ready to publish at D:\zPython\opencode\packages\wasm\diffy-wasm\pkg.
+55: diffy-wasm staged to D:\zPython\opencode\packages\wasm\core\pkg\diffy
+56: Building rdiff WASM module...
+57: [INFO]: Checking for the Wasm target...
+58: [INFO]: Compiling to Wasm...
+59:     Finished `release` profile [optimized] target(s) in 0.13s
+60: [INFO]: Installing wasm-bindgen...
+61: [INFO]: found wasm-opt at "D:\\zPython\\binaryen\\bin\\wasm-opt.exe"
+66: [INFO]: :-) Your wasm pkg is ready to publish at D:\zPython\opencode\packages\wasm\rdiff\pkg.
+67: rdiff WASM staged to D:\zPython\opencode\packages\wasm\core\pkg\rdiff
+68: Building json-repair WASM module (nightly)...
+69: [INFO]: Checking for the Wasm target...
+70: [INFO]: Compiling to Wasm...
+71:     Finished `release` profile [optimized] target(s) in 0.22s
+72: warning: the following packages contain code that will be rejected by a future version of Rust: syn v0.11.11
+73: note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibil
+74: lities --id 2`
+81: [INFO]: :-) Your wasm pkg is ready to publish at D:\zPython\opencode\packages\wasm\json-repair\json-repair\pkg.
+82: json-repair WASM staged to D:\zPython\opencode\packages\wasm\core\pkg\json_repair
+83: path_validator.wasm up to date, skipping rebuild.
+84:   [OK] OpenTUI lib dist is current
+85:   Building packages...
+86: opencode script {
+414: anualchunks
+415: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+416: dist/assets/dialog-edit-project-B_uuQAEC.js                   6.58 kB │ gzip:   2.44 kB
+417: dist/assets/es-BKl1__G4.js                                    6.58 kB │ gzip:   2.14 kB
+660: dist/assets/index-CUh7jO7w.js                             1,772.53 kB │ gzip: 511.37 kB
+661: ✓ built in 28.68s
+662: building opencode-windows-x64
+663: Running smoke test: dist/opencode-windows-x64/bin/opencode.exe --version
+666:   Collecting release artifacts...
+667:   [OK] Native binary copied
+668:   [OK] Markdownify binary staged to platform dist
+669:   [OK] Markdownify binary copied
+670:   [OK] opentui native DLL copied
+671:   [OK] WASM modules mirrored to dist (63 .wasm files under wasm/core/pkg)
+672:   [OK] App build copied
+673:   [OK] Build complete - artifacts in dist/
+674: BUILD LOCK released: D:\zPython\opencode\.opencode\data\build\build.lock
+675: 

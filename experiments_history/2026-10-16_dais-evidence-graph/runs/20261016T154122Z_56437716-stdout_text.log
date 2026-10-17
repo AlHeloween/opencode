@@ -1,0 +1,57 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestReadArtifactsBatches
+=== RUN   TestReadArtifactsBatches/default
+=== RUN   TestReadArtifactsBatches/sha1
+--- PASS: TestReadArtifactsBatches (2.78s)
+    --- PASS: TestReadArtifactsBatches/default (1.39s)
+    --- PASS: TestReadArtifactsBatches/sha1 (1.39s)
+=== RUN   TestProviderRevisionTrees
+--- PASS: TestProviderRevisionTrees (18.44s)
+=== RUN   TestProviderRejectsInvalidInputs
+--- PASS: TestProviderRejectsInvalidInputs (0.81s)
+=== RUN   TestProviderRejectsSQLDiagnosticsAndDeadline
+--- PASS: TestProviderRejectsSQLDiagnosticsAndDeadline (0.57s)
+PASS
+ok  dais.local/codeintelligence/internal/fossil22.965s
+=== RUN   TestFullDeltaRevisionAndReopen
+    adapter_test.go:43: DAIS_TEST_FOSSIL must name the real Fossil executable
+--- FAIL: TestFullDeltaRevisionAndReopen (0.00s)
+=== RUN   TestLimitsCancellationConfigAndFailedPublication
+    adapter_test.go:67: DAIS_TEST_FOSSIL must name the real Fossil executable
+--- FAIL: TestLimitsCancellationConfigAndFailedPublication (0.00s)
+FAIL
+FAILdais.local/codeintelligence/internal/search0.115s
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

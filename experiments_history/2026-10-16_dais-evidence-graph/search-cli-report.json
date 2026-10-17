@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "checks": [
+    "EXPECTED_FAIL empty index",
+    "EXPECTED_FAIL invalid command",
+    "full A publication",
+    "A contains soon-deleted file",
+    "EXPECTED_FAIL stale revision guard",
+    "delta B publication",
+    "deleted token absent",
+    "unchanged token retained",
+    "no-op preserves canonical SV",
+    "graph and search share metadata without collision",
+    "source repository unchanged"
+  ],
+  "source_repository_sha256": "432f1496e29ccf70755ca87dadd6732ee73d07a614a54fa73e07cd4403f54b65",
+  "snapshot_a": {
+    "Generation": "8b76fb2ec9041b4e33e05db63a99d654",
+    "RepositoryID": "wire-fixture",
+    "Revision": "b0f4d36e1caff036561c4d317a8082481a5720dc263b8107e74c2cf893fc4017",
+    "SVRef": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "IndexedFiles": 4,
+    "OmittedFiles": 1
+  },
+  "snapshot_b": {
+    "Generation": "714fa8f49ed23a6f142f69a2e541d8e2",
+    "RepositoryID": "wire-fixture",
+    "Revision": "52ec63c1b16e2217a100983077ef0b82ed086ee25bc57c982db805c4b6766e07",
+    "SVRef": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "IndexedFiles": 3,
+    "OmittedFiles": 1
+  },
+  "snapshot_noop": {
+    "Generation": "cacb7fea707854467609c8d09e9aac37",
+    "RepositoryID": "wire-fixture",
+    "Revision": "96a5178f4a2c68b481739b97f2d95cf69c520898ce32c4a1ea5ad705e8506f52",
+    "SVRef": "cccccccccccccccccccccccccccccccc",
+    "IndexedFiles": 3,
+    "OmittedFiles": 1
+  },
+  "graph_snapshot": "d05956ff40ebfa6b336a6748538e0bb1fef96a79e3d83547e432ff4053eb7754",
+  "shared_metadata": "D:\\zPython\\opencode\\experiments\\2026-10-16_dais-evidence-graph\\native-cli-0q4txsfo\\derived\\metadata.sqlite"
+}

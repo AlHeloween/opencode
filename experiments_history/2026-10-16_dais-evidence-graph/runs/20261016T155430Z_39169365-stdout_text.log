@@ -1,0 +1,104 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestReadArtifactsBatches
+=== RUN   TestReadArtifactsBatches/default
+=== RUN   TestReadArtifactsBatches/sha1
+--- PASS: TestReadArtifactsBatches (1.56s)
+    --- PASS: TestReadArtifactsBatches/default (0.91s)
+    --- PASS: TestReadArtifactsBatches/sha1 (0.65s)
+=== RUN   TestProviderRevisionTrees
+--- PASS: TestProviderRevisionTrees (11.44s)
+=== RUN   TestProviderRejectsInvalidInputs
+--- PASS: TestProviderRejectsInvalidInputs (0.57s)
+=== RUN   TestProviderRejectsSQLDiagnosticsAndDeadline
+--- PASS: TestProviderRejectsSQLDiagnosticsAndDeadline (0.43s)
+PASS
+ok  dais.local/codeintelligence/internal/fossil14.037s
+=== RUN   TestCanonicalHistoricalProvenance
+2026/10/16 23:54:35 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestCanonicalHistoricalProvenance590871620\002\canonical\generations\57e65a0652cf5e9e1ce182f0c302458f\fixture_v16.00000.zoekt: 1641 index bytes (overhead 71.3), 1 files processed 
+2026/10/16 23:54:35 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestCanonicalHistoricalProvenance (0.79s)
+=== RUN   TestUnsignedSVAndCurrentSearcherRetention
+2026/10/16 23:54:36 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestUnsignedSVAndCurrentSearcherRetention1093964458\002\unsigned\generations\c48a6461bb7bf2c2803a315f10e04843\fixture_v16.00000.zoekt: 1585 index bytes (overhead 83.4), 1 files processed 
+2026/10/16 23:54:36 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/16 23:54:36 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/16 23:54:36 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/16 23:54:36 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestUnsignedSVAndCurrentSearcherRetention (1.35s)
+=== RUN   TestSerializedResponseByteBound
+2026/10/16 23:54:37 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSerializedResponseByteBound45120814\002\boun
+nds\generations\f644ab2586e01e5486bed1f19817d4d6\fixture_v16.00000.zoekt: 2643 index bytes (overhead 5.1), 1 files proces
+ssed
+2026/10/16 23:54:37 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-1
+2026/10/16 23:54:37 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-1024
+2026/10/16 23:54:37 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-8192
+2026/10/16 23:54:37 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSerializedResponseByteBound (0.69s)
+    --- PASS: TestSerializedResponseByteBound/bytes-1 (0.00s)
+    --- PASS: TestSerializedResponseByteBound/bytes-1024 (0.00s)
+    --- PASS: TestSerializedResponseByteBound/bytes-8192 (0.00s)
+=== RUN   TestFullDeltaRevisionAndReopen
+2026/10/16 23:54:38 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen3435416554\002\ind
+dex\generations\d52b6407815f30f2f2d64a6ade7c237b\fixture_v16.00000.zoekt: 2711 index bytes (overhead 19.4), 3 files proce
+essed
+2026/10/16 23:54:38 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/16 23:54:38 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen3435416554\002\ind
+dex\generations\504d680106289114e4b58b688028b83e\fixture_v16.00001.zoekt: 2340 index bytes (overhead 25.2), 2 files proce
+essed
+2026/10/16 23:54:38 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+2026/10/16 23:54:38 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen3435416554\003\ful
+ll\generations\c299dce47e6707d49bdfc8c72161127d\fixture_v16.00000.zoekt: 2721 index bytes (overhead 19.6), 3 files proces
+ssed
+2026/10/16 23:54:38 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/16 23:54:39 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen3435416554\002\ind
+dex\generations\36105117ed066939b7184437cb417068\fixture_v16.00002.zoekt: 2109 index bytes (overhead 33.0), 1 files proce
+essed
+2026/10/16 23:54:39 [INFO] loading 3 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt, fixture_v16.00002.zoekt
+2026/10/16 23:54:39 [INFO] loading 3 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt, fixture_v16.00002.zoekt
+--- PASS: TestFullDeltaRevisionAndReopen (1.38s)
+=== RUN   TestLimitsCancellationConfigAndFailedPublication
+2026/10/16 23:54:39 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n2766751454\002\index\generations\07be19d6dc040c2c0f3680c81e2c9891\fixture_v16.00000.zoekt: 1604 index bytes (overhead 47
+7.2), 1 files processed
+2026/10/16 23:54:39 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/16 23:54:39 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n2766751454\002\index\generations\b2b7c6102f50483d31a8905ab4a2f13d\fixture_v16.00001.zoekt: 1654 index bytes (overhead 68
+8.9), 1 files processed
+2026/10/16 23:54:39 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+2026/10/16 23:54:40 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n2766751454\002\index\generations\0e68f9484eea453fe97c9917ce4f4044\fixture_v16.00001.zoekt: 1655 index bytes (overhead 69
+9.0), 1 files processed
+2026/10/16 23:54:40 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+--- PASS: TestLimitsCancellationConfigAndFailedPublication (1.02s)
+PASS
+ok      dais.local/codeintelligence/internal/search     5.366s

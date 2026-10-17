@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# dais.local/codeintelligence/cmd/dais-graph [dais.local/codeintelligence/cmd/dais-graph.test]
+cmd\dais-graph\main_test.go:16:11: undefined: run
+cmd\dais-graph\main_test.go:32:13: undefined: run
+FAILdais.local/codeintelligence/cmd/dais-graph [build failed]
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

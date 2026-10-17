@@ -1,0 +1,156 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestReadArtifactsBatches
+=== RUN   TestReadArtifactsBatches/default
+=== RUN   TestReadArtifactsBatches/sha1
+--- PASS: TestReadArtifactsBatches (1.82s)
+    --- PASS: TestReadArtifactsBatches/default (0.94s)
+    --- PASS: TestReadArtifactsBatches/sha1 (0.88s)
+=== RUN   TestProviderRevisionTrees
+--- PASS: TestProviderRevisionTrees (14.64s)
+=== RUN   TestProviderRejectsInvalidInputs
+--- PASS: TestProviderRejectsInvalidInputs (1.28s)
+=== RUN   TestProviderRejectsSQLDiagnosticsAndDeadline
+--- PASS: TestProviderRejectsSQLDiagnosticsAndDeadline (0.65s)
+PASS
+ok  dais.local/codeintelligence/internal/fossil18.430s
+=== RUN   TestCanonicalHistoricalProvenance
+2026/10/17 00:02:55 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestCanonicalHistoricalProvenance2254105555\002\canonical\generations\1d03127e761080622ca164e243bf751d\fixture_v16.00000.zoekt: 1641 index bytes (overhead 71.3), 1 files processed 
+2026/10/17 00:02:55 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestCanonicalHistoricalProvenance (1.00s)
+=== RUN   TestUnsignedSVAndCurrentSearcherRetention
+2026/10/17 00:02:56 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestUnsignedSVAndCurrentSearcherRetention182921895\002\unsigned\generations\a54da034f15146083c30a9f863c581ef\fixture_v16.00000.zoekt: 1585 index bytes (overhead 83.4), 1 files processed 
+2026/10/17 00:02:56 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 00:02:56 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 00:02:57 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 00:02:57 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestUnsignedSVAndCurrentSearcherRetention (1.62s)
+=== RUN   TestSerializedResponseByteBound
+2026/10/17 00:02:58 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSerializedResponseByteBound2994473430\002\bo
+ounds\generations\e3aa46d8d1733f8d910e5bc9510f74a3\fixture_v16.00000.zoekt: 2643 index bytes (overhead 5.1), 1 files proc
+cessed
+2026/10/17 00:02:58 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-1
+2026/10/17 00:02:58 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-1024
+2026/10/17 00:02:58 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSerializedResponseByteBound/bytes-8192
+2026/10/17 00:02:58 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSerializedResponseByteBound (0.62s)
+    --- PASS: TestSerializedResponseByteBound/bytes-1 (0.01s)
+    --- PASS: TestSerializedResponseByteBound/bytes-1024 (0.01s)
+    --- PASS: TestSerializedResponseByteBound/bytes-8192 (0.01s)
+=== RUN   TestFullDeltaRevisionAndReopen
+2026/10/17 00:02:58 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen540746315\002\inde
+ex\generations\2124df0767323ac00a85cace4b932ced\fixture_v16.00000.zoekt: 2710 index bytes (overhead 19.4), 3 files proces
+ssed
+2026/10/17 00:02:58 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 00:02:59 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen540746315\002\inde
+ex\generations\0e03028a362aaf1a541373e266797322\fixture_v16.00001.zoekt: 2339 index bytes (overhead 25.2), 2 files proces
+ssed
+2026/10/17 00:02:59 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+2026/10/17 00:02:59 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen540746315\003\full
+l\generations\5a6ceba8071b97eb39dc843e30da6fb6\fixture_v16.00000.zoekt: 2721 index bytes (overhead 19.6), 3 files process
+sed
+2026/10/17 00:02:59 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 00:02:59 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestFullDeltaRevisionAndReopen540746315\002\inde
+ex\generations\593909878cc24103b727c9adfb06ca57\fixture_v16.00002.zoekt: 2109 index bytes (overhead 33.0), 1 files proces
+ssed
+2026/10/17 00:02:59 [INFO] loading 3 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt, fixture_v16.00002.zoekt
+2026/10/17 00:02:59 [INFO] loading 3 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt, fixture_v16.00002.zoekt
+--- PASS: TestFullDeltaRevisionAndReopen (1.51s)
+=== RUN   TestLimitsCancellationConfigAndFailedPublication
+2026/10/17 00:03:00 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n2710159491\002\index\generations\81192fb6ee461946d05c24f97cf8b906\fixture_v16.00000.zoekt: 1605 index bytes (overhead 47
+7.2), 1 files processed
+2026/10/17 00:03:00 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/17 00:03:00 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n2710159491\002\index\generations\c7471b24ffb12098083f0c9de2938fee\fixture_v16.00001.zoekt: 1655 index bytes (overhead 69
+9.0), 1 files processed
+2026/10/17 00:03:00 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+2026/10/17 00:03:00 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestLimitsCancellationConfigAndFailedPublication
+n2710159491\002\index\generations\28ce4a72e41c7cc4e7679a186ec0dbcd\fixture_v16.00001.zoekt: 1655 index bytes (overhead 69
+9.0), 1 files processed
+2026/10/17 00:03:00 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+--- PASS: TestLimitsCancellationConfigAndFailedPublication (1.38s)
+PASS
+ok      dais.local/codeintelligence/internal/search     6.235s
+=== RUN   TestReceiptsPinExecutedInstrument
+--- PASS: TestReceiptsPinExecutedInstrument (2.18s)
+=== RUN   TestSQLitePrimitive
+--- PASS: TestSQLitePrimitive (0.03s)
+=== RUN   TestGraphProjectionProvenanceAndStaleness
+--- PASS: TestGraphProjectionProvenanceAndStaleness (4.39s)
+=== RUN   TestGraphStrictRefusalsPreserveCurrent
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf16
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/negative-range
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/bounds
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf8-split
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-field
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-role
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/path
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete
+--- PASS: TestGraphStrictRefusalsPreserveCurrent (14.43s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf16 (1.33s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/negative-range (1.32s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/bounds (1.14s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf8-split (2.58s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-field (2.06s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-role (2.07s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/path (1.47s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch (1.24s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete (1.20s)
+=== RUN   TestGraphOfflineReadsAndStoredFailure
+--- PASS: TestGraphOfflineReadsAndStoredFailure (1.09s)
+=== RUN   TestGraphCountAndReceiptIntegrity
+--- PASS: TestGraphCountAndReceiptIntegrity (1.65s)
+=== RUN   TestGraphMalformedWireRefused
+=== RUN   TestGraphMalformedWireRefused/truncated
+=== RUN   TestGraphMalformedWireRefused/duplicate-metadata
+--- PASS: TestGraphMalformedWireRefused (2.51s)
+    --- PASS: TestGraphMalformedWireRefused/truncated (1.24s)
+    --- PASS: TestGraphMalformedWireRefused/duplicate-metadata (1.26s)
+PASS
+ok      dais.local/codeintelligence/internal/evidencegraph      26.311s
+=== RUN   TestReadCommandsRequireExplicitSnapshot
+=== RUN   TestReadCommandsRequireExplicitSnapshot/facts
+=== RUN   TestReadCommandsRequireExplicitSnapshot/verify
+=== RUN   TestReadCommandsRequireExplicitSnapshot/export-scs
+=== RUN   TestReadCommandsRequireExplicitSnapshot/export-scip
+--- PASS: TestReadCommandsRequireExplicitSnapshot (0.01s)
+    --- PASS: TestReadCommandsRequireExplicitSnapshot/facts (0.00s)
+    --- PASS: TestReadCommandsRequireExplicitSnapshot/verify (0.00s)
+    --- PASS: TestReadCommandsRequireExplicitSnapshot/export-scs (0.00s)
+    --- PASS: TestReadCommandsRequireExplicitSnapshot/export-scip (0.00s)
+=== RUN   TestInvalidBoundsHaveNoPersistentEffects
+--- PASS: TestInvalidBoundsHaveNoPersistentEffects (0.01s)
+PASS
+ok      dais.local/codeintelligence/cmd/dais-graph      0.060s

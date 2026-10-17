@@ -1,0 +1,102 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestSQLitePrimitive
+--- PASS: TestSQLitePrimitive (0.02s)
+=== RUN   TestGraphProjectionProvenanceAndStaleness
+--- PASS: TestGraphProjectionProvenanceAndStaleness (4.08s)
+=== RUN   TestGraphStrictRefusalsPreserveCurrent
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf16
+    store_test.go:320: fossil [commit -m bad --allow-empty --no-warnings --no-prompt --nosign --nosync]: exit status 1
+        New_Version: 5330ce2ba7138529f38fd6c88f31ab36953b177ad9584fd020cc6965e565e312
+        ERROR: [index.scip] is different on disk compared to the repository
+        NOTICE: Repository version of [index.scip] stored in [file-ca472df9b9bd50ca]
+        ERROR: [manifest.json] is different on disk compared to the repository
+        NOTICE: Repository version of [manifest.json] stored in [file-f9787bd1032c2055]
+        working check-out does not match what would have ended up in the repository:  98f3583769e1f8a4f0492a755c0742c3 versus 33547ef4e5858d1234bf4e859f966c21
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/negative-range
+    store_test.go:320: fossil [commit -m bad --allow-empty --no-warnings --no-prompt --nosign --nosync]: exit status 1
+        New_Version: 5bb7065a4ece45fcc282693f16f3c1a03b7bc40e496bcdff3ddbf0a0f193fc53
+        ERROR: [manifest.json] is different on disk compared to the repository
+        NOTICE: Repository version of [manifest.json] stored in [file-dc840e5602ad52e4]
+        working check-out does not match what would have ended up in the repository:  858ea90b6ce9c67d45a268b6fea3e366 versus 0bcf713b2741119f01deb15d3ec6bc26
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/bounds
+    store_test.go:320: fossil [commit -m bad --allow-empty --no-warnings --no-prompt --nosign --nosync]: exit status 1
+        New_Version: eed73f6b8b09f16e2d4116d7efcf3117ad0481172a7b6cc404c0c23113ccee46
+        ERROR: [manifest.json] is different on disk compared to the repository
+        NOTICE: Repository version of [manifest.json] stored in [file-e003ba0bec7b24cb]
+        working check-out does not match what would have ended up in the repository:  27e405ff95106cb858a2aef5b962bfd2 versus c4d2b8a2ccfefe849196c78d7d752753
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/utf8-split
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-field
+    store_test.go:320: fossil [commit -m bad --allow-empty --no-warnings --no-prompt --nosign --nosync]: exit status 1
+        New_Version: a3d9e518c2be3a92e563647d44d6989d1425a1b71666fb17f08b7747b12f528e
+        ERROR: [manifest.json] is different on disk compared to the repository
+        NOTICE: Repository version of [manifest.json] stored in [file-afda9777d99b520]
+        working check-out does not match what would have ended up in the repository:  bf7eb16ed457b8ebf56f68efd7de492b v
+versus 8f8da31e53c4c7378d55fccc4e0c885f
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/unknown-role
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/path
+    store_test.go:320: fossil [commit -m bad --allow-empty --no-warnings --no-prompt --nosign --nosync]: exit status 1
+        New_Version: 17ee02ec1e75546360f1d19f09bb666f0df26545e66ceb4241285abc63b9608e
+        ERROR: [manifest.json] is different on disk compared to the repository
+        NOTICE: Repository version of [manifest.json] stored in [file-370ffd6baaf88a01]
+        working check-out does not match what would have ended up in the repository:  92fb4082375a48b67d941b5bd8d8a3b3 v
+versus 8e44c1c6b8a08adfcffa22e0bd29ce54
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch
+    store_test.go:320: fossil [commit -m bad --allow-empty --no-warnings --no-prompt --nosign --nosync]: exit status 1
+        New_Version: b118bf67622616b26a29de8a2cf9c4fe7199c2d71e4e0cd7e10bbbf7fc820d3c
+        ERROR: [manifest.json] is different on disk compared to the repository
+        NOTICE: Repository version of [manifest.json] stored in [file-5b80df6590288439]
+        working check-out does not match what would have ended up in the repository:  6625036446029ade800e454efb5d5d34 v
+versus 33547ef4e5858d1234bf4e859f966c21
+=== RUN   TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete
+--- FAIL: TestGraphStrictRefusalsPreserveCurrent (8.92s)
+    --- FAIL: TestGraphStrictRefusalsPreserveCurrent/utf16 (0.84s)
+    --- FAIL: TestGraphStrictRefusalsPreserveCurrent/negative-range (0.94s)
+    --- FAIL: TestGraphStrictRefusalsPreserveCurrent/bounds (0.88s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/utf8-split (1.14s)
+    --- FAIL: TestGraphStrictRefusalsPreserveCurrent/unknown-field (0.83s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/unknown-role (1.24s)
+    --- FAIL: TestGraphStrictRefusalsPreserveCurrent/path (0.92s)
+    --- FAIL: TestGraphStrictRefusalsPreserveCurrent/manifest-mismatch (0.89s)
+    --- PASS: TestGraphStrictRefusalsPreserveCurrent/manifest-incomplete (1.22s)
+=== RUN   TestGraphOfflineReadsAndStoredFailure
+    store_test.go:373: corrupt cached fact accepted
+--- FAIL: TestGraphOfflineReadsAndStoredFailure (0.96s)
+=== RUN   TestGraphCountAndReceiptIntegrity
+--- PASS: TestGraphCountAndReceiptIntegrity (1.64s)
+=== RUN   TestGraphMalformedWireRefused
+=== RUN   TestGraphMalformedWireRefused/truncated
+=== RUN   TestGraphMalformedWireRefused/duplicate-metadata
+--- PASS: TestGraphMalformedWireRefused (2.91s)
+    --- PASS: TestGraphMalformedWireRefused/truncated (1.35s)
+    --- PASS: TestGraphMalformedWireRefused/duplicate-metadata (1.56s)
+FAIL
+FAIL    dais.local/codeintelligence/internal/evidencegraph      18.570s
+FAIL

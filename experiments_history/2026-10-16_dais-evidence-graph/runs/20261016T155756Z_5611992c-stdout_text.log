@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{"status": "FAIL", "checks": 15, "report": "D:\\zPython\\opencode\\experiments\\2026-10-16_dais-evidence-graph\\cli-first-report.json", "fixture": "D:\\zPython\\opencode\\experiments\\2026-10-16_dais-evidence-graph\\native-cli-jh0_vuv5"}
+Traceback (most recent call last):
+  File "D:\zPython\opencode\experiments\2026-10-16_dais-evidence-graph\cli_oracle.py", line 214, in <module>
+    main()
+    ~~~~^^
+  File "D:\zPython\opencode\experiments\2026-10-16_dais-evidence-graph\cli_oracle.py", line 167, in main
+    relation_nodes = endpoints(relation)
+  File "D:\zPython\opencode\experiments\2026-10-16_dais-evidence-graph\cli_oracle.py", line 164, in endpoints
+    raise AssertionError(f"missing or duplicate SCs assertion arc for {fact['id']}")
+AssertionError: missing or duplicate SCs assertion arc for 7ae9576140a4667ba4a9ff731882f6c9bbf3c72146144974106b427fbf8f8ef2

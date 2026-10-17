@@ -20,6 +20,13 @@ SCIP/Fossil/SV; M0–M2 и будущая замена CodeGraph остаютс�
 Его native scip-go candidate, modern schema и capture проверены отдельными
 runtime receipts; это ещё не production corpus или CodeGraph consumer parity.
 
+Продолжение 2026-10-18 «Продолжай» закрывает
+[навигацию и native MCP на рабочем корпусе](../plans_completed/2026-10-17_dais-navigation-mcp-corpus.md).
+CONFIRMED ✓ независимые compiler/raw/wire oracles:33definitions/67references,
+1270predicates в основном и архивном повторе. Это ограниченный Go cohort;
+Z4/Z5 не закрываются как полная миграция языков/consumers/impact.
+<!-- sv: native-mcp 0.40, compiler-oracle 0.35, versioned-navigation 0.25 -->
+
 Уточнение владельца: «Все надо бы нативно, WSL это точно не вариант.»
 Windows runtime — нативные Go executable / Fossil executable / SQLite / Win32 mmap.
 WSL, контейнеры и Linux bridge для Windows исключены. Linux qualification относится
@@ -297,11 +304,14 @@ UTF8 position encoding; official producer ambiguity сохранена как о
 Его independent native oracle 20261017T104937Z_76d2dc79 прошёл47 predicates:
 изменённый вызов Twice→Thrice, exact source/publication diffs, old graph STALE,
 new graph PASS, third capture и refusal controls. Это полный reindex, не
-incremental producer execution. Следующий маршрут G1/G2: graph-query/MCP binding
-и oracle рабочего корпуса
-(Z4), после parity consumer cutover (Z5). M0b остаётся частичным structural
+incremental producer execution. Graph-query/MCP и рабочий Go-корпус теперь
+подтверждены [отдельным child](../plans_completed/2026-10-17_dais-navigation-mcp-corpus.md):
+archive replay20261017T200446Z_1e14a8db,1270predicates,10package regression и build.
+Следующий маршрут G1/G2: актуальная инвентаризация consumer APIs и независимый
+impact oracle (Z4), затем отдельный binding consumer cutover (Z5).
+M0b остаётся частичным structural
 baseline без index_time/RSS/fulltext parity/5M verdict. Continuation receipt:
-20261017T104937Z_76d2dc79 и repeated-capture after-report.json с fixture path;
+20261017T200446Z_1e14a8db и navigation-mcp wire-archive-replay/report.json;
 исторический search oracle 20261016T160746Z_a0d80ed8 сохранён отдельно.
 Disk retirement и долговечная Fossil publication execution receipts — residual.
 В рамках этого среза production consumers и bin/ не менялись; чужие concurrent

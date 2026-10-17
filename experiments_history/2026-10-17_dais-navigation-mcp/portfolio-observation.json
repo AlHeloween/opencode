@@ -1,0 +1,193 @@
+{
+  "scope": "top-level plans/*.md including routers; inventory not whole-portfolio acceptance",
+  "inventory": [
+    {
+      "path": "plans/2026-09-12_anthropic-cache-breakpoints.md",
+      "bytes": 13895,
+      "sha256": "81009ea61a02280b5b3b75b81ff216b6639e7d6a70dba243eaacaf34b191680f"
+    },
+    {
+      "path": "plans/2026-09-19_database-truth.md",
+      "bytes": 5801,
+      "sha256": "c20f66080bf4d47ceb17f22f651bcabfa8c3fa457236bc3c84cdcb42467e9257"
+    },
+    {
+      "path": "plans/2026-09-21_mstar-order-and-summary-restore.md",
+      "bytes": 63720,
+      "sha256": "d41a23286f3daa2218bfa1d1fafd16dab61544e04a54b3d5a99f0f5f92db0ab5"
+    },
+    {
+      "path": "plans/2026-09-22_reasoning-stream-render-stability.md",
+      "bytes": 91436,
+      "sha256": "80891bc94e892311be763ec37873e41c54bf539b96a636d17c54a798c6061ee2"
+    },
+    {
+      "path": "plans/2026-09-24_to-be-confirmed-shelf-triage.md",
+      "bytes": 8789,
+      "sha256": "c784464b4931af979130e06400bf649719f1a01ad23238ac069c8c2a79374f58"
+    },
+    {
+      "path": "plans/2026-09-28_kernel-candidate-incorporation.md",
+      "bytes": 35119,
+      "sha256": "aa8dae086264555676cda95145e23bf16ffda5b408af31ddb3dbbf8ad7bd6c66"
+    },
+    {
+      "path": "plans/2026-09-29_codegraph-impact-decoupling.md",
+      "bytes": 13594,
+      "sha256": "49a949db961ed117e349a9e7fff5534e7d94e62dfbc5434450de0804dfc30d65"
+    },
+    {
+      "path": "plans/2026-09-29_cua-windows-debug-input.md",
+      "bytes": 38905,
+      "sha256": "cdd001bacea722ebcb21958c4a461a8eb8b823116c0fa2b915271501abb094fa"
+    },
+    {
+      "path": "plans/2026-09-29_h2-session-pool-and-connection-badge.md",
+      "bytes": 9740,
+      "sha256": "8a091647d95a3525f9119d563150ed459bd0a610a6a97aec3124d137e31ee54b"
+    },
+    {
+      "path": "plans/2026-09-30_cua-supply-chain-audit.md",
+      "bytes": 18766,
+      "sha256": "ee9284a07cc11f4978d0384e99032fa4a6c3a13c73d2c2536a5b6c0a9a1bf8f9"
+    },
+    {
+      "path": "plans/2026-09-30_robot-installer.md",
+      "bytes": 102148,
+      "sha256": "262a7d1e9a686c0305e90bbfa9e86e6948d6dea1acdde5558179465fb6f00637"
+    },
+    {
+      "path": "plans/2026-10-01_tool-description-contracts.md",
+      "bytes": 24725,
+      "sha256": "114997e80ed9f9425e6b44b37011673b500e4d51ded711a3a96155af353dd0ce"
+    },
+    {
+      "path": "plans/2026-10-04_files-api-and-tariff.md",
+      "bytes": 19151,
+      "sha256": "7ac3e7dea9a36dee683db70018638b189db1f476a2e02e9a40bc871a7ec542c8"
+    },
+    {
+      "path": "plans/2026-10-07_supersede-between-steps-loses-reply.md",
+      "bytes": 3530,
+      "sha256": "7c020465a27dbcd2d2f99bdfeb19116d9c38029c5461dbbd334f34150e52b51e"
+    },
+    {
+      "path": "plans/2026-10-08_mcps-connector-manager.md",
+      "bytes": 9746,
+      "sha256": "86c3e8db246d9eb1074b495a2501519a46bb5aa9f77e41cfdf6d01938c8546b1"
+    },
+    {
+      "path": "plans/2026-10-08_org-portable-home.md",
+      "bytes": 10619,
+      "sha256": "5a40a5694f1057bdc1a3ee1b1fc8dd1fc79548067bd9e9097184d8d320441c75"
+    },
+    {
+      "path": "plans/2026-10-10_plan-hygiene-in-build-mode.md",
+      "bytes": 6824,
+      "sha256": "d3f6f08a8c8ff5010a734f45271322923fe1478bee1c3603f4bcfe2555e63b11"
+    },
+    {
+      "path": "plans/2026-10-11_memory-orphan-parts.md",
+      "bytes": 4696,
+      "sha256": "9a378f781280c68b345067d7474cc991d89d2d0e92a3c13ef36ef5383813a6e3"
+    },
+    {
+      "path": "plans/2026-10-12_specs-inventory-truth.md",
+      "bytes": 7734,
+      "sha256": "5143146e80f43d4278faa23e0bb1f1f49cee1f40327e32dafa2ca6ac887e3ee9"
+    },
+    {
+      "path": "plans/2026-10-13_recall-read-address-space.md",
+      "bytes": 20262,
+      "sha256": "cb5e7e8412a16ceb113f38566846e5f69948b9ebc274a85a937b601a67f309e0"
+    },
+    {
+      "path": "plans/2026-10-14_kernel-stop-claim-release.md",
+      "bytes": 8092,
+      "sha256": "5d100d41c6b055c8e479c53627bca805dff1ee6508275b6f83257ce7038f0927"
+    },
+    {
+      "path": "plans/2026-10-14_return-channel-binding.md",
+      "bytes": 10677,
+      "sha256": "184bac8e3aff7508201a4c17e3d1345509ff94f015b58f2adac0c42d51c323e6"
+    },
+    {
+      "path": "plans/2026-10-15_dais-peer-trust-reward.md",
+      "bytes": 6361,
+      "sha256": "c086bb613f7a457e4561e90711c9dfc9b71b133c97f6afc93eff3be1439d2645"
+    },
+    {
+      "path": "plans/2026-10-15_kernel-undefined-contract-audit.md",
+      "bytes": 2944,
+      "sha256": "68538f08b59b4a9c84372aff1707cbb69e1bee2afd3c818862d185b9f90ab868"
+    },
+    {
+      "path": "plans/2026-10-15_project-fossil-cell.md",
+      "bytes": 12485,
+      "sha256": "b77468cc6876c3587337c51247c4a4b76ff919ed3b8c53060cf1bf22ba727671"
+    },
+    {
+      "path": "plans/2026-10-15_tui-active-sessions-panel.md",
+      "bytes": 6738,
+      "sha256": "9e8cba807d5aec5d458f3fc63755775ee99637d3a265ceae767cec3f0a86fd72"
+    },
+    {
+      "path": "plans/2026-10-15_web-tui-parity.md",
+      "bytes": 13336,
+      "sha256": "1283d598acb5e06020ea229ddb42ab5228ec27b6156ee8e621de70bd1f40260b"
+    },
+    {
+      "path": "plans/2026-10-16_haiku-omp-controlled-latency.md",
+      "bytes": 21906,
+      "sha256": "9959a46c6f22f04533619229ce1e8c80d0ea803eb5c516089e62a71242ee701b"
+    },
+    {
+      "path": "plans/2026-10-16_message-cleaner.md",
+      "bytes": 20193,
+      "sha256": "964e94a308e4657dd64b37aea0adf727be12f5767a3531f62c1b16475fddfb67"
+    },
+    {
+      "path": "plans/2026-10-16_model-chain-failover.md",
+      "bytes": 22230,
+      "sha256": "415b3e937c4499b922f77c0112d1fcd8d5064a1b32e7029408fb8ef0fdd4028e"
+    },
+    {
+      "path": "plans/2026-10-16_reasoning-lossless-replay.md",
+      "bytes": 30031,
+      "sha256": "e90f4c9014aa22ab722fdb0eea9604e50dcf53c704c2d2a474e6aac922fe61a8"
+    },
+    {
+      "path": "plans/2026-10-16_self-edit-directive.md",
+      "bytes": 22981,
+      "sha256": "ad39d5a3555019ba5b2c3b242626687372251b7ba1c75b585d995eb78041ec75"
+    },
+    {
+      "path": "plans/2026-10-16_unmanaged-options.md",
+      "bytes": 32705,
+      "sha256": "576f3e1352e7731e2462cb515e8bd04cfa9ee8cfe43166e1b0e4922832213de4"
+    },
+    {
+      "path": "plans/2026-10-16_zoekt-scip-fossil-sv.md",
+      "bytes": 27568,
+      "sha256": "81d918edeb0b53facf0e3e14ba4990487a649cac588659d11f7e0b8b427b87ba"
+    },
+    {
+      "path": "plans/2026-10-17_portable-binary-hermetic.md",
+      "bytes": 15136,
+      "sha256": "09a682bd0c2d0eb10bdb723fd7148ca1fd92de8e5e7a525bcedc41c2fa63f1ed"
+    },
+    {
+      "path": "plans/MASTER_PLAN.md",
+      "bytes": 49357,
+      "sha256": "9059ca46ead1121e297235b9237859de3f22f71ec97aa3bb82dc190d4077b857"
+    },
+    {
+      "path": "plans/README.md",
+      "bytes": 10115,
+      "sha256": "8b5b58d129978bef0196228c4c90014dfa1bb461885e4c271480e5f3cedab75b"
+    }
+  ],
+  "renderer_receipt": "20261017T200931Z_fdd6a486",
+  "master_sha256": "9059ca46ead1121e297235b9237859de3f22f71ec97aa3bb82dc190d4077b857",
+  "strategy": "This child supports fixed root intention through immutable query/evidence addresses; foreign-plan completion not asserted."
+}

@@ -1,4 +1,46 @@
 ﻿# Progress Log
+
+## [2026-10-18] DAIS C4 — archive/build/closure (2026-10-17_dais-navigation-mcp-corpus)
+
+CONFIRMED ✓ native build200051Z_1a440ab5 exit0, candidate10.0.1433, no promotion. MANIFEST validator201032Z_28f150b4:169archive+66source pins PASS; renderer200931Z_fdd6a486 два одинаковых hashes, missing-marker EXPECTED_FAIL. Завершённый child связан с parent и MASTER. Source/архив проверяются также из Git blobs при scoped completion commit; чужой staging не включается. Root M0b/Z4/Z5 ACTIVE, следующий G1: consumer/impact parity.
+<!-- goal_sv: Keywords: evidence-archive 0.40, clean-state 0.35, continuation 0.25
+Semantic dominant: Проверенный срез закрывается воспроизводимым архивом и отдельным продолжением родителя.
+md5: c7a45b193f824e609ac51d2e8b376f04
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 4d7c2b9a80e34f66951d38abc7f620e1
+-->
+
+## [2026-10-18] DAIS C3 — production compiler/raw/wire oracle
+
+CONFIRMED ✓ 11committed inputs96792bytes; Windows compiler cohort4files36395bytes,33function/method definitions/67typedrefs. Independent raw21predicates и source/archive compiler arrays совпали. Wire200007Z_9253a529 и archive replay200446Z_1e14a8db:по1270PASS, каждый2freshprocesses, hash/SV/Fossil receipts и byte-line text addresses. Initial112010INCOMPLETE BrokenPipe сохранён; исправлен harness с точным SDK size refusal, EOF/exit1. CodeGraph comparison ограничено7различающими случаями, без общего accuracy/performance verdict. Артефакты: experiments_history/2026-10-17_dais-navigation-mcp/REPORT.md.
+<!-- goal_sv: Keywords: real-corpus 0.45, independent-golden 0.35, parity-boundary 0.20
+Semantic dominant: Навигация совпадает с независимым компилятором на явно ограниченном рабочем корпусе.
+md5: 52fd0a86c1e74395b702d94e8a316fc0
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 4d7c2b9a80e34f66951d38abc7f620e1
+-->
+
+## [2026-10-18] DAIS C2 — native MCP, verified immutable scope
+
+CONFIRMED ✓ official SDK1.8.0; symboldefinition/symbolreferences/codesearch/indexstatus, positive bounds/stdout protocol/EOF. Per-call real Verify, historical snapshot и fixed generation; actual corruption/STALE/generation controls входят в runtime suite. Fresh10package195952Z_f0dc05c9:142PASS cases. Initial historical test111540FAIL сохранён, причина Unknown, не FIXED; diagnostic-only formatter change и3consecutive9packagePASS, без увеличения timeout или product logic change. Source ffeb54b05f был ранее committed другой lane до acceptance; текущие native pipeline/wire receipts являются acceptance. Live host не регистрировался.
+<!-- goal_sv: Keywords: native-mcp 0.50, verified-snapshot 0.30, protocol-controls 0.20
+Semantic dominant: Агентные запросы ограничены проверенной версией источников и поискового индекса.
+md5: a39e7150dc824b6e918f42a503bd7c86
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 4d7c2b9a80e34f66951d38abc7f620e1
+-->
+
+## [2026-10-18] DAIS C1 — coordinate definitions/references
+
+CONFIRMED ✓ RED110325Z_faa1054f → PASS110407Z_79b42c19; parent evidencegraph regression и real-corpus wire подтвердили identity matching, local document scope, end-exclusive ranges, ambiguity/duplicates, bounded results и отказ при truncated input/cached corruption. API использует0-basedUTF8 byte coordinates; навигация пока bounded full scan, не5M scalability claim.
+<!-- goal_sv: Keywords: code-navigation 0.50, symbol-identity 0.30, bounded-results 0.20
+Semantic dominant: Координата кода разрешается в адресуемые определения и ссылки одного snapshot.
+md5: 7b64e10f92a548cdb37f02618ea9d453
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 4d7c2b9a80e34f66951d38abc7f620e1
+-->
+
+
 ## [2026-10-17] Legislator session close before /compact — t80..t86 verified, ClientSoft memory fix, hook fix (session 60a3d22e)
 
 ✓ CONFIRMED: t80 (86736222c4, ae21360cf1), t81 (f9d50d8df2), t82 installed (c2be09c824; bin 10.0.1426 payload oracle 1/1 vs 0), t83 mechanism live, t85 (d19ec8a136, ac1cdb1e5a; grep 8/0, glob 3/0 real runs), t86 (ffeb54b05f, 1ed6de592a, 8332594863; DAIS C1 PASS / C2 FAIL zoekt-Windows). t84 stopped before install (03bfffe1..3f7d58d3; pytest 322 + 3 stale).

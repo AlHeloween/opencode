@@ -127,6 +127,17 @@ ambiguity/duplicates, origin и raw payload; входная усечённост
 Zoekt line — 1-based. Result/frame bytes и request time ограничены. Store.Verify
 сохраняет derived execution receipts; первичный Fossil не меняется.
 
+CONFIRMED ✓ рабочий Go-корпус: 11 неизменных committed inputs, compiler-selected
+Windows cohort из четырёх файлов. Независимый Go parser/types oracle нашёл
+33 определения функций/методов и 67 typed references; raw SCIP comparison
+`20261017T111122Z_7b16b13b` совпал без missing/extra associations. Внешний raw
+stdio-клиент `20261017T200007Z_9253a529` прошёл 1270 проверок в двух процессах:
+навигация по этим позициям, text search по исходным byte-lines, provenance,
+отказы, limits и EOF. Общий semantic_status не повышен. Один ранний test отказ
+не воспроизведён в трёх последовательных повторах и свежем 10-package прогоне;
+исходная ошибка и границы вывода сохранены в
+[отчёте и воспроизводителях](../experiments_history/2026-10-17_dais-navigation-mcp/REPORT.md).
+
 Следующий срез: квалификация consumer cutover и ограниченный impact traversal;
 автоматическая публикация и incremental execution ещё открыты.
 Полнота внешних чтений producer, межъязыковая семантика и длительно работающий

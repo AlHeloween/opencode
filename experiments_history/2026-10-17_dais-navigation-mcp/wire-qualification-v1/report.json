@@ -1,0 +1,91 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "hello-initialize",
+      "result": "PASS",
+      "response": {
+        "capabilities": {
+          "logging": {},
+          "tools": {
+            "listChanged": true
+          }
+        },
+        "protocolVersion": "2025-11-25",
+        "serverInfo": {
+          "name": "greeter",
+          "version": ""
+        }
+      }
+    },
+    {
+      "name": "hello-tools",
+      "result": "PASS",
+      "response": {
+        "ttlMs": 0,
+        "cacheScope": "public",
+        "tools": [
+          {
+            "description": "say hi",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "the person to greet"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "name": "greet"
+          }
+        ]
+      }
+    },
+    {
+      "name": "hello-unicode-pipe",
+      "result": "PASS",
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi Александр Ω 😀"
+          }
+        ]
+      }
+    },
+    {
+      "name": "hello-unknown-tool",
+      "result": "PASS",
+      "failure_kind": "protocol",
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "error": {
+          "code": -32602,
+          "message": "unknown tool \"unknownoracletool\""
+        }
+      }
+    },
+    {
+      "name": "hello-eof-exit",
+      "result": "PASS",
+      "exit_code": 0
+    }
+  ],
+  "failures": [],
+  "argv": [
+    "mcp_oracle.py",
+    "qualify",
+    "--hello",
+    "D:/zPython/opencode/experiments/2026-10-17_dais-navigation-mcp/mcp-hello.exe",
+    "--output-dir",
+    "D:/zPython/opencode/experiments/2026-10-17_dais-navigation-mcp/wire-qualification-v1"
+  ],
+  "wire_client_sha256": "ee7be7ac894bcefb29603afbc1a1488211c6004b960aa3638a0d0d5d43118994",
+  "oracle_sha256": "94a401197cfe0463cf00b5265672f4c072dd134b261761d1fbf5246b9d34d933",
+  "hello_sha256": "8605d18513d5948bf5f793c9681cb6337ab4363a94c69d1868b0da5927fc08fb"
+}

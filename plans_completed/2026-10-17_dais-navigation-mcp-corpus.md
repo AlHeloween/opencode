@@ -7,7 +7,7 @@ parent-goal-md5: e8a16f092bce49a5b9f4130dd7c26e84
 -->
 # DAIS: навигация, native MCP и рабочий корпус
 
-Status: ACTIVE, revision 4. Parent: [Zoekt/SCIP/Fossil/SV](2026-10-16_zoekt-scip-fossil-sv.md).
+Status: COMPLETED, revision 5. Parent: [Zoekt/SCIP/Fossil/SV](../plans/2026-10-16_zoekt-scip-fossil-sv.md).
 Authority: «Ага, давай» после обещанного рабочего корпуса и MCP. Intention root
 не меняется: Sourcegraph-подобная навигация с Fossil/SV и проверенной заменой
 CodeGraph. Этот child не переключает existing consumers и не устанавливает
@@ -16,7 +16,7 @@ CodeGraph. Этот child не переключает existing consumers и не
 ## SVM / envelope / strategy
 
 Turn navigation-mcp-01, parent repeated-capture-01; goal/root vector выше.
-C1 verified; C2/C3 in verification, C4 pending; eta_turns1; receipts ниже.
+C1/C2/C3 verified; C4 archive/build/closure metadata bound below; eta_turns0.
 ALLOW READ/PLAN_WRITE/MODIFY_PROJECT/MODIFY_CANDIDATE/EXTERNAL_EFFECT(public
 official MCP SDK acquisition). Paths: packages/dais-code-intelligence/**,
 этот child/parent/MASTER/_progress_log, docs/dais-evidence-graph.md,
@@ -26,6 +26,9 @@ Universal Search и live snapshot.fsl — READ только; его resident wor
 никакой live host config/service installation. Public Go dependency download
 разрешён; existing external sources не меняются. _build.ps1 -Task build обязателен.
 Budgets:220steps/260calls/10returns/depth3/6000000ms от2026-10-17T10:56Z.
+Возобновление по «Продолжай» 2026-10-18:120steps/150calls/6returns/depth3/
+3600000ms от2026-10-17T19:58:40Z. Проверки и commit завершаются на текущих
+source pins; прежний конечный бюджет не продлевается задним числом.
 Reservations: read-only corpus explorer18calls/480000ms; query impl45calls/1800000ms;
 MCP impl45calls/1800000ms; root independent verification uses remainder.
 
@@ -140,7 +143,7 @@ This text parity is separate from CodeGraph structural/reference differences.
   <!-- sv: code-navigation 0.50, symbol-identity 0.30, bounded-results 0.20 -->
   Paths internal/evidencegraph/navigation.go/navigation_test.go only; reuse
   Store.Facts/load and existing fixture. No schema migration or other source.
-- [ ] C2 — official SDK stdio native MCP + focused tests/CLI/docs.
+- [x] C2 — official SDK stdio native MCP + focused tests/CLI/docs.
   <!-- sv: native-mcp 0.50, verified-snapshot 0.30, protocol-controls 0.20 -->
   Paths internal/mcpserver/**, cmd/dais-mcp/**, go.mod/go.sum; concrete API follows
   pinned SDK source and C1. No live registration/install/service.
@@ -149,11 +152,11 @@ This text parity is separate from CodeGraph structural/reference differences.
   retaining same digest/profile/namespace checks. This replaces a rejected fake
   Navigate(nonexistent-document) metadata probe; no Current==pin restriction.
   MCP actual historical/missing/corrupt pinned snapshot tests cover this path.
-- [ ] C3 — actual production corpus capture + compiler golden/CodeGraph matrix + wire oracle.
+- [x] C3 — actual production corpus capture + compiler golden/CodeGraph matrix + wire oracle.
   <!-- sv: real-corpus 0.45, independent-golden 0.35, parity-boundary 0.20 -->
   Paths experiments/** only until verified archive. Frozen original bytes/pins,
   source selection/build context explicit, graph cannot grade its own golden.
-- [ ] C4 — archive/pins, regression/build, docs/renderer/review/named scoped commit.
+- [x] C4 — archive/pins, regression/build, docs/renderer/review/named scoped commit.
   <!-- sv: evidence-archive 0.40, clean-state 0.35, continuation 0.25 -->
 
 ## Risks / rollback / continuation
@@ -181,15 +184,48 @@ Independent Go AST/types110818Z_e824b2d6:4Windows-compiled files36395bytes,
 This is bounded semantic agreement, not a general semantic_status promotion.
 Original backslash-path FAIL110642Z_d310749d remains retained.
 
-CONFIRMED ✓ C2 focused111315Z_9feff6ca passed6server tests+CLI.
-CONFIRMED ✗ parent9package regression111540Z_eb3c4270: historical pin
-indexstatus toolerror; other8packages passed. Error rendering currently hides
-Content behind pointers. C2 remains open: serialize actual error, classify,
-then independently repeat same package regression before closure. No unproved
-timeout increase or product repair accepted. Native binary build111523Z_f39b753a
-is PASS but does not cover this regression. Independent raw-stdio qualification
-and production corpus comparison are running in a new caller-owned index copy.
+CONFIRMED ✓ C2 focused111315Z_9feff6ca passed6server tests+CLI. First parent
+regression111540Z_eb3c4270 failed historical-pin indexstatus; old formatter hid
+Content behind pointers. Diagnostic-only fix now prints JSON error. Cause of
+the original failure remains Unknown, not FIXED. Same9package runs111844Z_379721ca,
+112055Z_5fc683b7,112214Z_6d20605f passed consecutively, last2 under wire load.
+Current10package regression195952Z_f0dc05c9:142PASS cases, exit0/no capture loss.
+Timeouts/product logic unchanged. Reopen only on reproduced failure with JSON
+Content. Source commits ffeb54b05f/1ed6de592a were made by another lane while
+this child remained active; their presence was not acceptance.
 
-Continuation receipt:111540Z_eb3c4270 complete state/log and C2 diagnostic
-dispatch to capture_core; next exact error→repair if required→same regression,
-then archive replay/build/scoped commit. Original source Fossil remains readonly.
+CONFIRMED ✓ native MCP build195952Z_71e2245c, official-hello raw-client
+qualification195937Z_0c48a134:5predicates. Full production wire200007Z_9253a529:
+1270predicates PASS in2fresh processes,33definitions/67typedreferences plus
+real text search and negative controls. Every navigation point includes actual
+source/receipt/SV/hash checks. Source Fossil and original derived DB/shards
+unchanged (SQLite ephemeral-shm exclusion explicit). Initial112010Z_9d95564e
+INCOMPLETE remains: BrokenPipe during oversize-frame send; corrected harness
+requires actual SDK size diagnostic + bounded EOF + nonzero exit, never merely
+BrokenPipe. No product mutation was needed for this control.
+
+CONFIRMED ✓ mandatory _build.ps1 build200051Z_1a440ab5 exit0, candidate1433,
+no promotion. Rust future-compat and web chunk-size warnings retained in full log.
+Archive source/raw replay112045Z_8954840e:21predicates, compiler arrays identical
+after rebuilding archived compiler source112143Z_8276a2bb/112204Z_67a46666.
+
+CONFIRMED ✓ archive raw-stdio replay200446Z_1e14a8db:1270predicates PASS,
+2fresh processes, new Fossil revision/index, actual archived client and rebuilt
+compiler golden. Every source target/receipt/hash control repeated; no loss.
+
+## CLEAN_NEXT_STATE / closure
+
+Acceptance: C1 bounded navigation runtime; C2 real SDK protocol/freshness/error
+controls; C3 independent compiler/raw/wire addresses repeated from archive;
+C4 current10package PASS, mandatory native candidate build, exact evidence
+archive with raw FAIL/INCOMPLETE retained. MANIFEST, source readback, renderer
+and scoped commit qualification close the metadata checks on this revision;
+the commit itself names this plan. No whole-portfolio SUCCESS is inferred.
+Report/replay: [archive](../experiments_history/2026-10-17_dais-navigation-mcp/REPORT.md).
+Missing tool/source hash or repeated historical toolerror reopens verification;
+source changes require current source pins and a new smoke.
+
+Residual belongs to active parent M0b/Z4/Z5: consumer inventory/impact parity,
+5M/performance, other languages, publication and retirement. Next route G1→G2
+for a consumer-specific binding; continuation receipts200446Z_1e14a8db and
+archive wire-archive-replay/report.json. No live registration/consumer switch.

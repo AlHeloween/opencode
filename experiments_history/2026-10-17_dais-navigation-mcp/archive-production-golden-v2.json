@@ -1,0 +1,1252 @@
+{
+  "version": 1,
+  "status": "COMPLETE",
+  "module_root": "D:\\zPython\\opencode\\experiments_history\\2026-10-17_dais-navigation-mcp\\corpus-source",
+  "go_executable": "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin\\go.exe",
+  "go_environment": {
+    "CGO_ENABLED": "0",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOEXPERIMENT": "",
+    "GOFLAGS": "",
+    "GOMOD": "D:\\zPython\\opencode\\experiments_history\\2026-10-17_dais-navigation-mcp\\corpus-source\\go.mod",
+    "GOOS": "windows",
+    "GOPROXY": "off",
+    "GOROOT": "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+    "GOSUMDB": "off",
+    "GOTOOLCHAIN": "auto",
+    "GOVERSION": "go1.26.5",
+    "GOWORK": "off"
+  },
+  "go_list_args": [
+    "list",
+    "-mod=readonly",
+    "-export",
+    "-deps",
+    "-json",
+    "./internal/fossil",
+    "./internal/capture"
+  ],
+  "packages": [
+    {
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "name": "capture",
+      "goos": "windows",
+      "goarch": "amd64",
+      "go_files": [
+        "internal/capture/capture.go",
+        "internal/capture/previous.go",
+        "internal/capture/publish_windows.go"
+      ],
+      "excluded_test_files": [
+        "internal/capture/capture_test.go",
+        "internal/capture/repeated_test.go"
+      ],
+      "ignored_go_files": [
+        "internal/capture/publish_other.go"
+      ]
+    },
+    {
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "name": "fossil",
+      "goos": "windows",
+      "goarch": "amd64",
+      "go_files": [
+        "internal/fossil/provider.go"
+      ],
+      "excluded_test_files": [
+        "internal/fossil/artifacts_test.go",
+        "internal/fossil/provider_test.go"
+      ],
+      "ignored_go_files": []
+    }
+  ],
+  "source_pins": [
+    {
+      "path": "go.mod",
+      "sha256": "4b0add46136105b240eb9fa8fe8b2f8e230a87c254a868271dc1d9bbe86e95db",
+      "bytes": 2964,
+      "role": "module"
+    },
+    {
+      "path": "go.sum",
+      "sha256": "c9874b4fe5b8ce7ea45971e8e8a02f7787903d3063c7dcd05c3c9582762eebdc",
+      "bytes": 25399,
+      "role": "module"
+    },
+    {
+      "path": "internal/capture/capture.go",
+      "sha256": "c605805d831205c012dd49ca85087ad70801091fe6c83b5b2b4e463bc04385bf",
+      "bytes": 17303,
+      "role": "compiled"
+    },
+    {
+      "path": "internal/capture/capture_test.go",
+      "sha256": "0031b7b5b6d0dafbff7b608aed8bd93c4cdc1f5181cbb580fae43f33e2d103b6",
+      "bytes": 11398,
+      "role": "test"
+    },
+    {
+      "path": "internal/capture/previous.go",
+      "sha256": "11ba85b62d115a915883108a6fb239c2d4edcdb218f60f8a3cf8fdb364aefd82",
+      "bytes": 7942,
+      "role": "compiled"
+    },
+    {
+      "path": "internal/capture/publish_other.go",
+      "sha256": "1c99099760f47c5c5f072ebbeae6e3e76d457cb85b1427681c05d5d400531784",
+      "bytes": 180,
+      "role": "build-excluded"
+    },
+    {
+      "path": "internal/capture/publish_windows.go",
+      "sha256": "77cb1186e4b277fee725b9fb9a7d5e4ff1759cc1fabd9cabf21e67909d9294bd",
+      "bytes": 277,
+      "role": "compiled"
+    },
+    {
+      "path": "internal/capture/repeated_test.go",
+      "sha256": "335e671b5cbb5f6f10bc8884a3524f0fd67af840bc1d600b731fc8275d25708e",
+      "bytes": 8774,
+      "role": "test"
+    },
+    {
+      "path": "internal/fossil/artifacts_test.go",
+      "sha256": "95a1802579939da4a53ae43882036588ab1841e9060238a8904a7f635fb8d523",
+      "bytes": 2671,
+      "role": "test"
+    },
+    {
+      "path": "internal/fossil/provider.go",
+      "sha256": "6148fe10fc04c1cc43a5effe006142a4075189fd3924890a3c5495caca70191c",
+      "bytes": 10873,
+      "role": "compiled"
+    },
+    {
+      "path": "internal/fossil/provider_test.go",
+      "sha256": "8f0d5272ac9d5e8b2f844f56064d901fb0657552da6adbbd6f67a38cffad1063",
+      "bytes": 9011,
+      "role": "test"
+    }
+  ],
+  "definitions": [
+    {
+      "id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "hash",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        79,
+        5,
+        79,
+        9
+      ]
+    },
+    {
+      "id": "c030ce4e09e80ea25663c0d0dee8007e8971911d127304320655cc6eec3e386c",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "fileHash",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        81,
+        5,
+        81,
+        13
+      ]
+    },
+    {
+      "id": "2a8c0fb7108fb2d62f73751b1061c92a8176933ce3c79a1d5c9d839a1fa296e6",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "regular",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        97,
+        5,
+        97,
+        12
+      ]
+    },
+    {
+      "id": "4d1ee128db5ea0c639ceedf3d2e25df9b6357466989d8b72ae2abd08d1869cf2",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "existingPath",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        108,
+        5,
+        108,
+        17
+      ]
+    },
+    {
+      "id": "68354e0274182d655e68dee294805a7f35704566e5ef4913f30e9916ff9c8b69",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "repositoryPath",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        130,
+        5,
+        130,
+        19
+      ]
+    },
+    {
+      "id": "d9c1a2de4dd44dd9e959c402d226c98b773696f3ce7a165c6e60803a0d787316",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "overlaps",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        154,
+        5,
+        154,
+        13
+      ]
+    },
+    {
+      "id": "5e2a6c48a25ec26792a68e816868ed5e61c892a71bd041958c4ab7d87e1e988e",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "validate",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        160,
+        5,
+        160,
+        13
+      ]
+    },
+    {
+      "id": "ea85b30cfbd8217cd7a7de82cad8277ea35395211200f069bfe5e4543ce0792c",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "Run",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        235,
+        5,
+        235,
+        8
+      ]
+    },
+    {
+      "id": "c5d11f2e2b4d748251f59ae671be32fb289584c449deaf66cc237a50aec6f0a9",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "publish",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        448,
+        5,
+        448,
+        12
+      ]
+    },
+    {
+      "id": "28bcf4d96a1e0b0b098f2e1baf5dbc527f8e656d49e3ea461cdf9cf1ae9d4ba4",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "writeNew",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        455,
+        5,
+        455,
+        13
+      ]
+    },
+    {
+      "id": "1e56809cbb23ded4e4916030327680a4f221049fb11d8c52a25330a907fe1f33",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "readBounded",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        467,
+        5,
+        467,
+        16
+      ]
+    },
+    {
+      "id": "3bf1b906e004f2b346b045e6c7177b2cb4c831525734e041b91b58a3532d02e0",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "inspectWorkspace",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        489,
+        5,
+        489,
+        21
+      ]
+    },
+    {
+      "id": "57d05700d3d4516c439b862718aa83c88aa5b37621b7937c208d7615d756cbe0",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "receiver": "dais.local/codeintelligence/internal/capture.logWriter",
+      "kind": "method",
+      "name": "Write",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        550,
+        19,
+        550,
+        24
+      ]
+    },
+    {
+      "id": "5a712e009e6ab5ba013ceb3da892466a4287c68cd1f328dfae52a069b6d6f4ef",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "outputPaths",
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        19,
+        5,
+        19,
+        16
+      ]
+    },
+    {
+      "id": "3ae06e324576b4df6a8da9f15691b1967f62008bfccf031e114527180368a401",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "replacePrevious",
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        25,
+        5,
+        25,
+        20
+      ]
+    },
+    {
+      "id": "c2a23abcfa4738f329ddce5203c4330555cb6b3c479cefc6bd37dc64ca48f65d",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "validateInputs",
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        150,
+        5,
+        150,
+        19
+      ]
+    },
+    {
+      "id": "a55940a2c9977b86458a53fb44a51fd3bfec9679ad6854d598f79a6912db7edf",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "strictJSON",
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        187,
+        5,
+        187,
+        15
+      ]
+    },
+    {
+      "id": "8a808e11ae8f104ddfc3bc4bf7f9d7fb3e7865a643e7486df99368229f5942e5",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "uniqueJSONValue",
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        204,
+        5,
+        204,
+        20
+      ]
+    },
+    {
+      "id": "3e2b0b88af0484f1fd7141a20e198b3d7c0d5d5b750b7d796c44c3d137c0f63a",
+      "package_path": "dais.local/codeintelligence/internal/capture",
+      "kind": "function",
+      "name": "publishDirectory",
+      "document_path": "internal/capture/publish_windows.go",
+      "range": [
+        4,
+        5,
+        4,
+        21
+      ]
+    },
+    {
+      "id": "c638b95e0d07d49565481775ed3133d9fa08d11a7622f95bcca5987dc753ef8b",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "kind": "function",
+      "name": "New",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        69,
+        5,
+        69,
+        8
+      ]
+    },
+    {
+      "id": "d3ab6b1e0249042e658316dd6315697fb1be6f0ec3005299c5a1e4dd706c8984",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "kind": "function",
+      "name": "quote",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        104,
+        5,
+        104,
+        10
+      ]
+    },
+    {
+      "id": "63c2f87c38957b629ad7040d9bb421bfa17d85729cac03996c03ac8fc2756b78",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "Head",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        106,
+        19,
+        106,
+        23
+      ]
+    },
+    {
+      "id": "5c0481db00379a27f5f9fc6c44546dae216ed1e329e7260a670f540507552d7e",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "Revision",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        119,
+        19,
+        119,
+        27
+      ]
+    },
+    {
+      "id": "8475ff9c9727cacb9edf974855b8df5120bea4f401d42043a1f98f6ee952a81a",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "validateRevision",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        133,
+        19,
+        133,
+        35
+      ]
+    },
+    {
+      "id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "ListFiles",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        138,
+        19,
+        138,
+        28
+      ]
+    },
+    {
+      "id": "8a7b3586570a4fb35d1997f6ebe068c582cb222d2f6087155c8bb037d672108f",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "kind": "function",
+      "name": "validPath",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        156,
+        5,
+        156,
+        14
+      ]
+    },
+    {
+      "id": "2323d56a210f0c64211c8a98778b28397720876ada6fd7d0ece75c4115e3f16f",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "ReadFile",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        160,
+        19,
+        160,
+        27
+      ]
+    },
+    {
+      "id": "e20cf2c64016e999e62f49fa00d0b941d6fb56791fbf1fab95f1f9c2178c8f8b",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "readArtifact",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        176,
+        19,
+        176,
+        31
+      ]
+    },
+    {
+      "id": "f9eecab512d7028ce4adfa7d49a2f1c4e302adc41b5d6f07fa780d66a508a608",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "ReadArtifacts",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        192,
+        19,
+        192,
+        32
+      ]
+    },
+    {
+      "id": "a15aee52814fe239dd4af0f31d535f48a71a1091184405f8d8baaea609d0cdcd",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "kind": "function",
+      "name": "decodeArtifact",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        233,
+        5,
+        233,
+        19
+      ]
+    },
+    {
+      "id": "ab63347b5da482d8778c25d728b2eb823773bcaed9b780897b17d32e9fc1d78f",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "Changes",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        255,
+        19,
+        255,
+        26
+      ]
+    },
+    {
+      "id": "b838fa8cea86ad9eaf173692fc54734c8c9aeac503926b16707a12aa62e835ac",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "dais.local/codeintelligence/internal/fossil.boundedWriter",
+      "kind": "method",
+      "name": "Write",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        307,
+        23,
+        307,
+        28
+      ]
+    },
+    {
+      "id": "725062670cded322f056ee2e5c0f89c35cf745ae802c72670c318b447a24b01f",
+      "package_path": "dais.local/codeintelligence/internal/fossil",
+      "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+      "kind": "method",
+      "name": "query",
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        319,
+        19,
+        319,
+        24
+      ]
+    }
+  ],
+  "references": [
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        82,
+        11,
+        82,
+        18
+      ],
+      "target_id": "2a8c0fb7108fb2d62f73751b1061c92a8176933ce3c79a1d5c9d839a1fa296e6"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        170,
+        11,
+        170,
+        23
+      ],
+      "target_id": "4d1ee128db5ea0c639ceedf3d2e25df9b6357466989d8b72ae2abd08d1869cf2"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        173,
+        11,
+        173,
+        18
+      ],
+      "target_id": "2a8c0fb7108fb2d62f73751b1061c92a8176933ce3c79a1d5c9d839a1fa296e6"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        176,
+        11,
+        176,
+        23
+      ],
+      "target_id": "4d1ee128db5ea0c639ceedf3d2e25df9b6357466989d8b72ae2abd08d1869cf2"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        182,
+        11,
+        182,
+        23
+      ],
+      "target_id": "4d1ee128db5ea0c639ceedf3d2e25df9b6357466989d8b72ae2abd08d1869cf2"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        190,
+        12,
+        190,
+        26
+      ],
+      "target_id": "68354e0274182d655e68dee294805a7f35704566e5ef4913f30e9916ff9c8b69"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        194,
+        6,
+        194,
+        14
+      ],
+      "target_id": "d9c1a2de4dd44dd9e959c402d226c98b773696f3ce7a165c6e60803a0d787316"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        248,
+        13,
+        248,
+        21
+      ],
+      "target_id": "5e2a6c48a25ec26792a68e816868ed5e61c892a71bd041958c4ab7d87e1e988e"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        253,
+        16,
+        253,
+        24
+      ],
+      "target_id": "c030ce4e09e80ea25663c0d0dee8007e8971911d127304320655cc6eec3e386c"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        261,
+        26,
+        261,
+        35
+      ],
+      "target_id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        266,
+        39,
+        266,
+        54
+      ],
+      "target_id": "3ae06e324576b4df6a8da9f15691b1967f62008bfccf031e114527180368a401"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        276,
+        12,
+        276,
+        26
+      ],
+      "target_id": "68354e0274182d655e68dee294805a7f35704566e5ef4913f30e9916ff9c8b69"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        288,
+        6,
+        288,
+        14
+      ],
+      "target_id": "d9c1a2de4dd44dd9e959c402d226c98b773696f3ce7a165c6e60803a0d787316"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        319,
+        30,
+        319,
+        43
+      ],
+      "target_id": "f9eecab512d7028ce4adfa7d49a2f1c4e302adc41b5d6f07fa780d66a508a608"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        336,
+        13,
+        336,
+        21
+      ],
+      "target_id": "28bcf4d96a1e0b0b098f2e1baf5dbc527f8e656d49e3ea461cdf9cf1ae9d4ba4"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        339,
+        86,
+        339,
+        90
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        348,
+        29,
+        348,
+        33
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        374,
+        22,
+        374,
+        30
+      ],
+      "target_id": "c030ce4e09e80ea25663c0d0dee8007e8971911d127304320655cc6eec3e386c"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        384,
+        19,
+        384,
+        27
+      ],
+      "target_id": "c030ce4e09e80ea25663c0d0dee8007e8971911d127304320655cc6eec3e386c"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        400,
+        11,
+        400,
+        27
+      ],
+      "target_id": "3bf1b906e004f2b346b045e6c7177b2cb4c831525734e041b91b58a3532d02e0"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        403,
+        11,
+        403,
+        18
+      ],
+      "target_id": "2a8c0fb7108fb2d62f73751b1061c92a8176933ce3c79a1d5c9d839a1fa296e6"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        406,
+        15,
+        406,
+        26
+      ],
+      "target_id": "1e56809cbb23ded4e4916030327680a4f221049fb11d8c52a25330a907fe1f33"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        413,
+        23,
+        413,
+        27
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        423,
+        162,
+        423,
+        166
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        438,
+        12,
+        438,
+        20
+      ],
+      "target_id": "28bcf4d96a1e0b0b098f2e1baf5dbc527f8e656d49e3ea461cdf9cf1ae9d4ba4"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        442,
+        11,
+        442,
+        18
+      ],
+      "target_id": "c5d11f2e2b4d748251f59ae671be32fb289584c449deaf66cc237a50aec6f0a9"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        452,
+        8,
+        452,
+        24
+      ],
+      "target_id": "3e2b0b88af0484f1fd7141a20e198b3d7c0d5d5b750b7d796c44c3d137c0f63a"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        511,
+        10,
+        511,
+        17
+      ],
+      "target_id": "2a8c0fb7108fb2d62f73751b1061c92a8176933ce3c79a1d5c9d839a1fa296e6"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        517,
+        12,
+        517,
+        19
+      ],
+      "target_id": "2a8c0fb7108fb2d62f73751b1061c92a8176933ce3c79a1d5c9d839a1fa296e6"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        520,
+        15,
+        520,
+        26
+      ],
+      "target_id": "1e56809cbb23ded4e4916030327680a4f221049fb11d8c52a25330a907fe1f33"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        524,
+        5,
+        524,
+        9
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        26,
+        26,
+        26,
+        35
+      ],
+      "target_id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        33,
+        10,
+        33,
+        21
+      ],
+      "target_id": "5a712e009e6ab5ba013ceb3da892466a4287c68cd1f328dfae52a069b6d6f4ef"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        44,
+        6,
+        44,
+        14
+      ],
+      "target_id": "d9c1a2de4dd44dd9e959c402d226c98b773696f3ce7a165c6e60803a0d787316"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        68,
+        30,
+        68,
+        43
+      ],
+      "target_id": "f9eecab512d7028ce4adfa7d49a2f1c4e302adc41b5d6f07fa780d66a508a608"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        82,
+        74,
+        82,
+        78
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        85,
+        11,
+        85,
+        21
+      ],
+      "target_id": "a55940a2c9977b86458a53fb44a51fd3bfec9679ad6854d598f79a6912db7edf"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        97,
+        11,
+        97,
+        25
+      ],
+      "target_id": "c2a23abcfa4738f329ddce5203c4330555cb6b3c479cefc6bd37dc64ca48f65d"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        104,
+        4,
+        104,
+        8
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        111,
+        12,
+        111,
+        26
+      ],
+      "target_id": "c2a23abcfa4738f329ddce5203c4330555cb6b3c479cefc6bd37dc64ca48f65d"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        120,
+        14,
+        120,
+        18
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        125,
+        11,
+        125,
+        21
+      ],
+      "target_id": "a55940a2c9977b86458a53fb44a51fd3bfec9679ad6854d598f79a6912db7edf"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        131,
+        11,
+        131,
+        25
+      ],
+      "target_id": "c2a23abcfa4738f329ddce5203c4330555cb6b3c479cefc6bd37dc64ca48f65d"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        134,
+        95,
+        134,
+        99
+      ],
+      "target_id": "4dcd12ee042cc6b4cfe28c061eff73969aea3e75028a79fee03cf7e2d3b69ba9"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        156,
+        12,
+        156,
+        26
+      ],
+      "target_id": "68354e0274182d655e68dee294805a7f35704566e5ef4913f30e9916ff9c8b69"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        171,
+        6,
+        171,
+        14
+      ],
+      "target_id": "d9c1a2de4dd44dd9e959c402d226c98b773696f3ce7a165c6e60803a0d787316"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        193,
+        11,
+        193,
+        26
+      ],
+      "target_id": "8a808e11ae8f104ddfc3bc4bf7f9d7fb3e7865a643e7486df99368229f5942e5"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        230,
+        13,
+        230,
+        28
+      ],
+      "target_id": "8a808e11ae8f104ddfc3bc4bf7f9d7fb3e7865a643e7486df99368229f5942e5"
+    },
+    {
+      "document_path": "internal/capture/previous.go",
+      "range": [
+        236,
+        13,
+        236,
+        28
+      ],
+      "target_id": "8a808e11ae8f104ddfc3bc4bf7f9d7fb3e7865a643e7486df99368229f5942e5"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        108,
+        10,
+        108,
+        15
+      ],
+      "target_id": "725062670cded322f056ee2e5c0f89c35cf745ae802c72670c318b447a24b01f"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        108,
+        185,
+        108,
+        190
+      ],
+      "target_id": "d3ab6b1e0249042e658316dd6315697fb1be6f0ec3005299c5a1e4dd706c8984"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        124,
+        13,
+        124,
+        18
+      ],
+      "target_id": "725062670cded322f056ee2e5c0f89c35cf745ae802c72670c318b447a24b01f"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        124,
+        168,
+        124,
+        173
+      ],
+      "target_id": "d3ab6b1e0249042e658316dd6315697fb1be6f0ec3005299c5a1e4dd706c8984"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        134,
+        13,
+        134,
+        21
+      ],
+      "target_id": "5c0481db00379a27f5f9fc6c44546dae216ed1e329e7260a670f540507552d7e"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        139,
+        13,
+        139,
+        29
+      ],
+      "target_id": "8475ff9c9727cacb9edf974855b8df5120bea4f401d42043a1f98f6ee952a81a"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        143,
+        13,
+        143,
+        18
+      ],
+      "target_id": "725062670cded322f056ee2e5c0f89c35cf745ae802c72670c318b447a24b01f"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        143,
+        162,
+        143,
+        167
+      ],
+      "target_id": "d3ab6b1e0249042e658316dd6315697fb1be6f0ec3005299c5a1e4dd706c8984"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        148,
+        6,
+        148,
+        15
+      ],
+      "target_id": "8a7b3586570a4fb35d1997f6ebe068c582cb222d2f6087155c8bb037d672108f"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        161,
+        5,
+        161,
+        14
+      ],
+      "target_id": "8a7b3586570a4fb35d1997f6ebe068c582cb222d2f6087155c8bb037d672108f"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        164,
+        17,
+        164,
+        26
+      ],
+      "target_id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        170,
+        12,
+        170,
+        24
+      ],
+      "target_id": "e20cf2c64016e999e62f49fa00d0b941d6fb56791fbf1fab95f1f9c2178c8f8b"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        177,
+        21,
+        177,
+        34
+      ],
+      "target_id": "f9eecab512d7028ce4adfa7d49a2f1c4e302adc41b5d6f07fa780d66a508a608"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        205,
+        27,
+        205,
+        32
+      ],
+      "target_id": "d3ab6b1e0249042e658316dd6315697fb1be6f0ec3005299c5a1e4dd706c8984"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        209,
+        13,
+        209,
+        18
+      ],
+      "target_id": "725062670cded322f056ee2e5c0f89c35cf745ae802c72670c318b447a24b01f"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        219,
+        15,
+        219,
+        29
+      ],
+      "target_id": "a15aee52814fe239dd4af0f31d535f48a71a1091184405f8d8baaea609d0cdcd"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        256,
+        18,
+        256,
+        27
+      ],
+      "target_id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8"
+    },
+    {
+      "document_path": "internal/fossil/provider.go",
+      "range": [
+        260,
+        17,
+        260,
+        26
+      ],
+      "target_id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8"
+    }
+  ],
+  "exclusions": [
+    "definitions: named functions and methods only, including unexported",
+    "references: explicit identifier uses/selections targeting selected named function/method definitions; duplicates deduplicated by source-range+target",
+    "tests, build-excluded files, external definitions, builtins, fields, locals, implicit definitions and call-graph inference are outside this golden"
+  ],
+  "errors": []
+}

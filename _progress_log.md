@@ -1,4 +1,9 @@
 ﻿# Progress Log
+## [2026-10-17] t79 review round 3 — 3 fixes, final (plan plans/2026-10-17_kernel-causal-chain.md)
+
+✓ CONFIRMED (edit): `computed geometry is the prediction; the render is the observation that tests it`; `no single failure can produce both results`; empty mechanismᵢ/predictionᵢ leaves the criterion Unknown (×4 registries, parity kept). Tests updated (pins on new phrasing + absence of old). No cap raise: product 67_654/9_030, claude 67_446/9_094, codex 67_365/9_040, cursor 67_407/9_116 — all within bands.
+✓ CONFIRMED (tests): full pytest 306 passed, 3 failed = stale receivers only (need --install, forbidden). Renders not_updated ×4: product 432eeec2, claude 05aa6c96, codex 268fa960, cursor cf8dfff4. STOP before --install; Claude re-review + owner install pending.
+<!-- sv: causal-chain-final 0.40, empty-slot 0.25, common-failure 0.20, prediction-language 0.15 -->
 ## [2026-10-17] t79 review round 2 — 5 findings applied (plan plans/2026-10-17_kernel-causal-chain.md)
 
 ✓ CONFIRMED (edit): unambiguous `leaves the claim Unknown`; categories + ≥1 computing leg + one-kind observations one category + leg defined + agent's own scripts phrasing in MEDOID_SIMPLEX; ACCEPTANCE_FRAME tuple gains mechanismᵢ/predictionᵢ in all 4 registries (parity kept); CAUSAL_CHAIN shortened to the linkage with render-as-observation. Caps: bytes stay 68_000 (product 67_606), tokens product/codex 9_000→9_100, claude/cursor 9_100→9_200.

@@ -3,9 +3,8 @@
 Field case: D:/zPascal/ Projects/ClientSoft/docs/3d-render-verification.md
 §2 (three legs: data-only / our-code-only / framework-only; own smokes count
 once) and §3 (M1–M5 predictions registered BEFORE the render; the CUA
-screenshot judges them). Review fixes (Claude + aicall): unambiguous Unknown,
-different input CATEGORIES with one computing leg, ACCEPTANCE_FRAME slot,
-defined leg, render-as-observation.
+screenshot judges them). Review round 3 (Claude + aicall): prediction-not-
+verdict language, common-failure phrasing, empty-slot Unknown.
 """
 from __future__ import annotations
 
@@ -34,7 +33,8 @@ def _by_id(rule_id: str):
 
 def test_medoid_simplex_defines_independence_operationally() -> None:
     text = _by_id("MEDOID_SIMPLEX").text
-    assert "neither source can yield its result through another's failure" in text
+    assert "no single failure can produce both results" in text
+    assert "neither source can yield" not in text
     assert "inputs from different categories" in text
     assert "data | our code | framework-or-spec" in text
     assert "different instruments" in text
@@ -57,6 +57,7 @@ def test_acceptance_frame_tuple_carries_mechanism_and_prediction() -> None:
         assert "{(criterionᵢ, surfaceᵢ, mechanismᵢ, predictionᵢ, instrumentᵢ@rung, falsifierᵢ)}" in line
         assert "mechanismᵢ is path:line or formula" in line
         assert "predictionᵢ is written before the observation" in line
+        assert "an empty mechanismᵢ or predictionᵢ leaves the criterion Unknown" in line
     lines = [
         next(
             addon.lines[0]
@@ -81,8 +82,9 @@ def test_g3_binds_mechanism_prediction_and_rejects_user_visual_only() -> None:
     assert "@MEDOID_SIMPLEX" in text
     assert "leaves the claim Unknown" in text
     assert "closes Unknown" not in text
-    assert "computed geometry decides" in text
-    assert "the render is the observation that tests the prediction" in text
+    assert "computed geometry is the prediction" in text
+    assert "computed geometry decides" not in text
+    assert "the render is the observation that tests it" in text
 
 
 def test_no_gate_closes_on_user_or_visual_only_oracle() -> None:

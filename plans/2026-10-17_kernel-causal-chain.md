@@ -26,14 +26,16 @@ Field case: `D:/zPascal/ Projects/ClientSoft/docs/3d-render-verification.md` §2
 - [x] S3 invariant test + caps (round 2): `test_causal_chain.py` (4 tests incl. tuple parity); bytes stay 68_000 (product 67_606), tokens product/codex 9_000→9_100 (9_023/9_033), claude/cursor 9_100→9_200 (9_087/9_109). <!-- sv: invariant-test 0.6, size-cap 0.4 -->
 - [x] S4 commit `72d2647bad1dac0401347add7dda695aa2387243` through `scripts/commit_own.py`, STOP before `--install`. <!-- sv: commit 1.0 -->
 - [x] S5 Claude/aicall review round 2 applied (5 findings: unambiguous Unknown, categories + computing leg, ACCEPTANCE_FRAME slot, defined leg, render-as-observation). <!-- sv: review-fixes 1.0 -->
-- [ ] S6 commit round 2 through `scripts/commit_own.py`, STOP before `--install`; report sha, diff, counts, sizes. <!-- sv: commit 1.0 -->
+- [x] S6 commit round 2 `2064a58669455a2339d43743b1540254b9a3cd25` through `scripts/commit_own.py`, STOP before `--install`. <!-- sv: commit 1.0 -->
+- [x] S7 review round 3 applied (3 fixes: prediction-not-verdict, common-failure phrasing, empty-slot Unknown). <!-- sv: review-fixes 1.0 -->
+- [ ] S8 commit round 3 through `scripts/commit_own.py`, STOP before `--install`; report sha, diff, counts, sizes. <!-- sv: commit 1.0 -->
 - [ ] R1 Claude critical review + owner `--install` (out of scope here). <!-- sv: review 1.0 -->
 
 ## Smoke Tests
 
 - Baseline (before edit, measured 2026-10-17): product 66_651 B / 8_887 tok; claude 66_443 / 8_951; codex 66_362 / 8_897; cursor 66_404 / 8_973; pytest green except receivers.
 - Prediction (before runs): new `test_causal_chain.py` FAILs on pre-t79 text (no independence clause, no CAUSAL_CHAIN); PASSES after; caps PASS at next band; `test_reward_restoration` ceiling tests PASS at 68_000/68_001; the 3 stale-receiver guards (production/claude/cursor) FAIL pre-install by construction.
-- Post-change oracle (round 2): `python -m pytest prompt_kernel/tests/ -q` → 306 passed, 3 failed (stale receivers only); renders product `…`, claude `…`, codex `…`, cursor `…`; `working_copy=not_updated` on all four (no install).
+- Post-change oracle (round 3): `python -m pytest prompt_kernel/tests/ -q` → 306 passed, 3 failed (stale receivers only); renders product `432eeec2…` (67_654 B), claude `05aa6c96…`, codex `268fa960…`, cursor `cf8dfff4…`; `working_copy=not_updated` ×4 (no install). No cap raise (all within bands).
 
 ## Stop claim
 

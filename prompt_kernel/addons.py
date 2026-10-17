@@ -109,7 +109,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G3",
         "ACCEPTANCE_FRAME",
         (
-            "ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, mechanismᵢ, predictionᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; mechanismᵢ is path:line or formula, predictionᵢ is written before the observation; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).",
+            "ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, mechanismᵢ, predictionᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; mechanismᵢ is path:line or formula, predictionᵢ is written before the observation; an empty mechanismᵢ or predictionᵢ leaves the criterion Unknown; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).",
         ),
     ),
     GateAddon(

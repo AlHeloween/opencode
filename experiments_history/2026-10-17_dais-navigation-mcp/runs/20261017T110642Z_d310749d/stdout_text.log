@@ -1,0 +1,42 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{"status": "FAIL", "checks": 3, "work": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production \u03a9-y30zg711", "report": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production-preparation.json"}
+Traceback (most recent call last):
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-navigation-mcp\prepare_index.py", line 131, in <module>
+    main()
+    ~~~~^^
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-navigation-mcp\prepare_index.py", line 107, in main
+    snapshot = json.loads(run([graph, 'import', *common, *source, '--ref', b,
+                          ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                              '--scip', 'ci/index.scip', '--manifest', 'ci/inputs.json', *profile]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-navigation-mcp\prepare_index.py", line 54, in run
+    raise AssertionError((argv, result.returncode, result.stdout, result.stderr))
+AssertionError: ([WindowsPath('D:/zPython/opencode/packages/dais-code-intelligence/dist/dais-graph.exe'), 'import', '--index-root', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-navigation-mcp/production Ω-y30zg711/derived'), '--repository-id', 'production-core', '--repository', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-navigation-mcp/production Ω-y30zg711/source.fsl'), '--fossil', WindowsPath('D:/zPython/opencode/external/fossil/fossil.exe'), '--fossil-home', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-navigation-mcp/production Ω-y30zg711/home'), '--ref', '5c257fd6a2adebd9c632be0237b47e91a50843cdade3cc09ac0035beab4aeae3', '--scip', 'ci/index.scip', '--manifest', 'ci/inputs.json', '--profile', 'dais-scip-modern-utf8-v1'], 1, b'', b'{"error":"invalid, duplicate, symlink or unbound SCIP document \\"internal\\\\\\\\capture\\\\\\\\capture.go\\""}\n')

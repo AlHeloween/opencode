@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "status": "INCOMPLETE",
+  "module_root": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\broken",
+  "go_executable": "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin\\go.exe",
+  "go_environment": {
+    "CGO_ENABLED": "0",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOEXPERIMENT": "",
+    "GOFLAGS": "",
+    "GOMOD": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\broken\\go.mod",
+    "GOOS": "windows",
+    "GOPROXY": "off",
+    "GOROOT": "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+    "GOSUMDB": "off",
+    "GOTOOLCHAIN": "auto",
+    "GOVERSION": "go1.26.5",
+    "GOWORK": "off"
+  },
+  "go_list_args": [
+    "list",
+    "-mod=readonly",
+    "-export",
+    "-deps",
+    "-json",
+    "./internal/fossil",
+    "./internal/capture"
+  ],
+  "packages": [],
+  "source_pins": [],
+  "definitions": [],
+  "references": [],
+  "exclusions": [
+    "definitions: named functions and methods only, including unexported",
+    "references: explicit identifier uses/selections targeting selected named function/method definitions; duplicates deduplicated by source-range+target",
+    "tests, build-excluded files, external definitions, builtins, fields, locals, implicit definitions and call-graph inference are outside this golden"
+  ],
+  "errors": [
+    "go [list -mod=readonly -export -deps -json ./internal/fossil ./internal/capture]: exit status 1\n# example.test/golden/internal/capture\ninternal\\capture\\capture.go:5:36: fossil.A{}.Missing undefined (type fossil.A has no field or method Missing)\n"
+  ]
+}

@@ -1,0 +1,57 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestSDKInMemoryToolsEvidenceAndEOF
+2026/10/17 19:10:53 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKInMemoryToolsEvidenceAndEOF3120374768\001\index\generations\2a0a1f040c4a1978e7145a388f022f54\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files processed 
+2026/10/17 19:10:53 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKInMemoryToolsEvidenceAndEOF (4.88s)
+=== RUN   TestSDKArgumentAndStartupRefusals
+2026/10/17 19:10:58 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKArgumentAndStartupRefusals285900800\001\index\generations\5cf7964d82c69bc73d96324c0fad8627\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files processed 
+2026/10/17 19:10:58 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSDKArgumentAndStartupRefusals/snapshot
+=== RUN   TestSDKArgumentAndStartupRefusals/target
+=== RUN   TestSDKArgumentAndStartupRefusals/limit
+=== RUN   TestSDKArgumentAndStartupRefusals/timeout
+2026/10/17 19:11:00 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKArgumentAndStartupRefusals285900800\001\index\generations\bf5738cc2149f6a7966c2841550f5a9c\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files processed 
+2026/10/17 19:11:00 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKArgumentAndStartupRefusals (2.86s)
+    --- PASS: TestSDKArgumentAndStartupRefusals/snapshot (0.00s)
+    --- PASS: TestSDKArgumentAndStartupRefusals/target (0.00s)
+    --- PASS: TestSDKArgumentAndStartupRefusals/limit (0.00s)
+    --- PASS: TestSDKArgumentAndStartupRefusals/timeout (0.00s)
+=== RUN   TestSDKFrameBoundAndCancellation
+2026/10/17 19:11:00 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKFrameBoundAndCancellation1745266269\001\index\generations\afb2918b8ddaec6f9bee22ca5d77db27\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files processed 
+2026/10/17 19:11:00 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKFrameBoundAndCancellation (1.55s)
+PASS
+ok      dais.local/codeintelligence/internal/mcpserver  9.452s
+=== RUN   TestInvalidStartupRefused
+--- PASS: TestInvalidStartupRefused (0.00s)
+PASS
+ok      dais.local/codeintelligence/cmd/dais-mcp        0.129s

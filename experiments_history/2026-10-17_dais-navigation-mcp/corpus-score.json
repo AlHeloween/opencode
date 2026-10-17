@@ -1,0 +1,318 @@
+{
+  "status": "PASS",
+  "checks": [
+    "independent_types_complete",
+    "native_windows_compiler_context",
+    "identical_all_compiler_capture_inputs",
+    "codegraph_same_byte_compiled_cohort",
+    "raw_index_identity",
+    "scip_exact_compiler_selected_documents",
+    "explicit_UTF8_internal/capture/capture.go",
+    "explicit_UTF8_internal/capture/previous.go",
+    "explicit_UTF8_internal/capture/publish_windows.go",
+    "explicit_UTF8_internal/fossil/provider.go",
+    "all_typed_function_method_definitions_present",
+    "distinct_typed_definitions_not_merged",
+    "all_typed_references_present",
+    "no_extra_function_method_reference_associations",
+    "typed_discrimination_case_internal/capture/capture.go:262",
+    "typed_discrimination_case_internal/capture/capture.go:267",
+    "typed_discrimination_case_internal/capture/capture.go:320",
+    "typed_discrimination_case_internal/capture/previous.go:27",
+    "typed_discrimination_case_internal/capture/previous.go:69",
+    "typed_discrimination_case_internal/capture/capture.go:453",
+    "typed_discrimination_case_internal/fossil/provider.go:165"
+  ],
+  "golden_sha256": "767183394c9e290b4d8b1f596c8cefc9e0080c1b57f7ee469a9c4edd7977594f",
+  "codegraph_subset_sha256": "f34cd2b80da1fa4c0aee67459b3ab9cd83680ee2665095e81deee4a5ad71f991",
+  "definition_count": 33,
+  "missing_definitions": [],
+  "reference_count": 67,
+  "missing_references": [],
+  "extra_references": [],
+  "compiled_files": 4,
+  "compiled_bytes": 36395,
+  "codegraph_discrimination_cases": [
+    {
+      "source": {
+        "document_path": "internal/capture/capture.go",
+        "range": [
+          261,
+          26,
+          261,
+          35
+        ],
+        "target_id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8"
+      },
+      "compiler_target": {
+        "id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8",
+        "package_path": "dais.local/codeintelligence/internal/fossil",
+        "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+        "kind": "method",
+        "name": "ListFiles",
+        "document_path": "internal/fossil/provider.go",
+        "range": [
+          138,
+          19,
+          138,
+          28
+        ]
+      },
+      "codegraph_edges": [],
+      "codegraph_unresolved": [
+        {
+          "file_path": "packages/dais-code-intelligence/internal/capture/capture.go",
+          "reference_name": "c.Provider.ListFiles",
+          "reference_kind": "calls",
+          "line": 262,
+          "col": 15,
+          "status": "failed",
+          "candidates": null
+        }
+      ],
+      "comparison_unit": "unique source file,line,target name; CG declaration range differs from identifier range"
+    },
+    {
+      "source": {
+        "document_path": "internal/capture/capture.go",
+        "range": [
+          266,
+          39,
+          266,
+          54
+        ],
+        "target_id": "3ae06e324576b4df6a8da9f15691b1967f62008bfccf031e114527180368a401"
+      },
+      "compiler_target": {
+        "id": "3ae06e324576b4df6a8da9f15691b1967f62008bfccf031e114527180368a401",
+        "package_path": "dais.local/codeintelligence/internal/capture",
+        "kind": "function",
+        "name": "replacePrevious",
+        "document_path": "internal/capture/previous.go",
+        "range": [
+          25,
+          5,
+          25,
+          20
+        ]
+      },
+      "codegraph_edges": [
+        {
+          "source": "function:ff6a43484d494dafbae5efda0088f4e7",
+          "target": "function:5feebb9748accd24fe75463e663b063d",
+          "kind": "calls",
+          "line": 267,
+          "col": 39,
+          "provenance": null,
+          "source_file": "packages/dais-code-intelligence/internal/capture/capture.go",
+          "target_file": "packages/dais-code-intelligence/internal/capture/previous.go",
+          "target_name": "replacePrevious",
+          "target_start_line": 26
+        }
+      ],
+      "codegraph_unresolved": [],
+      "comparison_unit": "unique source file,line,target name; CG declaration range differs from identifier range"
+    },
+    {
+      "source": {
+        "document_path": "internal/capture/capture.go",
+        "range": [
+          319,
+          30,
+          319,
+          43
+        ],
+        "target_id": "f9eecab512d7028ce4adfa7d49a2f1c4e302adc41b5d6f07fa780d66a508a608"
+      },
+      "compiler_target": {
+        "id": "f9eecab512d7028ce4adfa7d49a2f1c4e302adc41b5d6f07fa780d66a508a608",
+        "package_path": "dais.local/codeintelligence/internal/fossil",
+        "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+        "kind": "method",
+        "name": "ReadArtifacts",
+        "document_path": "internal/fossil/provider.go",
+        "range": [
+          192,
+          19,
+          192,
+          32
+        ]
+      },
+      "codegraph_edges": [],
+      "codegraph_unresolved": [
+        {
+          "file_path": "packages/dais-code-intelligence/internal/capture/capture.go",
+          "reference_name": "c.Provider.ReadArtifacts",
+          "reference_kind": "calls",
+          "line": 320,
+          "col": 19,
+          "status": "failed",
+          "candidates": null
+        }
+      ],
+      "comparison_unit": "unique source file,line,target name; CG declaration range differs from identifier range"
+    },
+    {
+      "source": {
+        "document_path": "internal/capture/previous.go",
+        "range": [
+          26,
+          26,
+          26,
+          35
+        ],
+        "target_id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8"
+      },
+      "compiler_target": {
+        "id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8",
+        "package_path": "dais.local/codeintelligence/internal/fossil",
+        "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+        "kind": "method",
+        "name": "ListFiles",
+        "document_path": "internal/fossil/provider.go",
+        "range": [
+          138,
+          19,
+          138,
+          28
+        ]
+      },
+      "codegraph_edges": [],
+      "codegraph_unresolved": [
+        {
+          "file_path": "packages/dais-code-intelligence/internal/capture/previous.go",
+          "reference_name": "c.Provider.ListFiles",
+          "reference_kind": "calls",
+          "line": 27,
+          "col": 15,
+          "status": "failed",
+          "candidates": null
+        }
+      ],
+      "comparison_unit": "unique source file,line,target name; CG declaration range differs from identifier range"
+    },
+    {
+      "source": {
+        "document_path": "internal/capture/previous.go",
+        "range": [
+          68,
+          30,
+          68,
+          43
+        ],
+        "target_id": "f9eecab512d7028ce4adfa7d49a2f1c4e302adc41b5d6f07fa780d66a508a608"
+      },
+      "compiler_target": {
+        "id": "f9eecab512d7028ce4adfa7d49a2f1c4e302adc41b5d6f07fa780d66a508a608",
+        "package_path": "dais.local/codeintelligence/internal/fossil",
+        "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+        "kind": "method",
+        "name": "ReadArtifacts",
+        "document_path": "internal/fossil/provider.go",
+        "range": [
+          192,
+          19,
+          192,
+          32
+        ]
+      },
+      "codegraph_edges": [],
+      "codegraph_unresolved": [
+        {
+          "file_path": "packages/dais-code-intelligence/internal/capture/previous.go",
+          "reference_name": "c.Provider.ReadArtifacts",
+          "reference_kind": "calls",
+          "line": 69,
+          "col": 19,
+          "status": "failed",
+          "candidates": null
+        }
+      ],
+      "comparison_unit": "unique source file,line,target name; CG declaration range differs from identifier range"
+    },
+    {
+      "source": {
+        "document_path": "internal/capture/capture.go",
+        "range": [
+          452,
+          8,
+          452,
+          24
+        ],
+        "target_id": "3e2b0b88af0484f1fd7141a20e198b3d7c0d5d5b750b7d796c44c3d137c0f63a"
+      },
+      "compiler_target": {
+        "id": "3e2b0b88af0484f1fd7141a20e198b3d7c0d5d5b750b7d796c44c3d137c0f63a",
+        "package_path": "dais.local/codeintelligence/internal/capture",
+        "kind": "function",
+        "name": "publishDirectory",
+        "document_path": "internal/capture/publish_windows.go",
+        "range": [
+          4,
+          5,
+          4,
+          21
+        ]
+      },
+      "codegraph_edges": [
+        {
+          "source": "function:6d17f877b16e563b687380efacd0c774",
+          "target": "function:995b316ed9f998a0f7d5080077f3d99d",
+          "kind": "calls",
+          "line": 453,
+          "col": 8,
+          "provenance": null,
+          "source_file": "packages/dais-code-intelligence/internal/capture/capture.go",
+          "target_file": "packages/dais-code-intelligence/internal/capture/publish_other.go",
+          "target_name": "publishDirectory",
+          "target_start_line": 7
+        }
+      ],
+      "codegraph_unresolved": [],
+      "comparison_unit": "unique source file,line,target name; CG declaration range differs from identifier range"
+    },
+    {
+      "source": {
+        "document_path": "internal/fossil/provider.go",
+        "range": [
+          164,
+          17,
+          164,
+          26
+        ],
+        "target_id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8"
+      },
+      "compiler_target": {
+        "id": "09588b918fef7d378c2726117d55c3f835e391ee8b7833914953cc431103f6d8",
+        "package_path": "dais.local/codeintelligence/internal/fossil",
+        "receiver": "*dais.local/codeintelligence/internal/fossil.Provider",
+        "kind": "method",
+        "name": "ListFiles",
+        "document_path": "internal/fossil/provider.go",
+        "range": [
+          138,
+          19,
+          138,
+          28
+        ]
+      },
+      "codegraph_edges": [
+        {
+          "source": "method:15d92cd3d9056669176097fa43dfe817",
+          "target": "method:bf96de18389dda03e4889038d3c55f6f",
+          "kind": "calls",
+          "line": 165,
+          "col": 15,
+          "provenance": null,
+          "source_file": "packages/dais-code-intelligence/internal/fossil/provider.go",
+          "target_file": "packages/dais-code-intelligence/internal/fossil/provider.go",
+          "target_name": "ListFiles",
+          "target_start_line": 139
+        }
+      ],
+      "codegraph_unresolved": [],
+      "comparison_unit": "unique source file,line,target name; CG declaration range differs from identifier range"
+    }
+  ],
+  "scope": "named functions/methods and explicit references in compiler-selected production files; not full semantic/call graph parity"
+}

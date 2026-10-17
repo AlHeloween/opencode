@@ -1,0 +1,48 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# dais.local/codeintelligence/internal/evidencegraph [dais.local/codeintelligence/internal/evidencegraph.test]
+internal\evidencegraph\navigation_test.go:31:128: undefined: Position
+internal\evidencegraph\navigation_test.go:32:14: s.Navigate undefined (type *Store has no field or method Navigate)
+internal\evidencegraph\navigation_test.go:32:45: undefined: Definitions
+internal\evidencegraph\navigation_test.go:35:14: s.Navigate undefined (type *Store has no field or method Navigate)
+internal\evidencegraph\navigation_test.go:35:45: undefined: References
+internal\evidencegraph\navigation_test.go:37:17: s.Navigate undefined (type *Store has no field or method Navigate)
+internal\evidencegraph\navigation_test.go:37:48: undefined: Definitions
+internal\evidencegraph\navigation_test.go:38:15: s.Navigate undefined (type *Store has no field or method Navigate)
+internal\evidencegraph\navigation_test.go:38:40: undefined: Position
+internal\evidencegraph\navigation_test.go:38:89: undefined: References
+internal\evidencegraph\navigation_test.go:38:89: too many errors
+FAILdais.local/codeintelligence/internal/evidencegraph [build failed]
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

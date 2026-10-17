@@ -1,0 +1,34 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Traceback (most recent call last):
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-navigation-mcp\qualify-typed-golden.py", line 14, in <module>
+    assert result.returncode == 0, (result.stdout, result.stderr)
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\good-report-direct-v1.json\n', 'type check example.test/golden/internal/capture: D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\good\\internal\\capture\\capture.go:1:1: package requires newer Go version go1.26 (application built with go1.25)\n')

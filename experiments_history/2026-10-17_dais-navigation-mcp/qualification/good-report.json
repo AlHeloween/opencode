@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "status": "INCOMPLETE",
+  "module_root": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\good",
+  "go_executable": "C:\\Program Files\\Go\\bin\\go.exe",
+  "go_environment": null,
+  "go_list_args": null,
+  "packages": [],
+  "source_pins": [],
+  "definitions": [],
+  "references": [],
+  "exclusions": [
+    "definitions: named functions and methods only, including unexported",
+    "references: explicit identifier uses/selections targeting selected named function/method definitions; duplicates deduplicated by source-range+target",
+    "tests, build-excluded files, external definitions, builtins, fields, locals, implicit definitions and call-graph inference are outside this golden"
+  ],
+  "errors": [
+    "go [env -json GOVERSION GOROOT GOOS GOARCH GOWORK GOPROXY GOSUMDB]: exit status 1\ngo: golang.org/toolchain@v0.0.1-go1.26.5.windows-amd64: verifying module: checksum database disabled by GOSUMDB=off\n"
+  ]
+}

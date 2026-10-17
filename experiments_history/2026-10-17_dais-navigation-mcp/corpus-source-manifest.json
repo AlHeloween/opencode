@@ -1,0 +1,73 @@
+{
+  "source_git_revision": "828ba5cdd5150a750ea5532874395105ba42043d",
+  "prefix_mapping": "packages/dais-code-intelligence/",
+  "inputs": [
+    {
+      "original_path": "packages/dais-code-intelligence/go.mod",
+      "corpus_path": "go.mod",
+      "bytes": 2964,
+      "sha256": "4b0add46136105b240eb9fa8fe8b2f8e230a87c254a868271dc1d9bbe86e95db"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/go.sum",
+      "corpus_path": "go.sum",
+      "bytes": 25399,
+      "sha256": "c9874b4fe5b8ce7ea45971e8e8a02f7787903d3063c7dcd05c3c9582762eebdc"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/capture/capture.go",
+      "corpus_path": "internal/capture/capture.go",
+      "bytes": 17303,
+      "sha256": "c605805d831205c012dd49ca85087ad70801091fe6c83b5b2b4e463bc04385bf"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/capture/capture_test.go",
+      "corpus_path": "internal/capture/capture_test.go",
+      "bytes": 11398,
+      "sha256": "0031b7b5b6d0dafbff7b608aed8bd93c4cdc1f5181cbb580fae43f33e2d103b6"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/capture/previous.go",
+      "corpus_path": "internal/capture/previous.go",
+      "bytes": 7942,
+      "sha256": "11ba85b62d115a915883108a6fb239c2d4edcdb218f60f8a3cf8fdb364aefd82"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/capture/publish_other.go",
+      "corpus_path": "internal/capture/publish_other.go",
+      "bytes": 180,
+      "sha256": "1c99099760f47c5c5f072ebbeae6e3e76d457cb85b1427681c05d5d400531784"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/capture/publish_windows.go",
+      "corpus_path": "internal/capture/publish_windows.go",
+      "bytes": 277,
+      "sha256": "77cb1186e4b277fee725b9fb9a7d5e4ff1759cc1fabd9cabf21e67909d9294bd"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/capture/repeated_test.go",
+      "corpus_path": "internal/capture/repeated_test.go",
+      "bytes": 8774,
+      "sha256": "335e671b5cbb5f6f10bc8884a3524f0fd67af840bc1d600b731fc8275d25708e"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/fossil/artifacts_test.go",
+      "corpus_path": "internal/fossil/artifacts_test.go",
+      "bytes": 2671,
+      "sha256": "95a1802579939da4a53ae43882036588ab1841e9060238a8904a7f635fb8d523"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/fossil/provider.go",
+      "corpus_path": "internal/fossil/provider.go",
+      "bytes": 10873,
+      "sha256": "6148fe10fc04c1cc43a5effe006142a4075189fd3924890a3c5495caca70191c"
+    },
+    {
+      "original_path": "packages/dais-code-intelligence/internal/fossil/provider_test.go",
+      "corpus_path": "internal/fossil/provider_test.go",
+      "bytes": 9011,
+      "sha256": "8f0d5272ac9d5e8b2f844f56064d901fb0657552da6adbbd6f67a38cffad1063"
+    }
+  ],
+  "bytes": 96792
+}

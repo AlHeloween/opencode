@@ -1,0 +1,924 @@
+{
+  "version": 1,
+  "selection": {
+    "since_utc": "2026-10-17T10:56:00Z",
+    "argv_path_contains": "experiments/2026-10-17_dais-navigation-mcp",
+    "explicit_run_ids": [
+      "20261017T105803Z_e5fac2ef",
+      "20261017T105838Z_9b0a2b11",
+      "20261017T105941Z_4f0eaf02",
+      "20261017T105942Z_65a210cb",
+      "20261017T110325Z_faa1054f",
+      "20261017T110342Z_b395d116",
+      "20261017T110407Z_79b42c19",
+      "20261017T110605Z_41e0ec36",
+      "20261017T110619Z_2982d921",
+      "20261017T110630Z_7d5f120e",
+      "20261017T110855Z_201f2917",
+      "20261017T111044Z_2c397a81",
+      "20261017T111200Z_eec67d4a",
+      "20261017T111245Z_b9b69c8f",
+      "20261017T111246Z_712be9d2",
+      "20261017T111315Z_9feff6ca",
+      "20261017T111523Z_f39b753a",
+      "20261017T111540Z_eb3c4270"
+    ]
+  },
+  "runs": [
+    {
+      "id": "20261017T105803Z_e5fac2ef",
+      "argv": [
+        "go",
+        "list",
+        "-m",
+        "-json",
+        "github.com/modelcontextprotocol/go-sdk@latest"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T10:58:05Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 464,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 497,
+          "source_sha256": "ddbbbe3598a738b6b994e763c2fdbf2e34230aa610a1e6c29a128f3d00cf1d6c",
+          "target_sha256": "ddbbbe3598a738b6b994e763c2fdbf2e34230aa610a1e6c29a128f3d00cf1d6c"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 293,
+          "source_sha256": "d03e883cf378693645f3d0c33fda92622452b6f79f08099403c7a2b381a44ead",
+          "target_sha256": "d03e883cf378693645f3d0c33fda92622452b6f79f08099403c7a2b381a44ead"
+        }
+      ]
+    },
+    {
+      "id": "20261017T105838Z_9b0a2b11",
+      "argv": [
+        "go",
+        "list",
+        "./internal/fossil",
+        "./internal/capture"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T10:58:39Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 241,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 497,
+          "source_sha256": "8934514fd646e64dc2df93becb9fc84fdf7e8a97efbdc4fdf67cc0c76dfdcf04",
+          "target_sha256": "8934514fd646e64dc2df93becb9fc84fdf7e8a97efbdc4fdf67cc0c76dfdcf04"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 118,
+          "source_sha256": "5dc70071d428247c1808a4757bf17aba2eea173fd9b44eae0f7f32f80ef36d58",
+          "target_sha256": "5dc70071d428247c1808a4757bf17aba2eea173fd9b44eae0f7f32f80ef36d58"
+        }
+      ]
+    },
+    {
+      "id": "20261017T105941Z_4f0eaf02",
+      "argv": [
+        "go",
+        "mod",
+        "download",
+        "-json",
+        "github.com/modelcontextprotocol/go-sdk@v1.8.0"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T10:59:42Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 1064,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 499,
+          "source_sha256": "6fa292d6c7f96ad36b3809c129ca4072103a6b505a87d6e8222b3e9f410f698c",
+          "target_sha256": "6fa292d6c7f96ad36b3809c129ca4072103a6b505a87d6e8222b3e9f410f698c"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 832,
+          "source_sha256": "8162f42806e36a434878b01a4cfb086edcfca1876190a9cab366fdd96e0b602a",
+          "target_sha256": "8162f42806e36a434878b01a4cfb086edcfca1876190a9cab366fdd96e0b602a"
+        }
+      ]
+    },
+    {
+      "id": "20261017T105942Z_65a210cb",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/evidencegraph,./cmd/dais-graph"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:00:18Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 5265,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 497,
+          "source_sha256": "34ecf86d62d589c7ce5bfd434572a1e621fbd3459d4027d53b5fc25a3771f0d8",
+          "target_sha256": "34ecf86d62d589c7ce5bfd434572a1e621fbd3459d4027d53b5fc25a3771f0d8"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 4935,
+          "source_sha256": "1823e23d6223ff3fa073e3ac14a2c25505e5240a24e4167740749e865618e796",
+          "target_sha256": "1823e23d6223ff3fa073e3ac14a2c25505e5240a24e4167740749e865618e796"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110325Z_faa1054f",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/evidencegraph"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 1,
+      "finished_utc": "2026-10-17T11:03:27Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 1731,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "5fae071f57e45ddea293df53531b19072b4d8cfa36e642848c3d8a6100ce930b",
+          "target_sha256": "5fae071f57e45ddea293df53531b19072b4d8cfa36e642848c3d8a6100ce930b"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 1438,
+          "source_sha256": "09567466b49fb4e8656b7cb01e59c6e09a7e592742db886049df1f1b340469b2",
+          "target_sha256": "09567466b49fb4e8656b7cb01e59c6e09a7e592742db886049df1f1b340469b2"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110342Z_b395d116",
+      "argv": [
+        "go",
+        "env",
+        "-json",
+        "GOROOT",
+        "GOMODCACHE",
+        "GOCACHE",
+        "GOOS",
+        "GOARCH"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:03:43Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 444,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "ce1801f753f23e5e78de65035200b191f131e68e2d5e2912f6ea493334fbe4fb",
+          "target_sha256": "ce1801f753f23e5e78de65035200b191f131e68e2d5e2912f6ea493334fbe4fb"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 279,
+          "source_sha256": "52b4d5dfab044157b766c336d3624dd128fc293addc3d6fc22ac5394adccd45f",
+          "target_sha256": "52b4d5dfab044157b766c336d3624dd128fc293addc3d6fc22ac5394adccd45f"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110407Z_79b42c19",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/evidencegraph"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:04:36Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 7457,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "d4fdc4c03dc42c6c2bf7bee6b14ba06de9c78cf08e54cc0444400fd78804c90a",
+          "target_sha256": "d4fdc4c03dc42c6c2bf7bee6b14ba06de9c78cf08e54cc0444400fd78804c90a"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 7099,
+          "source_sha256": "4eb09980e7c6fa0928258d3fc13027a6d7da21b56ef1b10b166b618691e0c773",
+          "target_sha256": "4eb09980e7c6fa0928258d3fc13027a6d7da21b56ef1b10b166b618691e0c773"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110605Z_41e0ec36",
+      "argv": [
+        "go",
+        "get",
+        "github.com/modelcontextprotocol/go-sdk@v1.8.0"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:06:06Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 207,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "647c4fb71563c963502a48026dba3d1ef79e78ac3d787a140984f0c2c42d7752",
+          "target_sha256": "647c4fb71563c963502a48026dba3d1ef79e78ac3d787a140984f0c2c42d7752"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 85,
+          "source_sha256": "79b62db69457619c6fd3e8824b78b1b42213921ce051ce08deaeb0a97b170469",
+          "target_sha256": "79b62db69457619c6fd3e8824b78b1b42213921ce051ce08deaeb0a97b170469"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110619Z_2982d921",
+      "argv": [
+        "go",
+        "get",
+        "github.com/modelcontextprotocol/go-sdk/mcp@v1.8.0"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:06:22Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 242,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "829d86710330089d397e073033abe3e4fc440ac68f2f1775d678df611a530ad8",
+          "target_sha256": "829d86710330089d397e073033abe3e4fc440ac68f2f1775d678df611a530ad8"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 119,
+          "source_sha256": "1dd2f2cd4fef803c61812f69c1536e70ce6b93c86532235b8b3ccfe2d4325ac4",
+          "target_sha256": "1dd2f2cd4fef803c61812f69c1536e70ce6b93c86532235b8b3ccfe2d4325ac4"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110630Z_7d5f120e",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/evidencegraph"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:07:13Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 7457,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "d76c4feb92d488b1a6a357f1f3b9bc83c48e7439ce7ba35b62ee381757613ee8",
+          "target_sha256": "d76c4feb92d488b1a6a357f1f3b9bc83c48e7439ce7ba35b62ee381757613ee8"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 7099,
+          "source_sha256": "0be682ca48884421d0ad360b92ef4a3cf63836430ad53466965ec5b0bacc8f42",
+          "target_sha256": "0be682ca48884421d0ad360b92ef4a3cf63836430ad53466965ec5b0bacc8f42"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110642Z_d310749d",
+      "argv": [
+        "python",
+        "experiments/2026-10-17_dais-navigation-mcp/prepare_index.py",
+        "--root",
+        "D:\\zPython\\opencode",
+        "--goroot",
+        "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--modcache",
+        "C:\\Users\\Alexander\\go\\pkg\\mod",
+        "--producer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-final-qualified.exe",
+        "--report",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production-preparation.json"
+      ],
+      "cwd": "D:\\zPython\\opencode",
+      "status": "finished",
+      "exit_code": 1,
+      "finished_utc": "2026-10-17T11:07:00Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 2146,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 499,
+          "source_sha256": "7032fb8e11c2494fec4913b8d6ab3957502a044fad8da3f67dfce1c4bf9b2db4",
+          "target_sha256": "7032fb8e11c2494fec4913b8d6ab3957502a044fad8da3f67dfce1c4bf9b2db4"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 2011,
+          "source_sha256": "9df73a2ec80685415290422e3d0982441299177505a4a65975a5f37c74f27f7b",
+          "target_sha256": "9df73a2ec80685415290422e3d0982441299177505a4a65975a5f37c74f27f7b"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110818Z_e824b2d6",
+      "argv": [
+        "experiments/2026-10-17_dais-navigation-mcp/typed-golden.exe",
+        "--module-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\corpus-source",
+        "--go",
+        "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin\\go.exe",
+        "--output",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production-golden.json"
+      ],
+      "cwd": "D:\\zPython\\opencode",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:08:21Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 286,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "e523f48c4dd1b750af5dba0a86c241e9c89ab6068399853c0fc687378640b812",
+          "target_sha256": "e523f48c4dd1b750af5dba0a86c241e9c89ab6068399853c0fc687378640b812"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 115,
+          "source_sha256": "d06f2c482c97b52d1be8eefe90a9af867cbb0b34e8b96e2be3781a5d8ccb9bd3",
+          "target_sha256": "d06f2c482c97b52d1be8eefe90a9af867cbb0b34e8b96e2be3781a5d8ccb9bd3"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110855Z_201f2917",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/mcpserver,./cmd/dais-mcp"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 1,
+      "finished_utc": "2026-10-17T11:09:04Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 1606,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 499,
+          "source_sha256": "b219584b8ac260d6201dfb99f1334d37ba90cdddb47b2d8981de3ff38c351e5f",
+          "target_sha256": "b219584b8ac260d6201dfb99f1334d37ba90cdddb47b2d8981de3ff38c351e5f"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 1365,
+          "source_sha256": "6335a90caa89d3a0db8feb7c272cc99fca50adae8da7fa0282fb8f816ac6867d",
+          "target_sha256": "6335a90caa89d3a0db8feb7c272cc99fca50adae8da7fa0282fb8f816ac6867d"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110910Z_0a67c8b8",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "packages/dais-code-intelligence/scripts/build-scip-go.ps1",
+        "-SourceRoot",
+        "C:\\Users\\Alexander\\go\\pkg\\mod\\github.com\\scip-code\\scip-go@v0.2.7",
+        "-Go",
+        "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin\\go.exe",
+        "-Scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\producer-path-candidate",
+        "-Destination",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\scip-go-canonical.exe"
+      ],
+      "cwd": "D:\\zPython\\opencode",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:09:15Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 1061,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "ce4accb05dcc8f17a9d0a613824963bf53d94c48fb47431a9d6fbd443d2afb7c",
+          "target_sha256": "ce4accb05dcc8f17a9d0a613824963bf53d94c48fb47431a9d6fbd443d2afb7c"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 804,
+          "source_sha256": "22bc904a21fa57cd85d842912e2ab4178437452bd418d72560ac9a9324db3b6f",
+          "target_sha256": "22bc904a21fa57cd85d842912e2ab4178437452bd418d72560ac9a9324db3b6f"
+        }
+      ]
+    },
+    {
+      "id": "20261017T110937Z_f6e1d33f",
+      "argv": [
+        "python",
+        "experiments/2026-10-17_dais-navigation-mcp/prepare_index.py",
+        "--root",
+        "D:\\zPython\\opencode",
+        "--goroot",
+        "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--modcache",
+        "C:\\Users\\Alexander\\go\\pkg\\mod",
+        "--producer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\scip-go-canonical.exe",
+        "--report",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production-after-path-fix.json"
+      ],
+      "cwd": "D:\\zPython\\opencode",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:09:50Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 406,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "55105304aa451d614a744810007ffacc196de836f3817df82143d3b1fd6b5593",
+          "target_sha256": "55105304aa451d614a744810007ffacc196de836f3817df82143d3b1fd6b5593"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 283,
+          "source_sha256": "bf4714dd4a5518b7f35f9b11c04308f8a2290784e9150515faa4cab9c79994d5",
+          "target_sha256": "bf4714dd4a5518b7f35f9b11c04308f8a2290784e9150515faa4cab9c79994d5"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111044Z_2c397a81",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/mcpserver,./cmd/dais-mcp"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:11:02Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 2545,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "d95a2cec494a93e30f5be2eaa3f062939af1bf7e497d2292866875f30cb33ad6",
+          "target_sha256": "d95a2cec494a93e30f5be2eaa3f062939af1bf7e497d2292866875f30cb33ad6"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 2271,
+          "source_sha256": "0a23c9b2bbf05f9cbcaeca81182368a3e684873b7b02cd505691bd8ee9b71d34",
+          "target_sha256": "0a23c9b2bbf05f9cbcaeca81182368a3e684873b7b02cd505691bd8ee9b71d34"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111122Z_7b16b13b",
+      "argv": [
+        "python",
+        "experiments/2026-10-17_dais-navigation-mcp/score_corpus.py",
+        "--preparation",
+        "experiments/2026-10-17_dais-navigation-mcp/production-after-path-fix.json",
+        "--golden",
+        "experiments/2026-10-17_dais-navigation-mcp/production-golden.json",
+        "--codegraph",
+        "experiments/2026-10-17_dais-navigation-mcp/codegraph-subset.json",
+        "--report",
+        "experiments/2026-10-17_dais-navigation-mcp/corpus-score.json"
+      ],
+      "cwd": "D:\\zPython\\opencode",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:11:24Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 261,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 497,
+          "source_sha256": "57aeb787c983a03e7770f7608f663e5efc97dfe342a4ec23982a614d9ffa679e",
+          "target_sha256": "57aeb787c983a03e7770f7608f663e5efc97dfe342a4ec23982a614d9ffa679e"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 138,
+          "source_sha256": "19dde81ef42f317c83d3a1cd98091a5bb4395433b6edf96bba7dcb6fcb7f3f30",
+          "target_sha256": "19dde81ef42f317c83d3a1cd98091a5bb4395433b6edf96bba7dcb6fcb7f3f30"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111200Z_eec67d4a",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/mcpserver,./cmd/dais-mcp"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:12:22Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 3861,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "05527a56a7f43cfbef3f7821afe593ebd95a8601b775718816e0add99c171648",
+          "target_sha256": "05527a56a7f43cfbef3f7821afe593ebd95a8601b775718816e0add99c171648"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 3505,
+          "source_sha256": "8f3e79c78ac25b32596bfc756f527ad6e7b95b7e41f62a5455b3a314f03f84ae",
+          "target_sha256": "8f3e79c78ac25b32596bfc756f527ad6e7b95b7e41f62a5455b3a314f03f84ae"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111245Z_b9b69c8f",
+      "argv": [
+        "gofmt",
+        "-w",
+        "internal/mcpserver/server_test.go"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:12:45Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 92,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 497,
+          "source_sha256": "e93264dea1366c92d1b1026ad7f83a6674fc3fc2175623a9d33473455b6fe01e",
+          "target_sha256": "e93264dea1366c92d1b1026ad7f83a6674fc3fc2175623a9d33473455b6fe01e"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 0,
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "target_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111246Z_2935b5a5",
+      "argv": [
+        "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin\\go.exe",
+        "-C",
+        "C:\\Users\\Alexander\\go\\pkg\\mod\\github.com\\modelcontextprotocol\\go-sdk@v1.8.0",
+        "build",
+        "-mod=readonly",
+        "-buildvcs=false",
+        "-o",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\mcp-hello.exe",
+        "./examples/server/hello"
+      ],
+      "cwd": "D:\\zPython\\opencode",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:12:57Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 298,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "1c56b52f4e1289a834c2d56b130eb35010665cb7716bcbeb125b2f7b8d8464ba",
+          "target_sha256": "1c56b52f4e1289a834c2d56b130eb35010665cb7716bcbeb125b2f7b8d8464ba"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 114,
+          "source_sha256": "d3dea7e801b04fffc6863186caf2856bf0d86db569e10b8c3ff0596fc517e03a",
+          "target_sha256": "d3dea7e801b04fffc6863186caf2856bf0d86db569e10b8c3ff0596fc517e03a"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111246Z_712be9d2",
+      "argv": [
+        "go",
+        "mod",
+        "edit",
+        "-fmt"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:12:47Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 150,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "355db2dcd62290bc95bccaf1abda65462de598c70a51e7997730210179c4e358",
+          "target_sha256": "355db2dcd62290bc95bccaf1abda65462de598c70a51e7997730210179c4e358"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 29,
+          "source_sha256": "a0bdb7e71846a959dad4890557156530d5b836126491ac853ac3c629c04c9030",
+          "target_sha256": "a0bdb7e71846a959dad4890557156530d5b836126491ac853ac3c629c04c9030"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111315Z_9feff6ca",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/mcpserver,./cmd/dais-mcp"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:13:39Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 4320,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 499,
+          "source_sha256": "22351c0694a7be2baf7c2a0852a654ece856da25d2a91d9dc914c63127396d8f",
+          "target_sha256": "22351c0694a7be2baf7c2a0852a654ece856da25d2a91d9dc914c63127396d8f"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 3936,
+          "source_sha256": "344587477dea0c72b685876944fefa88a404f3d9cbab8690404e9dc8a9d17c1a",
+          "target_sha256": "344587477dea0c72b685876944fefa88a404f3d9cbab8690404e9dc8a9d17c1a"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111523Z_f39b753a",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts\\go.ps1",
+        "-Action",
+        "build",
+        "-Packages",
+        "./cmd/dais-mcp",
+        "-OutputName",
+        "dais-mcp.exe"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 0,
+      "finished_utc": "2026-10-17T11:15:27Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 275,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 498,
+          "source_sha256": "04ab6fb2f1d7ad53a4603138ac91633b213af05113d62874f6e080684f33dd98",
+          "target_sha256": "04ab6fb2f1d7ad53a4603138ac91633b213af05113d62874f6e080684f33dd98"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 29,
+          "source_sha256": "a0bdb7e71846a959dad4890557156530d5b836126491ac853ac3c629c04c9030",
+          "target_sha256": "a0bdb7e71846a959dad4890557156530d5b836126491ac853ac3c629c04c9030"
+        }
+      ]
+    },
+    {
+      "id": "20261017T111540Z_eb3c4270",
+      "argv": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts\\go.ps1",
+        "-Action",
+        "test",
+        "-Packages",
+        "./internal/fossil,./internal/search,./internal/evidencegraph,./internal/capture,./cmd/dais-ci,./cmd/dais-graph,./cmd/dais-capture,./internal/mcpserver,./cmd/dais-mcp"
+      ],
+      "cwd": "D:\\zPython\\opencode\\packages\\dais-code-intelligence",
+      "status": "finished",
+      "exit_code": 1,
+      "finished_utc": "2026-10-17T11:16:28Z",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 26408,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "files": [
+        {
+          "name": "state.json",
+          "bytes": 500,
+          "source_sha256": "6975792cfe37e8aefc8a845dfff28c22f1763676f02be634de9cae912c82910c",
+          "target_sha256": "6975792cfe37e8aefc8a845dfff28c22f1763676f02be634de9cae912c82910c"
+        },
+        {
+          "name": "stdout_text.log",
+          "bytes": 25345,
+          "source_sha256": "b18d9ccdff38f742a543359032dd0573116c85243e2405d249525542f0f76006",
+          "target_sha256": "b18d9ccdff38f742a543359032dd0573116c85243e2405d249525542f0f76006"
+        }
+      ]
+    }
+  ],
+  "excluded": [],
+  "secret_scan": {
+    "credential_prefixes": true,
+    "private_key_headers": true,
+    "credential_assignments": true,
+    "findings": []
+  },
+  "non_runner_observations": [
+    {
+      "kind": "execution_guard_rejection",
+      "tool": "exec_command",
+      "command": "gofmt -w internal/mcpserver/server_test.go\ngo mod edit -fmt",
+      "reason": "Use cmd_runner start -- <binary> instead",
+      "source": "actual tool result in /root/capture_core C2 turn; no cmd_runner run was created",
+      "replacement_run_ids": [
+        "20261017T111245Z_b9b69c8f",
+        "20261017T111246Z_712be9d2"
+      ]
+    }
+  ]
+}

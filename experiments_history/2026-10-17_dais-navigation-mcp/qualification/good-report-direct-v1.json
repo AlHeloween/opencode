@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "status": "INCOMPLETE",
+  "module_root": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\good",
+  "go_executable": "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin\\go.exe",
+  "go_environment": {
+    "GOARCH": "amd64",
+    "GOOS": "windows",
+    "GOPROXY": "off",
+    "GOROOT": "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+    "GOSUMDB": "off",
+    "GOVERSION": "go1.26.5",
+    "GOWORK": "off"
+  },
+  "go_list_args": [
+    "list",
+    "-mod=readonly",
+    "-export",
+    "-deps",
+    "-json",
+    "./internal/fossil",
+    "./internal/capture"
+  ],
+  "packages": [
+    {
+      "package_path": "example.test/golden/internal/capture",
+      "name": "capture",
+      "goos": "windows",
+      "goarch": "amd64",
+      "go_files": [
+        "internal/capture/capture.go"
+      ],
+      "excluded_test_files": [],
+      "ignored_go_files": []
+    },
+    {
+      "package_path": "example.test/golden/internal/fossil",
+      "name": "fossil",
+      "goos": "windows",
+      "goarch": "amd64",
+      "go_files": [
+        "internal/fossil/fossil.go"
+      ],
+      "excluded_test_files": [],
+      "ignored_go_files": []
+    }
+  ],
+  "source_pins": [
+    {
+      "path": "go.mod",
+      "sha256": "1ba79c17f5539996ac3d09278c3674c4fa4b3dd3f404458c35d788c8cb20ce39",
+      "bytes": 58,
+      "role": "module"
+    },
+    {
+      "path": "internal/capture/capture.go",
+      "sha256": "ac2e307944e80782eba001d3c8651752953d5099dab8ccdf6bd883f2683c9cec",
+      "bytes": 143,
+      "role": "compiled"
+    },
+    {
+      "path": "internal/fossil/fossil.go",
+      "sha256": "b2b3919611751a576fd3463f5152ff9cd8868ae40270f6d87a358f18dcab3f71",
+      "bytes": 143,
+      "role": "compiled"
+    }
+  ],
+  "definitions": [],
+  "references": [],
+  "exclusions": [
+    "definitions: named functions and methods only, including unexported",
+    "references: explicit identifier uses/selections targeting selected named function/method definitions; duplicates deduplicated by source-range+target",
+    "tests, build-excluded files, external definitions, builtins, fields, locals, implicit definitions and call-graph inference are outside this golden"
+  ],
+  "errors": [
+    "type check example.test/golden/internal/capture: D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\good\\internal\\capture\\capture.go:1:1: package requires newer Go version go1.26 (application built with go1.25)"
+  ]
+}

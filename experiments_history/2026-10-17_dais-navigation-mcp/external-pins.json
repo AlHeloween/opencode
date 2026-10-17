@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "sdk": {
+    "module": "github.com/modelcontextprotocol/go-sdk",
+    "version": "v1.8.0",
+    "origin_commit": "3f3b699b2b67e1ed033a63d6651671dab53c2d32",
+    "authority_url": "https://github.com/modelcontextprotocol/go-sdk/tree/v1.8.0",
+    "source_pins": [
+      {
+        "path": "go.mod",
+        "bytes": 480,
+        "sha256": "8679c6a4a8447d6d2d7e3ac99e922161ba1a0eaa881d7666d503cc473cdbc8a3"
+      },
+      {
+        "path": "LICENSE",
+        "bytes": 12223,
+        "sha256": "af679003d933f045393a6a029f43da113f9ae364eac651d9ae268392985580f5"
+      },
+      {
+        "path": "mcp/server.go",
+        "bytes": 86380,
+        "sha256": "336ece58363ac561a61238243377cc9da3660c2c6282b99adb27b530a1aafc2e"
+      },
+      {
+        "path": "mcp/transport.go",
+        "bytes": 26707,
+        "sha256": "54d98d90abe55d25802ca442746be954c47b9306c2a910682879389362904505"
+      },
+      {
+        "path": "examples/server/hello/main.go",
+        "bytes": 1361,
+        "sha256": "04ed4846c8487dee807cebdaffad1a8a228d9b9acd87a936b8cecd8bdfb88971"
+      }
+    ],
+    "sum": "h1:KIvahhYqwtbeniWVPs3TcXEA7b8jEtwfBpOTAI+Urx4=",
+    "go_mod_sum": "h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=",
+    "acquisition_receipt": "20261017T105941Z_4f0eaf02"
+  }
+}

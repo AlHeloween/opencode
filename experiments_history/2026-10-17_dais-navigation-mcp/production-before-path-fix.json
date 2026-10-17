@@ -1,0 +1,364 @@
+{
+  "status": "FAIL",
+  "work": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711",
+  "source_manifest": {
+    "source_git_revision": "828ba5cdd5150a750ea5532874395105ba42043d",
+    "prefix_mapping": "packages/dais-code-intelligence/",
+    "inputs": [
+      {
+        "original_path": "packages/dais-code-intelligence/go.mod",
+        "corpus_path": "go.mod",
+        "bytes": 2964,
+        "sha256": "4b0add46136105b240eb9fa8fe8b2f8e230a87c254a868271dc1d9bbe86e95db"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/go.sum",
+        "corpus_path": "go.sum",
+        "bytes": 25399,
+        "sha256": "c9874b4fe5b8ce7ea45971e8e8a02f7787903d3063c7dcd05c3c9582762eebdc"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/capture/capture.go",
+        "corpus_path": "internal/capture/capture.go",
+        "bytes": 17303,
+        "sha256": "c605805d831205c012dd49ca85087ad70801091fe6c83b5b2b4e463bc04385bf"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/capture/capture_test.go",
+        "corpus_path": "internal/capture/capture_test.go",
+        "bytes": 11398,
+        "sha256": "0031b7b5b6d0dafbff7b608aed8bd93c4cdc1f5181cbb580fae43f33e2d103b6"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/capture/previous.go",
+        "corpus_path": "internal/capture/previous.go",
+        "bytes": 7942,
+        "sha256": "11ba85b62d115a915883108a6fb239c2d4edcdb218f60f8a3cf8fdb364aefd82"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/capture/publish_other.go",
+        "corpus_path": "internal/capture/publish_other.go",
+        "bytes": 180,
+        "sha256": "1c99099760f47c5c5f072ebbeae6e3e76d457cb85b1427681c05d5d400531784"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/capture/publish_windows.go",
+        "corpus_path": "internal/capture/publish_windows.go",
+        "bytes": 277,
+        "sha256": "77cb1186e4b277fee725b9fb9a7d5e4ff1759cc1fabd9cabf21e67909d9294bd"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/capture/repeated_test.go",
+        "corpus_path": "internal/capture/repeated_test.go",
+        "bytes": 8774,
+        "sha256": "335e671b5cbb5f6f10bc8884a3524f0fd67af840bc1d600b731fc8275d25708e"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/fossil/artifacts_test.go",
+        "corpus_path": "internal/fossil/artifacts_test.go",
+        "bytes": 2671,
+        "sha256": "95a1802579939da4a53ae43882036588ab1841e9060238a8904a7f635fb8d523"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/fossil/provider.go",
+        "corpus_path": "internal/fossil/provider.go",
+        "bytes": 10873,
+        "sha256": "6148fe10fc04c1cc43a5effe006142a4075189fd3924890a3c5495caca70191c"
+      },
+      {
+        "original_path": "packages/dais-code-intelligence/internal/fossil/provider_test.go",
+        "corpus_path": "internal/fossil/provider_test.go",
+        "bytes": 9011,
+        "sha256": "8f0d5272ac9d5e8b2f844f56064d901fb0657552da6adbbd6f67a38cffad1063"
+      }
+    ],
+    "bytes": 96792
+  },
+  "checks": [
+    "capture_readonly_fossil",
+    "real_inputs_exact_committed_bytes",
+    "capture_executed_unknown_semantics"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "init",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\source.fsl"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "a89f46421651abd9e8f59627cc31b27486498eb7f27e14f3bb0a6d89d434850b",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "open",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\source.fsl",
+        "--nested"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "72f222c1920720245e3d7026506cad7d17fcb1ae3ca33cc4f2bafd4c886f34e5",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "67560f4a725a29ec747b30c7da646d288d535104d4bc644a5544baffdc77c4db",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "production source from git:828ba5cdd5150a750ea5532874395105ba42043d sv:4d7c2b9a80e34f66951d38abc7f620e1",
+        "--hash",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "d20031b62eae646c364dec893596c16200f3fbd6c2b75398c5f60a31ee995288",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "9d20c7fe9edb1a7fb17be98302dd94b025f1688c04b5c5717696ec2707784c08",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\bundle",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\home",
+        "--ref",
+        "8e0c62ed4ec5ac85e4cc69ac4b4935091f682188bbdf56e5860001bfac674d7d",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-final-qualified.exe",
+        "--indexer-sha256",
+        "26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c",
+        "--timeout",
+        "180s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=GOOS=windows",
+        "--env=GOARCH=amd64",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\cache",
+        "--env=GOMODCACHE=C:\\Users\\Alexander\\go\\pkg\\mod",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\unused-gopath",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\tmp",
+        "--arg=--module-path=dais.local/codeintelligence",
+        "--arg=--module-version=828ba5cdd5150a750ea5532874395105ba42043d",
+        "--arg=--repository-remote=github.com/AlHeloween/opencode",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--skip-tests",
+        "--arg=--output={index}",
+        "--arg=./internal/fossil",
+        "--arg=./internal/capture"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "a2720a03ac05460a50f0d9a60e2039319d76bea27bdba14b5be04547bdef6194",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "831cf2ab40f6f5beb7a5cacfca42d8e9f6c1076dd1c4c2872943a99fb1144123",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "production native index sv:49ec26a1d7584038bf0e5ca72691d3f4",
+        "--hash",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "34fc752440bebd263c5de5884c32db5577e3b600706ea3295fe80401ec2a2cb7",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "28765919342305cd4e78c4ee5b8a6636ed7503d1abd914c4119db30aa0f5a83f",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "import",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\derived",
+        "--repository-id",
+        "production-core",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\home",
+        "--ref",
+        "5c257fd6a2adebd9c632be0237b47e91a50843cdade3cc09ac0035beab4aeae3",
+        "--scip",
+        "ci/index.scip",
+        "--manifest",
+        "ci/inputs.json",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "{\"error\":\"invalid, duplicate, symlink or unbound SCIP document \\\"internal\\\\\\\\capture\\\\\\\\capture.go\\\"\"}\n"
+    }
+  ],
+  "producer_sha256": "26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c",
+  "capture_sha256": "00afe82c4bfd9b4dce620f5d2564c021a657070a9dd1fb514078ba301962ef5f",
+  "graph_sha256": "a7a25b15306ea1815558b2d0bab4be766414199ec38383b9e5aeb8f890f85b9f",
+  "search_sha256": "de6c0d9e2fa493220c6ec911a941ed7c113b612ff6ae4fdcd993466aeefcbcaf",
+  "go_sha256": "d6a71e6dc9806cb3f1fcb817d562175c5a7b1505fc3f6638299648e0b9f0f74f",
+  "source_revision": "8e0c62ed4ec5ac85e4cc69ac4b4935091f682188bbdf56e5860001bfac674d7d",
+  "capture": {
+    "version": 1,
+    "source_revision": "8e0c62ed4ec5ac85e4cc69ac4b4935091f682188bbdf56e5860001bfac674d7d",
+    "source_inputs": [
+      {
+        "path": "go.mod",
+        "sha256": "4b0add46136105b240eb9fa8fe8b2f8e230a87c254a868271dc1d9bbe86e95db"
+      },
+      {
+        "path": "go.sum",
+        "sha256": "c9874b4fe5b8ce7ea45971e8e8a02f7787903d3063c7dcd05c3c9582762eebdc"
+      },
+      {
+        "path": "internal/capture/capture.go",
+        "sha256": "c605805d831205c012dd49ca85087ad70801091fe6c83b5b2b4e463bc04385bf"
+      },
+      {
+        "path": "internal/capture/capture_test.go",
+        "sha256": "0031b7b5b6d0dafbff7b608aed8bd93c4cdc1f5181cbb580fae43f33e2d103b6"
+      },
+      {
+        "path": "internal/capture/previous.go",
+        "sha256": "11ba85b62d115a915883108a6fb239c2d4edcdb218f60f8a3cf8fdb364aefd82"
+      },
+      {
+        "path": "internal/capture/publish_other.go",
+        "sha256": "1c99099760f47c5c5f072ebbeae6e3e76d457cb85b1427681c05d5d400531784"
+      },
+      {
+        "path": "internal/capture/publish_windows.go",
+        "sha256": "77cb1186e4b277fee725b9fb9a7d5e4ff1759cc1fabd9cabf21e67909d9294bd"
+      },
+      {
+        "path": "internal/capture/repeated_test.go",
+        "sha256": "335e671b5cbb5f6f10bc8884a3524f0fd67af840bc1d600b731fc8275d25708e"
+      },
+      {
+        "path": "internal/fossil/artifacts_test.go",
+        "sha256": "95a1802579939da4a53ae43882036588ab1841e9060238a8904a7f635fb8d523"
+      },
+      {
+        "path": "internal/fossil/provider.go",
+        "sha256": "6148fe10fc04c1cc43a5effe006142a4075189fd3924890a3c5495caca70191c"
+      },
+      {
+        "path": "internal/fossil/provider_test.go",
+        "sha256": "8f0d5272ac9d5e8b2f844f56064d901fb0657552da6adbbd6f67a38cffad1063"
+      }
+    ],
+    "source_input_digest": "986d1a58bd03c4fd6b69e35d47b09d7272e42e250942ccb229cc59bba7182e5c",
+    "indexer": {
+      "path": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-producer-capture\\toolchain\\scip-go-final-qualified.exe",
+      "sha256": "26cb11eaf3c600d5435188a59d54edf9b07ec998eb6e3d4cab50ba19c71b9d2c",
+      "args": [
+        "--module-path=dais.local/codeintelligence",
+        "--module-version=828ba5cdd5150a750ea5532874395105ba42043d",
+        "--repository-remote=github.com/AlHeloween/opencode",
+        "--go-version=go1.26.5",
+        "--skip-tests",
+        "--output=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\scratch\\dais-capture-3054078409\\ci\\index.scip",
+        "./internal/fossil",
+        "./internal/capture"
+      ]
+    },
+    "environment": [
+      "CGO_ENABLED=0",
+      "GOARCH=amd64",
+      "GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\cache",
+      "GOENV=off",
+      "GOFLAGS=-mod=readonly",
+      "GOMODCACHE=C:\\Users\\Alexander\\go\\pkg\\mod",
+      "GOOS=windows",
+      "GOPACKAGESDRIVER=off",
+      "GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\unused-gopath",
+      "GOPROXY=off",
+      "GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+      "GOSUMDB=off",
+      "GOTOOLCHAIN=local",
+      "GOWORK=off",
+      "PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+      "SystemRoot=C:\\WINDOWS",
+      "TEMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\tmp",
+      "TMP=D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\production Ω-y30zg711\\tmp"
+    ],
+    "index_sha256": "e10519ef62555e27a64640caac3f57471868272bf299d6663641af6e6764945d",
+    "result": "CAPTURED",
+    "exit_code": 0,
+    "stdout": "Resolving module name\nLoading Packages\n\rVisiting Packages [0/2]\rVisiting Packages [2/2]\n\rIndexing Implementations [0/136]\rIndexing Implementations [136/136]\n\rVisiting Project Files [0/2]\rVisiting Project Files [2/2]\n",
+    "stderr": "",
+    "diagnostics": "",
+    "semantic_status": "unknown"
+  },
+  "published_revision": "5c257fd6a2adebd9c632be0237b47e91a50843cdade3cc09ac0035beab4aeae3",
+  "error": "AssertionError(([WindowsPath('D:/zPython/opencode/packages/dais-code-intelligence/dist/dais-graph.exe'), 'import', '--index-root', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-navigation-mcp/production Ω-y30zg711/derived'), '--repository-id', 'production-core', '--repository', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-navigation-mcp/production Ω-y30zg711/source.fsl'), '--fossil', WindowsPath('D:/zPython/opencode/external/fossil/fossil.exe'), '--fossil-home', WindowsPath('D:/zPython/opencode/experiments/2026-10-17_dais-navigation-mcp/production Ω-y30zg711/home'), '--ref', '5c257fd6a2adebd9c632be0237b47e91a50843cdade3cc09ac0035beab4aeae3', '--scip', 'ci/index.scip', '--manifest', 'ci/inputs.json', '--profile', 'dais-scip-modern-utf8-v1'], 1, b'', b'{\"error\":\"invalid, duplicate, symlink or unbound SCIP document \\\\\"internal\\\\\\\\\\\\\\\\capture\\\\\\\\\\\\\\\\capture.go\\\\\"\"}\\n'))"
+}

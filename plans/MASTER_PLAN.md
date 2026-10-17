@@ -145,9 +145,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 280 |
-| plans active | 32 |
-| tasks passed / total | 1318 / 1605 |
-| open boxes | 144 |
+| plans active | 33 |
+| tasks passed / total | 1318 / 1609 |
+| open boxes | 148 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -416,6 +416,17 @@ parent-goal-md5: 00000000000000000000000000000000]
   - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-17_dais-navigation-mcp-corpus.md` — 4 open / 4 box(es) · lifecycle ACTIVE
+  sv: intention "DAIS имеет проверенные capture и facts без агентной навигации -> реальные Windows Go source definitions/references доступны через проверенный native MCP с Fossil/SV/evidence scope" · keywords [Keywords: code-navigation 0.35, native-mcp 0.25, real-corpus 0.25, provenance 0.15
+Semantic dominant: Реальные определения и ссылки получают проверяемый агентный интерфейс с закреплёнными Fossil версиями.
+md5: 4d7c2b9a80e34f66951d38abc7f620e1
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: e8a16f092bce49a5b9f4130dd7c26e84]
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-17_portable-binary-hermetic.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "portable install dir with exe-adjacent config -> hermetic binary that reads only exe-adjacent and data-root sources, never parent folders" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -427,6 +438,6 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 ## The checks
 
-This body names all 35 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 36 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

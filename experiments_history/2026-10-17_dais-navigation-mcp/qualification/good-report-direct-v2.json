@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "status": "COMPLETE",
+  "module_root": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\good",
+  "go_executable": "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin\\go.exe",
+  "go_environment": {
+    "CGO_ENABLED": "0",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOEXPERIMENT": "",
+    "GOFLAGS": "",
+    "GOMOD": "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\good\\go.mod",
+    "GOOS": "windows",
+    "GOPROXY": "off",
+    "GOROOT": "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+    "GOSUMDB": "off",
+    "GOTOOLCHAIN": "auto",
+    "GOVERSION": "go1.26.5",
+    "GOWORK": "off"
+  },
+  "go_list_args": [
+    "list",
+    "-mod=readonly",
+    "-export",
+    "-deps",
+    "-json",
+    "./internal/fossil",
+    "./internal/capture"
+  ],
+  "packages": [
+    {
+      "package_path": "example.test/golden/internal/capture",
+      "name": "capture",
+      "goos": "windows",
+      "goarch": "amd64",
+      "go_files": [
+        "internal/capture/capture.go"
+      ],
+      "excluded_test_files": [],
+      "ignored_go_files": []
+    },
+    {
+      "package_path": "example.test/golden/internal/fossil",
+      "name": "fossil",
+      "goos": "windows",
+      "goarch": "amd64",
+      "go_files": [
+        "internal/fossil/fossil.go"
+      ],
+      "excluded_test_files": [],
+      "ignored_go_files": []
+    }
+  ],
+  "source_pins": [
+    {
+      "path": "go.mod",
+      "sha256": "1ba79c17f5539996ac3d09278c3674c4fa4b3dd3f404458c35d788c8cb20ce39",
+      "bytes": 58,
+      "role": "module"
+    },
+    {
+      "path": "internal/capture/capture.go",
+      "sha256": "ac2e307944e80782eba001d3c8651752953d5099dab8ccdf6bd883f2683c9cec",
+      "bytes": 143,
+      "role": "compiled"
+    },
+    {
+      "path": "internal/fossil/fossil.go",
+      "sha256": "3d919c0213ad4f6f6e887c2d0c6137449b01f63d16d8535d8495e032be62cb06",
+      "bytes": 222,
+      "role": "compiled"
+    }
+  ],
+  "definitions": [
+    {
+      "id": "7d5d3720acfd3df7f611b852a7ed507dfd750d061317cf85f1c15be331f82743",
+      "package_path": "example.test/golden/internal/capture",
+      "kind": "function",
+      "name": "Use",
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        4,
+        5,
+        4,
+        8
+      ]
+    },
+    {
+      "id": "4ba1816dd9f686da01be0614c870152c2e544525d672665aaf5d6333d4423b54",
+      "package_path": "example.test/golden/internal/fossil",
+      "receiver": "example.test/golden/internal/fossil.A",
+      "kind": "method",
+      "name": "Same",
+      "document_path": "internal/fossil/fossil.go",
+      "range": [
+        5,
+        9,
+        5,
+        13
+      ]
+    },
+    {
+      "id": "ddb968523480fd21c65459ef05525ada95e54e070ed197f2935589ab13859b6e",
+      "package_path": "example.test/golden/internal/fossil",
+      "receiver": "example.test/golden/internal/fossil.B",
+      "kind": "method",
+      "name": "Same",
+      "document_path": "internal/fossil/fossil.go",
+      "range": [
+        6,
+        9,
+        6,
+        13
+      ]
+    },
+    {
+      "id": "31e5ae49d5972fa298d9ff79a6642a0dd3b9f4c5382c8594fde67c61de800c2b",
+      "package_path": "example.test/golden/internal/fossil",
+      "kind": "function",
+      "name": "Top",
+      "document_path": "internal/fossil/fossil.go",
+      "range": [
+        7,
+        5,
+        7,
+        8
+      ]
+    },
+    {
+      "id": "e63d4e9761c399d29aebb0b571f39cee0112ec2a397214b68af8416194f1e121",
+      "package_path": "example.test/golden/internal/fossil",
+      "kind": "function",
+      "name": "hidden",
+      "document_path": "internal/fossil/fossil.go",
+      "range": [
+        8,
+        5,
+        8,
+        11
+      ]
+    }
+  ],
+  "references": [
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        5,
+        19,
+        5,
+        23
+      ],
+      "target_id": "4ba1816dd9f686da01be0614c870152c2e544525d672665aaf5d6333d4423b54"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        5,
+        39,
+        5,
+        43
+      ],
+      "target_id": "ddb968523480fd21c65459ef05525ada95e54e070ed197f2935589ab13859b6e"
+    },
+    {
+      "document_path": "internal/capture/capture.go",
+      "range": [
+        5,
+        55,
+        5,
+        58
+      ],
+      "target_id": "31e5ae49d5972fa298d9ff79a6642a0dd3b9f4c5382c8594fde67c61de800c2b"
+    }
+  ],
+  "exclusions": [
+    "definitions: named functions and methods only, including unexported",
+    "references: explicit identifier uses/selections targeting selected named function/method definitions; duplicates deduplicated by source-range+target",
+    "tests, build-excluded files, external definitions, builtins, fields, locals, implicit definitions and call-graph inference are outside this golden"
+  ],
+  "errors": []
+}

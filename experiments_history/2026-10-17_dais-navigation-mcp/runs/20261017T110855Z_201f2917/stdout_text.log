@@ -1,0 +1,51 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# dais.local/codeintelligence/cmd/dais-mcp [dais.local/codeintelligence/cmd/dais-mcp.test]
+cmd\dais-mcp\main_test.go:10:208: undefined: run
+# dais.local/codeintelligence/internal/mcpserver [dais.local/codeintelligence/internal/mcpserver.test]
+internal\mcpserver\server_test.go:37:28: undefined: Config
+internal\mcpserver\server_test.go:37:44: undefined: Config
+internal\mcpserver\server_test.go:38:35: undefined: Server
+internal\mcpserver\server_test.go:43:31: undefined: New
+internal\mcpserver\server_test.go:44:17: undefined: NavigationResponse
+internal\mcpserver\server_test.go:45:17: undefined: NavigationResponse
+internal\mcpserver\server_test.go:46:11: undefined: SearchResponse
+internal\mcpserver\server_test.go:48:13: undefined: StatusResponse
+internal\mcpserver\server_test.go:53:31: undefined: New
+internal\mcpserver\server_test.go:56:12: undefined: NavigationResponse
+internal\mcpserver\server_test.go:56:12: too many errors
+FAILdais.local/codeintelligence/internal/mcpserver [build failed]
+FAILdais.local/codeintelligence/cmd/dais-mcp [build failed]
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

@@ -1,0 +1,34 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Traceback (most recent call last):
+  File "D:\zPython\opencode\experiments\2026-10-17_dais-navigation-mcp\qualify-typed-golden.py", line 12, in <module>
+    assert result.returncode == 0, (result.stdout, result.stderr)
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\qualification\\good-report.json\n', 'go [env -json GOVERSION GOROOT GOOS GOARCH GOWORK GOPROXY GOSUMDB]: exit status 1\ngo: golang.org/toolchain@v0.0.1-go1.26.5.windows-amd64: verifying module: checksum database disabled by GOSUMDB=off\n\n')

@@ -104,6 +104,16 @@ def format_chain(chain: list[dict], needle: str | None = None) -> list[str]:
         lines.append(f"     {vector['dominant']}")
     return lines
 
+def slug_for(path_text: str) -> str:
+    """Claude Code's folder name for a project directory.
+
+    Measured under C:/Users/Alexander/.claude/projects (2026-10-17) against
+    the `cwd` recorded inside each transcript: every character outside
+    [A-Za-z0-9-] becomes '-', one per character, repeats kept
+    ('D:' + '\\' -> 'D--'). That covers ':', '\\', '/', '_' (-> '-' in
+    D:/zPython/ADID_Python), '.' (-> '-' in .omp and .claude), with '-'
+    and alphanumerics preserved and case kept."""
+    return re.sub(r"[^A-Za-z0-9-]", "-", path_text)
 
 def project_dir() -> Path:
     """The transcript folder for the current working directory."""
@@ -115,7 +125,7 @@ def project_dir() -> Path:
     # tool from tools/ and got "no folder matches".
     here = Path.cwd().resolve()
     for directory in (here, *here.parents):
-        slug = str(directory).replace(":", "-").replace("\\", "-").replace("/", "-")
+        slug = slug_for(str(directory))
         if (projects / slug).is_dir():
             return projects / slug
         candidates = [d for d in projects.iterdir()

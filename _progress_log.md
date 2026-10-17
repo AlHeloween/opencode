@@ -7541,3 +7541,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 
 - FRESH fixture `.temp/t78-install2/a/b/bin` (new `dist/bin` copy, same decoy parent), 9 key names cleared, build 10.0.1417 (with `local.tsx` true-site fix). Result: marker ABSENT, parent `.opencode` path appears ZERO times in logs (all `t78-install2` hits are `a/b/bin`-local), only internal TUI plugins (`count 11`, no external), `state/model.json` EXISTS (silent fill), and the log contains NO `bug: model`, NO `bug: global`, NO `[object Object]`. Both side defects closed at the true sites; clamp holds end to end.
 <!-- sv: hermetic-quiet 0.50, silent-fill-verified 0.30, no-parent-source 0.20 -->
+## [2026-10-17] t81 claude svchain slug fixes _ and . (Smit)
+
+- GROUND (measured 59 folders under C:/Users/Alexander/.claude/projects vs `cwd` in newest transcript): `D:\zPython\ADID_Python` -> `D--zPython-ADID-Python` (_ -> -); `C:\Users\Alexander\.omp\...` -> `C--Users-Alexander--omp-...` (. -> -); `.claude` -> `-claude`; `:`/`\\`/`/` each one `-`, repeats kept (`D:`+`\\` -> `D--`); `-`/alnum/case kept. Spaces: no cwd observed with spaces (residual, rule predicts `-`). One stale-cwd note: folder `...-kernel-merge` newest transcript records cwd `...-affectionate-moore-617439` (rename/reuse, fallback endswith still covers).
+- RED: new `test_slug_replaces_underscore_dot_and_separators` in tools/tests/test_claude_svchain.py (5 asserts incl. `_`/`.`/seps/repeats) — ImportError `slug_for` before fix.
+- FIX: `tools/claude_svchain.py` gains `slug_for()` (`re.sub(r"[^A-Za-z0-9-]", "-", s)`, char-by-char, no collapsing) and `project_dir()` uses it; old 3-replace line removed.
+- CODEX: `tools/codex_svchain.py` has no slug at all (reads CODEX_HOME/sessions, globs rollout-*.jsonl) — same defect absent, named per brief.
+- ORACLE: `python -m pytest tests/ -q` from tools/ → 5 passed; live `python D:/zPython/opencode/tools/claude_svchain.py 27d18c11` with cwd D:/zPython/ADID_Python → 14 vectors (RESET + 13 LINK), previously `ValueError: no session matched`.
+- BUILD: `_build.ps1` NOT run — Python-tool-only change, nothing to stage into dist/ (per t81 brief).
+<!-- sv: claude-slug-fix 0.45, measured-rule 0.30, pytest-live-oracle 0.25 -->

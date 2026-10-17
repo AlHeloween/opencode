@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from claude_svchain import format_chain, select_session, vector_in, vectors
+from claude_svchain import format_chain, select_session, slug_for, vector_in, vectors
 
 
 def _message(own_id: str, previous_id: str, dominant: str, keywords: str = "topic 1.0") -> str:
@@ -48,3 +48,18 @@ def test_reject_incomplete_block_and_ambiguous_selector() -> None:
         assert "matched 2" in str(error)
     else:
         raise AssertionError("ambiguous session selector was accepted")
+
+
+def test_slug_replaces_underscore_dot_and_separators() -> None:
+    # Measured under C:/Users/Alexander/.claude/projects (2026-10-17):
+    # D:\zPython\ADID_Python -> D--zPython-ADID-Python (_ -> -),
+    # C:\Users\Alexander\.omp\... -> C--Users-Alexander--omp-... (. -> -),
+    # ':'/'\\'/'/' each become one '-', repeats kept ('D:' + '\\' -> 'D--').
+    assert slug_for("D:\\zPython\\ADID_Python") == "D--zPython-ADID-Python"
+    assert slug_for("D:/zPython/ADID_Python") == "D--zPython-ADID-Python"
+    assert slug_for("C:\\Users\\Alexander\\.omp\\agent\\cache\\aicall-empty") == \
+        "C--Users-Alexander--omp-agent-cache-aicall-empty"
+    assert slug_for("D:\\zPython\\opencode\\experiments\\2026-10-14_claude-desktop-compact\\scratch") == \
+        "D--zPython-opencode-experiments-2026-10-14-claude-desktop-compact-scratch"
+    assert slug_for("D:\\zPython\\ADID_Python\\.claude\\worktrees\\blissful-visvesvaraya-6a36ee") == \
+        "D--zPython-ADID-Python--claude-worktrees-blissful-visvesvaraya-6a36ee"

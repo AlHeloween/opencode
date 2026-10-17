@@ -1,4 +1,11 @@
 ﻿# Progress Log
+## [2026-10-17] bin promotion 10.0.1417 -> 10.0.1421 (owner's word; Legislator session)
+
+✓ CONFIRMED (swap): `python scripts/promote_bin.py` from Terminal tab c2, cold path (owner had closed the TUIs; no holder of bin): old sha `08f764f87af6` -> new sha `e225201e4d02` = `dist/bin/opencode.exe`, smoke 10.0.1421 (dist was rebuilt by the DAIS lane's `_build.ps1` after t79's 10.0.1420); state `.opencode/data/promotion/promotion-20261017-185937.json`; rollback `bin/opencode.exe.prev`.
+✓ CONFIRMED (host): robots' host relaunched via run_in_terminal `cmd_runner start --terminal wt` -> pid 18768 :4096, `/global/health` 10.0.1421.
+✓ CONFIRMED (oracle, t79 kernel reaches the model): payload `1792234816732_payload_…ses_eb695f4c0ffe…` (19:00:16) holds «computed geometry is the prediction» 1 and «no single failure can produce both results» 1; control: the 18:35:53 payload on 10.0.1417 held both 0 (EXPECTED_FAIL).
+<!-- sv: bin-promotion 0.40, payload-oracle 0.35, cold-swap 0.25 -->
+
 
 ## [2026-10-17] DAIS R1 — explicit repeated capture (план 2026-10-17_dais-repeated-capture)
 

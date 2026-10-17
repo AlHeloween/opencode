@@ -7631,3 +7631,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - READINESS vs plan 2026-10-17_dais-navigation-mcp-corpus (C1 [x], C2/C3/C4 [ ]): C1 PASS (evidencegraph uncached 32.7s + full-suite ok 28.298s); C2 FAIL-blocked (mcpserver/cmd/dais-mcp build via search->zoekt Windows break; plan itself records open + historical-pin indexstatus toolerror in 111540Z); C3 not runnable here as one command (multi-step corpus pipeline GOOS=windows/offline/Fossil tree; prior receipts 110937Z/110818Z/111122Z cited, not re-run); C4 not runnable (archive/meta). No box ticked, no file fixed, no plan moved — findings are for the DAIS lane.
 - IN-FLIGHT: none — all 10 core scoped files + newest experiments_history file (external-pins.json 11:19:53 UTC) older than cutoff 14:25:31 UTC (now 14:40 UTC); lane quiet >3h.
 <!-- sv: commit-pending-dais 0.35, readiness-audit 0.30, read-only-verdict 0.25, lane-boundary 0.10 -->
+## [2026-10-17] t84 SV legend `note: hash values are generative` — kernel render only, STOP before --install (Smit)
+
+- RED-GREEN: `prompt_kernel/tests/test_sv_legend.py` 10 FAIL (no legend) → 10 PASS after `render.py` fix; 4-variant parity; trivial-no-legend (no hashes → no legend).
+- GENERATOR (`prompt_kernel/render.py` only): yaml example ends with `note: hash values are generative` + one-line `- note:` bullet; fixed missing comma that glued parent-goal and trivial bullets; `source.py` untouched (example lives in render).
+- MATRIX (same fixture ± note, no root scans): claude/codex `vector_in` SAME; `parse_brief_sv`/`own_md5s`/`last_turn_sv`/`own_positions`/`parent_positions`/watch3 regex SAME; TS `extractVectorChain`/`planHeaderLabel`/`hasSemanticVector` SAME, `vectorSign` SAME (note filtered, md5 kept) — zero reader fixes.
+- CAPS (next band, no cuts): 9_200→9_300 in test_dedup/test_addons_codex/test_addons_claude/test_addons_cursor (product 9146/claude 9210/codex 9156/cursor 9232, bytes 68294/69000).
+- ORACLE: kernel 322 passed + 3 stale-receiver reds (production/claude/cursor receivers, expected pre-install); tools 5 passed; robot-wave 13 passed; product vector-sign 6 passed (run 20261017T144544Z_e0ae67f9 exit 0); `_build.ps1` exit 0 (run 20261017T144639Z_9dcc8609, smoke 10.0.1427).
+- STOP: no `--install`, no `bin/`; receivers stay stale for Legislator review + outside falsifier; owner gives install word.
+<!-- sv: sv-legend 0.40, generative-md5 0.30, reader-compat 0.20, kernel-edit 0.10 -->

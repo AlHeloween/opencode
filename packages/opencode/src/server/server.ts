@@ -166,38 +166,49 @@ export async function listen(opts: {
   }
 }
 
-export const TUI_HOST_PREFERRED_PORT = 2727
-const TUI_HOST_SCAN_COUNT = 64
-const WEB_DEBUG_PORT = 4096
-
 /**
- * t91: the TUI worker's embedded host server (robot delegation) prefers 2727.
- * Tries 2727, then each next port sequentially (bounded scan), then one
- * OS-assigned port. Never serves the web/debug port: if the OS fallback hands
- * it back, the listener is stopped and the call throws instead of colliding
- * with web/debug (and Codex OAuth) on 4096.
+ * t91/t92: the TUI worker's embedded host server (robot delegation) lives in
+ * the IANA-unassigned range 29170-29998 (study:
+  * experiments/2026-10-18_port-2727/RESULT.md). Base 29200; if it is taken,
+  * the next free port INSIDE the range only — the earlier candidate was
+  * dropped as IANA-registered (see the study). Never leaves the range.
  * `Server.listen` and both adapters are untouched: serve/web keep preferring
  * 4096 for port 0. Clients must read the real port from the worktree host
  * record (`server_host`), never assume it.
  */
+export const TUI_HOST_PORT_MIN = 29170
+export const TUI_HOST_PORT_BASE = 29200
+export const TUI_HOST_PORT_MAX = 29998
+
+/**
+ * Ports this project never binds, probes or claims as its own: OAuth login
+ * callbacks (transit, loopback-only), infra, web/debug. Source:
+ * plans/2026-10-18_codex-oauth-empty-error.md port map. The delegation scan
+ * range above contains none of them (pinned by test), and no probe in this
+ * file names any of them.
+ */
+export const NEVER_BIND_PORTS: readonly number[] = [
+  1455, 1456, 54545, 56121, 3005, 3010, 8079, 9222, 5432, 4096,
+]
+
 export async function listenTuiHost(opts: {
   hostname: string
   mdns?: boolean
   mdnsDomain?: string
   cors?: string[]
 }): Promise<Listener> {
-  for (let port = TUI_HOST_PREFERRED_PORT; port < TUI_HOST_PREFERRED_PORT + TUI_HOST_SCAN_COUNT; port++) {
+  const candidates: number[] = []
+  for (let port = TUI_HOST_PORT_BASE; port <= TUI_HOST_PORT_MAX; port++) candidates.push(port)
+  for (let port = TUI_HOST_PORT_MIN; port < TUI_HOST_PORT_BASE; port++) candidates.push(port)
+  for (const port of candidates) {
     try {
       return await listen({ port, ...opts })
     } catch (error) {
       log.debug("tui host port taken, trying next", { port, error: String(error) })
     }
   }
-  const fallback = await listen({ port: 0, ...opts })
-  if (fallback.port !== WEB_DEBUG_PORT) return fallback
-  await fallback.stop(true)
   throw new Error(
-    `TUI host found no free port: ${TUI_HOST_PREFERRED_PORT}..${TUI_HOST_PREFERRED_PORT + TUI_HOST_SCAN_COUNT - 1} taken and the OS fallback returned the web/debug port ${WEB_DEBUG_PORT}`,
+    `TUI host found no free port in ${TUI_HOST_PORT_MIN}..${TUI_HOST_PORT_MAX} (base ${TUI_HOST_PORT_BASE})`,
   )
 }
 

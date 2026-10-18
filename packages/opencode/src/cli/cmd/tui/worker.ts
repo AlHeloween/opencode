@@ -198,9 +198,9 @@ export const rpc = {
   },
   async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[]; directory: string }) {
     if (server) await server.stop(true)
-    // t91: a TUI-worker server with no explicit port prefers the delegation
-    // port 2727 (the host record holds the real one); an explicit --port or
-    // an mdns request keeps the default path. Adapters are untouched.
+    // t91/t92: a TUI-worker server with no explicit port prefers the delegation
+    // base 29200 (range 29170-29998; the host record holds the real one);
+    // an explicit --port or an mdns request keeps the default path. Adapters are untouched.
     server =
       input.port === 0 && !input.mdns
         ? await Server.listenTuiHost({ hostname: input.hostname, mdns: input.mdns, cors: input.cors })

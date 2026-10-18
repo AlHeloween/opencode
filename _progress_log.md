@@ -1,5 +1,17 @@
 ﻿# Progress Log
 
+## [2026-10-18] t90 — kernel method preamble + Claude hybrid rung (STOP before --install)
+
+RED (test_method_preamble.py): 3 failed / 1 passed; GREEN after: 4 passed. Full suite: 333 passed + 3 stale-receiver reds (production prompt, cursor rule, claude kernel — receivers not reinstalled per brief). Sizes after: product 68898 B / 9234 tok, claude 68868 / 9329, codex 68609 / 9244, cursor 68651 / 9320; token caps 9300 -> 9400 next band, nothing cut; byte cap 69000 holds. Premise repr identical across 4 variants; Claude G1 has :3005/hybrid, no WebSearch rung (WebFetch debugging only); codex/cursor carry no WebSearch rung — untouched. _build.ps1 run 20261018T034727Z_04993120 exit 0, bytes_written 67100, smoke 10.0.1439. Premise lives in render.py:219 (source.py has no premise slot — brief path off by one file). Plan plans/2026-10-18_kernel-method-preamble.md stays ACTIVE for Legislator review.
+## [2026-10-18] t87 implement - gates GREEN, owner box open
+
+GREEN (no bin/): gate in every consumer (resolvers, assign head, prompt/shell/command/title, task/pipeline/plan/reasoning, aicall explicit-refuse, chain PUT write-gate, llm stream filter, small-model head); TUI set() refuse + row stale marker + Global recents editor (ctrl+alt+r) + PATCH writer; Config.Info.globalRecents; classify withdrawn->terminal; migration kept-not-deleted-shown. Tests: allowlist 4/4 run 20261018T025652Z_7e829613, chain-gate 3/3 run 20261018T025707Z_4630982c, renamed 7/7 run 20261018T025723Z_9284672 (RED R1/R5/R6 first, pins held); regressions smoke 6/6, store 16/16, failover 32/32, stream 17/17, persist 28/28, cell 24/24, agent-selection 17/17; typecheck exit 0 run 20261018T030537Z_538446fd; config 77/82 (5 timeout flakes pass solo, loaded box). Plan ACTIVE, owner box open (list content is owner's TUI edit). Seed proposal: free zen -> contributor via Go.
+<!-- goal_sv: Keywords: t87-implement 0.30, gate-every-consumer 0.25, renamed-failover 0.20, owner-sets-list 0.15, red-green-receipts 0.10
+Semantic dominant: The accepted t87 plan is implemented with every model consumer gated by the global recents list and the renamed-model failover case is covered.
+md5: 7f3a2c9e4b5d6a83e0d1c5a8b4f6e291
+prev-md5: 4e7a1c9d3f5b4826ac0e7d1c5b9a306f2
+parent-goal-md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
+-->
 ## [2026-10-18] t89 — write returns line addresses like edit does
 CONFIRMED: RED run 20261018T024529Z_5bb5f305 (exit 1, both new tests fail on the missing Addresses block); GREEN run 20261018T024919Z_dfefccaa (2 pass, 13 expects, exit 0; printed labels equal read labels per line; edit by printed label lands on disk). Full write.test.ts 20261018T025006Z_c424b4fd (23 pass, 0 fail), edit.test.ts 20261018T025245Z_075f650c (25 pass, 0 fail), description-integrity 20261018T025345Z_d20f9b5c (8 pass, 0 fail), _build.ps1 20261018T025423Z_4d977aaf (exit 0, candidate 10.0.1437). Fix reuses addressReport from ./edit over the final on-disk text; write.txt promises current line labels. Plan move to plans_completed/ pending on the shared-index lock (next action: git mv + commit).
 <!-- goal_sv: write-address-report 0.40, edit-after-write 0.25, final-text-labels 0.20, red-test-first 0.15 -->
@@ -7827,12 +7839,3 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ## [2026-10-18] t88 — Claude SV turn hook: source + fixture tests, STOP for Legislator
 
 DONE 8/8 fixture tests (run 20261018T0247Z, python scripts/claude-hooks/tests/test_sv_turn_fossil.py, exit 0): scripts/claude-hooks/sv_turn_fossil.py (Stop hook: LAST assistant message SV -> `chat claude[ sv:md5]: dominant (session id8)` technote, cell.ts byte-shape; org.py write-verb / AskUserQuestion-answer / wrap_up-actions turns also to $ORG_HOME/org.fossil with decision/delegation tags; 5 s budget, exit 0, log .temp/sv_turn_fossil.log) + README.md + tests/ (6 fixture jsonl + runner, scratch fossils in .temp/). Caught by tests before commit: unanchored md5 search matched prev-md5 zeros, 2-level log root wrote scripts/.temp, trailing-newline drift vs cell.ts. Next: Legislator review + install to ~/.claude/settings.json.
-## [2026-10-18] t87 implement - gates GREEN, owner box open
-
-GREEN (no bin/): gate in every consumer (resolvers, assign head, prompt/shell/command/title, task/pipeline/plan/reasoning, aicall explicit-refuse, chain PUT write-gate, llm stream filter, small-model head); TUI set() refuse + row stale marker + Global recents editor (ctrl+alt+r) + PATCH writer; Config.Info.globalRecents; classify withdrawn->terminal; migration kept-not-deleted-shown. Tests: allowlist 4/4 run 20261018T025652Z_7e829613, chain-gate 3/3 run 20261018T025707Z_4630982c, renamed 7/7 run 20261018T025723Z_9284672 (RED R1/R5/R6 first, pins held); regressions smoke 6/6, store 16/16, failover 32/32, stream 17/17, persist 28/28, cell 24/24, agent-selection 17/17; typecheck exit 0 run 20261018T030537Z_538446fd; config 77/82 (5 timeout flakes pass solo, loaded box). Plan ACTIVE, owner box open (list content is owner's TUI edit). Seed proposal: free zen -> contributor via Go.
-<!-- goal_sv: Keywords: t87-implement 0.30, gate-every-consumer 0.25, renamed-failover 0.20, owner-sets-list 0.15, red-green-receipts 0.10
-Semantic dominant: The accepted t87 plan is implemented with every model consumer gated by the global recents list and the renamed-model failover case is covered.
-md5: 7f3a2c9e4b5d6a83e0d1c5a8b4f6e291
-prev-md5: 4e7a1c9d3f5b4826ac0e7d1c5b9a306f2
-parent-goal-md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
--->

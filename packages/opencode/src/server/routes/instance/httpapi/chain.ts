@@ -4,6 +4,10 @@ import { displayHealth, memberKey, validateChain } from "@/provider/model-chain/
 import { chainHealthState } from "@/provider/model-chain/health-registry"
 import { loadChain, saveChain } from "@/provider/model-chain/store"
 import { Authorization } from "./auth"
+import * as Log from "@opencode-ai/core/util/log"
+import { isListMember, readGlobalRecents } from "@/session/global-recents"
+
+const log = Log.create({ service: "chain" })
 
 const root = "/chain"
 
@@ -112,6 +116,23 @@ export const chainHandlers = Layer.unwrap(
     }) {
       const members = validateChain(ctx.payload.members)
       if (members.length === 0) return yield* Effect.fail(new HttpApiError.BadRequest({}))
+      // t87 decision 2: write-gated AND use-gated. Existing out-of-list rows are
+      // kept (history, never deleted); only the write of a new one is refused.
+      const writeRecents = yield* Effect.tryPromise({
+        try: () => readGlobalRecents(),
+        catch: () => undefined,
+      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+      if (writeRecents !== undefined) {
+        const refused = members.filter((member) => !isListMember(member, writeRecents))
+        if (refused.length > 0) {
+          log.warn("bug: chain write not in global recents", {
+            scope: ctx.params.scope,
+            agent: ctx.params.agent,
+            refused: refused.map((member) => `${member.providerID}/${member.modelID}`),
+          })
+          return yield* Effect.fail(new HttpApiError.BadRequest({}))
+        }
+      }
       saveChain(ctx.params.scope, ctx.params.agent, members)
       return view(ctx.params.scope, ctx.params.agent)
     })

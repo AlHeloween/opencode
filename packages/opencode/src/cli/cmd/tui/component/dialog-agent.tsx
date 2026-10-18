@@ -13,6 +13,7 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogModel } from "./dialog-model"
 import { DialogVariant } from "./dialog-variant"
+import { DialogPrompt } from "@tui/ui/dialog-prompt"
 import { DialogRouting } from "./dialog-routing"
 import { DialogSubagentSettings } from "./dialog-subagent-settings"
 import { DialogModelParameters } from "./dialog-model-parameters"
@@ -271,6 +272,9 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
         description: agent.description ?? undefined,
         origin: cell.origin,
         taskCount: sub === undefined ? undefined : sub.length,
+        // t87 migration display: a stale layer value is kept in its file and SHOWN
+        // here — the server gate refuses to run it. Empty list = legacy, never stale.
+        stale: ref ? !local.model.inGlobalRecents(ref) : false,
       }),
       variantStep: ref
         ? {
@@ -336,6 +340,26 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
                 targetAgent={option.value}
                 scope={scope}
                 onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)}
+              />
+            ))
+          },
+        },
+        {
+          // t87: the owner edits the ordered allowlist here; one save governs every worktree.
+          title: "Global recents",
+          keybind: Keybind.parse("ctrl+alt+r")[0],
+          onTrigger: () => {
+            const current = local.model.globalRecents().join("\n")
+            dialog.replace(() => (
+              <DialogPrompt
+                title="Global recents — owner order, one provider/model per line"
+                value={current}
+                onConfirm={(value) => {
+                  void local.model.setGlobalRecents(value.split("\n")).then((saved) => {
+                    if (saved) dialog.replace(() => <DialogAgent scope={scope} restoreValue={lastCursor()} />)
+                  })
+                }}
+                onCancel={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={lastCursor()} />)}
               />
             ))
           },

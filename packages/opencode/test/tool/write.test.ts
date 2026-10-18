@@ -3,6 +3,8 @@ import { Effect, Layer } from "effect"
 import path from "path"
 import fs from "fs/promises"
 import { WriteTool } from "../../src/tool/write"
+import { EditTool } from "../../src/tool/edit"
+import { ReadTool } from "../../src/tool/read"
 import { Instance } from "../../src/project/instance"
 import { LSP } from "@/lsp/lsp"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -13,6 +15,7 @@ import { Tool } from "@/tool/tool"
 import { Agent } from "../../src/agent/agent"
 import { SessionID, MessageID } from "../../src/session/schema"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+import { Instruction } from "../../src/session/instruction"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
@@ -47,6 +50,7 @@ const it = testEffect(
     AppFileSystem.defaultLayer,
     Bus.layer,
     Format.defaultLayer,
+    Instruction.defaultLayer,
     CrossSpawnSpawner.defaultLayer,
     Truncate.defaultLayer,
     Agent.defaultLayer,
@@ -392,6 +396,88 @@ describe("tool.write", () => {
 
           const result = yield* run({ filePath: filepath, content: "export const Button = () => {}" })
           expect(result.title).toEndWith(path.join("src", "components", "Button.tsx"))
+        }),
+      ),
+    )
+  })
+
+  describe("write returns line addresses", () => {
+    // t89: after a `write` the model receives no line labels, so its next `edit` guesses
+    // `fromHash` and is refused. The write result must carry the same `addressReport`
+    // `edit` returns, computed over the final on-disk text — so these tests use ONLY
+    // the printed labels, never a recomputed hash.
+    const printedLabels = (output: string) => {
+      const out: { line: number; hash: string }[] = []
+      for (const raw of output.split("\n")) {
+        const m = /^(\d+)  ([0-9a-f]{8})(?:: .*)?$/.exec(raw)
+        if (m) out.push({ line: Number(m[1]), hash: m[2]! })
+      }
+      return out
+    }
+
+    const readLabels = Effect.fn("WriteAddressTest.readLabels")(function* (filepath: string) {
+      const info = yield* ReadTool
+      const reader = yield* info.init()
+      const result = yield* reader.execute({ filePath: filepath }, ctx)
+      return printedLabels(result.output)
+    })
+
+    const editByLabel = Effect.fn("WriteAddressTest.editByLabel")(function* (
+      filepath: string,
+      fromHash: string,
+      newString: string,
+    ) {
+      const info = yield* EditTool
+      const editor = yield* info.init()
+      return yield* editor.execute(
+        { files: [{ filePath: filepath, edits: [{ fromHash, newString }] }] },
+        ctx,
+      )
+    })
+
+    it.live("new file: edit line 2 using ONLY the printed labels", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const filepath = path.join(dir, "labeled.txt")
+          const written = yield* run({ filePath: filepath, content: "alpha\nbeta\ngamma\n" })
+
+          expect(written.output).toContain("Addresses for")
+          const labels = printedLabels(written.output)
+          expect(labels.length).toBe(3)
+
+          for (const label of labels) {
+            const readBack = yield* readLabels(filepath)
+            expect(readBack.find((item) => item.line === label.line)?.hash).toBe(label.hash)
+          }
+
+          const second = labels.find((item) => item.line === 2)!
+          const edited = yield* editByLabel(filepath, second.hash, "BETA")
+          expect(edited.output).toContain("Edit applied successfully")
+          expect(yield* Effect.promise(() => fs.readFile(filepath, "utf-8"))).toBe("alpha\nBETA\ngamma\n")
+        }),
+      ),
+    )
+
+    it.live("overwrite: edit a changed line by its printed label", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const filepath = path.join(dir, "over.txt")
+          yield* Effect.promise(() => fs.writeFile(filepath, "one\ntwo\nthree\n", "utf-8"))
+          const written = yield* run({ filePath: filepath, content: "one\nTWO\nthree\n" })
+
+          expect(written.output).toContain("Addresses for")
+          const labels = printedLabels(written.output)
+          const second = labels.find((item) => item.line === 2)
+          expect(second?.hash).toMatch(/^[0-9a-f]{8}$/)
+
+          const readBack = yield* readLabels(filepath)
+          for (const label of labels) {
+            expect(readBack.find((item) => item.line === label.line)?.hash).toBe(label.hash)
+          }
+
+          const edited = yield* editByLabel(filepath, second!.hash, "2")
+          expect(edited.output).toContain("Edit applied successfully")
+          expect(yield* Effect.promise(() => fs.readFile(filepath, "utf-8"))).toBe("one\n2\nthree\n")
         }),
       ),
     )

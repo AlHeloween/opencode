@@ -1,5 +1,5 @@
 Gates: G7 create/replace whole file under a G4 envelope; a PERSISTENT_WRITE proven by reading back (@ORACLE).
-Principle: why = new files and wholesale replacement; NOT for changing a file you have read — that is edit (addresses); prints no addresses, so a later edit needs a fresh read.
+Principle: why = new files and wholesale replacement; NOT for changing a file you have read — that is edit (addresses); returns the current line labels, so the next edit can address them directly.
 Write a whole file — create it, or replace it entirely. For a change to a file you have read, use `edit`: it takes the addresses `read` printed.
 
 ## The call

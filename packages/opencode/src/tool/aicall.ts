@@ -12,6 +12,7 @@ import { canonicalIdentity } from "@/session/mode-identity"
 import { loadChain } from "@/provider/model-chain/store"
 import { chainHealthState } from "@/provider/model-chain/health-registry"
 import { resolveChainAgentModel } from "@/session/session-settings"
+import { isListMember, readGlobalRecents } from "@/session/global-recents"
 
 const log = Log.create({ service: "tool.aicall" })
 
@@ -129,6 +130,11 @@ export const AiCallTool = Tool.define(
           // run as "free". An omitted model with no chain is REFUSED, never a
           // silent free/default/router fallback.
           const allowPaid = params.allow_paid === true
+          // t87: ONE lookup of ONE key (L4 `globalRecents`) — every call that spends tokens obeys the list.
+          const aicallRecents = yield* Effect.tryPromise({
+            try: () => readGlobalRecents(),
+            catch: () => undefined,
+          }).pipe(Effect.catch(() => Effect.succeed(undefined)))
           let model: Provider.Model | undefined
           if (params.model || params.provider) {
             const defaultModel = yield* provider.defaultModel()
@@ -136,6 +142,24 @@ export const AiCallTool = Tool.define(
             const providerID = ProviderID.make(rawProviderID)
             const modelID = ModelID.make(params.model ?? defaultModel.modelID)
             const resolved = yield* provider.getModel(providerID, modelID)
+            // t87 decision 1: an explicit model/provider outside the list is REFUSED, with reason + list named.
+            if (
+              aicallRecents !== undefined &&
+              !isListMember({ providerID: resolved.providerID, modelID: resolved.id }, aicallRecents)
+            ) {
+              log.warn("bug: aicall model not in global recents", {
+                agent: canonicalIdentity(ctx.agent),
+                model: `${resolved.providerID}/${resolved.id}`,
+              })
+              const refusedEnvelope = requestEnvelope(resolved, params.prompt)
+              return {
+                title: `aicall REFUSED (not in global recents): ${resolved.providerID}/${resolved.id}`,
+                metadata: {
+                  model: { providerID: resolved.providerID, modelID: resolved.id },
+                },
+                output: `${refusedEnvelope}\n\nREFUSED: ${resolved.providerID}/${resolved.id} is outside the owner's global recents list [${aicallRecents.join(", ")}]. Pass a list member explicitly or ask the owner to extend the list in the TUI.`
+              }
+            }
             if (isRouterModel(resolved) && !allowPaid) {
               const envelope = requestEnvelope(resolved, params.prompt)
               return {
@@ -150,7 +174,10 @@ export const AiCallTool = Tool.define(
           } else {
             const agent = canonicalIdentity(ctx.agent)
             const chain = loadChain(`session:${ctx.sessionID}`, agent)
-            const member = resolveChainAgentModel(agent, String(ctx.sessionID), chainHealthState(), { chain })
+            const member = resolveChainAgentModel(agent, String(ctx.sessionID), chainHealthState(), {
+              chain,
+              globalRecents: aicallRecents,
+            })
             if (!member) {
               return {
                 title: `aicall REFUSED (no model): ${agent}`,

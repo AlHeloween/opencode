@@ -5,6 +5,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { parse as parseJsonc, type ParseError } from "jsonc-parser"
 import { modelSampling, modelSamplingKey, type ModelSampling } from "./model-sampling"
 import { firstUp } from "@/provider/model-chain/chain"
+import { gateLayerModel, isListMember, readGlobalRecents } from "./global-recents"
 import type { ChainHealth, ChainMember } from "@/provider/model-chain/chain"
 
 
@@ -286,17 +287,26 @@ export async function resolveAgentModel(
     settings?: SessionSettings | null
     /** Pre-loaded model.json state (avoids redundant disk read) */
     modelState?: Record<string, unknown>
+    /**
+     * t87 allowlist (L4 `globalRecents`, owner-ordered). When undefined the
+     * list is read here — ONE lookup of ONE key — so production callers get
+     * the gate without threading it; tests pass the fixture instead.
+     */
+    globalRecents?: string[] | undefined
   },
 ): Promise<ModelRef | undefined> {
   // 1. Session override (highest priority)
   const settings = opts?.settings ?? (await loadSessionSettings(context.sessionID))
   const sessionModel = sessionAgentModel(agentName, settings)
-  if (sessionModel) return sessionModel
+  const list = opts?.globalRecents === undefined ? await readGlobalRecents() : opts.globalRecents
+  const gatedSession = gateLayerModel(sessionModel, list, { layer: "session", agent: agentName })
+  if (gatedSession) return gatedSession
 
   // 2. Workspace selection (last explicit pick in this worktree)
   const modelState = opts?.modelState ?? (await readModelState())
   const workspaceModel = workspaceAgentModel(agentName, context.workspaceID, modelState)
-  if (workspaceModel) return workspaceModel
+  const gatedWorkspace = gateLayerModel(workspaceModel, list, { layer: "worktree", agent: agentName })
+  if (gatedWorkspace) return gatedWorkspace
 
   // 3. No override — caller should fall through to global config / default
   return undefined
@@ -317,6 +327,12 @@ export function resolveChainAgentModel(
   opts?: {
     /** Pre-loaded session-layer chain (avoids a redundant store read). */
     chain?: ChainMember[] | undefined
+    /**
+     * t87 allowlist (L4 `globalRecents`). When provided, members outside
+     * the list are refused AT USE — a chain filled before the list changed
+     * is filtered here, never trusted. Undefined = legacy (no gate).
+     */
+    globalRecents?: string[] | undefined
   },
 ): ChainMember | undefined {
   const chain = opts?.chain
@@ -324,7 +340,18 @@ export function resolveChainAgentModel(
     Log.Default.warn("bug: session chain layer left unfilled", { sessionID, agentName })
     return undefined
   }
-  return firstUp(chain, health)
+  const list = opts?.globalRecents
+  if (list === undefined) return firstUp(chain, health)
+  const gated = chain.filter((member) => isListMember(member, list))
+  if (gated.length === 0) {
+    Log.Default.warn("bug: layer model not in global recents", {
+      layer: "chain",
+      agent: agentName,
+      refused: chain.length,
+    })
+    return undefined
+  }
+  return firstUp(gated, health)
 }
 
 /**

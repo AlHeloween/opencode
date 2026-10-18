@@ -104,13 +104,20 @@ describe("t87 — structural: the resolver source carries the gate", () => {
       .replace(/\r\n/g, "\n")
     const start = SRC.indexOf("export async function resolveAgentModel(")
     expect(start).toBeGreaterThan(-1)
-    const end = SRC.indexOf("\n}\n", start)
+    // Slice to the next export — the body holds indented blocks, so the first
+    // col-0 `}` is no longer a reliable end after the opts bag grew.
+    const end = SRC.indexOf("export function resolveChainAgentModel(", start)
     expect(end).toBeGreaterThan(start)
     const body = SRC.slice(start, end)
     // ONE lookup of ONE key (the L4 list) as a validity check — not a parent walk.
     expect(body).toContain("globalRecents")
-    // Refusal is observable, never silent (AGENTS.md: every option controllable).
-    expect(body).toContain("not in global recents")
+    // The refusal itself is warned at the gate helper — one shared site for every
+    // layer, so the resolver only needs to CALL it (observable, never silent).
+    const GATE = fs
+      .readFileSync(path.join(import.meta.dir, "../../src/session/global-recents.ts"), "utf8")
+      .replace(/\r\n/g, "\n")
+    expect(body).toContain("gateLayerModel")
+    expect(GATE).toContain("not in global recents")
   })
 })
 

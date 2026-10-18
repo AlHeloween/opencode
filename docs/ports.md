@@ -26,7 +26,7 @@ Delegation range study: `experiments/2026-10-18_port-2727/RESULT.md`
 | Port | Proto | IANA service name | Owner / role for us | Rule | Source |
 | --- | --- | --- | --- | --- | --- |
 | 54546 | — | (none — IANA dynamic/private 49152-65535) | Codex OAuth callback, transient during login (our fork; upstream still 1455) | use (preferred; ephemeral fallback on EADDRINUSE) | IANA (no assignment) + port map 2026-10-18 + codex.ts |
-| 1455 | tcp/udp | `esl-lm` (ESL License Manager) | чужая территория; наш Codex съехал на 54546, апстрим всё ещё там | never bind | IANA + this page |
+| 1455 | tcp/udp | `esl-lm` (ESL License Manager) | foreign: Codex upstream login callback; our Codex moved to 54546 | never bind | IANA + this page |
 | 1456 | tcp/udp | `dca` (DCA) | Gemini/DigitalOcean OAuth callback, transient during login | never bind | IANA + port map 2026-10-18 |
 | 54545 | — | (none — IANA dynamic/private 49152-65535) | Anthropic OAuth callback, transient during login | never bind | IANA (no assignment) + port map 2026-10-18 |
 | 56121 | — | (none — IANA dynamic/private 49152-65535) | xAI OAuth callback, transient during login | never bind | IANA (no assignment) + port map 2026-10-18 |

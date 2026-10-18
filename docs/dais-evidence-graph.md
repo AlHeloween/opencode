@@ -23,7 +23,7 @@ flowchart LR
     R --> G
     G --> S[SCs: общие узлы, дуги, паспорта]
     F --> Z[Zoekt full / delta]
-    G --> M[MCP: definitions / references / search / status]
+    G --> M[MCP: definitions / references / search / status / reference impact]
     Z --> M
     V --> M
 ```
@@ -138,7 +138,34 @@ stdio-клиент `20261017T200007Z_9253a529` прошёл 1270 проверо�
 исходная ошибка и границы вывода сохранены в
 [отчёте и воспроизводителях](../experiments_history/2026-10-17_dais-navigation-mcp/REPORT.md).
 
-Следующий срез: квалификация consumer cutover и ограниченный impact traversal;
+## Прямые ссылки диапазона Fossil
+
+`referenceimpact` (MCP) и `reference-impact` (graph CLI) связывают две исполненные
+проверки snapshots с полным diff endpoint manifests. Каждая сторона несёт origin
+snapshot, applicability target/comment/SV и receipt реально запущенного инструмента.
+Совпадение identity проверяется внутри своей стороны; глобальное равенство
+символов между версиями не предполагается.
+
+Профиль `direct_scip_references_v1` выбирает определения изменённых документов и
+прямые ссылки на них вне всего изменённого набора. Definition/reference Fact
+сохраняют адреса raw SCIP и hashes исходных Fossil artifacts. Это также включает
+ссылки на типы и function values; имя результата не превращает их в вызовы.
+Generated/noncode changes видны в coverage. Отсутствие индекса или несовпадение
+declared inputs даёт явный отказ, а не пустой успешный impact.
+
+Coverage различает indexed/unindexed/absent changed paths и полное число matching
+references каждой стороны до output limit. Unbound/unresolved счётчики описывают
+только этот индексированный корпус. Полнота ограничена прямыми SCIP references;
+поведенческий, транзитивный и межъязыковой impact остаётся Unknown. Подробный
+контракт и воспроизводители: [отчёт](../experiments_history/2026-10-18_dais-reference-impact/REPORT.md).
+
+CONFIRMED ✓ native production oracle и fresh archive replay дали436 predicates,
+94witnesses (47+47); отдельный native fixture —182 predicates/26witnesses.
+Независимые raw target mutation controls опровергают повреждённые expected sets.
+Полный explicit 10-package regression:166PASS cases. Проверяются прямые ссылки,
+не полнота поведения программы.
+
+Следующий срез: квалификация consumer cutover и дальнейший impact traversal;
 автоматическая публикация и incremental execution ещё открыты.
 Полнота внешних чтений producer, межъязыковая семантика и длительно работающий
 installed service пока не квалифицированы. Основной маршрут остаётся в

@@ -1,0 +1,254 @@
+{
+  "status": "FAIL",
+  "checks": [
+    "first_endpoint_prepared",
+    "repeat_capture_readonly_repository",
+    "source_delta_exact_fixture_bytes",
+    "changed_sources_and_all_generated_artifacts",
+    "fixture_noncall_top_level_references_before"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "D:\\USESoft\\Python313\\python.exe",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\prepare_index.py",
+        "--root",
+        "D:\\zPython\\opencode",
+        "--goroot",
+        "C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--modcache",
+        "C:/Users/Alexander/go/pkg/mod",
+        "--producer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\scip-go-canonical.exe",
+        "--report",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-preparation.json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"status\": \"PREPARED\", \"checks\": 7, \"work\": \"D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-18_dais-reference-impact\\\\impact-small-v1-fixture\\\\production \\u03a9-hzdnwpkp\", \"report\": \"D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-18_dais-reference-impact\\\\impact-small-v1-preparation.json\"}\r\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout": "ADDED  internal/fossil/moved.go\nadded 1 files, deleted 0 files\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "independent production source change sv:1029384756abcdef1029384756abcdef",
+        "--hash",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout": "New_Version: 718c21e110bb9eaec972fb2b6434f91fc3c1cf7cd7ddeae761da03d71ad3a1f5\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout": "[{\"uuid\":\"718c21e110bb9eaec972fb2b6434f91fc3c1cf7cd7ddeae761da03d71ad3a1f5\"}]\r\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-capture.exe",
+        "--bundle",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\bundle-after",
+        "--scratch",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\scratch",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\home",
+        "--ref",
+        "718c21e110bb9eaec972fb2b6434f91fc3c1cf7cd7ddeae761da03d71ad3a1f5",
+        "--indexer",
+        "D:\\zPython\\opencode\\experiments\\2026-10-17_dais-navigation-mcp\\scip-go-canonical.exe",
+        "--indexer-sha256",
+        "ffafd7494ab2103489b8aaaf5fd5290d43b7f25f6c44b9e5ab5620c240287500",
+        "--timeout",
+        "180s",
+        "--env=SystemRoot=C:\\WINDOWS",
+        "--env=PATH=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64\\bin",
+        "--env=GOROOT=C:\\Users\\Alexander\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.5.windows-amd64",
+        "--env=GOTOOLCHAIN=local",
+        "--env=GOENV=off",
+        "--env=GOWORK=off",
+        "--env=GOPROXY=off",
+        "--env=GOSUMDB=off",
+        "--env=GOPACKAGESDRIVER=off",
+        "--env=GOOS=windows",
+        "--env=GOARCH=amd64",
+        "--env=CGO_ENABLED=0",
+        "--env=GOFLAGS=-mod=readonly",
+        "--env=GOCACHE=D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\cache",
+        "--env=GOMODCACHE=C:/Users/Alexander/go/pkg/mod",
+        "--env=GOPATH=D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\unused-gopath",
+        "--env=TEMP=D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\tmp",
+        "--env=TMP=D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\tmp",
+        "--arg=--module-path=dais.local/codeintelligence",
+        "--arg=--module-version=independent-native-fixture-v1",
+        "--arg=--repository-remote=github.com/AlHeloween/opencode",
+        "--arg=--go-version=go1.26.5",
+        "--arg=--skip-tests",
+        "--arg=--output={index}",
+        "--arg=./internal/fossil",
+        "--arg=./internal/capture",
+        "--previous-bundle-ref",
+        "901cc427b727222e255757cd02e2a5d17fc92561232548832055cbc0b4edf7d4"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"version\":1,\"source_revision\":\"718c21e110bb9eaec972fb2b6434f91fc3c1cf7cd7ddeae761da03d71ad3a1f5\",\"source_inputs\":[{\"path\":\"go.mod\",\"sha256\":\"4b0add46136105b240eb9fa8fe8b2f8e230a87c254a868271dc1d9bbe86e95db\"},{\"path\":\"go.sum\",\"sha256\":\"c9874b4fe5b8ce7ea45971e8e8a02f7787903d3063c7dcd05c3c9582762eebdc\"},{\"path\":\"internal/capture/capture.go\",\"sha256\":\"287a4d64f39b5d5fd9f60dfdc87221c192b980f02772d84e6e77399be9537b6d\"},{\"path\":\"internal/fossil/b.go\",\"sha256\":\"d0916db806d7ca783741218004700b67355ddd6a43dfd45cabd917693af77e0c\"},{\"path\":\"internal/fossil/moved.go\",\"sha256\":\"19463a284c0a12a41a028c7f4d92b9fa64ca2edabdd614c0e34c67110571df01\"},{\"path\":\"internal/fossil/provider.go\",\"sha256\":\"ea6a54621f491512091aa7033ee2b18bdc7e16fa4a3e62a274e21b763201931f\"}],\"source_input_digest\":\"a5a1ba62976f5d2253f347c6be3f2d1fe777a5c3972abb0ecf20c8c9aa1592d4\",\"indexer\":{\"path\":\"D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-17_dais-navigation-mcp\\\\scip-go-canonical.exe\",\"sha256\":\"ffafd7494ab2103489b8aaaf5fd5290d43b7f25f6c44b9e5ab5620c240287500\",\"args\":[\"--module-path=dais.local/codeintelligence\",\"--module-version=independent-native-fixture-v1\",\"--repository-remote=github.com/AlHeloween/opencode\",\"--go-version=go1.26.5\",\"--skip-tests\",\"--output=D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-18_dais-reference-impact\\\\impact-small-v1-fixture\\\\production Ω-hzdnwpkp\\\\scratch\\\\dais-capture-7158749\\\\ci\\\\index.scip\",\"./internal/fossil\",\"./internal/capture\"]},\"environment\":[\"CGO_ENABLED=0\",\"GOARCH=amd64\",\"GOCACHE=D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-18_dais-reference-impact\\\\impact-small-v1-fixture\\\\production Ω-hzdnwpkp\\\\cache\",\"GOENV=off\",\"GOFLAGS=-mod=readonly\",\"GOMODCACHE=C:/Users/Alexander/go/pkg/mod\",\"GOOS=windows\",\"GOPACKAGESDRIVER=off\",\"GOPATH=D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-18_dais-reference-impact\\\\impact-small-v1-fixture\\\\production Ω-hzdnwpkp\\\\unused-gopath\",\"GOPROXY=off\",\"GOROOT=C:\\\\Users\\\\Alexander\\\\go\\\\pkg\\\\mod\\\\golang.org\\\\toolchain@v0.0.1-go1.26.5.windows-amd64\",\"GOSUMDB=off\",\"GOTOOLCHAIN=local\",\"GOWORK=off\",\"PATH=C:\\\\Users\\\\Alexander\\\\go\\\\pkg\\\\mod\\\\golang.org\\\\toolchain@v0.0.1-go1.26.5.windows-amd64\\\\bin\",\"SystemRoot=C:\\\\WINDOWS\",\"TEMP=D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-18_dais-reference-impact\\\\impact-small-v1-fixture\\\\production Ω-hzdnwpkp\\\\tmp\",\"TMP=D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-18_dais-reference-impact\\\\impact-small-v1-fixture\\\\production Ω-hzdnwpkp\\\\tmp\"],\"index_sha256\":\"9892bda9adbe25b238b88ba40ca6f56225f5290e97b516494b9ebb36f5dc5dd8\",\"result\":\"CAPTURED\",\"exit_code\":0,\"stdout\":\"Resolving module name\\nLoading Packages\\n\\rVisiting Packages [0/2]\\rVisiting Packages [2/2]\\n\\rIndexing Implementations [0/4]\\rIndexing Implementations [4/4]\\n\\rVisiting Project Files [0/2]\\rVisiting Project Files [2/2]\\n\",\"stderr\":\"\",\"diagnostics\":\"\",\"semantic_status\":\"unknown\",\"previous_bundle\":{\"revision\":\"901cc427b727222e255757cd02e2a5d17fc92561232548832055cbc0b4edf7d4\",\"artifacts\":[{\"path\":\"ci/capture.json\",\"sha256\":\"9321d99dfb848a8536fcf01430d27c75fd327fcf56870e91bf8c3da81274ace9\"},{\"path\":\"ci/index.scip\",\"sha256\":\"cd8eea236e4853f9d766c2ebf175808dc1b25204e6bb409e9a542c7d91ffd2f3\"},{\"path\":\"ci/inputs.json\",\"sha256\":\"db3da5888daef1502abc26d7140b6282327b5bb6314d109dea3693a29b96c481\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "addremove"
+      ],
+      "exit_code": 0,
+      "stdout": "added 0 files, deleted 0 files\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "commit",
+        "-m",
+        "independent production replacement index sv:abcdef1029384756abcdef1029384756",
+        "--hash",
+        "--allow-empty",
+        "--no-warnings",
+        "--no-prompt",
+        "--nosign",
+        "--nosync"
+      ],
+      "exit_code": 0,
+      "stdout": "New_Version: b051d0050cb3180b6dbf4b97dbfe1adb6420e6d78f9cd93c58bed52dd2cd479d\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\source.fsl",
+        "SELECT uuid FROM blob WHERE rid=symbolic_name_to_rid('trunk')"
+      ],
+      "exit_code": 0,
+      "stdout": "[{\"uuid\":\"b051d0050cb3180b6dbf4b97dbfe1adb6420e6d78f9cd93c58bed52dd2cd479d\"}]\r\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-graph.exe",
+        "import",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\derived",
+        "--repository-id",
+        "production-core",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\home",
+        "--ref",
+        "b051d0050cb3180b6dbf4b97dbfe1adb6420e6d78f9cd93c58bed52dd2cd479d",
+        "--scip",
+        "ci/index.scip",
+        "--manifest",
+        "ci/inputs.json",
+        "--profile",
+        "dais-scip-modern-utf8-v1"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"id\":\"92f8c33a3b61efb2e802b3270fcc04423fff9f7462afaddd0e64cbb5c1960a90\",\"repository_id\":\"production-core\",\"revision\":\"b051d0050cb3180b6dbf4b97dbfe1adb6420e6d78f9cd93c58bed52dd2cd479d\",\"index_path\":\"ci/index.scip\",\"manifest_path\":\"ci/inputs.json\",\"index_sha256\":\"9892bda9adbe25b238b88ba40ca6f56225f5290e97b516494b9ebb36f5dc5dd8\",\"manifest_sha256\":\"fad619dfeaf367d4327412eb7dcffb6571303b3c151c18bbbf703466525a5fde\",\"input_digest\":\"8ec915e6f37205ccc113f8fbb881ecf5bb59a3dc4f91937963b0160b9f9d0b82\",\"profile\":\"dais-scip-modern-utf8-v1\",\"comment\":\"independent production replacement index sv:abcdef1029384756abcdef1029384756\",\"sv_ref\":\"abcdef1029384756abcdef1029384756\",\"fact_count\":48}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\dist\\dais-ci.exe",
+        "index",
+        "--index-root",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\derived",
+        "--repository-id",
+        "production-core",
+        "--repository",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\source.fsl",
+        "--fossil",
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "--fossil-home",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\home",
+        "--ref",
+        "b051d0050cb3180b6dbf4b97dbfe1adb6420e6d78f9cd93c58bed52dd2cd479d",
+        "--mode",
+        "full",
+        "--exclude",
+        "ci/**"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"Generation\":\"7c17e271df59020a9c8e775bae5fce8f\",\"RepositoryID\":\"production-core\",\"Revision\":\"b051d0050cb3180b6dbf4b97dbfe1adb6420e6d78f9cd93c58bed52dd2cd479d\",\"SVRef\":\"abcdef1029384756abcdef1029384756\",\"IndexedFiles\":6,\"OmittedFiles\":3}\n",
+      "stderr": "2026/10/18 07:50:47 finished shard D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\derived\\generations\\7c17e271df59020a9c8e775bae5fce8f\\production-core_v16.00000.zoekt: 239112 index bytes (overhead 8.3), 6 files processed \n2026/10/18 07:50:47 [INFO] loading 1 shard(s): production-core_v16.00000.zoekt\n"
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\source.fsl",
+        "SELECT filename AS path,uuid AS hash,COALESCE(perm,'') AS permissions FROM files_of_checkin('901cc427b727222e255757cd02e2a5d17fc92561232548832055cbc0b4edf7d4') ORDER BY filename"
+      ],
+      "exit_code": 0,
+      "stdout": "[{\"path\":\"ci/capture.json\",\"hash\":\"dfa263626f8449b3d646260ae4c5ea2b182693f1d7460eb943d0a6567b09e06e\",\"permissions\":\"\"},\r\n{\"path\":\"ci/index.scip\",\"hash\":\"7d0eb7c76a5e334d950020f5ac5f6e62021169f273788ea64b5b371566680687\",\"permissions\":\"\"},\r\n{\"path\":\"ci/inputs.json\",\"hash\":\"511af125474b147b95053eff80f62cb02e79b16d6cd6d16ad1f8074fa5ed0420\",\"permissions\":\"\"},\r\n{\"path\":\"go.mod\",\"hash\":\"d515c792eae966dec5d00bb19a541adbe4f79f1e47daab9adbbba82203a67a55\",\"permissions\":\"\"},\r\n{\"path\":\"go.sum\",\"hash\":\"f3cd48bf90db1e02360a1930703a104a645370945ae05ee2de95498151523de9\",\"permissions\":\"\"},\r\n{\"path\":\"internal/capture/capture.go\",\"hash\":\"e8a90e200f58025f4c39adff011af337b7526123bcfc84ab7a1ba2ce481a580c\",\"permissions\":\"\"},\r\n{\"path\":\"internal/fossil/b.go\",\"hash\":\"921ee0e431dc604f8aabe1e50e2510dc7e71e605402520deeb6bcc517264261f\",\"permissions\":\"\"},\r\n{\"path\":\"internal/fossil/provider.go\",\"hash\":\"c0deff22bc2258d6a6bbb8f569c1099cef7ff75eee0442e2aef3b31d475cf8d9\",\"permissions\":\"\"}]\r\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\zPython\\opencode\\external\\fossil\\fossil.exe",
+        "sql",
+        "--no-repository",
+        "--readonly",
+        "-json",
+        "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp\\source.fsl",
+        "SELECT filename AS path,uuid AS hash,COALESCE(perm,'') AS permissions FROM files_of_checkin('b051d0050cb3180b6dbf4b97dbfe1adb6420e6d78f9cd93c58bed52dd2cd479d') ORDER BY filename"
+      ],
+      "exit_code": 0,
+      "stdout": "[{\"path\":\"ci/capture.json\",\"hash\":\"b54c3c106426551c30f48a3cd1cdbf471829d746e408b0dd66a8a054c6171f92\",\"permissions\":\"\"},\r\n{\"path\":\"ci/index.scip\",\"hash\":\"cbfc10a16401f3245157bf6dc8e1f81538c629cc7bd06ced2ecd03e9ae1474a1\",\"permissions\":\"\"},\r\n{\"path\":\"ci/inputs.json\",\"hash\":\"f7a94f8ac66afa42f0754e661c33870296e30eed688a9e0692bdc27afec8e8d2\",\"permissions\":\"\"},\r\n{\"path\":\"go.mod\",\"hash\":\"d515c792eae966dec5d00bb19a541adbe4f79f1e47daab9adbbba82203a67a55\",\"permissions\":\"\"},\r\n{\"path\":\"go.sum\",\"hash\":\"f3cd48bf90db1e02360a1930703a104a645370945ae05ee2de95498151523de9\",\"permissions\":\"\"},\r\n{\"path\":\"internal/capture/capture.go\",\"hash\":\"e8a90e200f58025f4c39adff011af337b7526123bcfc84ab7a1ba2ce481a580c\",\"permissions\":\"\"},\r\n{\"path\":\"internal/fossil/b.go\",\"hash\":\"921ee0e431dc604f8aabe1e50e2510dc7e71e605402520deeb6bcc517264261f\",\"permissions\":\"\"},\r\n{\"path\":\"internal/fossil/moved.go\",\"hash\":\"fdeb02712eab621f6c5b564bfcec3a3afc2c0ae1b08efb12c4774bb42e085433\",\"permissions\":\"\"},\r\n{\"path\":\"internal/fossil/provider.go\",\"hash\":\"dac8eebfdff4c2697241ca61969503f87b2c4c5c36b90fd3f4093e28faccbd68\",\"permissions\":\"\"}]\r\n",
+      "stderr": ""
+    }
+  ],
+  "instruments": {
+    "graph": "4d19fea8efc24fd11b5b1271e9165c1a0489114bcffc075a06bca3a07b45a44a",
+    "mcp": "96cd62b9252d83178ab436dcb8490d7ee4905fd2b563ed7631bf33227ef7ed17",
+    "producer": "ffafd7494ab2103489b8aaaf5fd5290d43b7f25f6c44b9e5ab5620c240287500",
+    "fossil": "4a7886f3a49429b6f802e5ac89a3adf349f910cbe6376c5cb120bf4a958eb0fe"
+  },
+  "work": "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-fixture\\production Ω-hzdnwpkp",
+  "before_preparation": "D:\\zPython\\opencode\\experiments\\2026-10-18_dais-reference-impact\\impact-small-v1-preparation.json",
+  "error": "AssertionError('fixture_same_name_B_excluded_before')"
+}

@@ -30,11 +30,11 @@ func main() {
 
 func run(ctx context.Context, args []string, out, diagnostics io.Writer) (resultErr error) {
 	if len(args) == 0 {
-		return errors.New("usage: dais-graph import|status|facts|verify|export-scs|export-scip [flags]")
+		return errors.New("usage: dais-graph import|status|facts|verify|reference-impact|export-scs|export-scip [flags]")
 	}
 	command := args[0]
 	switch command {
-	case "import", "status", "facts", "verify", "export-scs", "export-scip":
+	case "import", "status", "facts", "verify", "reference-impact", "export-scs", "export-scip":
 	default:
 		return fmt.Errorf("unknown command %q", command)
 	}
@@ -48,6 +48,9 @@ func run(ctx context.Context, args []string, out, diagnostics io.Writer) (result
 	fossilHome := flags.String("fossil-home", "", "Existing isolated Fossil configuration directory")
 	revision := flags.String("ref", "", "Full Fossil check-in hash for import")
 	target := flags.String("target-revision", "", "Full Fossil check-in hash for verification")
+	beforeSnapshot := flags.String("before-snapshot", "", "Explicit before graph snapshot for reference impact")
+	beforeTarget := flags.String("before-target-revision", "", "Full before Fossil check-in hash for reference impact")
+	maxResponseBytes := flags.Int("max-response-bytes", 2<<20, "Maximum serialized reference-impact response bytes")
 	indexPath := flags.String("scip", "", "Tracked repository-relative binary SCIP path")
 	manifestPath := flags.String("manifest", "", "Tracked repository-relative input-manifest path")
 	profile := flags.String("profile", evidencegraph.ProfileUTF8, "Supported import profile")
@@ -66,7 +69,7 @@ func run(ctx context.Context, args []string, out, diagnostics io.Writer) (result
 	if !filepath.IsAbs(*indexRoot) || *repositoryID == "" {
 		return errors.New("absolute --index-root and --repository-id are required")
 	}
-	if *limit < 1 || *limit > *maxFacts || *maxFacts < 1 || *maxIndexBytes < 1 || *maxManifestBytes < 1 || *maxSourceBytes < 1 || *timeout <= 0 {
+	if *limit < 1 || *limit > *maxFacts || *maxFacts < 1 || *maxIndexBytes < 1 || *maxManifestBytes < 1 || *maxSourceBytes < 1 || *maxResponseBytes < 1 || *timeout <= 0 {
 		return errors.New("positive input, fact, result and timeout bounds are required; limit must not exceed max-facts")
 	}
 	if command != "import" && command != "status" && *snapshot == "" {
@@ -75,12 +78,15 @@ func run(ctx context.Context, args []string, out, diagnostics io.Writer) (result
 	if command == "import" && (*indexPath == "" || *manifestPath == "") {
 		return errors.New("import requires tracked --scip and --manifest paths")
 	}
+	if command == "reference-impact" && (*beforeSnapshot == "" || !regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`).MatchString(*beforeTarget)) {
+		return errors.New("reference-impact requires --before-snapshot and full lowercase --before-target-revision")
+	}
 	ctx, cancel := context.WithTimeout(ctx, *timeout)
 	defer cancel()
 	var provider *fossil.Provider
-	if command == "import" || command == "verify" {
+	if command == "import" || command == "verify" || command == "reference-impact" {
 		ref := *revision
-		if command == "verify" {
+		if command == "verify" || command == "reference-impact" {
 			ref = *target
 		}
 		if !regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`).MatchString(ref) {
@@ -150,6 +156,15 @@ func run(ctx context.Context, args []string, out, diagnostics io.Writer) (result
 			return fmt.Errorf("verification %s; retained receipt %s", receipt.Result, receipt.ID)
 		}
 		return nil
+	case "reference-impact":
+		impact, err := store.ReferenceImpact(ctx, evidencegraph.ImpactRequest{BeforeSnapshotID: *beforeSnapshot, BeforeTargetRevision: *beforeTarget, AfterSnapshotID: *snapshot, AfterTargetRevision: *target, Limit: *limit})
+		if err != nil {
+			return err
+		}
+		if err := evidencegraph.ValidateReferenceImpactSize(impact, *maxResponseBytes); err != nil {
+			return err
+		}
+		return writeBoundedJSON(out, impact, *maxResponseBytes)
 	case "export-scs":
 		return store.ExportSCs(ctx, *snapshot, out)
 	case "export-scip":
@@ -161,4 +176,23 @@ func run(ctx context.Context, args []string, out, diagnostics io.Writer) (result
 		return err
 	}
 	return errors.New("unreachable graph command")
+}
+
+func writeBoundedJSON(out io.Writer, value any, maximum int) error {
+	if maximum <= 0 {
+		return errors.New("positive response byte bound required")
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	if len(encoded) >= maximum {
+		return errors.New("reference-impact response exceeds configured byte bound")
+	}
+	encoded = append(encoded, '\n')
+	written, err := out.Write(encoded)
+	if err == nil && written != len(encoded) {
+		return io.ErrShortWrite
+	}
+	return err
 }

@@ -1,0 +1,35 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+STORE D:\zPython\opencode\.opencode\data
+EXPECTED_FAIL missing-marker render {"ok":false,"reason":"plans/MASTER_PLAN.md carries no render marker. Without it there is no way to tell the hand-owned head from a body a previous render produced, so writing would risk overwriting the head. Add `<!-- generated below — `svm render` (S4): every value here is READ from its source; the source wins -->` where the generated part begins."}
+RENDER {"ok":true,"file":"plans/MASTER_PLAN.md","bytes":46670,"stats":{"plans":36,"openBoxes":148,"missingPlanSv":2,"missingTaskSv":100,"missingManifests":142,"gapsBefore":["plans/2026-10-18_dais-fossil-reference-impact.md"]}}
+MASTER_SHA256 e7b8ab1c15d11f3078af8a12d3b52ec3e33efff388c9999f4d8017d3ded8f8f7
+RENDER {"ok":true,"file":"plans/MASTER_PLAN.md","bytes":46670,"stats":{"plans":36,"openBoxes":148,"missingPlanSv":2,"missingTaskSv":100,"missingManifests":142,"gapsBefore":[]}}
+MASTER_SHA256 e7b8ab1c15d11f3078af8a12d3b52ec3e33efff388c9999f4d8017d3ded8f8f7

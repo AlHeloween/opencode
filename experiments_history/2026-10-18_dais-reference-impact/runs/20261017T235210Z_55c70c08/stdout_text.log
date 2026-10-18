@@ -1,0 +1,89 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== RUN   TestSDKInMemoryToolsEvidenceAndEOF
+2026/10/18 07:52:15 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKInMemoryToolsEvidenceAndEOF3033832568\001\index\generations\e281330bcfdf53487d62ff41b3a69cbf\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files processed 
+2026/10/18 07:52:15 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKInMemoryToolsEvidenceAndEOF (3.91s)
+=== RUN   TestSDKArgumentAndStartupRefusals
+2026/10/18 07:52:19 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKArgumentAndStartupRefusals1006930152\001\index\generations\ec477d82aaebd222b36b5dcd8161810c\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files processed 
+2026/10/18 07:52:19 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+=== RUN   TestSDKArgumentAndStartupRefusals/snapshot
+=== RUN   TestSDKArgumentAndStartupRefusals/target
+=== RUN   TestSDKArgumentAndStartupRefusals/limit
+=== RUN   TestSDKArgumentAndStartupRefusals/timeout
+2026/10/18 07:52:21 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKArgumentAndStartupRefusals1006930152\001\index\generations\83a108499d9efb72efbbbbc606845d4a\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files processed 
+2026/10/18 07:52:21 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKArgumentAndStartupRefusals (2.36s)
+    --- PASS: TestSDKArgumentAndStartupRefusals/snapshot (0.00s)
+    --- PASS: TestSDKArgumentAndStartupRefusals/target (0.00s)
+    --- PASS: TestSDKArgumentAndStartupRefusals/limit (0.00s)
+    --- PASS: TestSDKArgumentAndStartupRefusals/timeout (0.00s)
+=== RUN   TestSDKFrameBoundAndCancellation
+2026/10/18 07:52:21 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKFrameBoundAndCancellation2564101943\001\index\generations\d6dfbb1bd462a125c6cca6613b699cd8\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files processed 
+2026/10/18 07:52:21 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKFrameBoundAndCancellation (1.29s)
+=== RUN   TestSDKHistoricalPinAndActualStaleStartup
+2026/10/18 07:52:23 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKHistoricalPinAndActualStaleStartup1176219
+9666\001\index\generations\b93552c593ddd8aa85b83be5b721f6fb\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 
+ files processed
+2026/10/18 07:52:23 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/18 07:52:25 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKHistoricalPinAndActualStaleStartup1176219
+9666\001\index\generations\075a4d83b46a1669062e557dd99e4f05\fixture_v16.00001.zoekt: 2138 index bytes (overhead 35.0), 1 
+ files processed
+2026/10/18 07:52:25 [INFO] loading 2 shard(s): fixture_v16.00000.zoekt, fixture_v16.00001.zoekt
+--- PASS: TestSDKHistoricalPinAndActualStaleStartup (3.35s)
+=== RUN   TestSDKResponseBytesAndPerToolDeadline
+2026/10/18 07:52:26 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKResponseBytesAndPerToolDeadline3839860324
+4\001\index\generations\ff834f7a76c7971a3dd233c51e26509e\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 fil
+les processed
+2026/10/18 07:52:26 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKResponseBytesAndPerToolDeadline (3.22s)
+=== RUN   TestSDKCachedCorruptionIsVerifiedAgain
+2026/10/18 07:52:29 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKCachedCorruptionIsVerifiedAgain2305611144
+4\001\index\generations\620af257d6b8efe6b01e4ad8a5bb4da3\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 fil
+les processed
+2026/10/18 07:52:29 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKCachedCorruptionIsVerifiedAgain (1.92s)
+=== RUN   TestSDKReferenceImpactPinnedScope
+2026/10/18 07:52:31 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKReferenceImpactPinnedScope1301189984\001\
+\index\generations\2517c1726fad6546564f56fca3266db2\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files pr
+rocessed
+2026/10/18 07:52:31 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/18 07:52:32 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKReferenceImpactPinnedScope1301189984\001\
+\index\generations\a3b6c4e2f1dcc500ff0251946fa710af\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files pr
+rocessed
+2026/10/18 07:52:32 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+2026/10/18 07:52:36 finished shard C:\Users\ALEXAN~1\AppData\Local\Temp\TestSDKReferenceImpactPinnedScope1301189984\001\
+\index\generations\fa29003bd4f5314063e0f6f8df6285bc\fixture_v16.00000.zoekt: 2477 index bytes (overhead 20.8), 2 files pr
+rocessed
+2026/10/18 07:52:36 [INFO] loading 1 shard(s): fixture_v16.00000.zoekt
+--- PASS: TestSDKReferenceImpactPinnedScope (5.77s)
+PASS
+ok  dais.local/codeintelligence/internal/mcpserver21.942s

@@ -1,0 +1,48 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# dais.local/codeintelligence/internal/evidencegraph [dais.local/codeintelligence/internal/evidencegraph.test]
+internal\evidencegraph\reference_impact_test.go:41:55: undefined: ImpactRequest
+internal\evidencegraph\reference_impact_test.go:42:9: undefined: ImpactRequest
+internal\evidencegraph\reference_impact_test.go:49:16: s.ReferenceImpact undefined (type *Store has no field or method ReferenceImpact)
+internal\evidencegraph\reference_impact_test.go:61:20: s.ReferenceImpact undefined (type *Store has no field or method ReferenceImpact)
+internal\evidencegraph\reference_impact_test.go:63:20: s.ReferenceImpact undefined (type *Store has no field or method ReferenceImpact)
+internal\evidencegraph\reference_impact_test.go:65:17: s.ReferenceImpact undefined (type *Store has no field or method ReferenceImpact)
+internal\evidencegraph\reference_impact_test.go:75:56: undefined: ImpactRequest
+internal\evidencegraph\reference_impact_test.go:76:20: undefined: ImpactRequest
+internal\evidencegraph\reference_impact_test.go:77:35: undefined: ImpactRequest
+internal\evidencegraph\reference_impact_test.go:78:30: undefined: ImpactRequest
+internal\evidencegraph\reference_impact_test.go:78:30: too many errors
+FAILdais.local/codeintelligence/internal/evidencegraph [build failed]
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

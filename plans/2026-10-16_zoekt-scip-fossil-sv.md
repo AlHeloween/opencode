@@ -27,6 +27,13 @@ CONFIRMED ✓ независимые compiler/raw/wire oracles:33definitions/67r
 Z4/Z5 не закрываются как полная миграция языков/consumers/impact.
 <!-- sv: native-mcp 0.40, compiler-oracle 0.35, versioned-navigation 0.25 -->
 
+Продолжение «Ага, давай» закрывает
+[прямые references диапазона Fossil](../plans_completed/2026-10-18_dais-fossil-reference-impact.md).
+CONFIRMED ✓ native CLI/MCP и независимый raw/Fossil oracle:94witnesses рабочего
+корпуса,26 контрольного,436/182predicates повторены из архива на fresh repos.
+Это reference candidates с обоих концов, не call graph или consumer cutover.
+<!-- sv: fossil-range 0.40, reference-impact 0.35, independent-oracle 0.25 -->
+
 Уточнение владельца: «Все надо бы нативно, WSL это точно не вариант.»
 Windows runtime — нативные Go executable / Fossil executable / SQLite / Win32 mmap.
 WSL, контейнеры и Linux bridge для Windows исключены. Linux qualification относится
@@ -307,8 +314,12 @@ new graph PASS, third capture и refusal controls. Это полный reindex, 
 incremental producer execution. Graph-query/MCP и рабочий Go-корпус теперь
 подтверждены [отдельным child](../plans_completed/2026-10-17_dais-navigation-mcp-corpus.md):
 archive replay20261017T200446Z_1e14a8db,1270predicates,10package regression и build.
-Следующий маршрут G1/G2: актуальная инвентаризация consumer APIs и независимый
-impact oracle (Z4), затем отдельный binding consumer cutover (Z5).
+Следующий маршрут G1/G2: отдельный truthful reference-impact contract для
+SnapshotFossil.lastImpact и его downstream readers, затем parity/freshness/
+cancellation/unavailable и consumer cutover (Z5). Инвентаризация семи capability
+classes и прямой range oracle завершены отдельным child, но callerCount нельзя
+подменять arbitrary references. Continuation receipt:20261017T235408Z_084d24a8
+и20261017T235408Z_847baa14, reference-impact archive-replay/*.json.
 M0b остаётся частичным structural
 baseline без index_time/RSS/fulltext parity/5M verdict. Continuation receipt:
 20261017T200446Z_1e14a8db и navigation-mcp wire-archive-replay/report.json;

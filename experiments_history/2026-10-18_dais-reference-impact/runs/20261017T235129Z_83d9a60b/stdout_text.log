@@ -1,0 +1,44 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# dais.local/codeintelligence/internal/evidencegraph [dais.local/codeintelligence/internal/evidencegraph.test]
+internal\evidencegraph\reference_impact_test.go:94:29: limited.Before.Coverage.MatchingReferences undefined (type ImpactCoverage has no field or method MatchingReferences)
+internal\evidencegraph\reference_impact_test.go:94:79: limited.After.Coverage.MatchingReferences undefined (type ImpactCoverage has no field or method MatchingReferences)
+internal\evidencegraph\reference_impact_test.go:124:13: undefined: ValidateReferenceImpactSize
+internal\evidencegraph\reference_impact_test.go:125:13: undefined: ValidateReferenceImpactSize
+internal\evidencegraph\reference_impact_test.go:127:12: undefined: ValidateReferenceImpactSize
+internal\evidencegraph\reference_impact_test.go:132:12: undefined: ValidateReferenceImpactSize
+internal\evidencegraph\reference_impact_test.go:137:12: undefined: ValidateReferenceImpactSize
+FAILdais.local/codeintelligence/internal/evidencegraph [build failed]
+FAIL
+Exception: D:\zPython\opencode\packages\dais-code-intelligence\scripts\go.ps1:52
+Line |
+  52 |          throw "Go $Action failed with exit code $LASTEXITCODE"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Go test failed with exit code 1

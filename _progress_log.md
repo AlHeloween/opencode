@@ -1,5 +1,45 @@
 ﻿# Progress Log
 
+## [2026-10-18] DAIS I4 — archive/build/closure (2026-10-18_dais-fossil-reference-impact)
+
+CONFIRMED ✓ root archive replay235408Z_084d24a8/847baa14:436/182predicates, fresh repos, exit0/loss0. Mandatorybuild235412Z_a123cd8e:exit0,candidate10.0.1434,no promotion. Child moved to plans_completed; parent Z4/Z5 remain ACTIVE. Independent manifest/Git blob readback gates completion transaction; foreign dirty/staging preserved. Next: truthful lastImpact reference contract plus downstream/freshness/cancellation/unavailable parity, no callerCount substitution.
+<!-- goal_sv: Keywords: evidence-archive 0.40, clean-state 0.35, continuation 0.25
+Semantic dominant: Прямые ссылки закрываются воспроизводимым архивом с отдельным маршрутом consumer migration.
+md5: b05f1e8c4a7d49328f906cb36d25a714
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 64b87d3a905c4fe2a1396db50f72c8e1
+-->
+
+## [2026-10-18] DAIS I3 — independent raw/Fossil/wire oracle
+
+CONFIRMED ✓ production235251Z_b9ba0847:436predicates/94witnesses, small235252Z_2487db71:182/26. Golden independently reads raw Protobuf+Fossil endpoint manifests. Four compiler function refs remain in result. Raw target mutation gives EXPECTED_FAIL; originals unchanged. HARNESS FAIL235033Z_c320705a retained: whole-line BValue filter hid legitimate package reference, corrected to canonical B.Same target. Final archived replay repeats all predicates on new repos/native10s MCP.
+<!-- goal_sv: Keywords: independent-oracle 0.45, fossil-provenance 0.35, parity-boundary 0.20
+Semantic dominant: Независимые raw/Fossil эталоны различают прямые references и неподтверждённый behavioral impact.
+md5: 73b5e9a01f2c46d89a307c6e425db18f
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 64b87d3a905c4fe2a1396db50f72c8e1
+-->
+
+## [2026-10-18] DAIS I2 — pinned native MCP referenceimpact
+
+CONFIRMED ✓ RED234742Z_841fb69f observed missing fifthtool. Final SDK235210Z_55c70c08:11PASS, fixedafter scope, bothrealreceipts, limit1 keepsbothsidecounts, bytecap/stale/corruptbefore/generation/args refusal. Root10package235242Z_dbb76d8b:166PASS. CLI/MCP executable behavior independently exercised via raw stdio including EOF. Semantic status remains unknown; live host not installed.
+<!-- goal_sv: Keywords: native-mcp 0.40, immutable-scope 0.35, explicit-failures 0.25
+Semantic dominant: Агент получает ограниченные references диапазона с закреплённым after endpoint и явными отказами.
+md5: c4912ab5f0374e869d25c8f607a1b43e
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 64b87d3a905c4fe2a1396db50f72c8e1
+-->
+
+## [2026-10-18] DAIS I1 — direct Fossil reference impact API/CLI
+
+CONFIRMED ✓ baseline234438Z_32e999a0, missingAPI RED234631Z_bcfc9575, final235205Z_064ef547:84PASS. Store verifies both snapshots/targets, usesfullChanges asonlyseeds, preservescanonicalidentities/ambiguity/ordinals; fullaffectedset and per-sidecoverage precede outputlimit. Review found missingcounts and post-allocationbytecap; repairRED235129Z_83d9a60b + exact-byte/highfanout controlsPASS. Actualdiff:newreference_impactAPI/tests, graphCLI, MCPbinding, docs/evidence only. No existingconsumer switched.
+<!-- goal_sv: Keywords: fossil-range 0.40, reference-witnesses 0.40, bounded-results 0.20
+Semantic dominant: Изменённые определения получают прямые внешние ссылки обоих проверенных концов Fossil.
+md5: 40f86bd2e57a4c1093d8f602ca7e15b9
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 64b87d3a905c4fe2a1396db50f72c8e1
+-->
+
 ## [2026-10-18] DAIS C4 — archive/build/closure (2026-10-17_dais-navigation-mcp-corpus)
 
 CONFIRMED ✓ native build200051Z_1a440ab5 exit0, candidate10.0.1433, no promotion. MANIFEST validator201032Z_28f150b4:169archive+66source pins PASS; renderer200931Z_fdd6a486 два одинаковых hashes, missing-marker EXPECTED_FAIL. Завершённый child связан с parent и MASTER. Source/архив проверяются также из Git blobs при scoped completion commit; чужой staging не включается. Root M0b/Z4/Z5 ACTIVE, следующий G1: consumer/impact parity.

@@ -113,6 +113,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 [Навигация DAIS и native MCP](../plans_completed/2026-10-17_dais-navigation-mcp-corpus.md) — проверяемые определения/ссылки и Zoekt с Fossil/SV; независимый compiler golden и архивный raw-stdio replay на рабочем Go-корпусе, с явными границами дальнейшего cutover.
 <!-- sv: native-mcp 0.40, compiler-oracle 0.35, versioned-navigation 0.25 -->
 
+[Прямые references диапазона Fossil](../plans_completed/2026-10-18_dais-fossil-reference-impact.md) — проверенные before/after snapshots, внешние SCIP witnesses и независимый raw/Fossil/native MCP replay; границы и следующий consumer binding находятся в плане.
+<!-- sv: fossil-range 0.40, reference-impact 0.35, independent-oracle 0.25 -->
+
 ## Standing rules that outlive any plan
 
 [Исследование Haiku 5.5](../plans_completed/2026-10-16_haiku-end-to-end-research.md) — wire/SDK/replay/cancellation receipts и явно непроверенная граница actual TUI; результаты и остатки находятся в плане и отчёте.
@@ -147,9 +150,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 285 |
+| plans completed | 286 |
 | plans active | 32 |
-| tasks passed / total | 1346 / 1633 |
+| tasks passed / total | 1350 / 1637 |
 | open boxes | 144 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.

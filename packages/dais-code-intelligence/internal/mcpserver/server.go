@@ -44,6 +44,11 @@ type SearchArgs struct {
 	Query string `json:"query"`
 	Limit int    `json:"limit"`
 }
+type ReferenceImpactArgs struct {
+	BeforeSnapshot       string `json:"before_snapshot"`
+	BeforeTargetRevision string `json:"before_target_revision"`
+	Limit                int    `json:"limit"`
+}
 type SearchSnapshot struct {
 	Generation   string `json:"generation"`
 	RepositoryID string `json:"repository_id"`
@@ -86,6 +91,12 @@ type StatusResponse struct {
 	SearchSnapshot SearchSnapshot         `json:"search_snapshot"`
 	SemanticStatus string                 `json:"semantic_status"`
 }
+type ReferenceImpactResponse struct {
+	Query          ReferenceImpactArgs                 `json:"query"`
+	Impact         evidencegraph.ReferenceImpactResult `json:"impact"`
+	Verification   evidencegraph.Receipt               `json:"verification"`
+	SearchSnapshot SearchSnapshot                      `json:"search_snapshot"`
+}
 
 func convertSnapshot(value search.Snapshot) SearchSnapshot {
 	return SearchSnapshot{Generation: value.Generation, RepositoryID: value.RepositoryID, Revision: value.Revision, SVRef: value.SVRef, IndexedFiles: value.IndexedFiles, OmittedFiles: value.OmittedFiles}
@@ -122,6 +133,7 @@ func New(ctx context.Context, c Config) (*Server, error) {
 	mcp.AddTool[NavigationArgs, any](server.sdk, &mcp.Tool{Name: "symbolreferences", Description: "References at a pinned source position: zero-based lines and UTF8 byte characters, with executed verification.", InputSchema: navigationSchema}, server.navigation(evidencegraph.References))
 	mcp.AddTool[SearchArgs, any](server.sdk, &mcp.Tool{Name: "codesearch", Description: "Case-sensitive Zoekt text/filename/regex search in the fixed verified generation; result lines are one-based.", InputSchema: objectSchema(map[string]any{"kind": map[string]any{"type": "string", "enum": []string{"code", "regex", "filename", "symbol_text"}}, "query": map[string]any{"type": "string", "minLength": 1}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": c.MaxResults}}, []string{"kind", "query", "limit"})}, server.codeSearch)
 	mcp.AddTool[struct{}, any](server.sdk, &mcp.Tool{Name: "indexstatus", Description: "Check the fixed graph/target/search generation and return executed verification evidence.", InputSchema: objectSchema(map[string]any{}, []string{})}, server.status)
+	mcp.AddTool[ReferenceImpactArgs, any](server.sdk, &mcp.Tool{Name: "referenceimpact", Description: "Direct SCIP references outside files changed between verified Fossil endpoints; after scope is fixed at startup. References do not prove calls or behavioral impact.", InputSchema: objectSchema(map[string]any{"before_snapshot": map[string]any{"type": "string", "pattern": "^[a-f0-9]{64}$"}, "before_target_revision": map[string]any{"type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": c.MaxResults}}, []string{"before_snapshot", "before_target_revision", "limit"})}, server.referenceImpact)
 	return server, nil
 }
 
@@ -205,6 +217,28 @@ func (s *Server) status(ctx context.Context, _ *mcp.CallToolRequest, _ struct{})
 		return nil, nil, err
 	}
 	return s.finish(StatusResponse{Snapshot: s.snapshot, Verification: receipt, SearchSnapshot: s.searchSnapshot, SemanticStatus: "unknown"})
+}
+func (s *Server) referenceImpact(ctx context.Context, _ *mcp.CallToolRequest, args ReferenceImpactArgs) (*mcp.CallToolResult, any, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.config.RequestTimeout)
+	defer cancel()
+	if err := s.checkSearch(ctx); err != nil {
+		return nil, nil, err
+	}
+	result, err := s.config.Graph.ReferenceImpact(ctx, evidencegraph.ImpactRequest{BeforeSnapshotID: args.BeforeSnapshot, BeforeTargetRevision: args.BeforeTargetRevision, AfterSnapshotID: s.config.SnapshotID, AfterTargetRevision: s.config.TargetRevision, Limit: args.Limit})
+	if err != nil {
+		return nil, nil, err
+	}
+	receipt := result.After.Verification
+	if result.After.Snapshot.ID != s.config.SnapshotID || receipt.SnapshotID != s.config.SnapshotID || receipt.TargetRevision != s.config.TargetRevision || receipt.Result != "PASS" || receipt.SemanticStatus != "unknown" || receipt.InstrumentSHA256 == "" || result.SemanticStatus != "unknown" {
+		return nil, nil, errors.New("reference impact lacks matching fixed after verification")
+	}
+	if err := s.checkSearch(ctx); err != nil {
+		return nil, nil, err
+	}
+	if err := evidencegraph.ValidateReferenceImpactSize(result, s.config.MaxResponseBytes); err != nil {
+		return nil, nil, err
+	}
+	return s.finish(ReferenceImpactResponse{Query: args, Impact: result, Verification: receipt, SearchSnapshot: s.searchSnapshot})
 }
 func (s *Server) finish(value any) (*mcp.CallToolResult, any, error) {
 	raw, err := json.Marshal(value)

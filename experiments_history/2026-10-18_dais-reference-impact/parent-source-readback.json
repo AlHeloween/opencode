@@ -1,0 +1,29 @@
+{
+  "status": "MATCH",
+  "sources": [
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/reference_impact.go",
+      "sha256": "1d4c5dd0a357f1712c6414cf6e0cc92c2b7b46b299e6096fdba8a142a719e1d6"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/reference_impact_test.go",
+      "sha256": "4aa14ce917e8596d67674e51b6b0d5e4847de1782fc9dc6b48fae448a162e3de"
+    },
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-graph/main.go",
+      "sha256": "41d890ad45ed213b9cf520650845ea3416c156aa4e2acf355068b0ac8a7f239b"
+    },
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-graph/main_test.go",
+      "sha256": "ca01cf889b0e680110a41e1d553ad6df75ce54eb9927a406a4a547f6fc00a0c5"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/mcpserver/server.go",
+      "sha256": "bbbdfd3d5fa60afdbe266bf3ad0db3f747aa38f71c7fe5bfb189bfbfbb07fff5"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/mcpserver/server_test.go",
+      "sha256": "a5969c3e5cdcd803c747534482a4bfb7fe56c0f391cced44039530292367138b"
+    }
+  ]
+}

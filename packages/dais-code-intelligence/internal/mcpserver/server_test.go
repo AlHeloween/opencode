@@ -192,7 +192,7 @@ func TestSDKInMemoryToolsEvidenceAndEOF(t *testing.T) {
 		names = append(names, tool.Name)
 	}
 	sort.Strings(names)
-	if strings.Join(names, ",") != "codesearch,indexstatus,symboldefinition,symbolreferences" {
+	if strings.Join(names, ",") != "codesearch,indexstatus,referenceimpact,symboldefinition,symbolreferences" {
 		t.Fatalf("tools %v", names)
 	}
 	var definition NavigationResponse
@@ -473,5 +473,158 @@ func TestSDKCachedCorruptionIsVerifiedAgain(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("corrupt session did not stop")
+	}
+}
+
+func TestSDKReferenceImpactPinnedScope(t *testing.T) {
+	f := newFixture(t)
+	before := f.snapshot
+	source := []byte("package fixture\nfunc Twice(x int) int { return x*3 }\n")
+	if err := os.WriteFile(filepath.Join(f.root, "math.go"), source, 0600); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(f.root, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest evidencegraph.Manifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	for i := range manifest.Inputs {
+		if manifest.Inputs[i].Path == "math.go" {
+			manifest.Inputs[i].SHA256 = digest(source)
+		}
+	}
+	raw, err = json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(f.root, "manifest.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	f.run("commit", "--hash", "-m", "changed Twice body sv:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd", "--no-warnings", "--no-prompt", "--nosign", "--nosync")
+	head, err := f.provider.Head(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.snapshot, err = f.graph.Import(context.Background(), head.Hash, "index.scip", "manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.search.Index(context.Background(), head, "full"); err != nil {
+		t.Fatal(err)
+	}
+	server, err := New(context.Background(), f.config())
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, done := connect(t, server)
+	defer func() {
+		if err := session.Close(); err != nil {
+			t.Error(err)
+		}
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Error(err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("reference impact session did not stop")
+		}
+	}()
+	args := map[string]any{"before_snapshot": before.ID, "before_target_revision": before.Revision, "limit": 10}
+	var response struct {
+		Impact struct {
+			SemanticStatus string `json:"semantic_status"`
+			Before         struct {
+				Snapshot     evidencegraph.Snapshot `json:"snapshot"`
+				Verification evidencegraph.Receipt  `json:"verification"`
+				Coverage     struct {
+					MatchingReferences int `json:"matching_references"`
+				} `json:"coverage"`
+			} `json:"before"`
+			After struct {
+				Snapshot     evidencegraph.Snapshot `json:"snapshot"`
+				Verification evidencegraph.Receipt  `json:"verification"`
+				Coverage     struct {
+					MatchingReferences int `json:"matching_references"`
+				} `json:"coverage"`
+			} `json:"after"`
+			Witnesses []struct {
+				Side        string               `json:"side"`
+				Reference   evidencegraph.Fact   `json:"reference"`
+				Definitions []evidencegraph.Fact `json:"definitions"`
+			} `json:"witnesses"`
+			AffectedFiles []string `json:"affected_files"`
+			Total         int      `json:"total"`
+			Returned      int      `json:"returned"`
+			Truncated     bool     `json:"truncated"`
+			Complete      bool     `json:"complete"`
+		} `json:"impact"`
+		Verification   evidencegraph.Receipt `json:"verification"`
+		SearchSnapshot SearchSnapshot        `json:"search_snapshot"`
+	}
+	decodeResult(t, call(t, session, "referenceimpact", args), &response)
+	if response.Impact.Total != 2 || response.Impact.Returned != 2 || len(response.Impact.Witnesses) != 2 || !response.Impact.Complete || response.Impact.Truncated || response.Impact.SemanticStatus != "unknown" || strings.Join(response.Impact.AffectedFiles, ",") != "use.go" {
+		t.Fatalf("reference witnesses %+v", response)
+	}
+	if response.Impact.Before.Snapshot.ID != before.ID || response.Impact.After.Snapshot.ID != f.snapshot.ID || response.Verification.TargetRevision != head.Hash || response.SearchSnapshot.Revision != head.Hash || response.Verification.Result != "PASS" || len(response.Verification.InstrumentSHA256) != 64 || response.Impact.Before.Verification.Result != "PASS" || response.Impact.After.Verification.ID != response.Verification.ID {
+		t.Fatalf("fixed scope and actual receipts %+v", response)
+	}
+	for i, witness := range response.Impact.Witnesses {
+		if witness.Side != []string{"before", "after"}[i] || witness.Reference.Origin.DocumentPath != "use.go" || len(witness.Definitions) != 1 || witness.Definitions[0].Origin.DocumentPath != "math.go" {
+			t.Fatalf("witness %d %+v", i, witness)
+		}
+	}
+	args["limit"] = 1
+	decodeResult(t, call(t, session, "referenceimpact", args), &response)
+	if response.Impact.Total != 2 || response.Impact.Returned != 1 || len(response.Impact.Witnesses) != 1 || !response.Impact.Truncated || response.Impact.Complete || response.Impact.Before.Coverage.MatchingReferences != 1 || response.Impact.After.Coverage.MatchingReferences != 1 {
+		t.Fatalf("bounded impact %+v", response)
+	}
+	maximum := server.config.MaxResponseBytes
+	server.config.MaxResponseBytes = 1024
+	bounded := call(t, session, "referenceimpact", args)
+	server.config.MaxResponseBytes = maximum
+	boundedContent, err := json.Marshal(bounded.Content)
+	if err != nil || !bounded.IsError || !bytes.Contains(boundedContent, []byte("bound")) {
+		t.Fatalf("oversize reference impact did not fail its byte bound %s %v", boundedContent, err)
+	}
+	for _, bad := range []map[string]any{
+		{"before_snapshot": before.ID, "limit": 1},
+		{"before_snapshot": "bad", "before_target_revision": before.Revision, "limit": 1},
+		{"before_snapshot": before.ID, "before_target_revision": "trunk", "limit": 1},
+		{"before_snapshot": before.ID, "before_target_revision": before.Revision, "limit": 0},
+		{"before_snapshot": before.ID, "before_target_revision": before.Revision, "limit": 11},
+		{"before_snapshot": before.ID, "before_target_revision": before.Revision, "limit": 1, "after_snapshot": before.ID},
+		{"before_snapshot": strings.Repeat("0", 64), "before_target_revision": before.Revision, "limit": 1},
+		{"before_snapshot": before.ID, "before_target_revision": head.Hash, "limit": 1},
+	} {
+		if result := call(t, session, "referenceimpact", bad); !result.IsError {
+			t.Fatalf("invalid impact accepted %+v", bad)
+		}
+	}
+	db, err := sql.Open("sqlite", filepath.Join(filepath.Dir(f.root), "index", "metadata.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("UPDATE ci_graph_facts SET payload=replace(CAST(payload AS TEXT),'occurs_at','tampered') WHERE snapshot_id=?", before.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	result := call(t, session, "referenceimpact", args)
+	encoded, err := json.Marshal(result.Content)
+	if err != nil || !result.IsError || !bytes.Contains(encoded, []byte("FAIL")) {
+		t.Fatalf("corrupt before snapshot did not fail verification %s %v", encoded, err)
+	}
+	if _, err := f.search.Index(context.Background(), head, "full"); err != nil {
+		t.Fatal(err)
+	}
+	result = call(t, session, "referenceimpact", args)
+	encoded, err = json.Marshal(result.Content)
+	if err != nil || !result.IsError || !bytes.Contains(encoded, []byte("generation changed")) {
+		t.Fatalf("changed generation was silently followed %s %v", encoded, err)
 	}
 }

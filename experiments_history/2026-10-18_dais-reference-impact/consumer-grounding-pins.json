@@ -1,0 +1,35 @@
+{
+  "scope": "independently read source bytes; behavioral claims need runtime",
+  "pins": [
+    {
+      "path": "packages/opencode/src/session/graph-prebuild.ts",
+      "sha256": "8b74b65b9d57223ded3d3549f003f6cf1acd241323dcc0f0b706393024868ad8",
+      "bytes": 5419
+    },
+    {
+      "path": "packages/opencode/src/codegraph/mcp-client.ts",
+      "sha256": "a4271f11aedcc33c0002bce995248a1b957e6f00f9d0e4c2edfb76731158ef63",
+      "bytes": 10814
+    },
+    {
+      "path": "packages/opencode/src/codegraph/sqlite-pack.ts",
+      "sha256": "f8efef16e8e74d6f6dacfa59f581153983610a60c03ecc444e06e7d12c6ff68f",
+      "bytes": 13146
+    },
+    {
+      "path": "packages/opencode/src/snapshot/fossil.ts",
+      "sha256": "ab75cfe68b61e1342b11358940f5386f8ce94a46dbc128edca0cd9a849de7da6",
+      "bytes": 66665
+    },
+    {
+      "path": "packages/opencode/src/snapshot/index.ts",
+      "sha256": "deb216b237ab2136bc8816604aff624d3664c504ce154c2ed3b1f033e7dbe81d",
+      "bytes": 6914
+    },
+    {
+      "path": "packages/opencode/src/session/summary.ts",
+      "sha256": "55f35203caf86e73f2a3d474c3821cb0d57cd8b25a44d8146936bb90f1e32506",
+      "bytes": 41252
+    }
+  ]
+}

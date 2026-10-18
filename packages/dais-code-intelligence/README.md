@@ -28,7 +28,7 @@ pwsh -NoProfile -File scripts/go.ps1 -Action build -Packages ./cmd/dais-mcp -Out
 
 ## Graph CLI
 
-`import`, `status`, `facts`, `verify`, `export-scs`, `export-scip` принимают
+`import`, `status`, `facts`, `verify`, `reference-impact`, `export-scs`, `export-scip` принимают
 `--index-root` (absolute directory) и `--repository-id`.
 Каждая команда чтения facts/export/verify требует явный `--snapshot`.
 
@@ -48,6 +48,13 @@ Provider читает закреплённую ревизию, а не гряз�
 PASS возвращает JSON receipt и exit0; FAIL/STALE возвращают сохранённую receipt
 и ненулевой exit. Facts page сообщает total/returned/truncated.
 Export SCIP пишет binary stdout; Export SCs — text stdout.
+
+`reference-impact` сравнивает два полных Fossil endpoint manifests и ищет прямые
+SCIP references к определениям изменённых файлов. After задаётся `--snapshot` и
+`--target-revision`, before — `--before-snapshot` и `--before-target-revision`.
+Оба target требуют полный lowercase hash; нужны те же source-флаги, что для verify.
+Выдачу ограничивают `--limit` и положительный `--max-response-bytes` (2 MiB).
+Проверяются оба снимка; STALE/FAIL или неполный вход вызывают отказ.
 
 Пределы заданы флагами `--max-index-bytes`, `--max-manifest-bytes`,
 `--max-source-bytes` (aggregate workspace bytes), `--max-facts`, `--limit`, `--timeout`.
@@ -148,13 +155,33 @@ SQLite, исходный Fossil читается без записи.
 | `symbolreferences` | те же | Вхождения без definition role |
 | `codesearch` | `kind`, `query`, `limit` | Zoekt: `code`, `regex`, `filename`, `symbol_text` |
 | `indexstatus` | пустой объект | Snapshot, search generation и исполненная verification receipt |
+| `referenceimpact` | `before_snapshot`, `before_target_revision`, `limit` | Прямые внешние ссылки обоих концов диапазона; after закреплён при запуске |
 
 Navigation coordinates: строки с нуля, character — UTF8 byte offset, конец range
 исключён. Search строки с единицы (`line_base:1`). Пути относительны repository,
 с `/`; `..` запрещён. Неиндексированная позиция возвращает явный пустой результат.
 Несколько перекрывающихся symbol identities и повторные вхождения сохраняются.
 Результаты несут исходные fact/origin, Fossil UUID, SV и instrument SHA256;
-`semantic_status` остаётся `unknown`. Эти tools не обещают call graph или impact.
+`semantic_status` остаётся `unknown`. Эти tools не обещают call graph или полноту
+поведенческого impact.
+
+Профиль `direct_scip_references_v1` сохраняет все endpoint changes, включая
+generated artifacts. Witness содержит сторону диапазона, reference Fact и все
+matching definition Facts. Ссылки внутри любого изменённого пути исключаются;
+совпадение определяется canonical Object, не коротким именем. Дубликаты и
+неоднозначность сохраняются. `affected_files` включает только внешние документы
+с такими ссылками, даже когда witnesses усечены лимитом. Пустой результат не
+заменяется списком изменённых файлов.
+
+Coverage каждого конца различает indexed/unindexed/absent paths, число изменённых
+definition occurrences и полное `matching_references` до усечения выдачи.
+`unbound_references` считает non-definition occurrences без Object (включая
+highlight-only), `unresolved_references` — occurrences с Object без определения
+в данном индексированном корпусе. Это счётчики покрытия, не диагноз resolver.
+`complete` относится только к объявленному профилю и полному bounded input;
+неиндексированные, динамические и межъязыковые зависимости им не доказаны.
+До сериализации проверяется byte budget с учётом повторяемых неоднозначных
+определений; превышение вызывает явный отказ без частичного JSON.
 
 Лимиты положительны: `--max-results` (100), `--max-facts` (100000),
 `--max-response-bytes`/`--max-frame-bytes` (1 MiB), `--timeout` (10s);

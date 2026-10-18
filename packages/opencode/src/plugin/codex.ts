@@ -12,7 +12,11 @@ const log = Log.create({ service: "plugin.codex" })
 const CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const ISSUER = "https://auth.openai.com"
 const CODEX_API_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
-const OAUTH_PORT = 1455
+// Loopback OAuth callback preferred port. MUST stay inside the IANA dynamic/private
+// range 49152-65535 (never assigned, so no trespass possible): 1455 is `esl-lm`, 1456 is
+// `dca` — чужая территория, см. docs/ports.md. On EADDRINUSE startOAuthServer falls
+// back to an ephemeral port.
+const OAUTH_PORT = 54546
 const OAUTH_POLLING_SAFETY_MARGIN_MS = 3000
 
 interface PkceCodes {
@@ -49,10 +53,14 @@ function generateState(): string {
 
 export interface IdTokenClaims {
   chatgpt_account_id?: string
+  chatgpt_data_residency?: string
+  chatgpt_compute_residency?: string
   organizations?: Array<{ id: string }>
   email?: string
   "https://api.openai.com/auth"?: {
     chatgpt_account_id?: string
+    chatgpt_data_residency?: string
+    chatgpt_compute_residency?: string
   }
 }
 
@@ -86,13 +94,33 @@ export function extractAccountId(tokens: TokenResponse): string | undefined {
   }
   return undefined
 }
+export function extractResidency(token: string): string | undefined {
+  const claims = parseJwtClaims(token)
+  const auth = claims?.["https://api.openai.com/auth"] as
+    | { chatgpt_data_residency?: unknown; chatgpt_compute_residency?: unknown }
+    | undefined
+  const direct =
+    typeof claims?.chatgpt_data_residency === "string"
+      ? claims.chatgpt_data_residency
+      : typeof claims?.chatgpt_compute_residency === "string"
+        ? claims.chatgpt_compute_residency
+        : undefined
+  const namespaced: Array<unknown> = [auth?.chatgpt_data_residency, auth?.chatgpt_compute_residency]
+  for (const claim of [direct, ...namespaced]) {
+    if (typeof claim !== "string") continue
+    const residency = claim.trim()
+    if (!residency || residency === "no_constraint") continue
+    return residency
+  }
+  return undefined
+}
 
 function buildAuthorizeUrl(redirectUri: string, pkce: PkceCodes, state: string): string {
   const params = new URLSearchParams({
     response_type: "code",
     client_id: CLIENT_ID,
     redirect_uri: redirectUri,
-    scope: "openid profile email offline_access",
+    scope: "openid profile email offline_access api.connectors.read api.connectors.invoke",
     code_challenge: pkce.challenge,
     code_challenge_method: "S256",
     id_token_add_organizations: "true",
@@ -110,6 +138,33 @@ interface TokenResponse {
   expires_in?: number
 }
 
+async function formatTokenEndpointError(response: Response): Promise<string> {
+  let detail = ""
+  try {
+    const text = await response.text()
+    if (text) {
+      try {
+        const body = JSON.parse(text) as Record<string, unknown>
+        const code = typeof body.error === "string" ? body.error : typeof body.code === "string" ? body.code : ""
+        const message =
+          typeof body.error_description === "string"
+            ? body.error_description
+            : typeof body.message === "string"
+              ? body.message
+              : typeof body.description === "string"
+                ? body.description
+                : ""
+        detail = code && message && code !== message ? `${code}: ${message}` : code || message || text
+      } catch {
+        detail = text
+      }
+    }
+  } catch {
+    detail = ""
+  }
+  return detail ? `${response.status} ${detail}` : `${response.status}`
+}
+
 async function exchangeCodeForTokens(code: string, redirectUri: string, pkce: PkceCodes): Promise<TokenResponse> {
   const response = await fetch(`${ISSUER}/oauth/token`, {
     method: "POST",
@@ -123,9 +178,13 @@ async function exchangeCodeForTokens(code: string, redirectUri: string, pkce: Pk
     }).toString(),
   })
   if (!response.ok) {
-    throw new Error(`Token exchange failed: ${response.status}`)
+    throw new Error(`Token exchange failed: ${await formatTokenEndpointError(response)}`)
   }
-  return response.json()
+  const tokens = (await response.json()) as TokenResponse
+  if (!tokens.access_token || !tokens.refresh_token || typeof tokens.expires_in !== "number") {
+    throw new Error("Token response missing required fields (access_token, refresh_token, expires_in)")
+  }
+  return tokens
 }
 
 async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
@@ -139,7 +198,7 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> 
     }).toString(),
   })
   if (!response.ok) {
-    throw new Error(`Token refresh failed: ${response.status}`)
+    throw new Error(`Token refresh failed: ${await formatTokenEndpointError(response)}`)
   }
   return response.json()
 }
@@ -243,13 +302,39 @@ interface PendingOAuth {
 
 let oauthServer: ReturnType<typeof createServer> | undefined
 let pendingOAuth: PendingOAuth | undefined
+let oauthPort: number | undefined
+
+function listen(server: ReturnType<typeof createServer>, port: number): Promise<number> {
+  const completion = Promise.withResolvers<number>()
+  const onError = (error: Error) => {
+    server.off("listening", onListening)
+    completion.reject(error)
+  }
+  const onListening = () => {
+    server.off("error", onError)
+    const address = server.address()
+    if (!address || typeof address === "string") {
+      completion.reject(new Error("Codex OAuth callback server has no TCP address"))
+      return
+    }
+    completion.resolve(address.port)
+  }
+  server.once("error", onError)
+  server.once("listening", onListening)
+  server.listen(port)
+  return completion.promise
+}
 
 async function startOAuthServer(): Promise<{ port: number; redirectUri: string }> {
-  if (oauthServer) {
-    return { port: OAUTH_PORT, redirectUri: `http://localhost:${OAUTH_PORT}/auth/callback` }
+  if (oauthServer && oauthPort) {
+    return { port: oauthPort, redirectUri: `http://localhost:${oauthPort}/auth/callback` }
   }
 
-  oauthServer = createServer((req, res) => {
+  // Drop a dead holder left by a failed listen so the next attempt really binds.
+  oauthServer = undefined
+  oauthPort = undefined
+
+  const server = createServer((req, res) => {
     const url = new URL(req.url || "/", `http://localhost:${OAUTH_PORT}`)
 
     if (url.pathname === "/auth/callback") {
@@ -288,7 +373,8 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
       const current = pendingOAuth
       pendingOAuth = undefined
 
-      exchangeCodeForTokens(code, `http://localhost:${OAUTH_PORT}/auth/callback`, current.pkce)
+      const redirectUri = `http://localhost:${oauthPort}/auth/callback`
+      exchangeCodeForTokens(code, redirectUri, current.pkce)
         .then((tokens) => current.resolve(tokens))
         .catch((err) => current.reject(err))
 
@@ -309,23 +395,35 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
     res.end("Not found")
   })
 
-  await new Promise<void>((resolve, reject) => {
-    oauthServer!.listen(OAUTH_PORT, () => {
-      log.info("codex oauth server started", { port: OAUTH_PORT })
-      resolve()
+  try {
+    oauthPort = await listen(server, OAUTH_PORT)
+  } catch (error: unknown) {
+    const code = error && typeof error === "object" && "code" in error ? String(error.code) : undefined
+    if (code !== "EADDRINUSE") {
+      oauthServer = undefined
+      oauthPort = undefined
+      throw error
+    }
+    oauthPort = await listen(server, 0)
+    log.warn("codex oauth callback port unavailable; using an ephemeral loopback port", {
+      preferredPort: OAUTH_PORT,
+      actualPort: oauthPort,
     })
-    oauthServer!.on("error", reject)
-  })
+  }
+  oauthServer = server
+  log.info("codex oauth server started", { port: oauthPort })
 
-  return { port: OAUTH_PORT, redirectUri: `http://localhost:${OAUTH_PORT}/auth/callback` }
+  return { port: oauthPort, redirectUri: `http://localhost:${oauthPort}/auth/callback` }
 }
 
 function stopOAuthServer() {
-  if (oauthServer) {
-    oauthServer.close(() => {
+  const server = oauthServer
+  oauthServer = undefined
+  oauthPort = undefined
+  if (server) {
+    server.close(() => {
       log.info("codex oauth server stopped")
     })
-    oauthServer = undefined
   }
 }
 
@@ -364,19 +462,32 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
         const auth = await getAuth()
         if (auth.type !== "oauth") return {}
 
+        // Single-flight for token refresh: concurrent requests share one refresh.
+        let refreshPromise: Promise<{ access: string; accountId: string | undefined }> | undefined
+
         // ChatGPT sign-in has a different model catalog from the OpenAI API.
         // Keep this list aligned with the published Codex model availability.
-        const allowedModels = new Set([
-          "gpt-5.5",
-          "gpt-5.6-luna",
-          "gpt-5.6-sol",
-          "gpt-5.6-terra",
-          "gpt-6-astra",
-          "gpt-6-luna",
-          "gpt-6-sol",
-        ])
+        // Explicit pins first, then the version rule: gpt-6+ always, gpt-5.x only above 5.4.
+        const allowedModels = new Set(["gpt-5.5", "gpt-5.3-codex-spark", "gpt-5.4", "gpt-5.4-mini", "gpt-6-sol", "gpt-6-luna"])
+        const disallowedModels = new Set(["gpt-5.5-pro"])
         for (const [modelId, model] of Object.entries(provider.models)) {
+          if (model.api.id === "gpt-5.6") {
+            delete provider.models[modelId]
+            continue
+          }
           if (allowedModels.has(model.api.id)) continue
+          if (disallowedModels.has(model.api.id)) {
+            delete provider.models[modelId]
+            continue
+          }
+          const match = model.api.id.match(/^gpt-(\d+)(?:\.(\d+))?/)
+          if (!match) {
+            delete provider.models[modelId]
+            continue
+          }
+          const major = Number(match[1])
+          const minor = Number(match[2] ?? 0)
+          if (major > 5 || (major === 5 && minor > 4)) continue
           delete provider.models[modelId]
         }
 
@@ -424,20 +535,28 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
             // Check if token needs refresh
             if (!currentAuth.access || currentAuth.expires < Date.now()) {
               log.info("refreshing codex access token")
-              const tokens = await refreshAccessToken(currentAuth.refresh)
-              const newAccountId = extractAccountId(tokens) || authWithAccount.accountId
-              await input.client.auth.set({
-                path: { id: "openai" },
-                body: {
-                  type: "oauth",
-                  refresh: tokens.refresh_token,
-                  access: tokens.access_token,
-                  expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
-                  ...(newAccountId && { accountId: newAccountId }),
-                },
-              })
-              currentAuth.access = tokens.access_token
-              authWithAccount.accountId = newAccountId
+              if (!refreshPromise) {
+                refreshPromise = refreshAccessToken(currentAuth.refresh).then(async (tokens) => {
+                  const newAccountId = extractAccountId(tokens) || authWithAccount.accountId
+                  await input.client.auth.set({
+                    path: { id: "openai" },
+                    body: {
+                      type: "oauth",
+                      refresh: tokens.refresh_token,
+                      access: tokens.access_token,
+                      expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                      ...(newAccountId && { accountId: newAccountId }),
+                    },
+                  })
+                  return { access: tokens.access_token, accountId: newAccountId }
+                })
+                refreshPromise.finally(() => {
+                  if (refreshPromise !== undefined) refreshPromise = undefined
+                })
+              }
+              const refreshed = await refreshPromise
+              currentAuth.access = refreshed.access
+              authWithAccount.accountId = refreshed.accountId
             }
 
             // Build headers
@@ -463,6 +582,10 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
             if (authWithAccount.accountId) {
               headers.set("ChatGPT-Account-Id", authWithAccount.accountId)
             }
+            // Region-pinned workspaces reject requests without declared residency (HTTP 401).
+            // The token already carries it, so no configuration is needed.
+            const residency = extractResidency(currentAuth.access)
+            if (residency) headers.set("x-openai-internal-codex-residency", residency)
 
             // Identify as Codex CLI for first-party model access (e.g. Luna)
             // Without these, the backend treats requests as "3rd party" and
@@ -531,21 +654,29 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
               body: JSON.stringify({ client_id: CLIENT_ID }),
             })
 
-            if (!deviceResponse.ok) throw new Error("Failed to initiate device authorization")
+            if (!deviceResponse.ok) {
+              throw new Error(`Failed to initiate device authorization: ${deviceResponse.status} ${await deviceResponse.text()}`)
+            }
 
             const deviceData = (await deviceResponse.json()) as {
-              device_auth_id: string
-              user_code: string
-              interval: string
+              device_auth_id?: string
+              user_code?: string
+              interval?: string | number
             }
-            const interval = Math.max(parseInt(deviceData.interval) || 5, 1) * 1000
-
+            if (!deviceData.device_auth_id || !deviceData.user_code) {
+              throw new Error("Device authorization response missing device_auth_id or user_code")
+            }
+            // Upper bound on polling so a server-side error can never spin forever.
+            const DEVICE_MAX_POLLS = 120
+            const rawInterval = typeof deviceData.interval === "number" ? deviceData.interval : parseInt(String(deviceData.interval ?? "5"), 10) || 5
+            const interval = Math.max(rawInterval, 1) * 1000
             return {
               url: `${ISSUER}/codex/device`,
               instructions: `Enter code: ${deviceData.user_code}`,
               method: "auto" as const,
               async callback() {
-                while (true) {
+                for (let poll = 0; poll < DEVICE_MAX_POLLS; poll++) {
+                  await sleep(poll === 0 ? Math.min(interval, OAUTH_POLLING_SAFETY_MARGIN_MS) : interval + OAUTH_POLLING_SAFETY_MARGIN_MS)
                   const response = await fetch(`${ISSUER}/api/accounts/deviceauth/token`, {
                     method: "POST",
                     headers: {
@@ -577,11 +708,13 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
                     })
 
                     if (!tokenResponse.ok) {
-                      throw new Error(`Token exchange failed: ${tokenResponse.status}`)
+                      throw new Error(`Token exchange failed: ${await formatTokenEndpointError(tokenResponse)}`)
                     }
 
-                    const tokens: TokenResponse = await tokenResponse.json()
-
+                    const tokens = (await tokenResponse.json()) as TokenResponse
+                    if (!tokens.access_token || !tokens.refresh_token || typeof tokens.expires_in !== "number") {
+                      throw new Error("Token response missing required fields (access_token, refresh_token, expires_in)")
+                    }
                     return {
                       type: "success" as const,
                       refresh: tokens.refresh_token,
@@ -592,12 +725,12 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
                   }
 
                   if (response.status !== 403 && response.status !== 404) {
-                    return { type: "failed" as const }
+                    throw new Error(`Device token polling failed: ${response.status} ${await response.text()}`)
                   }
-
-                  await sleep(interval + OAUTH_POLLING_SAFETY_MARGIN_MS)
                 }
-              },
+                throw new Error("Device authorization timed out — user did not complete login in time")
+
+                }
             }
           },
         },

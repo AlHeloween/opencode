@@ -193,7 +193,10 @@ export function createDialogProviderOptions() {
               if (result.error) {
                 toast.show({
                   variant: "error",
-                  message: JSON.stringify(result.error),
+                  message:
+                    !result.error || JSON.stringify(result.error) === "{}"
+                      ? "Authorization failed with no details from server — see server logs for 'provider oauth authorize failed'"
+                      : JSON.stringify(result.error),
                 })
                 dialog.clear()
                 return

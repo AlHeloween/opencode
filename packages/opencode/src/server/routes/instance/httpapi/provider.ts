@@ -117,7 +117,16 @@ export const providerHandlers = Layer.unwrap(
           method: ctx.payload.method,
           inputs: ctx.payload.inputs,
         })
-        .pipe(Effect.catch(() => Effect.fail(new HttpApiError.BadRequest({}))))
+        .pipe(
+          Effect.tapError((cause) =>
+            Effect.logError("provider oauth authorize failed", {
+              providerID: ctx.params.providerID,
+              method: ctx.payload.method,
+              cause: cause instanceof Error ? { message: cause.message, stack: cause.stack } : cause,
+            }),
+          ),
+          Effect.catch(() => Effect.fail(new HttpApiError.BadRequest({}))),
+        )
       return result
     })
 
@@ -131,7 +140,16 @@ export const providerHandlers = Layer.unwrap(
           method: ctx.payload.method,
           code: ctx.payload.code,
         })
-        .pipe(Effect.catch(() => Effect.fail(new HttpApiError.BadRequest({}))))
+        .pipe(
+          Effect.tapError((cause) =>
+            Effect.logError("provider oauth callback failed", {
+              providerID: ctx.params.providerID,
+              method: ctx.payload.method,
+              cause: cause instanceof Error ? { message: cause.message, stack: cause.stack } : cause,
+            }),
+          ),
+          Effect.catch(() => Effect.fail(new HttpApiError.BadRequest({}))),
+        )
       return true
     })
 

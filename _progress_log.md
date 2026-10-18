@@ -7784,3 +7784,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - PLAN: S10 [x] with receipts; moved plans/→plans_completed/ in the install commit (reconciler moves were its job — S9 left no open box).
 - BUILD: `_build.ps1` exit 0 (20261017T195712Z_c99b48d0, smoke 10.0.1432). No `bin/` (promotion is a separate word).
 <!-- sv: t84-install 0.35, all-variants 0.25, baseline-repin 0.20, read-back-receipt 0.12, open-install-box 0.08 -->
+## [2026-10-18] t84 codex-global receiver — backup + install + read-back, home files untracked (owner word, Smit)
+
+- BACKUP first: AGENTS.md de5d5cd8 == .bak EQUAL (66362 B); config.toml 99a37fc7 == .bak EQUAL. Backups kept in ~/.codex, nothing there committed or deleted.
+- DOCTOR before: all PASS except agents-content-current WARN (stale, expected).
+- INSTALL `--codex-global install`: status INSTALLED, version 2.0.0-alpha.3, content_sha256 1e8965e8.
+- READ-BACK triple MATCH: file == content_sha256 == fresh `--codex` render (1e8965e8, 68132 B); legend x2 (yaml + bullet).
+- config.toml `git diff --no-index` backup vs current: empty (unchanged, no legacy block swept).
+- DOCTOR after: all PASS, content-current PASS matches this kernel.
+<!-- sv: codex-global-install 0.40, backup-first 0.25, sha-vs-render 0.20, config-sweep-guard 0.15 -->

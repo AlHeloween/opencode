@@ -47,6 +47,7 @@ export const FIRST_TOKEN_P50_MULTIPLE = 3
 const PRIVACY_GATE = /train.*request data|privacy settings|allow paid endpoints/i
 const BALANCE = /insufficient.*balance|insufficient_quota|FreeUsageLimitError|402/i
 const MODEL_NOT_FOUND = /model not found|model_not_found|did you mean/i
+const WITHDRAWN = /withdrawn|no longer available|has been removed|was removed/i
 const UNKNOWN_FIELD = /unknown field|unknown parameter/i
 const TIMEOUT = /timed out|timeout|headers timed out|econnreset|zlib|decompression|connection reset|response.*stream.*(error|closed)|fetch failed|network/i
 const RATE = /too many requests|rate limit|rate increased|429/i
@@ -79,6 +80,7 @@ export function classifyChainError(input: ChainErrorInput): ChainErrorClass {
   if (PRIVACY_GATE.test(message)) return "terminal"
   if (BALANCE.test(message)) return "terminal"
   if (MODEL_NOT_FOUND.test(message)) return "terminal"
+  if (WITHDRAWN.test(message)) return "terminal"
   // A provider-ordered wait longer than the longest we ever wait for a first
   // token (FIRST_TOKEN_FLOOR_MS) means the member cannot serve this attempt.
   // Waiting it out is the t73 hang (429 + retry-after 49715s held the session

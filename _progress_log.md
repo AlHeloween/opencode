@@ -7827,3 +7827,12 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 ## [2026-10-18] t88 — Claude SV turn hook: source + fixture tests, STOP for Legislator
 
 DONE 8/8 fixture tests (run 20261018T0247Z, python scripts/claude-hooks/tests/test_sv_turn_fossil.py, exit 0): scripts/claude-hooks/sv_turn_fossil.py (Stop hook: LAST assistant message SV -> `chat claude[ sv:md5]: dominant (session id8)` technote, cell.ts byte-shape; org.py write-verb / AskUserQuestion-answer / wrap_up-actions turns also to $ORG_HOME/org.fossil with decision/delegation tags; 5 s budget, exit 0, log .temp/sv_turn_fossil.log) + README.md + tests/ (6 fixture jsonl + runner, scratch fossils in .temp/). Caught by tests before commit: unanchored md5 search matched prev-md5 zeros, 2-level log root wrote scripts/.temp, trailing-newline drift vs cell.ts. Next: Legislator review + install to ~/.claude/settings.json.
+## [2026-10-18] t87 implement - gates GREEN, owner box open
+
+GREEN (no bin/): gate in every consumer (resolvers, assign head, prompt/shell/command/title, task/pipeline/plan/reasoning, aicall explicit-refuse, chain PUT write-gate, llm stream filter, small-model head); TUI set() refuse + row stale marker + Global recents editor (ctrl+alt+r) + PATCH writer; Config.Info.globalRecents; classify withdrawn->terminal; migration kept-not-deleted-shown. Tests: allowlist 4/4 run 20261018T025652Z_7e829613, chain-gate 3/3 run 20261018T025707Z_4630982c, renamed 7/7 run 20261018T025723Z_9284672 (RED R1/R5/R6 first, pins held); regressions smoke 6/6, store 16/16, failover 32/32, stream 17/17, persist 28/28, cell 24/24, agent-selection 17/17; typecheck exit 0 run 20261018T030537Z_538446fd; config 77/82 (5 timeout flakes pass solo, loaded box). Plan ACTIVE, owner box open (list content is owner's TUI edit). Seed proposal: free zen -> contributor via Go.
+<!-- goal_sv: Keywords: t87-implement 0.30, gate-every-consumer 0.25, renamed-failover 0.20, owner-sets-list 0.15, red-green-receipts 0.10
+Semantic dominant: The accepted t87 plan is implemented with every model consumer gated by the global recents list and the renamed-model failover case is covered.
+md5: 7f3a2c9e4b5d6a83e0d1c5a8b4f6e291
+prev-md5: 4e7a1c9d3f5b4826ac0e7d1c5b9a306f2
+parent-goal-md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
+-->

@@ -10,7 +10,11 @@ import { ModelID, ProviderID } from "../provider/schema"
 import type { TaskPromptOps } from "./task"
 import { resolveAgentModel, resolveAgentVariant, resolveChainAgentModel } from "../session/session-settings"
 import { loadChain } from "@/provider/model-chain/store"
+import { gateLayerModel, readGlobalRecents, resolveGlobalHead } from "../session/global-recents"
+import * as Log from "@opencode-ai/core/util/log"
 import { chainHealthState } from "@/provider/model-chain/health-registry"
+
+const log = Log.create({ service: "pipeline" })
 
 const ContextMode = Schema.Literals(["full", "summary", "fields", "maxTokens"])
 
@@ -212,26 +216,48 @@ export const PipelineTool = Tool.define(
             const chainResolved = yield* Effect.sync(() =>
               resolveChainAgentModel(stepAgent.name, ctx.sessionID, chainHealthState(), {
                 chain: loadChain(`session:${ctx.sessionID}`, stepAgent.name),
+                globalRecents: pipeRecents,
               }),
             ).pipe(Effect.catch(() => Effect.succeed(undefined)))
             // Unified model resolution: session → workspace → global agent config → default
             const parentSession = yield* sessions.get(ctx.sessionID)
+            // t87: ONE lookup of ONE key (L4 `globalRecents`) — the gate, not a parent walk.
+            const pipeRecents = yield* Effect.tryPromise({
+              try: () => readGlobalRecents(),
+              catch: () => undefined,
+            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
             const resolved = yield* Effect.tryPromise({
               try: () =>
                 resolveAgentModel(stepAgent.name, {
                   sessionID: ctx.sessionID,
                   workspaceID: parentSession.workspaceID,
-                }),
+                }, { globalRecents: pipeRecents }),
               catch: (e) => e,
             }).pipe(Effect.catch(() => Effect.succeed(undefined)))
             const defaultModel = yield* provider.defaultModel()
+            // t87: chain → session/workspace → step declaration → list head → provider default.
+            const gatedStep = gateLayerModel(
+              stepAgent.model
+                ? { providerID: stepAgent.model.providerID, modelID: stepAgent.model.modelID }
+                : undefined,
+              pipeRecents,
+              { layer: "global-declaration", agent: stepAgent.name },
+            )
+            const pipeHead = resolveGlobalHead(pipeRecents, chainHealthState())
             const model =
               chainResolved ??
               resolved ??
+              gatedStep ??
+              pipeHead ??
               (stepAgent.model
                 ? { providerID: stepAgent.model.providerID, modelID: stepAgent.model.modelID }
                 : defaultModel)
-
+            if (pipeHead !== undefined && model === pipeHead) {
+              log.warn("bug: pipeline model fell to global recents head", {
+                agent: stepAgent.name,
+                used: "global-recents",
+              })
+            }
             // Unified variant resolution: session → workspace → step-provided
             const resolvedVariant = yield* Effect.tryPromise({
               try: () =>

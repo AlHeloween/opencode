@@ -40,11 +40,11 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            "Choose the instrument by the question's layer: text/literal → grep (fossil grep, Zoekt where present); files by name → glob/list; structure, callers or impact → codegraph; own trajectory → messagesearch; prior art → Universal Search hybrid. An empty result is a claim about that tool on that layer only, never absence on another layer.",
+            "Choose the instrument by the question's layer: text/literal → grep (fossil grep, Zoekt where present); files by name → glob/list; structure, callers or impact → codegraph; own trajectory → messagesearch; prior art → Universal Search hybrid; concept / unclear target → adm --query (RAG), then the layer it points to. An empty result is a claim about that tool on that layer only, never absence on another layer.",
             # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
             # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
             # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
-            "refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
+            "refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync; name the instrument and layer that answered."
         ),
     ),
     GateAddon(
@@ -52,7 +52,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_GROUNDING",
         (
             "ground via: codegraph, read, messagesearch, webfetch/universalsearch.",
-            "patents: Universal Search /search discovers, /web/context on the patent URL stamps content_hash; Google Patents search pages are client-rendered, never scraped.",
+            "patents: discover the patent id via Universal Search /search, then /web/context on the patent URL for content_hash.",
             "file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).",
             "platform: Windows = cmd/powershell tools; bash unavailable.",
             "cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.",

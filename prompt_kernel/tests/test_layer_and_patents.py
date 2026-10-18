@@ -73,3 +73,110 @@ def test_g1_domain_grounding_slot_in_all_variants(variant) -> None:
     g1 = _gate_block(text, "G1")
     assert "DOMAIN_TERMS" in g1
     assert "keeps G1 open" in g1
+
+
+# --- t90 review 1 (Legislator FAIL findings) ---
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_no_scanner_last_rule_in_g1(variant) -> None:
+    """F1: routing is the only instrument rule."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "scanner is last" not in g1
+    assert "never first" not in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_no_dangling_chain_refs_in_g1(variant) -> None:
+    """F2: the chain is gone; the instrument and layer are named."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "naming its rungs" not in g1
+    assert "escalate the whole chain" not in g1
+    assert "Name the rung that answered" not in g1
+    assert "name the instrument and layer that answered" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_concept_layer_routes_to_retrieval(variant) -> None:
+    """F3: concept / unclear target reaches retrieval first."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "unclear target" in g1
+
+
+def test_concept_layer_tools_per_host() -> None:
+    """F3: each host names its own retrieval tool."""
+    blocks = {name: _gate_block(render_kernel(KERNEL, *VARIANTS[name]), "G1") for name in VARIANTS}
+    assert "adm --query" in blocks["product"]
+    assert "adm --query" in blocks["claude"]
+    assert "qualified adm query" in blocks["codex"]
+    assert "retrieval MCP" in blocks["cursor"]
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_domain_task_path_defined(variant) -> None:
+    """F4a: task path needs no familiarity judgement."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "change region touches" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_domain_reuse_reads_glossary(variant) -> None:
+    """F4b: a current glossary entry is read, not re-searched."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "already in the project glossary" in g1
+    assert "@ANTI_CHURN" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_domain_unknown_exit(variant) -> None:
+    """F4c: sourceless terms close as residual, never silent."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "source_ref: Unknown" in g1
+    assert "no plan step rests on that term" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_domain_search_order_and_authority(variant) -> None:
+    """F4d: search order is not authority."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "org wiki" in g1
+    assert "higher rung wins" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_domain_readonly_identities_report(variant) -> None:
+    """F4e: read-only identities report; the parent records."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "EXPLORER_AGENT" in g1
+    assert "parent records the glossary" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_domain_slot_carries_content_hash(variant) -> None:
+    """F4f: the slot names the hash and its source per surface."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "{term, definition, source_ref, content_hash}" in text
+    g1 = _gate_block(text, "G1")
+    assert "sha256 of the read file" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_domain_reword_no_inferred_collision(variant) -> None:
+    """F4g: reinvented from recall, not against the rung."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "reinvented from recall" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_patent_lines_instruct_without_render_claim(variant) -> None:
+    """F5: instruction, not an unreceipted render fact."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "client-rendered" not in g1
+    assert "discover the patent id" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_engineering_route_names_standards_bodies(variant) -> None:
+    """F6: standards publishers ride the engineering route."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "ASTM" in text

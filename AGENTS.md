@@ -757,7 +757,7 @@ the same defect is any question asked on the wrong layer.
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 
-Reach for it BEFORE grep/find when you need to understand code. MCP owns the live graph; SQLite packs readonly structure for agents.
+Reach for it when the question is structure, callers or impact — a text/literal question goes to grep first (the graph is blind to declarations inside a function, measured 2026-10-10). MCP owns the live graph; SQLite packs readonly structure for agents.
 
 - Built-in `codegraph` tool: MCP touch → SQLite pack (symbols, cross-file edges).
 - Config: auto-injected when `.codegraph/` exists (opt out: `OPENCODE_CODEGRAPH_MCP=0`).

@@ -55,8 +55,8 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            "Choose the instrument by the question's layer: text/literal → Grep/Search Files/Read File; structure, callers or impact → structural CodeGraph MCP (discover the actual MCP wire id, never guess it); prior art → Codebase/Web. An empty result is a claim about that tool on that layer only, never absence on another layer.",
-            'refresh owner: authorized parent executes refresh, or the MCP supplies verified freshness; receipt names worktree, index, owner, command/result and source hashes. Edits invalidate it. A read-only explorer requests the receipt, never extra Terminal rights.',
+            "Choose the instrument by the question's layer: text/literal → Grep/Search Files/Read File; structure, callers or impact → structural CodeGraph MCP (discover the actual MCP wire id, never guess it); prior art → Codebase/Web; concept / unclear target → qualified retrieval MCP, then the layer it points to. An empty result is a claim about that tool on that layer only, never absence on another layer.",
+            "refresh owner: authorized parent executes refresh, or the MCP supplies verified freshness; receipt names worktree, index, owner, command/result and source hashes. Edits invalidate it. A read-only explorer requests the receipt, never extra Terminal rights; name the instrument and layer that answered."
         ),
     ),
     GateAddon(
@@ -76,7 +76,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
             'platform: Windows = PowerShell in Terminal; never mix syntaxes.',
             'the Run/approval mode governs Terminal: a denied or sandbox-blocked command is a host blocker to report, never a route around.',
             'Fetch Rules returns the .cursor/rules context this file belongs to — one source to look up, never a second copy to reconcile.',
-            "patents: Web reads the patent URL; Google Patents search pages are client-rendered, so discover the id first.",
+            "patents: discover the patent id first, then Web reads the patent URL."
         ),
     ),
     GateAddon(

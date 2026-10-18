@@ -21,7 +21,10 @@ note: hash values are generative tags — search them, never compute them.
 - [x] Addendum 1 (instrument by layer): RED 22 failed / 2 guards passed → GREEN; graph-before-scanners + grep-last removed in all 4 variants, layer routing + honest-empty clause in; AGENTS.md § Search instruments rewritten (51911 → 52177 B); grounding pin retired with dated reason
 - [x] Addendum 2 (patents + domain grounding): engineering route +Google_Patents/Espacenet primary, +USPTO/WIPO_Patentscope secondary; software secondary +Google_Patents; patent-authority rule line; G1 DOMAIN_GROUNDING rule + DOMAIN_TERMS slot (G1 outputs, G2 requires); per-variant patent host binding; missing-comma near-miss (t84 class, tuples) found by test_addons and fixed
 - [x] Caps: utf8 69_000 → 70_000 (source + validate ceiling + reward pins), tokens 9_400 → 9_500, G0+G1 pre-action 7_800 → 8_500; product 69903 B, max tokens 9460; nothing cut
-- [ ] Oracle + build + commit for the addenda; STOP before --install
+- [x] Oracle + build + commit for the addenda (7421093607; pytest 357+3 stale, build 10.0.1445); STOP before --install
+- [x] Review 1 (Legislator FAIL): RED 49 failed / 24 passed → GREEN 73 passed; F1 core contradiction (INSTRUMENT_ORDER by layer, LOUD_FAILURE narrowed to STRUCTURE) + invariant test; F2 chain refs → instrument+layer; F3 concept/unclear-target layer in all 4 (adm --query / qualified adm query / retrieval MCP); F4 DOMAIN_GROUNDING bounds (task path, reuse @ANTI_CHURN, Unknown exit, org wiki + higher rung wins, read-only report + parent records, content_hash per surface, reinvented-from-recall); F5 patent lines as instruction (no render claim); F6 ISO/IEC/ASTM secondary; F7 AGENTS.md:760 + .claude/CLAUDE.md:4 tails aligned (no in-repo generator found — outputs edited directly)
+- [x] Caps: utf8 70_000 → 71_000 (product 70617), tokens 9_500 → 9_600 (max 9575), G0+G1 pre-action 8_500 → 9_500 (measured 9134); nothing cut
+- [ ] Oracle + build + commit for review 1; STOP before --install
 
 ## 1. Grounding (measured)
 

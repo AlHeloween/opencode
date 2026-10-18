@@ -1,5 +1,8 @@
 ﻿# Progress Log
 
+## [2026-10-18] t89 — write returns line addresses like edit does
+CONFIRMED: RED run 20261018T024529Z_5bb5f305 (exit 1, both new tests fail on the missing Addresses block); GREEN run 20261018T024919Z_dfefccaa (2 pass, 13 expects, exit 0; printed labels equal read labels per line; edit by printed label lands on disk). Full write.test.ts 20261018T025006Z_c424b4fd (23 pass, 0 fail), edit.test.ts 20261018T025245Z_075f650c (25 pass, 0 fail), description-integrity 20261018T025345Z_d20f9b5c (8 pass, 0 fail), _build.ps1 20261018T025423Z_4d977aaf (exit 0, candidate 10.0.1437). Fix reuses addressReport from ./edit over the final on-disk text; write.txt promises current line labels. Plan move to plans_completed/ pending on the shared-index lock (next action: git mv + commit).
+<!-- goal_sv: write-address-report 0.40, edit-after-write 0.25, final-text-labels 0.20, red-test-first 0.15 -->
 ## [2026-10-18] t87 — global recents constraint: plan + RED tests, STOP for Legislator
 
 RED (no product code): plan `plans/2026-10-18_global-recents-constraint.md` (location table L1-L4, consumer gate table, acceptance, rule-4 argument, migration kept-not-deleted-shown). Tests: `test/session/global-recents-allowlist.test.ts` (run 20261018T005659Z_7f4fb71b: exit 1, 3 fail at lines 72/95/111 + 1 order guard pass) and `test/provider/model-chain-global-gate.test.ts` (run 20261018T005734Z_1e9343e9: exit 1, 3 fail at lines 29/37/51). Failure lines show the stale `opencode-go/glm-5.3-flash` returned where the gate must refuse it. One L4 change (`globalRecents` in exe-adjacent global config) to govern every worktree; no model.json touched. Next: Legislator review, then gate implementation.

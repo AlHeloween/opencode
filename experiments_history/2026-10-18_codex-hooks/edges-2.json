@@ -1,0 +1,63 @@
+{
+  "source_private": {
+    "path": "experiments/2026-10-18_codex-hooks/oracle/edges-2/report.json",
+    "bytes": 539936,
+    "sha256": "e3d4ad1f3c49dc2c00de727676d887ea6c5821eb1fc9ea192c3cb00ac5dd8c28"
+  },
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "fixture-larger-than-cap",
+      "result": "PASS"
+    },
+    {
+      "name": "full-utf8-output-cap",
+      "result": "PASS"
+    },
+    {
+      "name": "latest-user-cancellation-kept",
+      "result": "PASS"
+    },
+    {
+      "name": "current-parent-chain-kept",
+      "result": "PASS"
+    },
+    {
+      "name": "latest-decision-kept",
+      "result": "PASS"
+    },
+    {
+      "name": "overflow-address-and-recall",
+      "result": "PASS"
+    },
+    {
+      "name": "all-primary-records-persisted",
+      "result": "PASS"
+    },
+    {
+      "name": "all-primary-texts-byte-equal",
+      "result": "PASS"
+    },
+    {
+      "name": "worktree-isolation",
+      "result": "PASS"
+    },
+    {
+      "name": "visible-refusal:wrong-session",
+      "result": "PASS"
+    },
+    {
+      "name": "visible-refusal:missing-session",
+      "result": "PASS"
+    },
+    {
+      "name": "incomplete:two-outstanding-one-result",
+      "result": "PASS"
+    },
+    {
+      "name": "incomplete:stale-final-new-user",
+      "result": "PASS"
+    }
+  ],
+  "failed": []
+}

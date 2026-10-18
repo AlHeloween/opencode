@@ -1,0 +1,161 @@
+{
+  "source_private": {
+    "path": "experiments/2026-10-18_codex-hooks/oracle/acceptance-2/report.json",
+    "bytes": 759189,
+    "sha256": "f6f626ffcef3d9ba0702ea04aaf4ce02bfb782cd19ef767e6995df1b68241af4"
+  },
+  "status": "PASS",
+  "target_sha256": "9e3728562995b35ca4154a0b7d80e499f9184e47ec1b70317b2734b2b2f7c97c",
+  "source_stable": "PASS",
+  "checks": [
+    {
+      "name": "capture-wire",
+      "result": "PASS"
+    },
+    {
+      "name": "postcompact-wire-receipt",
+      "result": "PASS"
+    },
+    {
+      "name": "restore-wire",
+      "result": "PASS"
+    },
+    {
+      "name": "restore-over-old-limit",
+      "result": "PASS"
+    },
+    {
+      "name": "primary-text:ROOT INTENTION",
+      "result": "PASS"
+    },
+    {
+      "name": "primary-text:DECISION BASIS",
+      "result": "PASS"
+    },
+    {
+      "name": "primary-text:CURRENT CONSTRAINT",
+      "result": "PASS"
+    },
+    {
+      "name": "primary-address",
+      "result": "PASS"
+    },
+    {
+      "name": "real-fossil-comments",
+      "result": "PASS"
+    },
+    {
+      "name": "resume-restoration",
+      "result": "PASS"
+    },
+    {
+      "name": "quoted-user-not-vector",
+      "result": "PASS"
+    },
+    {
+      "name": "exact-two-vectors",
+      "result": "PASS"
+    },
+    {
+      "name": "capture-idempotent",
+      "result": "PASS"
+    },
+    {
+      "name": "session-isolation",
+      "result": "PASS"
+    },
+    {
+      "name": "fossil-exact:b042e63f89a24d0e91f7586acb32d714",
+      "result": "PASS"
+    },
+    {
+      "name": "fossil-exact:fe172b04c6a3485d9e07a236bc81f495",
+      "result": "PASS"
+    },
+    {
+      "name": "fossil-exact:a3951f6e20b849d4ac08723be165f092",
+      "result": "PASS"
+    },
+    {
+      "name": "job-idempotent:complete",
+      "result": "PASS"
+    },
+    {
+      "name": "job-completed:complete",
+      "result": "PASS"
+    },
+    {
+      "name": "job-primary-child:complete",
+      "result": "PASS"
+    },
+    {
+      "name": "job-not-accepted:complete",
+      "result": "PASS"
+    },
+    {
+      "name": "job-idempotent:pending",
+      "result": "PASS"
+    },
+    {
+      "name": "job-completed:pending",
+      "result": "PASS"
+    },
+    {
+      "name": "job-primary-child:pending",
+      "result": "PASS"
+    },
+    {
+      "name": "job-not-accepted:pending",
+      "result": "PASS"
+    },
+    {
+      "name": "job-idempotent:incomplete",
+      "result": "PASS"
+    },
+    {
+      "name": "job-completed:incomplete",
+      "result": "PASS"
+    },
+    {
+      "name": "job-primary-child:incomplete",
+      "result": "PASS"
+    },
+    {
+      "name": "job-not-accepted:incomplete",
+      "result": "PASS"
+    },
+    {
+      "name": "job-idempotent:error",
+      "result": "PASS"
+    },
+    {
+      "name": "job-completed:error",
+      "result": "PASS"
+    },
+    {
+      "name": "job-primary-child:error",
+      "result": "PASS"
+    },
+    {
+      "name": "job-not-accepted:error",
+      "result": "PASS"
+    },
+    {
+      "name": "source-transcript-unchanged",
+      "result": "PASS"
+    },
+    {
+      "name": "source-repository-unchanged",
+      "result": "PASS"
+    },
+    {
+      "name": "source-file-unchanged",
+      "result": "PASS"
+    },
+    {
+      "name": "target-stable-during-run",
+      "result": "PASS"
+    }
+  ],
+  "failed": []
+}

@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "scope": "owned native fixture cleanup; user config unchanged",
+  "fixture_thread": "01a14d86-6970-7452-912a-8918b2ec0445",
+  "archive_receipt": {
+    "tool": "set_thread_archived",
+    "archived": true
+  },
+  "readback": {
+    "instrument": "read-only state_5.sqlite query",
+    "archived": 1,
+    "active_hookfixture_threads": 0,
+    "working_thread": "01a14413-0874-73a1-9716-0ba2ae6a9a27",
+    "working_provider": "openai"
+  },
+  "config": {
+    "instrument": "tomllib.loads",
+    "valid": true,
+    "sha256": "dad927ec13a6e37474bf93ec3098ad1bf1094223aff11ae1f28116f946ec1ca6",
+    "hookfixture_present": false
+  },
+  "primary_remap": {
+    "from": "C:\\Users\\Alexander\\.codex\\sessions\\2026\\10\\18\\rollout-2026-10-18T13-40-17-01a14d86-6970-7452-912a-8918b2ec0445.jsonl",
+    "to": "C:/Users/Alexander/.codex/archived_sessions/rollout-2026-10-18T13-40-17-01a14d86-6970-7452-912a-8918b2ec0445.jsonl",
+    "sha256": "3d612b43209cc9264ad431f7121633f93a94f01b5a5671c36c831395be2b6ece",
+    "bytes": 1064532,
+    "identical_to_original_runtime_pin": true
+  },
+  "native_probe": {
+    "path": "D:/zPython/opencode/experiments/2026-10-18_codex-hooks/oracle/rpc-after-fixture-cleanup.json",
+    "sha256": "57635944e56952ac0289512098c130c8504cd7c12b33524e9be52ca9b397ea3e",
+    "result": "hooks/list returned without RPC error"
+  },
+  "residual": "Historical lifecycle_probe.py requires explicit disposable-thread cleanup on replay; automatic cleanup was not implemented or qualified.",
+  "sv": {
+    "Keywords": "fixture-cleanup 0.55, primary-preservation 0.30, native-config 0.15",
+    "Semantic dominant": "Убрать забытый тестовый чат и сохранить проверяемый первоисточник.",
+    "md5": "a29d7e0413c94b65b0f28ec6d8157a93",
+    "prev-md5": "00000000000000000000000000000000",
+    "parent-goal-md5": "f81c69a257304de89b06173ac54e2f90",
+    "note": "hash values are generative tags — search them, never compute them."
+  }
+}

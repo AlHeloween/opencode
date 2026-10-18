@@ -1,0 +1,190 @@
+{
+  "schema": 1,
+  "scope": "Codex hooks native lifecycle and independent evidence",
+  "source_pins": [
+    {
+      "path": "scripts/codex-hooks/codex_hooks.py",
+      "bytes": 67270,
+      "sha256": "9e3728562995b35ca4154a0b7d80e499f9184e47ec1b70317b2734b2b2f7c97c"
+    },
+    {
+      "path": "docs/codex-hooks.md",
+      "bytes": 15478,
+      "sha256": "59fad2b41c55bdad44fbff2e5647d2f470aaba739517bd97bb2e4a19f5108c41"
+    },
+    {
+      "path": "tools/codex_svchain.py",
+      "bytes": 5176,
+      "sha256": "b98d16e9ad5bd98a10ff1c844dd08a0e31f5c14e47a3a274779cbfef07555804",
+      "git_blob_sha256": "8830201f5b5056573e930d52afee5aa1425ded015d12147c0b81c4231b15aea6",
+      "git_blob_bytes": 5041,
+      "git_blob_relation": "CRLF-to-LF normalization only"
+    },
+    {
+      "path": "tools/opencode_host.py",
+      "bytes": 4896,
+      "sha256": "cc7edd75592bee25a7e3165ac56a7b7144e3ea829d53933159d55aa0effbddfa",
+      "git_blob_sha256": "c2f875e6b52c28b4530e1f8584849a1954a5145653365d22b09793fb9bd9ee43",
+      "git_blob_bytes": 4782,
+      "git_blob_relation": "CRLF-to-LF normalization only"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/helpers.py",
+      "bytes": 2625,
+      "sha256": "b6a779d7a2867035d8148215fbf8e06b9dd1ed59b3545c29e1055905ed288207"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/test_capture_restore.py",
+      "bytes": 14028,
+      "sha256": "031182231aba1b035eedd8aee1449297a214e2f31ec5b18d35b308684a82280d"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/test_collect_opencode.py",
+      "bytes": 9693,
+      "sha256": "2afe39262b2fe01da03717f163fb17b853bd33851e5b2ccc603c1b8b6d9ac8d3"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/test_fossil_provenance.py",
+      "bytes": 11300,
+      "sha256": "7568d1668059f9c056d6e4cf39ead3818dd6734346ec3c817d67e2fe899dc1be"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/test_handler_wire.py",
+      "bytes": 5255,
+      "sha256": "e0a1564b7f554e2ff144851ba6bf36a26bf9899433539fe2e991dee593652863"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/test_identity.py",
+      "bytes": 4446,
+      "sha256": "fc7baee7683390c92f9412d2d3d8e2c40e9450725477f896e49ae58fac09e4c8"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/test_red_api.py",
+      "bytes": 2323,
+      "sha256": "e749909d30a081f6b0c39d87e28eb74a075dafe1c412b8bf445ec2c43578c6ff"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/test_reports.py",
+      "bytes": 10646,
+      "sha256": "ec943a39b7c2a6ba0d7d7d1ec337317350c8459273e6ef5cece034f0c0b67932"
+    },
+    {
+      "path": "scripts/codex-hooks/tests/__init__.py",
+      "bytes": 81,
+      "sha256": "1738834c78abc13e8adee2cf4d051fde79d2bf602ca8923898e6db37bbc04591"
+    }
+  ],
+  "archive": [
+    {
+      "path": "acceptance-2.json",
+      "bytes": 3272,
+      "sha256": "697934a4e110a0f41f31d07bef93266d2cb037c75ee55963796e4d53438ed07f"
+    },
+    {
+      "path": "build.log",
+      "bytes": 50662,
+      "sha256": "343dff96a7ff6d63a38dbba98aab2265099be3841eab267a1579229d54cab0a6"
+    },
+    {
+      "path": "edges-2.json",
+      "bytes": 1312,
+      "sha256": "286564ddaabbb6b997eee4d8821015962ae37f3788b4e77c7db3743cef331511"
+    },
+    {
+      "path": "hooks-before.json",
+      "bytes": 200,
+      "sha256": "0436f1ba28977aaf30f09e53b11d2675e20d6bf2fa64f4082a13af06c77c54cb"
+    },
+    {
+      "path": "hooks-installed.json",
+      "bytes": 1976,
+      "sha256": "6b77b567a6f542c1fb69717858fc62020e9219078d644e615f7d3f6d9c54a705"
+    },
+    {
+      "path": "native-lifecycle-receipt.json",
+      "bytes": 2938,
+      "sha256": "ff08accf9a5951cacf14f80e4af563c87f101a3804a0fe09e75311e6b5e26aaa"
+    },
+    {
+      "path": "native-tests.log",
+      "bytes": 7368,
+      "sha256": "eeb8a1164fa1b0d8b5b1c827887577d3e4939efe620c099720ece0a3a2371881"
+    },
+    {
+      "path": "oracle/edge_oracle.py",
+      "bytes": 7241,
+      "sha256": "6cbf51b6e9dab377ff2f1a963adbcb36ac94bd2ffde4c6fd65e238d91cddd800"
+    },
+    {
+      "path": "oracle/fixture.py",
+      "bytes": 5122,
+      "sha256": "eab86d07dcc136fdc5aa6394c8d75e9dbd859b3270272a3df35b13cb0ba48e97"
+    },
+    {
+      "path": "oracle/lifecycle_probe.py",
+      "bytes": 18407,
+      "sha256": "8bcbd6478f34148f1b9b5aa3cb222cb4bd2e909ae4e3d68b70864ec1e7460f31"
+    },
+    {
+      "path": "oracle/overflow_boundary.py",
+      "bytes": 7342,
+      "sha256": "834d748ae8a02e8f99878e5240992bc5b3ed219b806d8c1d4ba549d1b27aa95a"
+    },
+    {
+      "path": "oracle/product_oracle.py",
+      "bytes": 7562,
+      "sha256": "2d4ef721fb3de19fa41988cf47f857970e6e7054fae7b1866de15e99373aaecc"
+    },
+    {
+      "path": "oracle/rpc_probe.py",
+      "bytes": 3263,
+      "sha256": "0b737197b12ce3dcabf6dae47884d9ff87f6af2e3c908db83f71dbacd6b10bfb"
+    },
+    {
+      "path": "overflow-acceptance-1.json",
+      "bytes": 727,
+      "sha256": "c0efdb8510a59b0db4992f8b0e379122b65248da2536f3135f288f89bfe5eb5c"
+    },
+    {
+      "path": "PRIVATE_EVIDENCE.json",
+      "bytes": 2158,
+      "sha256": "62256f1e50664208d5af4c7543d15a423569055491f51881af54c668887cf3d6"
+    },
+    {
+      "path": "README.md",
+      "bytes": 9482,
+      "sha256": "70e396e578809e54e1fde03b8b998a33a67d5ad2cc158bcf3c5c0040ca2938b2"
+    },
+    {
+      "path": "rpc-trusted.json",
+      "bytes": 15685,
+      "sha256": "6c12f245e45f8673a0023e9880f8223102b55c744f9dc3db4e92cd47c98bf1c0"
+    },
+    {
+      "path": "RUNS.json",
+      "bytes": 11152,
+      "sha256": "b2e083cedf8c4884d389acd30ec7a176fc7716f99accaa85559fd1d105e6ab9b"
+    },
+    {
+      "path": "source-pins.json",
+      "bytes": 2475,
+      "sha256": "669de6a13ffc85ed438c31bf341f8f0055dd8e10ac9d424e0572baaf514a68bc"
+    },
+    {
+      "path": "fixture-cleanup.json",
+      "bytes": 2003,
+      "sha256": "6255837b61be2dc5873844494d300bddcc170add35e494a0985d38d95355921b"
+    },
+    {
+      "path": ".gitattributes",
+      "bytes": 8,
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+    }
+  ],
+  "content_review": {
+    "actual_conversations": "retained private, hash-addressed by PRIVATE_EVIDENCE.json",
+    "synthetic_harnesses": "manually reviewed literal fixtures, not real conversation data",
+    "credentials": "no auth headers/config/private keys copied",
+    "selection": "bounded explicit copy; no global archive mutation"
+  }
+}

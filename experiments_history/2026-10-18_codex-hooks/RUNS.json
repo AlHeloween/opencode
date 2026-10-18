@@ -1,0 +1,324 @@
+[
+  {
+    "id": "20261018T051102Z_ac6da811",
+    "status": "finished",
+    "exit": 1,
+    "bytes_written": 978,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T051102Z_ac6da811/stdout_text.log",
+      "bytes": 846,
+      "sha256": "fe1391f85b03f967c51b772c0162c2a27f62f41a7495b930e62e9df05f36c5e0"
+    },
+    "state_sha256": "4fec7700a7e84d762c843d77c6ba05693302147cbcd542ffd2910cf307a24c8b"
+  },
+  {
+    "id": "20261018T051115Z_db112fc7",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 230,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T051115Z_db112fc7/stdout_text.log",
+      "bytes": 107,
+      "sha256": "afa3be832d4613611a269999f03e83743d3c9c2bb5548b7587c9e92dfd034168"
+    },
+    "state_sha256": "2171d1c84954df1b621d474cdaac2a888279bdf3262e333bd200f155799c807d"
+  },
+  {
+    "id": "20261018T051326Z_7e5622fa",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 372,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T051326Z_7e5622fa/stdout_text.log",
+      "bytes": 249,
+      "sha256": "11ecb3cd3e8dd88ec1d5a0c1947905464eb0c93604ba4552c1ea9855416efeb3"
+    },
+    "state_sha256": "795416c75619805706e33f7bc4c75a67203de71d8ee554deeba017dc5bdad6df"
+  },
+  {
+    "id": "20261018T051541Z_e3f1e129",
+    "status": "finished",
+    "exit": 1,
+    "bytes_written": 804,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T051541Z_e3f1e129/stdout_text.log",
+      "bytes": 681,
+      "sha256": "c69fce2ed04c66c577a9d4a244043fa440c0f54371c584b37564070133d718d9"
+    },
+    "state_sha256": "efd982f9831245980ef471c8cb40756dfb446f21f6b88db46dec21cc726bd52d"
+  },
+  {
+    "id": "20261018T051632Z_aba984ad",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 362,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T051632Z_aba984ad/stdout_text.log",
+      "bytes": 110,
+      "sha256": "b5ca1729ff31c9d3a5d301bf94c04c22ea17878dff7f4a138b35b2cf62edbfd8"
+    },
+    "state_sha256": "839f63bbfd76bbde12ddc5d55900e4497b44fd5d8526d738f22c7bea2f0b4f9f"
+  },
+  {
+    "id": "20261018T051702Z_edd4c2ef",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 1226,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T051702Z_edd4c2ef/stdout_text.log",
+      "bytes": 971,
+      "sha256": "b73afe7395b0d12402a36acb517e36a912e48aed0a678b77df94037a7ac6fb92"
+    },
+    "state_sha256": "5208892eb665e3339c0142c5c8a95cadf88ae6456169a46c424d732459caced7"
+  },
+  {
+    "id": "20261018T052824Z_c55ab9b6",
+    "status": "stopped",
+    "exit": 1,
+    "bytes_written": 2514,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T052824Z_c55ab9b6/stdout_text.log",
+      "bytes": 2375,
+      "sha256": "84a601d71c3acee03bd15e6bc6bcab31d6505bf56ebb346d8fcfed3dd69fe7c0"
+    },
+    "state_sha256": "dc0848b1aead682d23c9e9bdeb96839b323105cc02618fdeed1658c6fc9167c9"
+  },
+  {
+    "id": "20261018T052824Z_b9ff6e7c",
+    "status": "finished",
+    "exit": 1,
+    "bytes_written": 410,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T052824Z_b9ff6e7c/stdout_text.log",
+      "bytes": 287,
+      "sha256": "324b460fab5ffe7fae89eb370dd443626204a46a564ef5c08cae63e29eb37fb1"
+    },
+    "state_sha256": "7cbc480267f4c60ce35abd7ba1ad656a6e68b6611932defc79231f9176708b95"
+  },
+  {
+    "id": "20261018T052824Z_b2eefddc",
+    "status": "finished",
+    "exit": 1,
+    "bytes_written": 334,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T052824Z_b2eefddc/stdout_text.log",
+      "bytes": 211,
+      "sha256": "b680671ec2296f41491fce48063a76b80323ad2b6acbcc0925a9f3a8545de45f"
+    },
+    "state_sha256": "7158312399d58a3b5f3640a58a408bdb501014278e48b90807ee3fca4b162e9a"
+  },
+  {
+    "id": "20261018T053021Z_fca17653",
+    "status": "finished",
+    "exit": 1,
+    "bytes_written": 660,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053021Z_fca17653/stdout_text.log",
+      "bytes": 537,
+      "sha256": "f310361034f8d0e72bd709222ab781333648e3f518aefcbf2ce9faa5ef6b35d4"
+    },
+    "state_sha256": "0d52185291fd6f8be15668cf87b21f31ca7fb7ed55f90d949383c5253a86a9ca"
+  },
+  {
+    "id": "20261018T053338Z_e5a7db4b",
+    "status": "UNAVAILABLE_AT_EXPECTED_ROOT",
+    "expected_path": "C:/WINDOWS/logs/cmd_runner/20261018T053338Z_e5a7db4b",
+    "observation": "ENOENT",
+    "scope": "robot-reported receipt; not acceptance; no global absence claim"
+  },
+  {
+    "id": "20261018T053504Z_9b305e37",
+    "status": "UNAVAILABLE_AT_EXPECTED_ROOT",
+    "expected_path": "C:/WINDOWS/logs/cmd_runner/20261018T053504Z_9b305e37",
+    "observation": "ENOENT",
+    "scope": "robot-reported receipt; not acceptance; no global absence claim"
+  },
+  {
+    "id": "20261018T053558Z_7f4ecbba",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 384,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053558Z_7f4ecbba/stdout_text.log",
+      "bytes": 261,
+      "sha256": "6a35701d3594178a52ab6e247dc3804b3a6830cd24da515cf94c524be32efcfb"
+    },
+    "state_sha256": "9364d6c0ec65b281fbf927e4b50df02019ad70607993d29d6414f191b3dee68e"
+  },
+  {
+    "id": "20261018T053558Z_755d7524",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 301,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053558Z_755d7524/stdout_text.log",
+      "bytes": 178,
+      "sha256": "799a8d8fb64c3f4ef3ee8db9fe09c44ba438aeaa040044589b8875c385a0da9f"
+    },
+    "state_sha256": "02f39c76a10039660fa51f1ddf98b81d1dab7dfeebb13590c5ada0da3fc69d81"
+  },
+  {
+    "id": "20261018T053558Z_9e7ba697",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 707,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053558Z_9e7ba697/stdout_text.log",
+      "bytes": 584,
+      "sha256": "544b623556d00a139d3f82c44cf58510763f13388f3cdff62f7953d5fc3f8a95"
+    },
+    "state_sha256": "b83823450da90c55a8fb7b5dfd7a5d06a9f090112daab8a6a3fe542e07e203c1"
+  },
+  {
+    "id": "20261018T053619Z_946519d4",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 657,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053619Z_946519d4/stdout_text.log",
+      "bytes": 404,
+      "sha256": "a394bb602cbcff83080860abfb7c427c01aef68ab5ab91bac84898ee9f01d632"
+    },
+    "state_sha256": "d17c6d752f419ac8f7149674060b33f44ab4a13180dfafd738c109e844d32e34"
+  },
+  {
+    "id": "20261018T053637Z_a0fe6fdf",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 7928,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053637Z_a0fe6fdf/stdout_text.log",
+      "bytes": 7368,
+      "sha256": "eeb8a1164fa1b0d8b5b1c827887577d3e4939efe620c099720ece0a3a2371881"
+    },
+    "state_sha256": "3c24ea67d67616f3f4214545b1409992bd524cf10af7b9c20b28807b1a040f06"
+  },
+  {
+    "id": "20261018T053736Z_ef6090f7",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 385,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053736Z_ef6090f7/stdout_text.log",
+      "bytes": 262,
+      "sha256": "af9dd8af9c8e38948c95780cdc6dd0ec8ffca8e86108cb9ea820610fda0ff8f5"
+    },
+    "state_sha256": "f6acb3b947427f666b217cb34a94603083b1fbc0407a95ad1563b8af67eab530"
+  },
+  {
+    "id": "20261018T053828Z_c80aed40",
+    "status": "stopped",
+    "exit": 1,
+    "bytes_written": 8495,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053828Z_c80aed40/stdout_text.log",
+      "bytes": 5761,
+      "sha256": "12f14912c0cf33cb2277171c624536b7812026a98bdaa47ff892eb9102b3d66d"
+    },
+    "state_sha256": "fe6b22cd94766c7d5410b54f68f803b4482ad0114be4313a732be2c04d3df3ea"
+  },
+  {
+    "id": "20261018T053850Z_a544c652",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 373,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053850Z_a544c652/stdout_text.log",
+      "bytes": 250,
+      "sha256": "57d49af3f07520451a0d82556eb027d21cc45851e52a13e4e202bf21e7c1a20e"
+    },
+    "state_sha256": "2ee3595afbb1d82a8fcfdc0f2cf31fcd901f75ccf15ce4d263cbad4eb6124dde"
+  },
+  {
+    "id": "20261018T053859Z_e7a96c7f",
+    "status": "finished",
+    "exit": 1,
+    "bytes_written": 485,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053859Z_e7a96c7f/stdout_text.log",
+      "bytes": 362,
+      "sha256": "d437648004cbbe34d4a113baa3ae3048bca152cda09ce3093e8aba5868c38a32"
+    },
+    "state_sha256": "f9d3b027b8286c0c118a555efe40e81405c5f88082a5eeb74254a289ea3d024f"
+  },
+  {
+    "id": "20261018T053924Z_be0a530e",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 454,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T053924Z_be0a530e/stdout_text.log",
+      "bytes": 331,
+      "sha256": "ff9dae364038867a2acee6d0b282bfc3a04504c77f706c1b4e87c9580ef33d0e"
+    },
+    "state_sha256": "4e0eb69fd04e437131fe77d18c285f6ec78669df866642958776631a354b676d"
+  },
+  {
+    "id": "20261018T054015Z_a0f76c66",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 599,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T054015Z_a0f76c66/stdout_text.log",
+      "bytes": 476,
+      "sha256": "13dd4bc5ebb7c8800858e423f49cf78c593ec674c8462960d783badedd631ed0"
+    },
+    "state_sha256": "77489e9d2f8ec3ee7a13c183c761271ac9dc5a154336a7fd4e998f84c633460f"
+  },
+  {
+    "id": "20261018T054329Z_1e985394",
+    "status": "finished",
+    "exit": 0,
+    "bytes_written": 51575,
+    "bytes_dropped": 0,
+    "truncated": false,
+    "log": {
+      "path": "experiments/2026-10-18_codex-hooks/retained-runs/20261018T054329Z_1e985394/stdout_text.log",
+      "bytes": 50662,
+      "sha256": "343dff96a7ff6d63a38dbba98aab2265099be3841eab267a1579229d54cab0a6"
+    },
+    "state_sha256": "4a650a0ae0470813e67c04a646005cd4f8b9208aad341ad1d7697d6a9b6072e3"
+  }
+]

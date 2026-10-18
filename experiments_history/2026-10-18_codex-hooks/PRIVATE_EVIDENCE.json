@@ -1,0 +1,55 @@
+{
+  "retention": "Full original evidence retained in gitignored workspace; no source text reduced",
+  "files": [
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/attempt-1/report.json",
+      "bytes": 145815,
+      "sha256": "2da7e059b9f9e4e291c72b8da94703fd67bd6742147e55019e282db0f08c0341"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/acceptance-1/report.json",
+      "bytes": 759235,
+      "sha256": "2a3f7c433e4d8fcd57ae64fbe14bb5aaab5ca08ba7043796525ef089a03b42b1"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/acceptance-2/report.json",
+      "bytes": 759189,
+      "sha256": "f6f626ffcef3d9ba0702ea04aaf4ce02bfb782cd19ef767e6995df1b68241af4"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/edges-1/report.json",
+      "bytes": 542431,
+      "sha256": "da0f2c951a42e0c7fd7e8fa0f1449e5607bea8f4cf5d8fa072dc20f7101fac24"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/edges-2/report.json",
+      "bytes": 539936,
+      "sha256": "e3d4ad1f3c49dc2c00de727676d887ea6c5821eb1fc9ea192c3cb00ac5dd8c28"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/overflow-boundary/report.json",
+      "bytes": 6836,
+      "sha256": "78b0291c8e54990aa9c2e87fa40b8f9d965f74741a5eb8ee642e3cfcd7fd9a85"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/overflow-acceptance-1/report.json",
+      "bytes": 7797,
+      "sha256": "7a627afd69b2bfa0cb2cfc0194a1cb3b1bfbf540b53011fa47ab94821af68272"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/lifecycle-exercise-1/report.json",
+      "bytes": 17470,
+      "sha256": "b8a8da690beabc6188abcd532fa19cc896e2e97cf1e04afd8938549fce229c0e"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/oracle/lifecycle-exercise-fresh/report.json",
+      "bytes": 2563323,
+      "sha256": "b4f51bfb2e9660c2704aabbc27fafc38d049c2ef668670cb0ef916fa46554315"
+    },
+    {
+      "path": "experiments/2026-10-18_codex-hooks/smit-execution-report.json",
+      "bytes": 7921,
+      "sha256": "83490fe86d2f1660756ec8eef936d4124732db759f88d0e4e8addab9a625ed6f"
+    }
+  ]
+}

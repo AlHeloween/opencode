@@ -1,0 +1,82 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codegraph prompt-hook"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "^(compact|resume)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "timeout": 30,
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

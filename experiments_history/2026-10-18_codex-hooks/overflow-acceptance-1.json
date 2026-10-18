@@ -1,0 +1,21 @@
+{
+  "source_private": {
+    "path": "experiments/2026-10-18_codex-hooks/oracle/overflow-acceptance-1/report.json",
+    "bytes": 7797,
+    "sha256": "7a627afd69b2bfa0cb2cfc0194a1cb3b1bfbf540b53011fa47ab94821af68272"
+  },
+  "status": "PASS",
+  "target_sha256": "9e3728562995b35ca4154a0b7d80e499f9184e47ec1b70317b2734b2b2f7c97c",
+  "source_stable": true,
+  "selected_boundary": {
+    "size": 259406,
+    "path": "D:\\zPython\\opencode\\experiments\\2026-10-18_codex-hooks\\oracle\\overflow-acceptance-1\\trial-16-size-259406",
+    "filler_full": true,
+    "context_bytes": 261043,
+    "overflow_count": 1,
+    "recall_receipt_valid": true,
+    "both_original_texts_reachable": true,
+    "huge_excluded": true,
+    "exit": 0
+  }
+}

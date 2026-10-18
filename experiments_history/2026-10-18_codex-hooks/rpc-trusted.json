@@ -1,0 +1,364 @@
+{
+  "argv": [
+    "C:/Users/Alexander/AppData/Local/OpenAI/Codex/bin/896a0166b774037a/codex.exe",
+    "app-server",
+    "--stdio"
+  ],
+  "cwd": "D:/zPython/opencode",
+  "sent": [
+    {
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "name": "codex-hook-independent-oracle",
+          "version": "1.0"
+        },
+        "capabilities": {
+          "experimentalApi": true
+        }
+      }
+    },
+    {
+      "method": "initialized"
+    },
+    {
+      "id": 2,
+      "method": "hooks/list",
+      "params": {
+        "cwds": [
+          "D:/zPython/opencode"
+        ]
+      }
+    }
+  ],
+  "received": [
+    {
+      "id": 1,
+      "result": {
+        "userAgent": "Codex Desktop/0.163.0-alpha.10.2 (Windows 10.0.26100; x86_64) dumb (codex-hook-independent-oracle; 1.0)",
+        "codexHome": "C:\\Users\\Alexander\\.codex",
+        "platformFamily": "windows",
+        "platformOs": "windows"
+      }
+    },
+    {
+      "method": "configWarning",
+      "params": {
+        "summary": "Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.\n  user (C:\\Users\\Alexander\\.codex\\config.toml): `windows_wsl_setup_acknowledged` is ignored.",
+        "details": null
+      },
+      "emittedAtMs": 1792301931232
+    },
+    {
+      "method": "remoteControl/status/changed",
+      "params": {
+        "status": "disabled",
+        "serverName": "Iskandar-PC",
+        "installationId": "3be93723-d183-4969-b400-5cda8ac9b619",
+        "environmentId": null
+      },
+      "emittedAtMs": 1792301931232
+    },
+    {
+      "id": 2,
+      "result": {
+        "data": [
+          {
+            "cwd": "D:/zPython/opencode",
+            "hooks": [
+              {
+                "key": "D:\\zPython\\opencode\\.codex\\hooks.json:pre_compact:0:0",
+                "eventName": "preCompact",
+                "handlerType": "command",
+                "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+                "async": false,
+                "matcher": null,
+                "timeoutSec": 30,
+                "statusMessage": null,
+                "additionalContextLimit": null,
+                "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+                "source": "project",
+                "pluginId": null,
+                "displayOrder": 0,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:aae84bf6006e4886c9d566c3a7050c0f545e8d47ec25f4e30dd485a2b954ab7e",
+                "trustStatus": "trusted"
+              },
+              {
+                "key": "D:\\zPython\\opencode\\.codex\\hooks.json:post_compact:0:0",
+                "eventName": "postCompact",
+                "handlerType": "command",
+                "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+                "async": false,
+                "matcher": null,
+                "timeoutSec": 30,
+                "statusMessage": null,
+                "additionalContextLimit": null,
+                "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+                "source": "project",
+                "pluginId": null,
+                "displayOrder": 1,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:e4830cde72429b65b7390c435df094ec544e4af11ad6db10f908dbd170bfba3d",
+                "trustStatus": "trusted"
+              },
+              {
+                "key": "D:\\zPython\\opencode\\.codex\\hooks.json:session_start:0:0",
+                "eventName": "sessionStart",
+                "handlerType": "command",
+                "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+                "async": false,
+                "matcher": "^(compact|resume)$",
+                "timeoutSec": 30,
+                "statusMessage": null,
+                "additionalContextLimit": 0,
+                "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+                "source": "project",
+                "pluginId": null,
+                "displayOrder": 2,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:9810f92ba38f92919bc414df4dd99ffd36a41248846206d084b6483a54a22f37",
+                "trustStatus": "trusted"
+              },
+              {
+                "key": "D:\\zPython\\opencode\\.codex\\hooks.json:user_prompt_submit:0:0",
+                "eventName": "userPromptSubmit",
+                "handlerType": "command",
+                "command": "codegraph prompt-hook",
+                "async": false,
+                "matcher": null,
+                "timeoutSec": 600,
+                "statusMessage": null,
+                "additionalContextLimit": null,
+                "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+                "source": "project",
+                "pluginId": null,
+                "displayOrder": 3,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:68d1e4dad787c0bb93dc47dfdfdc30745ff37ab5c11573511157ef9f45fe99e8",
+                "trustStatus": "trusted"
+              },
+              {
+                "key": "D:\\zPython\\opencode\\.codex\\hooks.json:subagent_start:0:0",
+                "eventName": "subagentStart",
+                "handlerType": "command",
+                "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+                "async": false,
+                "matcher": null,
+                "timeoutSec": 30,
+                "statusMessage": null,
+                "additionalContextLimit": null,
+                "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+                "source": "project",
+                "pluginId": null,
+                "displayOrder": 4,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:ed38e52570dcdc7e503d3dc5289f33163ee765be666979458da413b574866048",
+                "trustStatus": "trusted"
+              },
+              {
+                "key": "D:\\zPython\\opencode\\.codex\\hooks.json:subagent_stop:0:0",
+                "eventName": "subagentStop",
+                "handlerType": "command",
+                "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+                "async": false,
+                "matcher": null,
+                "timeoutSec": 30,
+                "statusMessage": null,
+                "additionalContextLimit": null,
+                "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+                "source": "project",
+                "pluginId": null,
+                "displayOrder": 5,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:b8f9e5353fa531316fb2fa2264c6865f06ccbbc4c74b4abebd8691d7ae7b6746",
+                "trustStatus": "trusted"
+              },
+              {
+                "key": "D:\\zPython\\opencode\\.codex\\hooks.json:stop:0:0",
+                "eventName": "stop",
+                "handlerType": "command",
+                "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+                "async": false,
+                "matcher": null,
+                "timeoutSec": 30,
+                "statusMessage": null,
+                "additionalContextLimit": null,
+                "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+                "source": "project",
+                "pluginId": null,
+                "displayOrder": 6,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:aaee75f1e3c5b493ec54188b43f139d24d9dc93dfd124b3714a4158c305dfefe",
+                "trustStatus": "trusted"
+              }
+            ],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      }
+    }
+  ],
+  "stderr": "{\"timestamp\":\"2026-10-18T05:38:51.182546Z\",\"level\":\"ERROR\",\"fields\":{\"message\":\"Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.\\n  user (C:\\\\Users\\\\Alexander\\\\.codex\\\\config.toml): `windows_wsl_setup_acknowledged` is ignored.\"},\"target\":\"codex_app_server\"}\n{\"timestamp\":\"2026-10-18T05:38:51.310358Z\",\"level\":\"WARN\",\"fields\":{\"message\":\"ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/\"},\"target\":\"codex_skills::interface\"}\n{\"timestamp\":\"2026-10-18T05:38:51.310648Z\",\"level\":\"WARN\",\"fields\":{\"message\":\"ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/\"},\"target\":\"codex_skills::interface\"}\n",
+  "initialize": {
+    "userAgent": "Codex Desktop/0.163.0-alpha.10.2 (Windows 10.0.26100; x86_64) dumb (codex-hook-independent-oracle; 1.0)",
+    "codexHome": "C:\\Users\\Alexander\\.codex",
+    "platformFamily": "windows",
+    "platformOs": "windows"
+  },
+  "hooks": {
+    "data": [
+      {
+        "cwd": "D:/zPython/opencode",
+        "hooks": [
+          {
+            "key": "D:\\zPython\\opencode\\.codex\\hooks.json:pre_compact:0:0",
+            "eventName": "preCompact",
+            "handlerType": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 30,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+            "source": "project",
+            "pluginId": null,
+            "displayOrder": 0,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:aae84bf6006e4886c9d566c3a7050c0f545e8d47ec25f4e30dd485a2b954ab7e",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "D:\\zPython\\opencode\\.codex\\hooks.json:post_compact:0:0",
+            "eventName": "postCompact",
+            "handlerType": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 30,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+            "source": "project",
+            "pluginId": null,
+            "displayOrder": 1,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:e4830cde72429b65b7390c435df094ec544e4af11ad6db10f908dbd170bfba3d",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "D:\\zPython\\opencode\\.codex\\hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "async": false,
+            "matcher": "^(compact|resume)$",
+            "timeoutSec": 30,
+            "statusMessage": null,
+            "additionalContextLimit": 0,
+            "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+            "source": "project",
+            "pluginId": null,
+            "displayOrder": 2,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:9810f92ba38f92919bc414df4dd99ffd36a41248846206d084b6483a54a22f37",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "D:\\zPython\\opencode\\.codex\\hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "codegraph prompt-hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 600,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+            "source": "project",
+            "pluginId": null,
+            "displayOrder": 3,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:68d1e4dad787c0bb93dc47dfdfdc30745ff37ab5c11573511157ef9f45fe99e8",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "D:\\zPython\\opencode\\.codex\\hooks.json:subagent_start:0:0",
+            "eventName": "subagentStart",
+            "handlerType": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 30,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+            "source": "project",
+            "pluginId": null,
+            "displayOrder": 4,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:ed38e52570dcdc7e503d3dc5289f33163ee765be666979458da413b574866048",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "D:\\zPython\\opencode\\.codex\\hooks.json:subagent_stop:0:0",
+            "eventName": "subagentStop",
+            "handlerType": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 30,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+            "source": "project",
+            "pluginId": null,
+            "displayOrder": 5,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:b8f9e5353fa531316fb2fa2264c6865f06ccbbc4c74b4abebd8691d7ae7b6746",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "D:\\zPython\\opencode\\.codex\\hooks.json:stop:0:0",
+            "eventName": "stop",
+            "handlerType": "command",
+            "command": "D:/USESoft/Python313/python.exe -X utf8 D:/zPython/opencode/scripts/codex-hooks/codex_hooks.py handler",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 30,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "D:\\zPython\\opencode\\.codex\\hooks.json",
+            "source": "project",
+            "pluginId": null,
+            "displayOrder": 6,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:aaee75f1e3c5b493ec54188b43f139d24d9dc93dfd124b3714a4158c305dfefe",
+            "trustStatus": "trusted"
+          }
+        ],
+        "warnings": [],
+        "errors": []
+      }
+    ]
+  },
+  "observation": "READ_ONLY_RESPONSE",
+  "exit_code": 0
+}

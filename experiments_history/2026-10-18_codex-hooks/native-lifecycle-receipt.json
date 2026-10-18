@@ -1,0 +1,70 @@
+{
+  "runner": "20261018T054015Z_a0f76c66",
+  "runtime": "C:/Users/Alexander/AppData/Local/OpenAI/Codex/bin/896a0166b774037a/codex.exe",
+  "source_sha256_after": "9e3728562995b35ca4154a0b7d80e499f9184e47ec1b70317b2734b2b2f7c97c",
+  "expected_frozen_source_sha256": "9e3728562995b35ca4154a0b7d80e499f9184e47ec1b70317b2734b2b2f7c97c",
+  "source_matches_frozen": true,
+  "report_sha256": "b4f51bfb2e9660c2704aabbc27fafc38d049c2ef668670cb0ef916fa46554315",
+  "status": "PASS",
+  "checks": {
+    "loopback_request_observed": true,
+    "decisive_in_nonempty_hook_block": true,
+    "removed_hook_expected_fail": true,
+    "negative_control_raw_user_input_unchanged": true,
+    "primary_sqlite_transcript_binding": true,
+    "local_only_endpoint": true
+  },
+  "requests": 3,
+  "owned_thread": {
+    "thread_id": "01a14d86-6970-7452-912a-8918b2ec0445",
+    "path": "C:\\Users\\Alexander\\.codex\\sessions\\2026\\10\\18\\rollout-2026-10-18T13-40-17-01a14d86-6970-7452-912a-8918b2ec0445.jsonl",
+    "nonce": "9e91f642b88f47f09459e5b037823e04",
+    "cwd": "D:\\zPython\\opencode"
+  },
+  "actual_hook_blocks": [
+    {
+      "bytes": 217785,
+      "captured_records": 4,
+      "capture_ids": [
+        1,
+        2,
+        3
+      ],
+      "has_decisive": true
+    }
+  ],
+  "primary_binding": {
+    "db": "D:\\zPython\\opencode\\.opencode\\data\\codex-hooks.sqlite",
+    "primary_path": "C:\\Users\\Alexander\\.codex\\sessions\\2026\\10\\18\\rollout-2026-10-18T13-40-17-01a14d86-6970-7452-912a-8918b2ec0445.jsonl",
+    "primary_sha256": "3d612b43209cc9264ad431f7121633f93a94f01b5a5671c36c831395be2b6ece",
+    "query_rows_sha256": "029580eddb9720d7ae0e99f2d4c63176d31285c2a8da88a49596a1a28c72da2e",
+    "bindings": [
+      {
+        "capture_id": 1,
+        "line_address": "C:\\Users\\Alexander\\.codex\\sessions\\2026\\10\\18\\rollout-2026-10-18T13-40-17-01a14d86-6970-7452-912a-8918b2ec0445.jsonl:4",
+        "source_hash": "16ed115fc9d4e17a777ffa8b94d61efdab5e8e8a33d55e84bb1bb827d76b2a4d",
+        "hash_matches": true,
+        "owned_primary_path": true,
+        "primary_text_exact": true
+      },
+      {
+        "capture_id": 2,
+        "line_address": "C:\\Users\\Alexander\\.codex\\sessions\\2026\\10\\18\\rollout-2026-10-18T13-40-17-01a14d86-6970-7452-912a-8918b2ec0445.jsonl:8",
+        "source_hash": "33cd2d2f192fedbb9129d4bd954ce526868a1b999b87f1607bc50ed5732ed4e2",
+        "hash_matches": true,
+        "owned_primary_path": true,
+        "primary_text_exact": true
+      },
+      {
+        "capture_id": 3,
+        "line_address": "C:\\Users\\Alexander\\.codex\\sessions\\2026\\10\\18\\rollout-2026-10-18T13-40-17-01a14d86-6970-7452-912a-8918b2ec0445.jsonl:11",
+        "source_hash": "580170e55c9f90f9218275c87361edd2b4b350b05476dee0f2c870adf00fe0b6",
+        "hash_matches": true,
+        "owned_primary_path": true,
+        "primary_text_exact": true
+      }
+    ],
+    "all_decisive_primary_bound": true
+  },
+  "process_exit": 0
+}

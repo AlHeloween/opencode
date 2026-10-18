@@ -1,0 +1,73 @@
+[
+  {
+    "path": "scripts/codex-hooks/codex_hooks.py",
+    "bytes": 67270,
+    "sha256": "9e3728562995b35ca4154a0b7d80e499f9184e47ec1b70317b2734b2b2f7c97c"
+  },
+  {
+    "path": "docs/codex-hooks.md",
+    "bytes": 15478,
+    "sha256": "59fad2b41c55bdad44fbff2e5647d2f470aaba739517bd97bb2e4a19f5108c41"
+  },
+  {
+    "path": "tools/codex_svchain.py",
+    "bytes": 5176,
+    "sha256": "b98d16e9ad5bd98a10ff1c844dd08a0e31f5c14e47a3a274779cbfef07555804",
+    "git_blob_sha256": "8830201f5b5056573e930d52afee5aa1425ded015d12147c0b81c4231b15aea6",
+    "git_blob_bytes": 5041,
+    "git_blob_relation": "CRLF-to-LF normalization only"
+  },
+  {
+    "path": "tools/opencode_host.py",
+    "bytes": 4896,
+    "sha256": "cc7edd75592bee25a7e3165ac56a7b7144e3ea829d53933159d55aa0effbddfa",
+    "git_blob_sha256": "c2f875e6b52c28b4530e1f8584849a1954a5145653365d22b09793fb9bd9ee43",
+    "git_blob_bytes": 4782,
+    "git_blob_relation": "CRLF-to-LF normalization only"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/helpers.py",
+    "bytes": 2625,
+    "sha256": "b6a779d7a2867035d8148215fbf8e06b9dd1ed59b3545c29e1055905ed288207"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/test_capture_restore.py",
+    "bytes": 14028,
+    "sha256": "031182231aba1b035eedd8aee1449297a214e2f31ec5b18d35b308684a82280d"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/test_collect_opencode.py",
+    "bytes": 9693,
+    "sha256": "2afe39262b2fe01da03717f163fb17b853bd33851e5b2ccc603c1b8b6d9ac8d3"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/test_fossil_provenance.py",
+    "bytes": 11300,
+    "sha256": "7568d1668059f9c056d6e4cf39ead3818dd6734346ec3c817d67e2fe899dc1be"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/test_handler_wire.py",
+    "bytes": 5255,
+    "sha256": "e0a1564b7f554e2ff144851ba6bf36a26bf9899433539fe2e991dee593652863"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/test_identity.py",
+    "bytes": 4446,
+    "sha256": "fc7baee7683390c92f9412d2d3d8e2c40e9450725477f896e49ae58fac09e4c8"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/test_red_api.py",
+    "bytes": 2323,
+    "sha256": "e749909d30a081f6b0c39d87e28eb74a075dafe1c412b8bf445ec2c43578c6ff"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/test_reports.py",
+    "bytes": 10646,
+    "sha256": "ec943a39b7c2a6ba0d7d7d1ec337317350c8459273e6ef5cece034f0c0b67932"
+  },
+  {
+    "path": "scripts/codex-hooks/tests/__init__.py",
+    "bytes": 81,
+    "sha256": "1738834c78abc13e8adee2cf4d051fde79d2bf602ca8923898e6db37bbc04591"
+  }
+]

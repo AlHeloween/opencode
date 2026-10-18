@@ -1,0 +1,108 @@
+test_capture_restore_keeps_decisions_byte_exact (test_capture_restore.TestCaptureRestore.test_capture_restore_keeps_decisions_byte_exact) ...test_capture_restore_keeps_decisions_byte_exact (test_capture_restore.TestCaptureRestore.test_capture_restore_keeps_decisions_byte_exact) ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ok
+test_missing_sv_visible (test_capture_restore.TestCaptureRestore.test_missing_sv_visible) ... ok
+test_other_session_gets_nothing (test_capture_restore.TestCaptureRestore.test_other_session_gets_nothing) ... ok
+test_overflow_footer_survives_exact_cap_boundary (test_capture_restore.TestCaptureRestore.test_overflow_footer_survives_exact_cap_boundary) ... ok
+test_record_larger_than_budget_excluded_whole (test_capture_restore.TestCaptureRestore.test_record_larger_than_budget_excluded_whole) ... ok
+test_selection_current_chain_parent_goal_and_latest_constraints (test_capture_restore.TestCaptureRestore.test_selection_current_chain_parent_goal_and_latest_constraints) ... ok
+test_self_block_not_reingested (test_capture_restore.TestCaptureRestore.test_self_block_not_reingested) ... ok
+test_unknown_schema_visible_refusal (test_capture_restore.TestCaptureRestore.test_unknown_schema_visible_refusal) ... ok
+test_whole_context_cap_with_big_overflow_and_unicode (test_capture_restore.TestCaptureRestore.test_whole_context_cap_with_big_overflow_and_unicode) ... ok
+test_absent_key_is_idle_when_map_valid (test_collect_opencode.TestCollectOpencode.test_absent_key_is_idle_when_map_valid) ... ok
+test_complete_yields_report_with_identity_and_unavailable_markers (test_collect_opencode.TestCollectOpencode.test_complete_yields_report_with_identity_and_unavailable_markers) ... ok
+test_idle_alone_not_complete_but_saved_with_address (test_collect_opencode.TestCollectOpencode.test_idle_alone_not_complete_but_saved_with_address) ... ok
+test_invalid_status_map_refused (test_collect_opencode.TestCollectOpencode.test_invalid_status_map_refused) ... ok
+test_new_user_turn_not_complete (test_collect_opencode.TestCollectOpencode.test_new_user_turn_not_complete) ... ok
+test_provider_error_not_complete (test_collect_opencode.TestCollectOpencode.test_provider_error_not_complete) ... ok
+test_stale_host_refuses (test_collect_opencode.TestCollectOpencode.test_stale_host_refuses) ... ok
+test_tool_calls_finish_not_complete (test_collect_opencode.TestCollectOpencode.test_tool_calls_finish_not_complete) ... ok
+test_absent_label_no_match (test_fossil_provenance.TestFossilProvenance.test_absent_label_no_match) ... ok
+test_checkout_db_is_sqlite_with_vvar_pointer (test_fossil_provenance.TestFossilProvenance.test_checkout_db_is_sqlite_with_vvar_pointer) ... ok
+test_cross_repo_refuses (test_fossil_provenance.TestFossilProvenance.test_cross_repo_refuses) ... ok
+test_discovery_broken_pointer_visible (test_fossil_provenance.TestFossilProvenance.test_discovery_broken_pointer_visible
+e) ...ok
+test_discovery_from_checkout_file (test_fossil_provenance.TestFossilProvenance.test_discovery_from_checkout_file) ... ok
+test_discovery_without_checkout_visible (test_fossil_provenance.TestFossilProvenance.test_discovery_without_checkout_vis
+sible) ...ok
+test_exact_label_match (test_fossil_provenance.TestFossilProvenance.test_exact_label_match) ... ok
+test_huge_comment_whole_or_omitted_never_midcut (test_fossil_provenance.TestFossilProvenance.test_huge_comment_whole_or_
+_omitted_never_midcut) ...ok
+test_mention_without_sv_prefix_never_matches (test_fossil_provenance.TestFossilProvenance.test_mention_without_sv_prefix
+x_never_matches) ...ok
+test_multiple_checkins_per_label_ambiguous (test_fossil_provenance.TestFossilProvenance.test_multiple_checkins_per_label
+l_ambiguous) ...ok
+test_queries_leave_db_and_checkout_unchanged (test_fossil_provenance.TestFossilProvenance.test_queries_leave_db_and_chec
+ckout_unchanged) ...ok
+test_schema_drift_visible (test_fossil_provenance.TestFossilProvenance.test_schema_drift_visible) ... ok
+test_malformed_stdin_visible (test_handler_wire.TestHandlerWire.test_malformed_stdin_visible) ... ok
+test_postcompact_records_receipt_without_injection (test_handler_wire.TestHandlerWire.test_postcompact_records_receipt_w
+without_injection) ...ok
+test_precompact_stdout_strict_event_json (test_handler_wire.TestHandlerWire.test_precompact_stdout_strict_event_json) ..
+..ok
+test_sessionstart_context_exceeds_old_limit_within_budget (test_handler_wire.TestHandlerWire.test_sessionstart_context_e
+exceeds_old_limit_within_budget) ...ok
+test_unknown_event_passthrough (test_handler_wire.TestHandlerWire.test_unknown_event_passthrough) ... ok
+test_missing_session_id_capture_refused (test_identity.TestIdentity.test_missing_session_id_capture_refused) ... [codex-
+-hooks] ERROR: REFUSED_NO_SESSION — event carries no session_id; the shared 'unknown' bucket is forbidden
+ok
+test_missing_session_id_restore_refused (test_identity.TestIdentity.test_missing_session_id_restore_refused) ...        [codex-
+-hooks] ERROR: REFUSED_NO_SESSION — restore without a session identity is refused; nothing is shared
+ok
+test_no_session_meta_degraded_but_captured (test_identity.TestIdentity.test_no_session_meta_degraded_but_captured) ...  o
+ok
+test_session_meta_mismatch_refused (test_identity.TestIdentity.test_session_meta_mismatch_refused) ... [codex-hooks] ERR
+ROR: REFUSED_IDENTITY — transcript session_meta declares 'ses-OTHER', event says 'ses-mine'; runtime identity mismatch is
+s forbidden
+ok
+test_shared_db_isolates_session_and_worktree (test_identity.TestIdentity.test_shared_db_isolates_session_and_worktree) .
+...ok
+test_budget_is_256kib (test_red_api.TestApiSurface.test_budget_is_256kib) ... ok
+test_module_exists (test_red_api.TestApiSurface.test_module_exists) ... ok
+test_module_importable (test_red_api.TestApiSurface.test_module_importable) ... ok
+test_required_entrypoints_present (test_red_api.TestApiSurface.test_required_entrypoints_present) ... ok
+test_commentary_only_cannot_complete (test_reports.TestReports.test_commentary_only_cannot_complete) ...ok
+test_commentary_then_final_completes_with_final_text (test_reports.TestReports.test_commentary_then_final_completes_with
+h_final_text) ...ok
+test_completed_report_with_receipt (test_reports.TestReports.test_completed_report_with_receipt) ... ok
+test_duplicate_event_idempotent (test_reports.TestReports.test_duplicate_event_idempotent) ... ok
+test_error_case_differentiated (test_reports.TestReports.test_error_case_differentiated) ... ok
+test_legacy_no_channel_marker_qualified_explicitly (test_reports.TestReports.test_legacy_no_channel_marker_qualified_exp
+plicitly) ...ok
+test_missing_receipt_control_expected_fail (test_reports.TestReports.test_missing_receipt_control_expected_fail) ... ok
+test_outstanding_call_ids_block_completion (test_reports.TestReports.test_outstanding_call_ids_block_completion) ... ok
+test_parent_transcript_never_read_as_child (test_reports.TestReports.test_parent_transcript_never_read_as_child) ... ok
+test_stale_final_invalidated_by_new_user (test_reports.TestReports.test_stale_final_invalidated_by_new_user) ... ok
+test_stop_reminder_once_then_pass (test_reports.TestReports.test_stop_reminder_once_then_pass) ... ok
+test_unfinished_tool_call_cannot_complete (test_reports.TestReports.test_unfinished_tool_call_cannot_complete) ... ok
+
+----------------------------------------------------------------------
+Ran 55 tests in 17.068s
+
+OK

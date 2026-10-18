@@ -1,5 +1,35 @@
 ﻿# Progress Log
 
+## [2026-10-18] Codex — SV recovery и отчёты роботов
+
+CONFIRMED ✓ source9e3728562995b35ca4154a0b7d80e499f9184e47ec1b70317b2734b2b2f7c97c;
+parent native suite053637Z_a0fe6fdf:55PASS/exit0/loss0; independent37+13 and
+overflow boundary053558Z_7f4ecbba/755d7524/9e7ba697 PASS. Native desktop0.163alpha
+lifecycle054015Z_a0f76c66 delivered217785-byte developer hookblock with3primary
+statements; source lines4/8/11 hash-checked again; removing block EXPECTED_FAIL.
+Six new hooks normally trusted/enabled, existingCodeGraph retained. Full texts
+stored in SQLite, injection whole-record256KiB with mandatory recall footer;
+SubagentStop preserves completion separately from acceptance. Actual external
+Smit execution report read back, including errors and source message IDs.
+
+Retained FAILs and HARNESS failures are indexed in
+experiments_history/2026-10-18_codex-hooks/README.md; raw conversations/requests
+remain private and complete. Robot-reported unlocated receipts are not proof.
+Mandatorybuild054329Z_1e985394 exit0/loss0, candidate10.0.1440 in dist. Completed
+plan: plans_completed/2026-10-18_codex-continuity-and-robot-hooks.md. Scoped Git
+transaction/readback owns final closure; foreign staged/dirty work preserved.
+Residual: model answer quality was not measured by the deterministic transport
+fixture. Next main direction remains the active DAIS/Fossil/SV plan.
+
+<!-- goal_sv: Keywords: native-continuity 0.45, verified-receipts 0.35, clean-state 0.20
+Semantic dominant: Хуки установлены и проверены на нативном Desktop, доказательства и отказы сохранены.
+md5: 46c9a51e8d734b20a0f68531c9e7d2b4
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f81c69a257304de89b06173ac54e2f90
+note: hash values are generative tags — search them, never compute them.
+-->
+
+
 ## [2026-10-18] t90 — kernel method preamble + Claude hybrid rung (STOP before --install)
 
 RED (test_method_preamble.py): 3 failed / 1 passed; GREEN after: 4 passed. Full suite: 333 passed + 3 stale-receiver reds (production prompt, cursor rule, claude kernel — receivers not reinstalled per brief). Sizes after: product 68898 B / 9234 tok, claude 68868 / 9329, codex 68609 / 9244, cursor 68651 / 9320; token caps 9300 -> 9400 next band, nothing cut; byte cap 69000 holds. Premise repr identical across 4 variants; Claude G1 has :3005/hybrid, no WebSearch rung (WebFetch debugging only); codex/cursor carry no WebSearch rung — untouched. _build.ps1 run 20261018T034727Z_04993120 exit 0, bytes_written 67100, smoke 10.0.1439. Premise lives in render.py:219 (source.py has no premise slot — brief path off by one file). Plan plans/2026-10-18_kernel-method-preamble.md stays ACTIVE for Legislator review.
@@ -7847,3 +7877,15 @@ RED→GREEN `packages/opencode/test/server/tui-host-port.test.ts` (new, 5 tests)
 ## [2026-10-18] t92 — delegation base 29200 (t91 renumber)
 
 Owner «29200 очень хорошо»: 2727 IANA-registered (mgcp-callagent; 2728 sqdr) and dropped. `listenTuiHost` now scans 29200..29998 then 29170..29199 (no outside fallback, exhaustion throws); `NEVER_BIND_PORTS` = 1455/1456/54545/56121/3005/3010/8079/9222/5432/4096 (oauth port map plans/2026-10-18_codex-oauth-empty-error.md:31-35), pinned by range/exactness tests. RED run 20261018T121019Z_fa81b5eb exit 1 (missing export); GREEN run 20261018T121233Z_f477ca98 exit 0, 7 pass / 24 expects. Regression host-attach 1 pass (run 20261018T121155Z_9a35887b). Renumbered my 2727s to 29200 (server.ts, worker comment, test, both skills, dispatch.py BASE working-tree-only, plan + T5); only the study-dir path reference keeps the old digits (another robot's name). `_build.ps1` run 20261018T121246Z_1ed27c54 exit 0, smoke 10.0.1444.
+
+## [2026-10-18T12:30Z] Legislator — ports 29200, ADID installer root cause, kernel method addenda, shared-index incident (before /compact)
+
+- sv: { keywords: { delegation-port-29200 0.25, installer-kills-hosts 0.25, kernel-method-addenda 0.20, shared-index-incident 0.15, owner-principles 0.15 },
+        dominant: "Robot delegation moves to the IANA-unassigned base 29200, the day's host deaths are traced by pid to the ADID installer killing cmd_runner, the kernel method preamble gains layer routing and unconditional domain grounding, and my stale-index revert is fixed and turned into a hard rule." }
+
+- Port: 2727 is IANA mgcp-callagent, so it was dropped. Delegation base is 29200 in 29170-29998 (the IANA unassigned range, verified on the host). Protected ports are in memory reference-protected-ports. t91 commits 120b404c7c / 22e18b44bf / 2027de181c.
+- Root cause: ADID install-stdout.log:22 shows `[KILL] ended pid 34596` = host_pid of the robots' host. Ticket 9f4c6663a1. ADID host down; port ticket 3709ea44a8 needs the 29200 correction.
+- Kernel t90 (e5b8f97a67) plus addenda t90b (instrument by layer) and t90c (patents in SOURCE_ROUTING, unconditional DOMAIN_TERMS), msg_14f6bb6a6001aVsDvxSjhVmOIj. t92 IANA ports glossary and Charter clause dispatched.
+- Futures: plans/futures/2026-10-18_port-legitimacy-analyzer.md.
+- Incident: 7158cd1828 reverted 49 robot files from a stale shared index; fixed in 8e71952aff; logged in 1ce4c3ffc2.
+- Handoff: memory project_state_2026_10_18_legislator, «UPDATE ~20:30».

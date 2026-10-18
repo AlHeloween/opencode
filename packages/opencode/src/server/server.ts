@@ -166,4 +166,39 @@ export async function listen(opts: {
   }
 }
 
+export const TUI_HOST_PREFERRED_PORT = 2727
+const TUI_HOST_SCAN_COUNT = 64
+const WEB_DEBUG_PORT = 4096
+
+/**
+ * t91: the TUI worker's embedded host server (robot delegation) prefers 2727.
+ * Tries 2727, then each next port sequentially (bounded scan), then one
+ * OS-assigned port. Never serves the web/debug port: if the OS fallback hands
+ * it back, the listener is stopped and the call throws instead of colliding
+ * with web/debug (and Codex OAuth) on 4096.
+ * `Server.listen` and both adapters are untouched: serve/web keep preferring
+ * 4096 for port 0. Clients must read the real port from the worktree host
+ * record (`server_host`), never assume it.
+ */
+export async function listenTuiHost(opts: {
+  hostname: string
+  mdns?: boolean
+  mdnsDomain?: string
+  cors?: string[]
+}): Promise<Listener> {
+  for (let port = TUI_HOST_PREFERRED_PORT; port < TUI_HOST_PREFERRED_PORT + TUI_HOST_SCAN_COUNT; port++) {
+    try {
+      return await listen({ port, ...opts })
+    } catch (error) {
+      log.debug("tui host port taken, trying next", { port, error: String(error) })
+    }
+  }
+  const fallback = await listen({ port: 0, ...opts })
+  if (fallback.port !== WEB_DEBUG_PORT) return fallback
+  await fallback.stop(true)
+  throw new Error(
+    `TUI host found no free port: ${TUI_HOST_PREFERRED_PORT}..${TUI_HOST_PREFERRED_PORT + TUI_HOST_SCAN_COUNT - 1} taken and the OS fallback returned the web/debug port ${WEB_DEBUG_PORT}`,
+  )
+}
+
 export * as Server from "./server"

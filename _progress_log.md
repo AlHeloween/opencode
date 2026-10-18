@@ -7889,3 +7889,6 @@ Owner «29200 очень хорошо»: 2727 IANA-registered (mgcp-callagent; 2
 - Futures: plans/futures/2026-10-18_port-legitimacy-analyzer.md.
 - Incident: 7158cd1828 reverted 49 robot files from a stale shared index; fixed in 8e71952aff; logged in 1ce4c3ffc2.
 - Handoff: memory project_state_2026_10_18_legislator, «UPDATE ~20:30».
+## [2026-10-18] t92 — IANA ports glossary on org wiki + Charter Article 10
+
+DONE wiki: `Ports` page created (48 rows: 13 our stack + 35 enterprise/ICS, sha256 509d1549de43a7f7ca878776fd317089cb02d612d0a3406cc28c45af2d1ce902, address 3c4a97c22d; read-back matches). Charter Article 10 «Порты: время жизни решает» added with owner quote «Очень хорошо, пропишем в устав DAIS.» (sha e23a76a9→d82dec1bb82ec267cc0323a297f8ffa9309bb512b439582caab4fc476307299e, address 18665e4106; read-back matches). Registry: snapshot sha256:4ab8b6321465682de8c2cf615bfb5cc26b9610d087a027f341c158e784aaef94 (1,519,471 B) re-fetched live 2026-10-18 (raw CSV b6afeefdc6b2c616f9a515d57819a558ebe33250b59b2700b3afc4a4ba1923f2; different representation, same rows for every port). researcher_agent task tool broken ("Cannot access 'ge' before initialization"), verified via webfetch instead. docs/ports.md = byte copy of wiki source table. No ports bound; no bin/ touched.

@@ -7821,3 +7821,6 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
   - 99730763d6 (t84 fence glue);
   - 3a9c781404 (subordination).
 - Handoff: memory project_state_2026_10_18_legislator.
+## [2026-10-18] t88 — Claude SV turn hook: source + fixture tests, STOP for Legislator
+
+DONE 8/8 fixture tests (run 20261018T0247Z, python scripts/claude-hooks/tests/test_sv_turn_fossil.py, exit 0): scripts/claude-hooks/sv_turn_fossil.py (Stop hook: LAST assistant message SV -> `chat claude[ sv:md5]: dominant (session id8)` technote, cell.ts byte-shape; org.py write-verb / AskUserQuestion-answer / wrap_up-actions turns also to $ORG_HOME/org.fossil with decision/delegation tags; 5 s budget, exit 0, log .temp/sv_turn_fossil.log) + README.md + tests/ (6 fixture jsonl + runner, scratch fossils in .temp/). Caught by tests before commit: unanchored md5 search matched prev-md5 zeros, 2-level log root wrote scripts/.temp, trailing-newline drift vs cell.ts. Next: Legislator review + install to ~/.claude/settings.json.

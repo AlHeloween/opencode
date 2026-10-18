@@ -140,7 +140,7 @@ def test_domain_search_order_and_authority(variant) -> None:
     """F4d: search order is not authority."""
     g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
     assert "org wiki" in g1
-    assert "higher rung wins" in g1
+    assert "higher @INFORMATION_STATUS rung per @SOURCE_ROUTING wins" in g1  # 2026-10-18 review 2 fix 5 supersedes the bare phrase
 
 
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
@@ -180,3 +180,47 @@ def test_engineering_route_names_standards_bodies(variant) -> None:
     """F6: standards publishers ride the engineering route."""
     text = render_kernel(KERNEL, *VARIANTS[variant])
     assert "ASTM" in text
+
+
+# --- t90 review 2 (five small fixes) ---
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_slot_and_rule_agree_on_unknown_exit(variant) -> None:
+    """R2F1: the slot closes on Unknown exactly like the rule."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "source_ref: Unknown with its search receipt closes it as residual" in text
+    assert "in place of content_hash" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_registries_outrank_aggregators_in_engineering_route(variant) -> None:
+    """R2F2: official registries primary, aggregators secondary."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    line = next(l for l in text.splitlines() if l.startswith("- engineering:") and "|" in l)
+    primary, secondary = line.split("|")
+    for name in ("Espacenet", "USPTO", "WIPO_Patentscope", "ISO", "IEC"):
+        assert name in primary, name
+    for name in ("Google_Patents", "ASTM"):
+        assert name in secondary, name
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_every_variant_binds_one_glossary_path(variant) -> None:
+    """R2F3: one bound path every agent reuses."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "docs/glossary.md" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_concept_question_spans_layers(variant) -> None:
+    """R2F4: a concept question crosses layers by definition."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "spans layers by definition" in g1
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_conflict_names_the_winning_rung(variant) -> None:
+    """R2F5: the higher rung is named, not implied."""
+    g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
+    assert "higher @INFORMATION_STATUS rung per @SOURCE_ROUTING" in g1

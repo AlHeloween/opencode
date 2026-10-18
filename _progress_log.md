@@ -1,5 +1,56 @@
 ﻿# Progress Log
 
+## [2026-10-18] t90 review 2 — five small fixes (STOP before --install, ready for owner)
+
+RED: 20 failed (R2F1-5 across 4 variants; R2F2 selector first matched the class line — test bug, fixed to the route line) → GREEN 93 passed in file. Full suite: 426 passed + 3 stale-receiver reds. F1 slot/rule Unknown agreement + receipt-in-place clause. F2 registries primary / aggregators secondary (software route untouched — no test needs it). F3 docs/glossary.md ×1 identical in all 4 layout lines. F4 spans-layers-by-definition. F5 named rung. Stale review-1 phrase superseded in-test with dated reason. Caps: tokens 9_600 → 9_700 (max 9618); utf8 71_000 holds (product 70918); nothing cut. _build.ps1 run 20261018T210929Z_b9454977 exit 0, bytes_written 65827, smoke 10.0.1450. Plan stays ACTIVE for the owner install word.
+## [2026-10-19] DAIS M0b — робот запущен на corpus baseline
+
+CONFIRMED ✓ итог Muse получен и проверен parent по retained artifacts:
+40frozen files + binary pins совпали; independent exact result sets26/26/1/0,
+changed-expected EXPECTED_FAIL. Сам reusable harness требует ремонта,
+CodeGraph rebuild/RSS/reference parity не измерены; M0b не закрыт.
+Отсутствующая реакция root воспроизведена: collector ошибочно отвергает final
+из-за generated ignored/synthetic L1 user panel; event wait отсутствовал.
+Новый план2026-10-19_codex-robot-event-handoff.md: baseline55PASS,
+Muse E1/E2 anchor msg_150c2533200191h1bUwlP5088i, execution receipt в
+experiments/2026-10-19_codex-event-handoff/dispatch.json. Pending SSE waiter
+run20261018T204550Z_03a63d4f, timeout1800s, без timer/status polling.
+Next action: дождаться terminal tool result → independent event/CLI oracles;
+не финализировать ход с голым session id. Всё прежнее evidence сохранено.
+
+CONFIRMED ✓ уточнение владельца сменило модель на Muse1.3Contributor.
+GLM turn прерван abort=true, status idle, pending/running tools0; продолжение
+в той же session принято как user msg_15091b525001lFKTtxfXMMik3I.
+Первый новый assistant msg_15091b543001M7j7GtHfq02oYD: фактическая
+opencode-go/muse-spark-1.3-contributor. Результаты GLM сохранены, reserve не
+обновлялся; fallback на GLM запрещён. Текущие receipts: muse-dispatch.json и
+muse-observation.json в том же experiment, старые readbacks не переписаны.
+
+CONFIRMED ✓ nonce-qualified host API, session ses_eaf755836ffed3AybbFykAPUz2,
+user msg_1508aa807001l12JhKpsKcVRR6, first assistant
+msg_1508b2b530010sf75cQVAHbXvW: actual opencode-go/glm-5.3-flash.
+First-response readback подтвердил неизменный brief prefix и отдельно сохранил
+runtime UTC suffix/synthetic parts. Текущее состояние busy, результат не принят.
+Plan: plans/2026-10-16_zoekt-scip-fossil-sv.md M0b; brief и receipts находятся в
+experiments/2026-10-19_dais-m0b-baseline/. Права робота — только собственный
+experiment; live indices/Fossil/source read-only, без cutover/service install.
+
+Read-only explorer m0b_brief_review нашёл limit12 и first-model receipt gaps;
+observer исправлен и проверен на полном live session API. Первый полный hash
+check FAIL сохранён в transcript; raw text hash не подменяется brief hash.
+Следующее действие: получить полный финал/errors через collect-opencode,
+прочитать artifact/diff/source pins, независимо replayнуть oracle. M0b/Z4/Z5
+остаются открытыми. Continuation receipt: session id выше + dispatch.json,
+first-response-receipt.json и observation.json в собственном experiment.
+
+<!-- goal_sv: Keywords: robot-baseline 0.45, execution-receipts 0.35, corpus-parity 0.20
+Semantic dominant: Наблюдаемый робот строит доказательный baseline для следующего решения о замене CodeGraph.
+md5: 957c2a6e10b84d3fa091e8c6425bd073
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: e8a16f092bce49a5b9f4130dd7c26e84
+note: hash values are generative tags — search them, never compute them.
+-->
+
 ## [2026-10-18] t90 review 1 (Legislator FAIL) — all 7 findings fixed (STOP before --install)
 
 RED (test_layer_and_patents.py extended): 49 failed / 24 passed; GREEN after: 73 passed. Full suite: 406 passed + 3 stale-receiver reds. F1: INSTRUMENT_ORDER rewritten by layer (BUILD kept), LOUD_FAILURE narrowed to STRUCTURE + invariant test. F2: rung/chain refs → instrument+layer in all 4 refresh lines. F3: concept/unclear-target layer (adm --query / qualified adm query / retrieval MCP). F4: DOMAIN_GROUNDING bounds (task path, reuse @ANTI_CHURN, Unknown exit, org wiki + higher rung wins, read-only report + parent records, content_hash per surface, reinvented-from-recall). F5: patent lines as instruction. F6: ISO/IEC/ASTM secondary. F7: AGENTS.md:760 + .claude/CLAUDE.md:4 tails aligned (no in-repo generator — outputs edited directly). Caps: utf8 → 71_000 (product 70617), tokens → 9_600 (max 9575), pre-action → 9_500 (9134); nothing cut. _build.ps1 run 20261018T145735Z_e463597c exit 0, bytes_written 65823, smoke 10.0.1448. Residual: graph-first.ts runtime latch still enforces graph-before at execution (product source, separate lane).

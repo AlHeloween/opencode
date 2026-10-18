@@ -101,7 +101,8 @@ def test_cursor_variant_stays_within_explicit_budget() -> None:
     # 2026-10-18 (t90 method preamble): premise method/why/not-an-oracle measures 9_320 — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 addenda: layer routing + patents + DOMAIN_TERMS): measures 9_457 — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 review 1: contradiction + bounds): measures 9_575 — the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 9_600
+    # 2026-10-18 (t90 review 2: five small fixes): measures 9_618 — the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 9_700
 
 
 def test_cursor_addon_render_is_deterministic_lf() -> None:

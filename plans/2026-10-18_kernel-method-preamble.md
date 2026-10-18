@@ -24,7 +24,10 @@ note: hash values are generative tags — search them, never compute them.
 - [x] Oracle + build + commit for the addenda (7421093607; pytest 357+3 stale, build 10.0.1445); STOP before --install
 - [x] Review 1 (Legislator FAIL): RED 49 failed / 24 passed → GREEN 73 passed; F1 core contradiction (INSTRUMENT_ORDER by layer, LOUD_FAILURE narrowed to STRUCTURE) + invariant test; F2 chain refs → instrument+layer; F3 concept/unclear-target layer in all 4 (adm --query / qualified adm query / retrieval MCP); F4 DOMAIN_GROUNDING bounds (task path, reuse @ANTI_CHURN, Unknown exit, org wiki + higher rung wins, read-only report + parent records, content_hash per surface, reinvented-from-recall); F5 patent lines as instruction (no render claim); F6 ISO/IEC/ASTM secondary; F7 AGENTS.md:760 + .claude/CLAUDE.md:4 tails aligned (no in-repo generator found — outputs edited directly)
 - [x] Caps: utf8 70_000 → 71_000 (product 70617), tokens 9_500 → 9_600 (max 9575), G0+G1 pre-action 8_500 → 9_500 (measured 9134); nothing cut
-- [ ] Oracle + build + commit for review 1; STOP before --install
+- [x] Oracle + build + commit for review 1 (53877ef2; pytest 406+3 stale, build 10.0.1448); STOP before --install
+- [x] Review 2 (five small fixes): RED 20 failed → GREEN; F1 slot/rule Unknown agreement + receipt-in-place-of-hash clause; F2 registries primary (Espacenet/USPTO/WIPO/ISO/IEC), aggregators secondary (Google_Patents/ASTM); F3 docs/glossary.md bound in all 4 layout lines (×1 identical); F4 concept spans layers by definition; F5 higher @INFORMATION_STATUS rung per @SOURCE_ROUTING; stale review-1 phrase superseded in its test with dated reason
+- [x] Caps: tokens 9_600 → 9_700 (max 9618); utf8 71_000 holds (product 70918); nothing cut
+- [ ] Oracle + build + commit for review 2; STOP before --install — then ready for the owner
 
 ## 1. Grounding (measured)
 

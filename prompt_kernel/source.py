@@ -493,7 +493,7 @@ GATES = (
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
             _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall and user assertions are testimony — handles (paths, diffs, graph refs) are Exact, prose is Guess until re-grounded; source, fossil and codegraph say what is, history says where to look."),
             _rule("G1", "INSTRUMENT_LAYER", "Choose the instrument by the layer the problem lives on, not by what is nearest: the adjacent layer returns accurate data about a different process, and right numbers end the search. Your own context is nearest and least decisive — accurate about what was said, silent about what is."),
-            _rule("G1", "INSTRUMENT_ORDER", "Walk the question's layer by decisiveness: descend inside the layer on a recorded empty or failure; not found needs every instrument on that layer, and another layer is tried only when the question spans it. No tool on the layer answers? BUILD the instrument from the project's own parts — its reader, the filter, the array; a listed tool that cannot answer never outranks one you can write."),
+            _rule("G1", "INSTRUMENT_ORDER", "Walk the question's layer by decisiveness: descend inside the layer on a recorded empty or failure; not found needs every instrument on that layer, and another layer is tried only when the question spans it; a concept or unclear-target question spans layers by definition. No tool on the layer answers? BUILD the instrument from the project's own parts — its reader, the filter, the array; a listed tool that cannot answer never outranks one you can write."),
             _rule("G1", "STATE_FIRST", "State before reasoning: settled, open, next."),
             _rule("G1", "LOUD_FAILURE", "Prefer the instrument whose failure is VISIBLE: on a STRUCTURE question a scanner returns matches and looks successful while missing dynamic dispatch, and an index answers or says it has none — silent incompleteness ends the search."),
             _rule("G1", "DEVICE_STATE", "Device/hardware state observed, never recalled — drifts across fold. Read before compute work. Launcher quirk = pass device by hand, never fall back to slower."),
@@ -503,7 +503,7 @@ GATES = (
         "OUTCOME_CONTRACT_RULE",
         "Before planning, define an observation that distinguishes success from plausible-looking output.",
     ),
-            _rule("G1", "DOMAIN_GROUNDING", "Ground EVERY technology, instrument or domain term on the task path FIRST — the task path is what the request names or what the change region touches — whether or not it seems familiar: familiarity is recall, the weakest rung (@INFORMATION_STATUS); an ungrounded technology is reinvented from recall. Search order is project docs → org wiki → patents / standards / primary papers; authority is @SOURCE_ROUTING — on a conflict the higher rung wins. A term already in the project glossary with a current content_hash is grounded: read it, do not re-search it (@ANTI_CHURN). Read-only identities (EXPLORER_AGENT, RESEARCHER_AGENT) emit DOMAIN_TERMS in their report; the parent records the glossary. Emit DOMAIN_TERMS [{term, definition, source_ref, content_hash}] — sha256 of the read file for local docs, the wiki artifact hash for wiki pages, /web/context content_hash for web pages; a missing source_ref keeps G1 open, and source_ref: Unknown with the search receipt closes it as residual; no plan step rests on that term."),
+            _rule("G1", "DOMAIN_GROUNDING", "Ground EVERY technology, instrument or domain term on the task path FIRST — the task path is what the request names or what the change region touches — whether or not it seems familiar: familiarity is recall, the weakest rung (@INFORMATION_STATUS); an ungrounded technology is reinvented from recall. Search order is project docs → org wiki → patents / standards / primary papers; authority is @SOURCE_ROUTING — on a conflict the higher @INFORMATION_STATUS rung per @SOURCE_ROUTING wins. A term already in the project glossary with a current content_hash is grounded: read it, do not re-search it (@ANTI_CHURN). Read-only identities (EXPLORER_AGENT, RESEARCHER_AGENT) emit DOMAIN_TERMS in their report; the parent records the glossary. Emit DOMAIN_TERMS [{term, definition, source_ref, content_hash}] — sha256 of the read file for local docs, the wiki artifact hash for wiki pages, /web/context content_hash for web pages; a missing source_ref keeps G1 open, and source_ref: Unknown with the search receipt closes it as residual; no plan step rests on that term."),
         ),
         fsm=G1_FSM,
     ),
@@ -877,7 +877,7 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
         SourceRoute("medicine", "biomed", ("CochraneLibrary", "PubMed"), ("MEDLINE", "CINAHL")),
         SourceRoute("psychology", "biomed", ("PsycINFO", "PsycArticles"), ("PubMed", "OSF_Preprints")),
         SourceRoute("agriculture", "biomed", ("FAO", "AGRICOLA"), ("AGRIS", "CAB_Abstracts")),
-        SourceRoute("engineering", "engineering", ("IEEEXplore", "EngineeringVillage", "Google_Patents", "Espacenet"), ("Compendex", "INSPEC", "USPTO", "WIPO_Patentscope", "ISO", "IEC", "ASTM")),
+        SourceRoute("engineering", "engineering", ("IEEEXplore", "EngineeringVillage", "Espacenet", "USPTO", "WIPO_Patentscope", "ISO", "IEC"), ("Compendex", "INSPEC", "Google_Patents", "ASTM")),
         SourceRoute("cs", "engineering", ("ACM_DL", "arXiv_CS"), ("IEEEXplore", "CiteSeerX")),
         SourceRoute("law", "law", ("HeinOnline", "Westlaw"), ("LexisNexis", "ScholarCaseLaw")),
         SourceRoute("sociology", "social", ("ICPSR", "SocINDEX"), ("SocAbstracts", "AgeLine")),
@@ -1060,7 +1060,7 @@ KERNEL = Kernel(
         "CLEAN_NEXT_STATE": "{terminal_mode, completed, risks, residual, route}",
         "RESIDUAL_GOAL": "{gap, bound, route, form_holds}",
         "QUALITY_VECTOR": "{performance, stability, ux, automation, documentation, maintainability, organization}",
-        "DOMAIN_TERMS": "Glossary entries [{term, definition, source_ref, content_hash}] for the task path's technologies, instruments and domain terms; an entry lacking source_ref leaves G1 open.",
+        "DOMAIN_TERMS": "Glossary entries [{term, definition, source_ref, content_hash}] for the task path's technologies, instruments and domain terms; an entry lacking source_ref leaves G1 open; source_ref: Unknown with its search receipt closes it as residual, the receipt standing in place of content_hash.",
         # 2026-09-29 (owner: «SVM = STATE VECTOR MANIFEST»; ADID 12.2 §I.3 is where it is worked out best):
         # the acronym was never expanded beside @SV_FORMAT, the semantic vector, and 12.2's turn chain and goal
         # hierarchy were missing. No runtime consumer reads these fields (grep over packages/opencode/src).

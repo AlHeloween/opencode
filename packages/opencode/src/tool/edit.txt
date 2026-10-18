@@ -1,82 +1,75 @@
-Gates: G7 MODIFY under a G4 envelope — only on a G6 binding with its sv, READY surface and named smoke (@SURFACE_PREPARATION, @PLAN_BINDING_ENFORCEMENT); proven by reading back (@ORACLE).
-Principle: why = address-pinned change with no silent clobber across agents; NOT for unaddressed text — every hash comes from `read`, and a stale hash means read again.
-Change files by the line addresses `read` printed. **MODIFY / PERSISTENT_WRITE / ELEVATED** — read before you edit, state what the change means, run the declared oracle after it.
+Change files by the line addresses `read` printed. One call changes many files at once; nothing is written until every address in every file resolves.
 
-## One call, every file
+## Shape
 
-The whole call is `{"files": [...]}` — ONE element per file, and `filePath` is **required** on every element. The change itself is exactly one of `edits` (changes to an existing file) or `content` (create a new file). **`edit` is the only file tool whose `filePath` is nested**: `write`, `read`, `restore` take it at the TOP level, and this asymmetry is the most expensive mistake made against this tool (three refusals in one session, 2026-10-10) — `edit` needs the `files` array because it addresses several files in one call, and a top-level `filePath` beside `files` is an error before any address is checked.
+The whole call is `{"files": [...]}` — ONE element per file. `filePath` is required on every element. The change is exactly one of `edits` (changes to an existing file) or `content` (create a new file).
 
 ```json
 {
   "files": [
     { "filePath": "src/a.ts", "edits": [ { "fromHash": "3f19c2ea", "toHash": "9c0be411", "newString": "new lines" } ] },
-    { "filePath": "src/b.ts", "edits": [ { "insertAfter": "00000000", "newString": "new line 1" } ] },
+    { "filePath": "src/b.ts", "edits": [ { "fromHash": "a1b2c3d4", "newString": "one line" }, { "insertAfter": "e5f6a7b8", "newString": "added" } ] },
     { "filePath": "src/new.ts", "content": "a file that does not exist yet\n" }
   ]
 }
 ```
 
-- `files[0]` replaces the span `3f19c2ea..9c0be411` (both lines inclusive) of `src/a.ts` with `new lines`.
-- `files[1]` inserts `new line 1` at the very top of `src/b.ts` (`00000000` = before line 1).
-- `files[2]` creates `src/new.ts` — `content` instead of `edits`.
+`edits` is always an array, even for one change. Several changes to the SAME file go in the SAME element's `edits` array — never as two `files` elements for one path. `files` is an array; a JSON string that decodes to this array is accepted and its decode is named in the result.
 
-`edits` is ALWAYS an array, even for a single change — one change is a list of one. Several changes to the same file are several elements of its `edits`. Each element of `edits` is ONE entry, and an entry **never carries the file name** — the `files` element around it does.
+## Entry shapes
 
-## The address
+Replace lines A..B, both inclusive; `newString` carries every line to keep. Replace one line: omit `toHash`, or pass it equal to `fromHash`. Delete: `newString` is `""`. Insert: `insertAfter` names the line to insert after; `00000000` inserts before line 1 and into an empty file. One entry is a span (`fromHash` plus optional `toHash`) OR an insertion (`insertAfter`), never both.
 
-`read` prints `470  3f19c2ea: text`. The hash is a chain over the file up to that line, so it pins the FILE, not just a line number. **Use the hash printed beside the line you mean** — the address is the lines themselves.
+`newString` is required on every entry and is written exactly as sent. A trailing line break is optional: the last line keeps the replaced span's ending. Other new lines take the file's majority ending. `00000000` is no line and is refused as `fromHash` or `toHash`.
 
-The chain runs over the WHOLE file, so an address fingerprints a POSITION and never a text match: two IDENTICAL lines get DIFFERENT addresses (the text-matching path this replaced refused a duplicated line as «Found multiple matches» — that is what this design was built to kill). Four consequences a reader should hold before re-reading anything «just to be sure» — the first three measured 2026-10-01 on the promoted binary, the fourth re-measured 2026-10-10:
+## Addresses
 
-- the address is CONTENT, not path — a copy of the file under another name carries the SAME addresses;
-- `read`'s window does not move an address — one line hashes identically at `offset:88/limit:12` and at `98/5`, so re-reading a region with another `offset` invalidates nothing you already hold;
-- CRLF and LF produce the SAME addresses (the terminator is excluded), so a file's endings never change what you address;
-- **a change moves every address BELOW it and NONE above.** An edit ABOVE another writer's change still lands with the addresses you hold; one BELOW it refuses until you re-read. That is what makes several agents on one tree safe — the guarantee is not «one writer wins» but «no silent clobber of what you addressed».
+Use the hash `read` printed beside the line you mean. An address pins the file, not the line number: identical lines have different hashes, and CRLF and LF hash alike.
 
-Every example below is one full call; `<file>` stands for the `filePath` of the `files` element that carries the entry.
+After an edit, take the next addresses from THAT edit's result, never from the earlier `read`: a change moves every address below it and none above. In one call, every entry uses the addresses of the SAME read, so batch several changes to one file into one `edits` array instead of sequential calls.
 
-Entry shapes (all exercised in the canonical `files` example above): replace lines A..B — both inclusive, and `newString` must carry every line you want to KEEP from that span, as it should read; replace exactly one line A — `toHash` omitted, **or passed equal to `fromHash`** (the equal-hash form is NOT an insertion); delete lines A..B (empty `newString`); insert lines after line X (`insertAfter`); insert before line 1 (`insertAfter` `00000000`; also into an empty file).
-
-Rules that hold for every entry:
-
-- An entry is a replacement (`fromHash`, optionally with `toHash`) OR an insertion (`insertAfter`) — never both forms in one entry.
-- `newString` is required on every entry; `""` with `fromHash` deletes the span.
-- `newString` is written EXACTLY as sent — column for column. Its **first line is not re-indented** to match the line it replaces: for indentation-sensitive code (Python) send every line at its absolute indent (`    if x:` — the `if` included). The result shows the written lines at once, so a slip is visible there and fixed in one more edit.
-- Every address must be a hash `read` printed for THIS file; there is no fuzzy match — a stale hash means *read again*.
-- `newString` is the new lines. A trailing line break is optional: the last line ends as the replaced one did.
-- **No address resolves, nothing is written — in any file.** Every entry of every file is checked against the files as you read them before anything is saved. The refusal NAMES the file and the failing entry (`…/probe.txt: edit 1: \`fromHash\` is not in this file`), so it points at the one file to re-read — measured 2026-10-10.
+A missing file lists similar names.
 
 ## Endings and encodings
 
-- Your line breaks are fitted to the file's own; send plain `\n`.
-- A file keeps its encoding: UTF-8, UTF-8 with BOM, UTF-16 LE/BE.
-- **Delphi** (`.pas .dpr .dpk .inc .dfm .dproj`) is always saved as UTF-8 with BOM + CRLF, the whole file.
-- **Legacy ANSI** (not UTF-8, no BOM) is saved as UTF-8 with BOM + CRLF. Pass the same `encoding` you gave `read`; a different page does not resolve.
-- Any conversion is NAMED in the result. Binary files are refused.
+Line breaks are fitted to the file; send plain `\n`. A file keeps its encoding. Delphi source is saved as UTF-8 with BOM and CRLF; legacy ANSI the same. Any conversion is named in the result. Binary files are refused.
 
 ## After the write
 
-LSP diagnostics per file; the project formatter runs and the file keeps its encoding. The pre-edit bytes are backed up (50 per session) — undo with `restore({ filePath })`.
+The result reports the diff, LSP diagnostics, and the fresh addresses in `read`'s form with two lines of context, then every moved label below the change. Labels above did not move and are not repeated. Like `write`, which also prints an address report, the next edit can address them directly. Undo with `restore`.
 
-The result then closes with the file's FRESH ADDRESSES, so the next edit needs no re-read:
+## Refusals
 
-- the written lines in `read`'s own form (`N  hash: text`) with two lines of context — what actually landed, as it now reads;
-- below the change EVERY line's address has moved (the chain runs over the whole file), and the result restates those labels (`N  hash`). Labels above the change are unchanged and are not repeated;
-- a list cut for length says so and names the offset to `read` for the rest.
+Every refusal starts with its key and names the file and entry. Nothing is written when any entry is refused.
 
-**`write` prints no addresses; `edit` does** — its result ends with the full fresh label list, so the next edit chains straight off it with no re-read; a `write` result carries no address block at all, so the next edit needs a `read` even for a file just written (measured 2026-10-10).
-
-**The `N  hash: text` prefix is metadata, not content** — copying a `read` line whole writes e.g. `86fa63b8: }` literally (measured 2026-10-10: `fromHash`=line 574 → LSP error, one extra edit to repair); `newString` takes the text after the first `: `, at its absolute indent.
-
-**One edit per file per call; one entry, one span** — a `files` element without `filePath` is a schema error before any address is checked; two changes to one file are two `files` elements or two `edits` entries in ONE element, never a bare second entry. A replacing span (`fromHash`..`toHash`) is replaced WHOLE — omitting a line you meant to preserve deletes it (visible only on read-back); one entry carrying unrelated ranges fails or writes one span where several were intended. A rejected multi-file call writes NOTHING.
-
-**A diagnostic in another file is not a verdict on this edit** — the write already happened before the diagnostics run. Only errors on the file you addressed indicate that the newString did not parse; check the file's own section, then read it back (`@ORACLE`: a persistent write is proven by reading the artifact, not by a clean exit).
+| Key | When | What to do |
+|---|---|---|
+| `[empty-files]` | `files` is empty | Pass at least one `{ filePath, edits }` or `{ filePath, content }` entry |
+| `[files-not-array]` | `files` is a string that is not JSON, or decodes to a non-array, or to invalid entries | Pass an array; or a JSON string that decodes to one |
+| `[content+edits]` | `content` combined with `edits` in one element | Pass one or the other |
+| `[missing-change]` | Neither `edits` nor `content` in an element | Pass addressed `edits`, or `content` to create |
+| `[bad-encoding]` | `encoding` is not a code page | Pass the legacy page from `read`, e.g. windows-1251 |
+| `[encoding+content]` | `encoding` combined with `content` | Omit `encoding` when creating; it names an existing file's page |
+| `[same-file]` | Two `files` elements name the same file | Put all of one file's changes in one element's `edits` |
+| `[already-exists]` | `content` for a file that exists | Address its lines with `edits` |
+| `[not-found]` | Address names a file that does not exist | Create it with `content`, or fix the path |
+| `[is-directory]` | Path is a directory | Address a file inside it |
+| `[binary-file]` | File is binary | Inspect with `read` and `hex: true`; `edit` is text only |
+| `[undecodable]` | File cannot be decoded | Read with the right `encoding` |
+| `[no-change]` | Result is identical to the file | Pass a different `newString` or drop the entry |
+| `[not-hex]` | Address is not 8 hex chars | Copy the hash `read` printed |
+| `[stale-hash]` | Address is not in this file | Re-read and pass the current hashes |
+| `[seed-not-line]` | `00000000` used as `fromHash` or `toHash` | Pass it only as `insertAfter` |
+| `[either-or]` | An entry has both or neither of `fromHash` and `insertAfter` | Pass one form: span or insertion |
+| `[toHash-on-insert]` | `toHash` with `insertAfter` | Drop `toHash`; an insertion has only `insertAfter` |
+| `[inverted]` | `toHash` precedes `fromHash` | Order the span first to last |
+| `[overlap]` | Two entries claim one line or one insertion point | Merge them into one entry |
 
 ## Parameters
 
 | Parameter | Description |
 |---|---|
-| `files[].filePath` | The file to change. **Required** on every `files` element. |
-| `files[].edits` | The changes to that file — an array of entries, always an array; several changes to one file go here. Exactly one of `edits` / `content` per element. |
+| `files[].filePath` | The file to change. Required on every `files` element. |
+| `files[].edits` | The changes to this file — an array; several changes to one file go here. Exactly one of `edits` / `content` per element. |
 | `files[].content` | Create a NEW file with this content; refused if it exists. Exactly one of `edits` / `content` per element. |
-| `files[].encoding` | Optional. Code page of a legacy file, as passed to `read` (default: the host's). |
+| `files[].encoding` | Code page of a legacy file, as passed to `read`. |

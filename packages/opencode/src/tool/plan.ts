@@ -20,7 +20,6 @@ import {
   resolveAgentVariant,
   type ModelRef,
 } from "../session/session-settings"
-import { gateLayerModel, readGlobalRecents, resolveGlobalHead } from "../session/global-recents"
 
 // Same CRLF normalize as prompt.ts — hasSynthetic must match byte-for-byte.
 const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
@@ -39,13 +38,9 @@ async function transitionModel(
   fallback: ModelRef & { variant?: string },
   context: { sessionID: string },
 ) {
-  const transitionRecents = await readGlobalRecents()
-  // Unified resolution: session → workspace → global agent config, each gated (t87).
+  // Unified resolution: session → workspace → global agent config
   const resolved = await resolveAgentModel(agentName, context)
-  const gatedTarget = gateLayerModel(target?.model, transitionRecents, { layer: "global-declaration", agent: agentName })
-  const gatedFallback = gateLayerModel(fallback, transitionRecents, { layer: "last-message", agent: agentName })
-  const transitionHead = resolveGlobalHead(transitionRecents, new Map())
-  const model = resolved ?? gatedTarget ?? gatedFallback ?? transitionHead ?? fallback
+  const model = resolved ?? target?.model ?? fallback
   const sameAsAgentModel = target?.model?.providerID === model.providerID && target?.model?.modelID === model.modelID
   const resolvedVariant = await resolveAgentVariant(agentName, model, context)
   const variant =

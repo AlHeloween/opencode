@@ -132,8 +132,6 @@ import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 
 import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
 import { loadSessionSettings, resolveAgentModel, resolveAgentVariant, saveSessionSettings } from "./session-settings"
-import { gateLayerModel, isListMember, readGlobalRecents, resolveGlobalHead } from "./global-recents"
-import { chainHealthState } from "@/provider/model-chain/health-registry"
 import { modelKey, withSessionAgentModel } from "./fill-layers"
 import { LATCH_KEY, stopCheckDecision } from "./stop-check"
 
@@ -365,32 +363,10 @@ export const layer = Layer.effect(
           if (small) return small
           return yield* provider.getModel(input.providerID, input.modelID)
         }).pipe(Effect.catchCause(() => Effect.succeed(undefined as Provider.Model | undefined)))
-      // t87: the small/title pick must be a list member — no named fallback outside
-      // the list. First UP member of the list, else the legacy pick (warned, kept).
-      const titleRecents = yield* Effect.tryPromise({
-        try: () => readGlobalRecents(),
-        catch: () => undefined,
-      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
-      const gatedMdl = yield* Effect.gen(function* () {
-        if (!mdl) return undefined
-        if (titleRecents === undefined) return mdl
-        if (isListMember({ providerID: mdl.providerID, modelID: mdl.id }, titleRecents)) return mdl
-        const titleHead = resolveGlobalHead(titleRecents, chainHealthState())
-        if (!titleHead) return mdl
-        log.warn("bug: title model not in global recents", {
-          agent: "title",
-          model: `${mdl.providerID}/${mdl.id}`,
-          used: "global-recents",
-        })
-        const headed = yield* provider
-          .getModel(ProviderID.make(titleHead.providerID), ModelID.make(titleHead.modelID))
-          .pipe(Effect.catchCause(() => Effect.succeed(undefined as Provider.Model | undefined)))
-        return headed ?? mdl
-      }).pipe(Effect.catchCause(() => Effect.succeed(mdl)))
-        if (gatedMdl) {
+        if (mdl) {
           const msgs = onlySubtasks
             ? [{ role: "user" as const, content: subtasks.map((p) => p.prompt).join("\n") }]
-            : yield* MessageV2.toModelMessagesEffect(context, gatedMdl, toolReplayOptions(yield* config.get(), undefined)).pipe(
+            : yield* MessageV2.toModelMessagesEffect(context, mdl, toolReplayOptions(yield* config.get(), undefined)).pipe(
                 Effect.catchCause((cause) => {
                   elog.error("title model messages failed", { error: Cause.squash(cause) })
                   return Effect.succeed([] as ModelMessage[])
@@ -404,7 +380,7 @@ export const layer = Layer.effect(
                 system: [],
                 small: true,
                 tools: {},
-                model: gatedMdl,
+                model: mdl,
                 sessionID: input.session.id,
                 retries: 2,
                 outputTokenMax: 512,
@@ -693,12 +669,6 @@ export const layer = Layer.effect(
             // параметры для работы берутся только из session и она должна обязательно быть»).
             // The TUI sends it; the fallback below covers CLI/scripts, and a miss below the layer
             // is recorded with the source that answered — kept working, never guessed silently.
-            // t87: ONE lookup of ONE key (L4 `globalRecents`) — the gate, not a parent walk.
-            const shellRecents = yield* Effect.tryPromise({
-              try: () => readGlobalRecents(),
-              catch: () => undefined,
-            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
-            const shellHead = resolveGlobalHead(shellRecents, chainHealthState())
             if (!input.model) {
               log.warn("bug: shell model fell through the session layer", {
                 sessionID: input.sessionID,
@@ -706,20 +676,7 @@ export const layer = Layer.effect(
                 used: agent.model ? "agent-declaration" : "last-message/default",
               })
             }
-            const rawShellModel = input.model ?? agent.model ?? (yield* lastModel(input.sessionID))
-            // t87 backstop: the merged pick itself is gated; refused falls to the list head.
-            const model =
-              gateLayerModel(rawShellModel, shellRecents, { layer: "resolved", agent: agent.name }) ??
-              shellHead as typeof rawShellModel ??
-              rawShellModel
-            if (model !== rawShellModel) {
-              log.warn("bug: shell model not in global recents", {
-                sessionID: input.sessionID,
-                agent: agent.name,
-                model: `${rawShellModel.providerID}/${rawShellModel.modelID}`,
-                used: "global-recents",
-              })
-            }
+            const model = input.model ?? agent.model ?? (yield* lastModel(input.sessionID))
             const userMsg: MessageV2.User = {
               id: input.messageID ?? MessageID.ascending(),
               sessionID: input.sessionID,
@@ -1053,12 +1010,6 @@ export const layer = Layer.effect(
       const sessionWorkspaceModel = resolvedFromSettings
         ? { providerID: ProviderID.make(resolvedFromSettings.providerID), modelID: ModelID.make(resolvedFromSettings.modelID) }
         : undefined
-      // t87: ONE lookup of ONE key (L4 `globalRecents`) — the gate, not a parent walk.
-      const promptRecents = yield* Effect.tryPromise({
-        try: () => readGlobalRecents(),
-        catch: () => undefined,
-      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
-      const promptHead = resolveGlobalHead(promptRecents, chainHealthState())
       // The session layer is the ONLY source a prompt should need (owner spec, 2026-09-26:
       // «Все параметры для работы берутся только из session и она должна обязательно быть») —
       // the TUI always sends it. Falling through to the agent declaration or the last message
@@ -1071,20 +1022,7 @@ export const layer = Layer.effect(
           used: ag.model ? "agent-declaration" : "last-message/default",
         })
       }
-      const rawModel = fromSession ?? ag.model ?? (yield* lastModel(input.sessionID))
-      // t87 backstop: the merged pick itself is gated (per-layer gates already ran
-      // inside `resolveAgentModel`); a refused value falls to the list head — kept in
-      // its file, warned here, shown on the footer via the message record.
-      const model =
-        gateLayerModel(rawModel, promptRecents, { layer: "resolved", agent: ag.name }) ?? (promptHead as typeof rawModel) ?? rawModel
-      if (model !== rawModel) {
-        log.warn("bug: prompt model not in global recents", {
-          sessionID: input.sessionID,
-          agent: ag.name,
-          model: `${rawModel.providerID}/${rawModel.modelID}`,
-          used: "global-recents",
-        })
-      }
+      const model = fromSession ?? ag.model ?? (yield* lastModel(input.sessionID))
       // A prompt that NAMES a model PINS the session layer. The pin is a FILL, and the layer is what
       // every later reader answers with - the TUI status line, a prompt WITHOUT a model, every
       // resolveAgentModel caller. A one-message override would leave them all on the worktree/global
@@ -3180,22 +3118,9 @@ export const layer = Layer.effect(
         })
       }
       const taskModel = taskModelSource.model
-      // t87: the merged pick itself is gated; refused falls to the list head.
-      const cmdRecents = yield* Effect.tryPromise({
-        try: () => readGlobalRecents(),
-        catch: () => undefined,
-      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
-      const cmdHead = resolveGlobalHead(cmdRecents, chainHealthState())
-      const gatedTaskModel = gateLayerModel(taskModel, cmdRecents, { layer: "resolved", agent: agentName }) ?? (cmdHead as typeof taskModel) ?? taskModel
-      if (gatedTaskModel !== taskModel) {
-        log.warn("bug: command model not in global recents", {
-          sessionID: input.sessionID,
-          command: input.command,
-          model: `${taskModel.providerID}/${taskModel.modelID}`,
-          used: "global-recents",
-        })
-      }
-      yield* getModel(gatedTaskModel.providerID, gatedTaskModel.modelID, input.sessionID)
+
+      yield* getModel(taskModel.providerID, taskModel.modelID, input.sessionID)
+
       const agent = yield* agents.get(agentName)
       if (!agent) {
         const available = visibleNames(yield* agents.list())

@@ -29,7 +29,6 @@ import {
   readModelState,
 } from "../session/session-settings"
 import { loadChain } from "@/provider/model-chain/store"
-import { gateLayerModel, readGlobalRecents, resolveGlobalHead } from "../session/global-recents"
 import { chainHealthState } from "@/provider/model-chain/health-registry"
 import { canonicalIdentity } from "../session/mode-identity"
 
@@ -239,15 +238,9 @@ export const TaskTool = Tool.define(
       const chainResolved = yield* Effect.sync(() =>
         resolveChainAgentModel(next.name, ctx.sessionID, chainHealthState(), {
           chain: loadChain(`session:${ctx.sessionID}`, next.name),
-          globalRecents: taskRecents,
         }),
       ).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const parentSession = yield* sessions.get(ctx.sessionID)
-      // t87: ONE lookup of ONE key (L4 `globalRecents`) — the gate, not a parent walk.
-      const taskRecents = yield* Effect.tryPromise({
-        try: () => readGlobalRecents(),
-        catch: () => undefined,
-      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const modelState = yield* Effect.tryPromise({
         try: () => readModelState(),
         catch: () => undefined,
@@ -257,7 +250,7 @@ export const TaskTool = Tool.define(
           resolveAgentModel(next.name, {
             sessionID: ctx.sessionID,
             workspaceID: parentSession.workspaceID,
-          }, { settings: sessionSettings, modelState: modelState as Record<string, unknown> | undefined, globalRecents: taskRecents }),
+          }, { settings: sessionSettings, modelState: modelState as Record<string, unknown> | undefined }),
         catch: (e) => e,
       }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const taskModelOverride = (() => {
@@ -268,26 +261,15 @@ export const TaskTool = Tool.define(
           modelID: state.taskModel.modelID,
         }
       })()
-      // Model precedence (t87): chain → session/workspace → step declaration → legacy task model → list head → parent model. Every layer pick is gated; the parent model is live this turn and stays exempt; the head is the owner-priority fallback.
-      const gatedNext = gateLayerModel(next.model, taskRecents, { layer: "global-declaration", agent: next.name })
-      const gatedTaskOverride = gateLayerModel(taskModelOverride, taskRecents, { layer: "worktree", agent: next.name })
-      const taskHead = resolveGlobalHead(taskRecents, chainHealthState())
+      // Model precedence: chain → session/workspace → global agent config → legacy task model → parent model.
       const model =
         chainResolved ??
         resolved ??
-        gatedNext ??
-        gatedTaskOverride ??
-        taskHead ?? {
-          modelID: msg.info.modelID,
-          providerID: msg.info.providerID,
-        }
-      if (taskHead !== undefined && model === taskHead) {
-        log.warn("bug: task model fell to global recents head", {
-          sessionID: ctx.sessionID,
-          agent: next.name,
-          used: "global-recents",
-        })
-      }
+        (next.model ??
+          (taskModelOverride ?? {
+            modelID: msg.info.modelID,
+            providerID: msg.info.providerID,
+          }))
       if (
         chainResolved !== undefined &&
         resolved !== undefined &&

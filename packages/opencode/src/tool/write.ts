@@ -13,7 +13,7 @@ import { Format } from "../format"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Instance } from "../project/instance"
 import { Snapshot } from "@/snapshot"
-import { addressReport, trimDiff } from "./edit"
+import { trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as TextCodec from "@/util/text-codec"
 import { Constitution } from "@/session/constitution"
@@ -101,11 +101,9 @@ export const WriteTool = Tool.define(
           }
 
           yield* fs.writeWithDirs(filepath, TextCodec.encode(contentNew, form.encoding))
-          let contentFinal = contentNew
           if (yield* format.file(filepath)) {
-            contentFinal = yield* TextCodec.syncFile(fs, filepath, form.encoding, form.ending)
+            yield* TextCodec.syncFile(fs, filepath, form.encoding, form.ending)
           }
-          const formatTouched = contentFinal !== contentNew
           yield* bus.publish(File.Event.Edited, { file: filepath })
           yield* bus.publish(FileWatcher.Event.Updated, {
             file: filepath,
@@ -131,16 +129,6 @@ export const WriteTool = Tool.define(
             projectDiagnosticsCount++
             output += `\n\nLSP errors detected in other files:\n${block}`
           }
-
-          const report = addressReport({
-            path: path.relative(Instance.worktree, filepath),
-            oldText: contentOld,
-            finalText: contentFinal,
-            spans: [],
-            created: !exists,
-            formatTouched,
-          })
-          if (report) output += `\n\n${report}`
 
           const stats = yield* Effect.promise(() => diffStats(contentOld, contentNew))
           const metadata: WriteMetadata = {

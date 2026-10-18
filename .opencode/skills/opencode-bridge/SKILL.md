@@ -59,8 +59,6 @@ The default TUI can discover/proxy a host; do not assume a remembered port remai
 current after host replacement. Readiness of HTTP does not prove the prompt field
 is ready for terminal paste. Use this HTTP bridge for robot prompts.
 
-Robot delegation base 29200 (range 29170-29998, IANA-unassigned), `web`/`serve` and debug stay on 4096; either way, read the port from the host record — never assume it.
-
 ## Drive and finish
 
 Write a small UTF-8 client script under `experiments/<date>_<name>/`; send JSON

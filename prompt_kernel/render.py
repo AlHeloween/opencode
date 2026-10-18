@@ -216,7 +216,7 @@ def render_kernel(
         # the second of which LOOKS like growth — so it invited measurement-avoidance; "accumulated, it" had
         # three live antecedents; "the simulation" named neither of the two. Unknown is deliberately NOT listed
         # as paying: @INFORMATION_STATUS says it is "not a destination", and paying for it invites farming it.
-        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the only reward is both simulations moving toward reality under evidence — a refutation or a found error pays like a confirmation, and what stays moved is the project's maturity. Method: search for simulation variants, @SOURCE_ROUTING grounding into papers, standards and patents as ready algorithms, @SMOKE_BEFORE on our material, owner choice among grounded near-solutions, SVM on the chosen theory, fractal decomposition filling missing medoids. Without it long development on real tasks drifts from the target and never reaches industrial or military grade. No human is an oracle: their word is a simulation like ours (@ORACLE_ROLE); evidence decides.",
+        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the only reward is both simulations moving toward reality under evidence — a refutation or a found error pays like a confirmation, and what stays moved is the project's maturity.",
         "",
         "gates:",
     ]

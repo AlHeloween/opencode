@@ -41,7 +41,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
             # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
             # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
-            "instrument chain, in order: where/which -> adm --query -> codegraph_explore -> session history (search_session_transcripts) -> Universal Search hybrid (POST 127.0.0.1:3005/hybrid, then /web/context for content_hash) -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
+            "instrument chain, in order: where/which -> adm --query -> codegraph_explore -> session history (search_session_transcripts) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
         ),
     ),
     GateAddon(
@@ -58,7 +58,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "TOOL_GROUNDING",
         (
-            "ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, Universal Search hybrid (POST 127.0.0.1:3005/hybrid, then /web/context for content_hash); WebFetch for pipeline debugging only.",
+            "ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.",
             # KAIZEN countermeasure: Glob timed out at the repo root four times in one session (ripgrep 20 s) while the
             # same pattern with a path answered — a half-working tool, so the standard changes, not the workaround.
             "file enumeration: Glob/Grep/Read with an explicit path — at the repo root they time out (20 s); inventory via git ls-files; never shell ls/dir/find/cat.",

@@ -14,10 +14,9 @@ parent-goal-md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
 
 - [x] G1 grounding: location table (§2) + consumer table (§3) read from code, graph before grep
 - [x] RED tests written, run one file per call through cmd_runner (§7)
-- [x] Commit plan + RED tests through `scripts/commit_own.py`, plus a `_progress_log.md` line (97af50e9)
-- [x] STOP — Legislator reviewed (PASS 2026-10-18, §8 decisions settled)
-- [x] Implementation: gate in every §3 consumer (resolvers, assign head fallback, prompt/shell/command/title, task/pipeline/plan/reasoning, aicall, chain PUT write-gate, llm stream filter, small-model head), TUI writer/surface/marker, migration display, renamed-model failover (classify withdrawn + stream note + head fallback); RED→GREEN runs one file per call (§7 + §8)
-- [ ] OWNER BOX (do not close the plan): owner enters `globalRecents` in the TUI (Global recents action, ctrl+alt+r) — proposed seed: free zen → contributor via Go (owner order 2026-10-16). The plan stays ACTIVE until this box is ticked by the owner's own edit.
+- [ ] Commit plan + RED tests through `scripts/commit_own.py`, plus a `_progress_log.md` line
+- [ ] STOP — Legislator reviews before any product code
+- [ ] (post-review, NOT this step) implement the gate (§4), RED→GREEN, full oracle, close
 
 ## 1. Incident and mechanism (measured)
 

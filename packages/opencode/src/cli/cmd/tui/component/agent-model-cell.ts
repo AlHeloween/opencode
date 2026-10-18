@@ -131,15 +131,12 @@ export function nextVariant(variants: readonly string[], current: string | undef
 export function agentHintText(input: {
   description?: string
   origin?: AgentModelOrigin
-  /** t87: the row's layer value is outside the owner's global recents — kept, shown, never run. */
-  stale?: boolean
   /** Undefined when the agent has no subagent overrides at all; 0 reads «none». */
   taskCount?: number
 }): string | undefined {
   const parts: string[] = []
   if (input.description) parts.push(input.description)
   if (input.origin) parts.push(`model from the ${input.origin} layer`)
-  if (input.stale) parts.push("not in global recents")
   if (input.taskCount !== undefined) parts.push(input.taskCount === 0 ? "task: none" : `task: ${input.taskCount}`)
   return parts.length > 0 ? parts.join(" · ") : undefined
 }

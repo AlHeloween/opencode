@@ -36,7 +36,6 @@ import { chainHealthState } from "@/provider/model-chain/health-registry"
 import { runChainStream } from "@/provider/model-chain/stream-failover"
 import { firstTokenTimeoutMs } from "@/provider/model-chain/classify"
 import type { ChainMember } from "@/provider/model-chain/chain"
-import { isListMember, readGlobalRecents } from "./global-recents"
 import { ProviderID, ModelID } from "@/provider/schema"
 import {
   loadSessionSettings,
@@ -1035,23 +1034,7 @@ const live: Layer.Layer<
         Stream.unwrap(
           Effect.gen(function* () {
             const chain = loadChain(`session:${input.sessionID}`, canonicalIdentity(input.agent.name))
-            // t87: the in-request failover walk only tries list members — a session
-            // chain filled before the list changed is filtered at USE, never trusted.
-            const llmRecents = yield* Effect.tryPromise({
-              try: () => readGlobalRecents(),
-              catch: () => undefined,
-            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
-            const gatedChain =
-              chain === undefined || llmRecents === undefined
-                ? chain
-                : chain.filter((member) => isListMember(member, llmRecents))
-            if (chain !== undefined && gatedChain !== undefined && gatedChain.length === 0) {
-              log.warn("bug: session chain not in global recents — failover skipped", {
-                sessionID: input.sessionID,
-                refused: chain.length,
-              })
-            }
-            if (!gatedChain || gatedChain.length === 0) {
+            if (!chain || chain.length === 0) {
               const ctrl = yield* Effect.acquireRelease(
                 Effect.sync(() => new AbortController()),
                 (ctrl) => Effect.sync(() => ctrl.abort()),
@@ -1061,7 +1044,7 @@ const live: Layer.Layer<
 
               return Stream.fromAsyncIterable(result.stream, (e) => (e instanceof Error ? e : new Error(String(e))))
             }
-            return runChain(input, gatedChain)
+            return runChain(input, chain)
           }),
         ),
       )

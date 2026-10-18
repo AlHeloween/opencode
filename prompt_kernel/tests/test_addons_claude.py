@@ -143,8 +143,7 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 2026-10-17 (t79 causal-chain): MEDOID_SIMPLEX independence + CAUSAL_CHAIN measure 9_045 — the next band above the measurement; nothing cut.
     # 2026-10-17 (t79 review): categories + computing leg + ACCEPTANCE_FRAME slot measure 9_087 — keeps the +100 margin over product; nothing cut.
     # 2026-10-17 (t84 SV legend): measures 9_210 — the next band above the measurement; nothing cut.
-    # 2026-10-18 (t90 method preamble): premise method/why/not-an-oracle + hybrid rung measure 9_329 — the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 9_400
+    assert normalized_token_count(text) <= 9_300
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

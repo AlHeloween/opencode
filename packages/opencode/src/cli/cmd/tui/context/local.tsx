@@ -175,7 +175,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         agentVariant: Record<string, string | undefined>
         workspaceAgent: Record<string, Record<string, { providerID: string; modelID: string }>>
         modelSampling: Record<string, ModelSampling>
-        globalRecents: string[]
 
         taskModel:
           | {
@@ -192,7 +191,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         workspaceAgent: {},
         taskModel: undefined,
         modelSampling: {},
-        globalRecents: [],
 
       })
 
@@ -344,8 +342,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (state.pending) save()
           // Load session settings once model.json is ready
           refreshSessionSettings()
-          // t87: the ordered allowlist (L4) for the set() gate and the stale markers.
-          void refreshGlobalRecents()
         })
 
       // Watch for session changes and reload session settings.
@@ -1083,70 +1079,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         return sessionModelRouting(providerID, modelID.split(":")[0], sessionSettings())
       }
 
-      /** t87: the ordered allowlist from the global config (L4), owner-edited. Empty = legacy (no gate). */
-      function inGlobalRecents(model: { providerID: string; modelID: string }): boolean {
-        if (modelStore.globalRecents.length === 0) return true
-        const key = `${model.providerID}/${model.modelID}`.split(":")[0]
-        return modelStore.globalRecents.some((entry) => entry.split(":")[0] === key)
-      }
-      async function refreshGlobalRecents(): Promise<void> {
-        try {
-          const response = (await sdk.client.global.config.get({ throwOnError: true })) as any
-          const config = { ...((response?.data ?? response) as Record<string, unknown>) }
-          const raw = config.globalRecents
-          if (!Array.isArray(raw)) return
-          const clean = raw.filter((x): x is string => typeof x === "string" && x.indexOf("/") > 0)
-          setModelStore("globalRecents", clean)
-        } catch (e: unknown) {
-          Log.Default.warn("bug: global recents load failed", { error: errorMessage(e) })
-        }
-      }
-      /** t87 writer: the owner edits the ordered allowlist; one save governs every worktree. */
-      async function setGlobalRecents(list: string[]): Promise<boolean> {
-        const clean: string[] = []
-        const bad: string[] = []
-        for (const raw of list) {
-          const key = raw.trim()
-          if (!key) continue
-          const slash = key.indexOf("/")
-          if (slash <= 0 || slash === key.length - 1 || clean.includes(key)) {
-            bad.push(raw)
-            continue
-          }
-          clean.push(key)
-        }
-        if (bad.length > 0 || clean.length === 0) {
-          toast.show({
-            title: "Global recents not saved",
-            message:
-              bad.length > 0
-                ? `Refused lines: ${bad.join(", ")} — want provider/model, one per line`
-                : "The list is empty — keeping the previous one",
-            variant: "warning",
-            duration: 6000,
-          })
-          return false
-        }
-        try {
-          const response = (await sdk.client.global.config.get({ throwOnError: true })) as any
-          const config = { ...((response?.data ?? response) as Record<string, unknown>) }
-          config.globalRecents = clean
-          await sdk.client.global.config.update({ config: config as never }, { throwOnError: true })
-        } catch (e: unknown) {
-          const detail = e instanceof Error ? e.message : JSON.stringify(e)?.slice(0, 300) || String(e)
-          Log.Default.warn("bug: global recents save failed", { error: detail })
-          toast.show({ title: "Global recents save failed", message: detail, variant: "error", duration: 6000 })
-          return false
-        }
-        setModelStore("globalRecents", clean)
-        toast.show({
-          title: "Global recents updated",
-          message: `${clean.length} models — every worktree reads it next turn`,
-          variant: "info",
-          duration: 5000,
-        })
-        return true
-      }
       return {
         forAgent,
         layerView,
@@ -1164,12 +1096,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         sessionModelRoutingView,
         subagentsFor,
         setSubagents,
-        globalRecents() {
-          return modelStore.globalRecents
-        },
-        inGlobalRecents,
-        setGlobalRecents,
-        refreshGlobalRecents,
         taskModel,
         taskSet,
         current: currentModel,
@@ -1246,18 +1172,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           model: { providerID: string; modelID: string },
           options?: { recent?: boolean; agent?: string; scope?: ModelScope },
         ) {
-          // t87 write-gate: an out-of-list pick is refused here with the owner's list
-          // named — the server gate would refuse to run it anyway, and a silent pick
-          // is the defect. Empty list = legacy (no gate yet — the owner has not entered it).
-          if (!inGlobalRecents(model)) {
-            const names = modelStore.globalRecents.slice(0, 3).join(", ")
-            toast.show({
-              message: `Model ${model.providerID}/${model.modelID} is outside global recents${names ? ` (${names}${modelStore.globalRecents.length > 3 ? ", …" : ""})` : ""} — ask the owner to extend the list`,
-              variant: "warning",
-              duration: 6000,
-            })
-            return
-          }
           if (options?.scope === "global") {
             // Global write — async via the server endpoint; the TUI shows a
             // confirmation dialog BEFORE calling set with scope "global".

@@ -1,2 +1,0 @@
-{"type": "user", "message": {"role": "user", "content": "probe the hook"}, "timestamp": "2026-10-18T00:00:00.000Z"}
-{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Just a plain reply without any vector."}]}, "timestamp": "2026-10-18T00:00:01.000Z"}

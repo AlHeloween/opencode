@@ -182,9 +182,9 @@ describe("T4 — a fall below the session layer is recorded on every server path
     expect(guard).toBeGreaterThan(-1)
     expect(guard).toBeLessThan(warn) // the guard arms the record…
     // …and the original fallback expression still resolves after it (CLI/scripts keep working).
-    const fallback = PROMPT.indexOf("const rawShellModel = input.model ?? agent.model")
+    const fallback = PROMPT.indexOf("const model = input.model ?? agent.model")
     expect(fallback).toBeGreaterThan(warn)
-    expect(PROMPT).toContain("const rawShellModel = input.model ?? agent.model ?? (yield* lastModel(input.sessionID))")
+    expect(PROMPT).toContain("const model = input.model ?? agent.model ?? (yield* lastModel(input.sessionID))")
     expect(PROMPT.slice(warn, fallback)).toContain('agent.model ? "agent-declaration" : "last-message/default"')
   })
 

@@ -158,10 +158,6 @@ export const Info = Schema.Struct({
     description:
       "Default agent to use when none is specified. Must be a primary agent. Falls back to 'build_mode' if not set or if the specified agent is invalid.",
   }),
-  globalRecents: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
-    description:
-      "Ordered model allowlist (\"provider/model\", priority first) every worktree, session and chain layer is gated against (t87). Edited only by the owner through the TUI; one edit governs every worktree launched from this binary.",
-  }),
   username: Schema.optional(Schema.String).annotate({
     description: "Custom username to display in conversations instead of system username",
   }),

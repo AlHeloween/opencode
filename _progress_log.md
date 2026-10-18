@@ -1,20 +1,5 @@
 ﻿# Progress Log
 
-## [2026-10-18] t90 — kernel method preamble + Claude hybrid rung (STOP before --install)
-
-RED (test_method_preamble.py): 3 failed / 1 passed; GREEN after: 4 passed. Full suite: 333 passed + 3 stale-receiver reds (production prompt, cursor rule, claude kernel — receivers not reinstalled per brief). Sizes after: product 68898 B / 9234 tok, claude 68868 / 9329, codex 68609 / 9244, cursor 68651 / 9320; token caps 9300 -> 9400 next band, nothing cut; byte cap 69000 holds. Premise repr identical across 4 variants; Claude G1 has :3005/hybrid, no WebSearch rung (WebFetch debugging only); codex/cursor carry no WebSearch rung — untouched. _build.ps1 run 20261018T034727Z_04993120 exit 0, bytes_written 67100, smoke 10.0.1439. Premise lives in render.py:219 (source.py has no premise slot — brief path off by one file). Plan plans/2026-10-18_kernel-method-preamble.md stays ACTIVE for Legislator review.
-## [2026-10-18] t87 implement - gates GREEN, owner box open
-
-GREEN (no bin/): gate in every consumer (resolvers, assign head, prompt/shell/command/title, task/pipeline/plan/reasoning, aicall explicit-refuse, chain PUT write-gate, llm stream filter, small-model head); TUI set() refuse + row stale marker + Global recents editor (ctrl+alt+r) + PATCH writer; Config.Info.globalRecents; classify withdrawn->terminal; migration kept-not-deleted-shown. Tests: allowlist 4/4 run 20261018T025652Z_7e829613, chain-gate 3/3 run 20261018T025707Z_4630982c, renamed 7/7 run 20261018T025723Z_9284672 (RED R1/R5/R6 first, pins held); regressions smoke 6/6, store 16/16, failover 32/32, stream 17/17, persist 28/28, cell 24/24, agent-selection 17/17; typecheck exit 0 run 20261018T030537Z_538446fd; config 77/82 (5 timeout flakes pass solo, loaded box). Plan ACTIVE, owner box open (list content is owner's TUI edit). Seed proposal: free zen -> contributor via Go.
-<!-- goal_sv: Keywords: t87-implement 0.30, gate-every-consumer 0.25, renamed-failover 0.20, owner-sets-list 0.15, red-green-receipts 0.10
-Semantic dominant: The accepted t87 plan is implemented with every model consumer gated by the global recents list and the renamed-model failover case is covered.
-md5: 7f3a2c9e4b5d6a83e0d1c5a8b4f6e291
-prev-md5: 4e7a1c9d3f5b4826ac0e7d1c5b9a306f2
-parent-goal-md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
--->
-## [2026-10-18] t89 — write returns line addresses like edit does
-CONFIRMED: RED run 20261018T024529Z_5bb5f305 (exit 1, both new tests fail on the missing Addresses block); GREEN run 20261018T024919Z_dfefccaa (2 pass, 13 expects, exit 0; printed labels equal read labels per line; edit by printed label lands on disk). Full write.test.ts 20261018T025006Z_c424b4fd (23 pass, 0 fail), edit.test.ts 20261018T025245Z_075f650c (25 pass, 0 fail), description-integrity 20261018T025345Z_d20f9b5c (8 pass, 0 fail), _build.ps1 20261018T025423Z_4d977aaf (exit 0, candidate 10.0.1437). Fix reuses addressReport from ./edit over the final on-disk text; write.txt promises current line labels. Plan move to plans_completed/ pending on the shared-index lock (next action: git mv + commit).
-<!-- goal_sv: write-address-report 0.40, edit-after-write 0.25, final-text-labels 0.20, red-test-first 0.15 -->
 ## [2026-10-18] t87 — global recents constraint: plan + RED tests, STOP for Legislator
 
 RED (no product code): plan `plans/2026-10-18_global-recents-constraint.md` (location table L1-L4, consumer gate table, acceptance, rule-4 argument, migration kept-not-deleted-shown). Tests: `test/session/global-recents-allowlist.test.ts` (run 20261018T005659Z_7f4fb71b: exit 1, 3 fail at lines 72/95/111 + 1 order guard pass) and `test/provider/model-chain-global-gate.test.ts` (run 20261018T005734Z_1e9343e9: exit 1, 3 fail at lines 29/37/51). Failure lines show the stale `opencode-go/glm-5.3-flash` returned where the gate must refuse it. One L4 change (`globalRecents` in exe-adjacent global config) to govern every worktree; no model.json touched. Next: Legislator review, then gate implementation.
@@ -7836,14 +7821,3 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
   - 99730763d6 (t84 fence glue);
   - 3a9c781404 (subordination).
 - Handoff: memory project_state_2026_10_18_legislator.
-## [2026-10-18] t88 — Claude SV turn hook: source + fixture tests, STOP for Legislator
-
-DONE 8/8 fixture tests (run 20261018T0247Z, python scripts/claude-hooks/tests/test_sv_turn_fossil.py, exit 0): scripts/claude-hooks/sv_turn_fossil.py (Stop hook: LAST assistant message SV -> `chat claude[ sv:md5]: dominant (session id8)` technote, cell.ts byte-shape; org.py write-verb / AskUserQuestion-answer / wrap_up-actions turns also to $ORG_HOME/org.fossil with decision/delegation tags; 5 s budget, exit 0, log .temp/sv_turn_fossil.log) + README.md + tests/ (6 fixture jsonl + runner, scratch fossils in .temp/). Caught by tests before commit: unanchored md5 search matched prev-md5 zeros, 2-level log root wrote scripts/.temp, trailing-newline drift vs cell.ts. Next: Legislator review + install to ~/.claude/settings.json.
-
-## [2026-10-18] t91 — delegation port 2727 (TUI host only)
-
-RED→GREEN `packages/opencode/test/server/tui-host-port.test.ts` (new, 5 tests): RED run 20261018T115822Z_38f2e364 exit 1 (`TUI_HOST_PREFERRED_PORT` not exported); GREEN run 20261018T120212Z_8c80ffb0 exit 0, 5 pass / 9 expects. Regression `host-attach.test.ts` 1 pass (run 20261018T120249Z_f2ef6ff4). `Server.listenTuiHost({hostname,…})` in `src/server/server.ts` tries 2727 then each next port (64 scan) then OS-assigned, never 4096; `worker.ts` settle() + rpc.server() (port 0, no mdns) use it — adapters untouched, serve/web keep 4096. Robot docs/skills (`robot/SKILL.md`, `opencode-bridge/SKILL.md`, `dispatch.py` BASE) now 2727-via-host-record; serve/debug hints stay 4096 (justified). `_build.ps1` run 20261018T120318Z_23e10216 exit 0, smoke 10.0.1443. No adapter hunks (correction: 4096 is web/debug and stays). Plan `plans/2026-10-18_delegation-port-2727.md` T1–T3 boxed; T4 closes on commit.
-
-## [2026-10-18] t92 — delegation base 29200 (t91 renumber)
-
-Owner «29200 очень хорошо»: 2727 IANA-registered (mgcp-callagent; 2728 sqdr) and dropped. `listenTuiHost` now scans 29200..29998 then 29170..29199 (no outside fallback, exhaustion throws); `NEVER_BIND_PORTS` = 1455/1456/54545/56121/3005/3010/8079/9222/5432/4096 (oauth port map plans/2026-10-18_codex-oauth-empty-error.md:31-35), pinned by range/exactness tests. RED run 20261018T121019Z_fa81b5eb exit 1 (missing export); GREEN run 20261018T121233Z_f477ca98 exit 0, 7 pass / 24 expects. Regression host-attach 1 pass (run 20261018T121155Z_9a35887b). Renumbered my 2727s to 29200 (server.ts, worker comment, test, both skills, dispatch.py BASE working-tree-only, plan + T5); only the study-dir path reference keeps the old digits (another robot's name). `_build.ps1` run 20261018T121246Z_1ed27c54 exit 0, smoke 10.0.1444.

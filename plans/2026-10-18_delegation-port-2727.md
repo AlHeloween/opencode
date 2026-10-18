@@ -54,10 +54,7 @@ there — verified by read-back before any write).
   `docs/linux-deploy.md` (serve), `scripts/promote_bin.py` docstring (serve
   example), `run.ts`/`attach.ts` hints and `plugin/index.ts` fallbacks stay
   on the web port — justified, not changed.
-- [ ] T4 Oracle: RED→GREEN run of the new test file (one file per call
-  through cmd_runner), 4096-grep audit of the changed areas (0 unjustified
-  hits), `_build.ps1` through cmd_runner, commit through
-  `scripts/commit_own.py` + `_progress_log.md` entry.
+- [x] T4 Oracle — RED 20261018T115822Z_38f2e364 exit 1, GREEN 20261018T120212Z_8c80ffb0 exit 0 (5 pass / 9 expects), host-attach regression 1 pass, grep audit 0 unjustified hits, _build.ps1 20261018T120318Z_23e10216 exit 0 (10.0.1443), commit 120b404c + log entry.
 
 ## Smoke Tests
 

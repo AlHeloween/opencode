@@ -3,7 +3,7 @@
 ```yaml
 Keywords: iana-ports 0.30, delegation-range 0.22, protected-ports 0.20, oauth-loopback 0.15, enterprise-filtered 0.13
 Semantic dominant: Every port the organization uses or must avoid, with its IANA service name, owner and rule.
-md5: 7d2e9a41c5b648f3a0e1d6b8c4f7a92
+md5: 6b151c57ffab49349fb89fa67d79db5c
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 8f40c2e9b17a5d36e0f9c1b4a7d28e53
 note: hash values are generative tags — search them, never compute them.
@@ -25,15 +25,15 @@ Delegation range study: `experiments/2026-10-18_port-2727/RESULT.md`
 
 | Port | Proto | IANA service name | Owner / role for us | Rule | Source |
 | --- | --- | --- | --- | --- | --- |
-| 1455 | tcp/udp | `esl-lm` (ESL License Manager) | OAuth codex callback, short-lived loopback only | use | IANA + port map 2026-10-18 |
-| 1456 | tcp/udp | `dca` (DCA) | OAuth gemini/digitalocean callback, short-lived loopback only | use | IANA + port map 2026-10-18 |
-| 54545 | — | (none — IANA dynamic/private 49152-65535) | OAuth anthropic callback, ephemeral loopback only | use | IANA (no assignment) + port map 2026-10-18 |
-| 56121 | — | (none — IANA dynamic/private 49152-65535) | OAuth xai callback, ephemeral loopback only | use | IANA (no assignment) + port map 2026-10-18 |
-| 3005 | tcp/udp | `geniuslm` (Genius License Manager) | universal-search (existing local; IANA name belongs to a legacy product) | use | IANA + port map 2026-10-18 |
-| 3010 | tcp/udp | `gw` (tcp) / `ping-pong` (udp) — Telerate Workstation | webclaw (existing local; IANA names belong to a legacy product) | use | IANA + port map 2026-10-18 |
-| 8079 | — | (none — IANA Unassigned 8078-8079) | org fossil server (`org.fossil --localhost`) | use | IANA Unassigned + port map 2026-10-18 |
+| 1455 | tcp/udp | `esl-lm` (ESL License Manager) | Codex OAuth callback, transient during login | never bind | IANA + port map 2026-10-18 |
+| 1456 | tcp/udp | `dca` (DCA) | Gemini/DigitalOcean OAuth callback, transient during login | never bind | IANA + port map 2026-10-18 |
+| 54545 | — | (none — IANA dynamic/private 49152-65535) | Anthropic OAuth callback, transient during login | never bind | IANA (no assignment) + port map 2026-10-18 |
+| 56121 | — | (none — IANA dynamic/private 49152-65535) | xAI OAuth callback, transient during login | never bind | IANA (no assignment) + port map 2026-10-18 |
+| 3005 | tcp/udp | `geniuslm` (Genius License Manager) | universal-search (existing local; IANA name belongs to a legacy product) | use (our live service) | IANA + port map 2026-10-18 |
+| 3010 | tcp/udp | `gw` (tcp) / `ping-pong` (udp) — Telerate Workstation | webclaw (existing local; IANA names belong to a legacy product) | use (our live service) | IANA + port map 2026-10-18 |
+| 8079 | — | (none — IANA Unassigned 8078-8079) | org fossil server (`org.fossil --localhost`) | use (our live service) | IANA Unassigned + port map 2026-10-18 |
 | 9222 | tcp/udp | `teamcoherence` (QSC Team Coherence) | Chrome remote-debug (transient; owned by Chrome, registered to another system) | never bind | IANA + port map 2026-10-18 |
-| 5432 | tcp/udp | `postgresql` (PostgreSQL Database) | postgres (existing DB) | use | IANA + port map 2026-10-18 |
+| 5432 | tcp/udp | `postgresql` (PostgreSQL Database) | postgres (existing DB) | use (our live service) | IANA + port map 2026-10-18 |
 | 4096 | tcp/udp | `bre` (BRE Bridge Relay Element) | opencode web/debug (live PID 33424 on 2026-10-18) | use | IANA + port map 2026-10-18 |
 | 29200 | — | (none — IANA Unassigned, inside 29170-29998) | robot delegation base host | use | IANA Unassigned + RESULT.md |
 | 29170-29998 | — | (none — IANA Unassigned, 829 ports) | robot delegation range (pick next-free inside it) | use | IANA Unassigned + RESULT.md |
@@ -81,7 +81,7 @@ Delegation range study: `experiments/2026-10-18_port-2727/RESULT.md`
 
 ## Rules
 
-- A robot never chooses a port from memory; it reads the host record (`netstat -ano`, `Get-CimInstance`) or this page.
+- A robot never chooses a port from memory; it reads the host record via `tools/opencode_host.py`, or this page; `netstat` only shows who listens.
 - Delegation hosts live in 29170-29998 (base 29200); the allocator never leaves that range into registered ports.
 - A new long-lived service port is chosen from an IANA-unassigned range and listed on this page before first use.
 - A short-lived loopback callback (OAuth login) belongs in the dynamic/private range 49152-65535; the port's lifetime decides the range.

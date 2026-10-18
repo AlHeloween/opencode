@@ -84,6 +84,16 @@ parent-goal-md5: 84719f6efd224ad99c3f617cb2c92570
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
+- [ ] S7 Acceptance — caller-avoidable `edit` errors ≤ 2% of calls over 7 days after promotion (owner 2026-10-19: «1-2 ошибки на 100 редактирований норм, 1:8 много»). Target: schema/refusal-key errors the caller could have avoided ≤ 2%. Baseline (Legislator, measured): 10-17..19: 56 errors / 466 calls = 12%; week 1317 / 2868, of which 877 are one GLM repetition loop (`ses_ec2961e15ffefWEjqE2WOQOj10`, t46, 10-15) → 22% without it. Exclusions: repetition-loop session `ses_ec2961e15ffefWEjqE2WOQOj10` and external failures listed by id at measure time are counted separately, never silently. Query (7-day, rerun against current schema): `edit` errors that the caller could have avoided / `edit` calls over trailing 7 days on the promoted build. <!-- sv:
+```yaml
+Keywords: edit-error-target 0.45, avoidable-vs-external 0.25, loop-exclusion 0.15, plan-acceptance 0.15
+Semantic dominant: The owner fixes the edit tool's acceptance at one or two caller-avoidable errors per hundred calls, measured after promotion, so the plan carries that number, its query and its named exclusions.
+md5: a1b2c3d4e5f60718293a4b5c6d7e8f90
+prev-md5: 66666666666666666666666666666666
+parent-goal-md5: 84719f6efd224ad99c3f617cb2c92570
+note: hash values are generative tags — search them, never compute them.
+```
+-->
 
 ## Smoke Tests
 

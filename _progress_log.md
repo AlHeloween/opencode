@@ -1,5 +1,14 @@
 ﻿# Progress Log
 
+## [2026-10-18] t87 — global recents constraint: plan + RED tests, STOP for Legislator
+
+RED (no product code): plan `plans/2026-10-18_global-recents-constraint.md` (location table L1-L4, consumer gate table, acceptance, rule-4 argument, migration kept-not-deleted-shown). Tests: `test/session/global-recents-allowlist.test.ts` (run 20261018T005659Z_7f4fb71b: exit 1, 3 fail at lines 72/95/111 + 1 order guard pass) and `test/provider/model-chain-global-gate.test.ts` (run 20261018T005734Z_1e9343e9: exit 1, 3 fail at lines 29/37/51). Failure lines show the stale `opencode-go/glm-5.3-flash` returned where the gate must refuse it. One L4 change (`globalRecents` in exe-adjacent global config) to govern every worktree; no model.json touched. Next: Legislator review, then gate implementation.
+<!-- goal_sv: Keywords: global-recents-allowlist 0.35, layer-model-constraint 0.25, stale-worktree-model 0.20, plan-and-red-tests 0.12, no-parent-walk 0.08
+Semantic dominant: The global recents list becomes the single allowlist that every worktree, session and chain layer is checked against before a model is used.
+md5: 9f2c41bd7e08a3d5c6f19e04a2b8d7c1
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
+-->
 ## [2026-10-18] DAIS I4 — archive/build/closure (2026-10-18_dais-fossil-reference-impact)
 
 CONFIRMED ✓ root archive replay235408Z_084d24a8/847baa14:436/182predicates, fresh repos, exit0/loss0. Mandatorybuild235412Z_a123cd8e:exit0,candidate10.0.1434,no promotion. Child moved to plans_completed; parent Z4/Z5 remain ACTIVE. Independent manifest/Git blob readback gates completion transaction; foreign dirty/staging preserved. Next: truthful lastImpact reference contract plus downstream/freshness/cancellation/unavailable parity, no callerCount substitution.
@@ -7793,3 +7802,22 @@ STATE: READY_FOR_OWNER_ROBOT, dispatch count0, all implementation boxes open. No
 - config.toml `git diff --no-index` backup vs current: empty (unchanged, no legacy block swept).
 - DOCTOR after: all PASS, content-current PASS matches this kernel.
 <!-- sv: codex-global-install 0.40, backup-first 0.25, sha-vs-render 0.20, config-sweep-guard 0.15 -->
+
+## [2026-10-18T02:50Z] Legislator session — t84 delivered everywhere, bin 10.0.1435, robots t87/t88/t89 (before /compact)
+
+- sv: { keywords: { t84-everywhere 0.25, bin-1435 0.20, model-gate-t87 0.20, admin-visibility-t88 0.15, write-addresses-t89 0.10, lessons-logged 0.10 },
+        dominant: "The owner's SV legend is live in every kernel receiver and in the bin payload, the ADID 5.1.4 rollout is verified by an own sweep, and three robots build the model gate, the admin fossil hook and the write-address fix while the day's protocol slips are logged." }
+
+- t84 kernel: S7 owner legend, S8 fence-glue fix with a tokenize class test, S9 bullet after the frameless falsifier. Install 441ccb3a5a (product 5ff2dcad = baseline, claude 6367e50b, cursor 2744091b), pytest 332/0; ~/.codex/AGENTS.md 1e8965e8 = codex render.
+- ADID: canon af66e83a21 (commit 4b7319f, release adid_dist_20261018T082640Z) and rollout 4c51bcdfea (4a0d221). Own sweep over 31 receivers: 29 cursor + 4 claude MATCH, legend x2. Residuals: XEComponents/RView stale .claude, openclaw excluded.
+- bin 10.0.1426 -> 10.0.1435 (sha 66e0ea876d51) via promote_bin, second attempt; the first rolled back on WinError 5. Payload oracle: legend x2 vs 0 on the 1426 control.
+- Robots on contributor:
+  - t87 globalRecents constraint (97af50e9e8 plan+RED, implementing);
+  - t88 Claude SV turn hook;
+  - t89 write addressReport.
+- Experiments: experiments/2026-10-18_sv-weight-steering (blind 6/6), experiments/2026-10-18_sv-driver (directional 4/4, target 1/5 FAIL), experiments/2026-10-18_md5-fit-test (inconclusive: the model refused a preimage).
+- Protocol log rows:
+  - 954633358b (GLM spend);
+  - 99730763d6 (t84 fence glue);
+  - 3a9c781404 (subordination).
+- Handoff: memory project_state_2026_10_18_legislator.

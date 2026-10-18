@@ -1,5 +1,14 @@
 ﻿# Progress Log
 
+## [2026-10-18] t87 — global recents constraint: plan + RED tests, STOP for Legislator
+
+RED (no product code): plan `plans/2026-10-18_global-recents-constraint.md` (location table L1-L4, consumer gate table, acceptance, rule-4 argument, migration kept-not-deleted-shown). Tests: `test/session/global-recents-allowlist.test.ts` (run 20261018T005659Z_7f4fb71b: exit 1, 3 fail at lines 72/95/111 + 1 order guard pass) and `test/provider/model-chain-global-gate.test.ts` (run 20261018T005734Z_1e9343e9: exit 1, 3 fail at lines 29/37/51). Failure lines show the stale `opencode-go/glm-5.3-flash` returned where the gate must refuse it. One L4 change (`globalRecents` in exe-adjacent global config) to govern every worktree; no model.json touched. Next: Legislator review, then gate implementation.
+<!-- goal_sv: Keywords: global-recents-allowlist 0.35, layer-model-constraint 0.25, stale-worktree-model 0.20, plan-and-red-tests 0.12, no-parent-walk 0.08
+Semantic dominant: The global recents list becomes the single allowlist that every worktree, session and chain layer is checked against before a model is used.
+md5: 9f2c41bd7e08a3d5c6f19e04a2b8d7c1
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
+-->
 ## [2026-10-18] DAIS I4 — archive/build/closure (2026-10-18_dais-fossil-reference-impact)
 
 CONFIRMED ✓ root archive replay235408Z_084d24a8/847baa14:436/182predicates, fresh repos, exit0/loss0. Mandatorybuild235412Z_a123cd8e:exit0,candidate10.0.1434,no promotion. Child moved to plans_completed; parent Z4/Z5 remain ACTIVE. Independent manifest/Git blob readback gates completion transaction; foreign dirty/staging preserved. Next: truthful lastImpact reference contract plus downstream/freshness/cancellation/unavailable parity, no callerCount substitution.

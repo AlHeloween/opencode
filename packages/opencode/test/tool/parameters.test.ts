@@ -109,7 +109,7 @@ describe("tool parameters", () => {
       // Asserting the LAYER on purpose. A `SchemaError` cannot say WHICH entry is wrong; the guard in `execute`
       // can, as `files[2] (x.ts): …`. The price is that this shape reaches `execute`, and it is named here
       // rather than hidden: a schema test can see that the door is open, but it cannot see that the guard holds.
-      expect(parse(Edit, { files: [{ filePath: "/a" }] }).files[0]!.filePath).toBe("/a")
+      expect((parse(Edit, { files: [{ filePath: "/a" }] }).files as Array<{ filePath: string }>)[0]!.filePath).toBe("/a")
     })
     test("rejects a call with no `files` at all", () => {
       expect(accepts(Edit, {})).toBe(false)

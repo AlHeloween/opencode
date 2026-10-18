@@ -52,56 +52,63 @@ exports[`tool parameters JSON Schema (wire shape) edit 1`] = `
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "files": {
-      "description": "The files this call changes — one entry per file. Read several files, then change them all in ONE call, as one batch. Every address in EVERY entry is resolved before ANYTHING is written, so a failure anywhere writes NOTHING, in any file.",
-      "items": {
-        "properties": {
-          "content": {
-            "description": "Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with \`edits\`.",
-            "type": "string",
-          },
-          "edits": {
-            "description": "Every change to THIS file. All of them are resolved against the file AS IT WAS READ and applied in ONE write, so no entry is affected by another.",
-            "items": {
-              "properties": {
-                "fromHash": {
-                  "description": "The FIRST line you replace: the hash \`read\` printed beside that very line. It must come from THIS file; an address that does not resolve fails the whole call. Use \`insertAfter\` instead to add lines without replacing any.",
-                  "type": "string",
-                },
-                "insertAfter": {
-                  "description": "INSERT \`newString\` after this line, replacing nothing: the hash \`read\` printed beside it; \`00000000\` inserts before line 1 (also into an empty file). Pass this OR \`fromHash\`, never both.",
-                  "type": "string",
-                },
-                "newString": {
-                  "description": "The lines that replace fromHash..toHash, or the lines inserted after \`insertAfter\`. \`""\` with \`fromHash\` deletes the span. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
-                  "type": "string",
-                },
-                "toHash": {
-                  "description": "The LAST line you replace (inclusive): the hash \`read\` printed beside it. Omit it, or pass the same hash as \`fromHash\`, to replace exactly that one line.",
-                  "type": "string",
-                },
+      "anyOf": [
+        {
+          "items": {
+            "properties": {
+              "content": {
+                "description": "Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with \`edits\`.",
+                "type": "string",
               },
-              "required": [
-                "newString",
-              ],
-              "type": "object",
+              "edits": {
+                "description": "Every change to THIS file. All of them are resolved against the file AS IT WAS READ and applied in ONE write, so no entry is affected by another.",
+                "items": {
+                  "properties": {
+                    "fromHash": {
+                      "description": "The FIRST line you replace: the hash \`read\` printed beside that very line. It must come from THIS file; an address that does not resolve fails the whole call. Use \`insertAfter\` instead to add lines without replacing any.",
+                      "type": "string",
+                    },
+                    "insertAfter": {
+                      "description": "INSERT \`newString\` after this line, replacing nothing: the hash \`read\` printed beside it; \`00000000\` inserts before line 1 (also into an empty file). Pass this OR \`fromHash\`, never both.",
+                      "type": "string",
+                    },
+                    "newString": {
+                      "description": "The lines that replace fromHash..toHash, or the lines inserted after \`insertAfter\`. \`""\` with \`fromHash\` deletes the span. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
+                      "type": "string",
+                    },
+                    "toHash": {
+                      "description": "The LAST line you replace (inclusive): the hash \`read\` printed beside it. Omit it, or pass the same hash as \`fromHash\`, to replace exactly that one line.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "newString",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "encoding": {
+                "description": "The code page a LEGACY file (not UTF-8, no BOM) was READ in — pass exactly the \`encoding\` you gave \`read\`; default: this host's ANSI page. The addresses are over the decoded text, so a different page does not resolve. Ignored for UTF-8 and BOM files.",
+                "type": "string",
+              },
+              "filePath": {
+                "description": "Path to the file to modify. Prefer a path relative to the project working directory (e.g. "src/foo.ts", "experiments/x"). Absolute paths are allowed only when they resolve under the working directory or worktree. Do not invent foreign OS user paths (e.g. C:\\Users\\other\\... unrelated to this project).",
+                "type": "string",
+              },
             },
-            "type": "array",
+            "required": [
+              "filePath",
+            ],
+            "type": "object",
           },
-          "encoding": {
-            "description": "The code page a LEGACY file (not UTF-8, no BOM) was READ in — pass exactly the \`encoding\` you gave \`read\`; default: this host's ANSI page. The addresses are over the decoded text, so a different page does not resolve. Ignored for UTF-8 and BOM files.",
-            "type": "string",
-          },
-          "filePath": {
-            "description": "Path to the file to modify. Prefer a path relative to the project working directory (e.g. "src/foo.ts", "experiments/x"). Absolute paths are allowed only when they resolve under the working directory or worktree. Do not invent foreign OS user paths (e.g. C:\\Users\\other\\... unrelated to this project).",
-            "type": "string",
-          },
+          "type": "array",
         },
-        "required": [
-          "filePath",
-        ],
-        "type": "object",
-      },
-      "type": "array",
+        {
+          "type": "string",
+        },
+      ],
+      "description": "The files this call changes — one entry per file. Read several files, then change them all in ONE call, as one batch. Every address in EVERY entry is resolved before ANYTHING is written, so a failure anywhere writes NOTHING, in any file. A JSON string that decodes to this array is accepted and its decode is named in the result.",
     },
   },
   "required": [

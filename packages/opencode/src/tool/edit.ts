@@ -237,15 +237,15 @@ export function resolveAddresses(
   const resolved = edits.map((edit, index): Span | string => {
     const at = (what: string) => named(`edit ${index + 1}: ${what}`)
     const drifted = (field: string) =>
-      at(`\`${field}\` is not in this file — the address drifted, or the file changed since it was read`) +
+      "[stale-hash] " + at(`\`${field}\` is not in this file — the address drifted, or the file changed since it was read`) +
       ". Re-read and pass the current hashes."
     // The line a hash names, or a refusal. `allowSeed`: only an insertion may name the state before line 1.
     const lineOf = (field: string, hash: string, allowSeed: boolean): number | string => {
       const parsed = parseHash(hash)
-      if (parsed === undefined) return at(`\`${field}\` is not an 8-hex address: ${JSON.stringify(hash)}`)
+      if (parsed === undefined) return "[not-hex] " + at(`\`${field}\` is not an 8-hex address: ${JSON.stringify(hash)}`)
       if (hash === seed) {
         if (allowSeed) return -1
-        return at(`\`${field}\` 00000000 is no line — to insert before line 1 pass \`insertAfter: "00000000"\``)
+        return "[seed-not-line] " + at(`\`${field}\` 00000000 is no line — to insert before line 1 pass \`insertAfter: "00000000"\``)
       }
       const found = chain.indexOf(parsed)
       return found === -1 ? drifted(field) : found
@@ -253,13 +253,13 @@ export function resolveAddresses(
     const isSpan = edit.fromHash !== undefined
     const isInsertion = edit.insertAfter !== undefined
     if (isSpan === isInsertion) {
-      return at(
+      return "[either-or] " + at(
         "pass EITHER `fromHash` (+ optional `toHash`) to replace the lines from..to, OR `insertAfter` to insert after a line — " +
           (isSpan ? "not both" : "one of them is required"),
       )
     }
     if (isInsertion) {
-      if (edit.toHash !== undefined) return at("`toHash` belongs to a span — an insertion has only `insertAfter`")
+      if (edit.toHash !== undefined) return "[toHash-on-insert] " + at("`toHash` belongs to a span — an insertion has only `insertAfter`")
       // The EMPTY span after that line: end = start - 1.
       const after = lineOf("insertAfter", edit.insertAfter!, true)
       if (typeof after === "string") return after
@@ -270,7 +270,7 @@ export function resolveAddresses(
     if (typeof start === "string") return start
     const end = edit.toHash === undefined ? start : lineOf("toHash", edit.toHash, false)
     if (typeof end === "string") return end
-    if (end < start) return at("`toHash` precedes `fromHash` — an inverted range")
+    if (end < start) return "[inverted] " + at("`toHash` precedes `fromHash` — an inverted range")
     return { start, end, replacement: edit.newString }
   })
   const refusals = resolved.filter((entry): entry is string => typeof entry === "string")
@@ -283,7 +283,7 @@ export function resolveAddresses(
   const clashes = ordered
     .slice(1)
     .filter((span, i) => span.start <= ordered[i]!.end || span.start === ordered[i]!.start)
-    .map((span) => named(`two edits claim line ${span.start + 1} — refuse rather than let one silently win`))
+    .map((span) => "[overlap] " + named(`two edits claim line ${span.start + 1} — refuse rather than let one silently win`))
   if (clashes.length > 0) return { kind: "refused", refusals: clashes }
 
   // Where every written block LANDS in the final text (plan 2026-10-09_edit-address-report). Ascending walk with a
@@ -492,9 +492,9 @@ const FileChange = Schema.Struct({
 })
 
 export const Parameters = Schema.Struct({
-  files: Schema.Array(FileChange).annotate({
+  files: Schema.Union([Schema.Array(FileChange), Schema.String]).annotate({
     description:
-      "The files this call changes — one entry per file. Read several files, then change them all in ONE call, as one batch. Every address in EVERY entry is resolved before ANYTHING is written, so a failure anywhere writes NOTHING, in any file.",
+      "The files this call changes — one entry per file. Read several files, then change them all in ONE call, as one batch. Every address in EVERY entry is resolved before ANYTHING is written, so a failure anywhere writes NOTHING, in any file. A JSON string that decodes to this array is accepted and its decode is named in the result.",
   }),
 })
 
@@ -511,9 +511,39 @@ export const EditTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          if (params.files.length === 0) {
+          let filesParam: unknown = params.files
+          let decodedStringified = false
+          if (typeof filesParam === "string") {
+            let parsed: unknown
+            try {
+              parsed = JSON.parse(filesParam)
+            } catch {
+              throw new Error(
+                "[files-not-array] `files` must be an array; you sent a string that is not JSON — pass an array of `{ filePath, edits }` entries, or a JSON string that decodes to one.",
+              )
+            }
+            if (!Array.isArray(parsed)) {
+              throw new Error(
+                "[files-not-array] `files` must be an array; you sent a string that decodes to " +
+                  (parsed === null ? "null" : typeof parsed) +
+                  " — pass an array of `{ filePath, edits }` entries.",
+              )
+            }
+            let validated: unknown
+            try {
+              validated = Schema.decodeUnknownSync(Schema.Array(FileChange))(parsed)
+            } catch {
+              throw new Error(
+                "[files-not-array] `files` must be an array; you sent a string, and its JSON decodes to an array whose entries do not satisfy the schema — fix the entries to `{ filePath, edits }` / `{ filePath, content }`.",
+              )
+            }
+            filesParam = validated
+            decodedStringified = true
+          }
+          const filesList = filesParam as Array<Schema.Schema.Type<typeof FileChange>>
+          if (filesList.length === 0) {
             throw new Error(
-              "`files` is empty — pass at least one entry, `{ filePath, edits: [{ fromHash, toHash?, newString }] }` (or `{ insertAfter, newString }`), or `{ filePath, content }` to create a file.",
+              "[empty-files] `files` is empty — pass at least one entry, `{ filePath, edits: [{ fromHash, toHash?, newString }] }` (or `{ insertAfter, newString }`), or `{ filePath, content }` to create a file.",
             )
           }
 
@@ -521,26 +551,27 @@ export const EditTool = Tool.define(
           // что пачка» (owner, 2026-10-01). Two entries for one file have no defined order, and the list INSIDE
           // an entry is what changes one file twice, so a duplicate is REFUSED rather than merged: the same rule,
           // one level up, as two spans claiming one line.
-          const entries = params.files.map((entry, index) => {
+          const entries = filesList.map((entry, index) => {
             const edits = entry.edits ?? []
             const at = (what: string) => `files[${index}] (${entry.filePath}): ${what}`
             if (entry.content !== undefined && edits.length > 0) {
-              throw new Error(at("`content` creates a new file; it cannot be combined with `edits`."))
+              throw new Error("[content+edits] " + at("`content` creates a new file; it cannot be combined with `edits`."))
             }
             if (entry.content === undefined && edits.length === 0) {
-              throw new Error(at("pass `edits` — at least one addressed change — or `content` to create a new file."))
+              throw new Error("[missing-change] " + at("pass `edits` — at least one addressed change — or `content` to create a new file."))
             }
             // The page the model READ a legacy file in (H10). Validated here, before any file is touched.
             const codepage = entry.encoding === undefined ? undefined : TextCodec.codePage(entry.encoding)
             if (entry.encoding !== undefined && codepage === undefined) {
               throw new Error(
-                at(
-                  `\`encoding\` ${JSON.stringify(entry.encoding)} is not a code page — pass the legacy page you read the file in, e.g. windows-1251, windows-1252, gbk.`,
-                ),
+                "[bad-encoding] " +
+                  at(
+                    `\`encoding\` ${JSON.stringify(entry.encoding)} is not a code page — pass the legacy page you read the file in, e.g. windows-1251, windows-1252, gbk.`,
+                  ),
               )
             }
             if (entry.encoding !== undefined && entry.content !== undefined) {
-              throw new Error(at("`encoding` names the page an EXISTING legacy file is read in; a new file has none."))
+              throw new Error("[encoding+content] " + at("`encoding` names the page an EXISTING legacy file is read in; a new file has none."))
             }
             return {
               entry,
@@ -557,7 +588,7 @@ export const EditTool = Tool.define(
             const first = seenAt.get(key)
             if (first !== undefined) {
               throw new Error(
-                `files[${first}] and files[${index}] name the same file (${item.filePath}) — one entry carries ALL of a file's changes; a second entry for it has no defined order.`,
+                `[same-file] files[${first}] and files[${index}] name the same file (${item.filePath}) — one entry carries ALL of a file's changes; a second entry for it has no defined order.`,
               )
             }
             seenAt.set(key, index)
@@ -602,7 +633,7 @@ export const EditTool = Tool.define(
                 if (item.entry.content !== undefined) {
                   if (existed) {
                     refusals.push(
-                      `${item.filePath} already exists — \`content\` only CREATES a file. Address its lines with \`edits\`.`,
+                      `[already-exists] ${item.filePath} already exists — \`content\` only CREATES a file. Address its lines with \`edits\`.`,
                     )
                     continue
                   }
@@ -623,12 +654,12 @@ export const EditTool = Tool.define(
                   continue
                 }
                 if (!existed) {
-                  refusals.push(`${item.filePath} not found — an address can only name lines of a file that exists`)
+                  refusals.push(`[not-found] ${item.filePath} not found — an address can only name lines of a file that exists`)
                   continue
                 }
                 const info = yield* afs.stat(item.filePath)
                 if (info.type === "Directory") {
-                  refusals.push(`Path is a directory, not a file: ${item.filePath}`)
+                  refusals.push(`[is-directory] Path is a directory, not a file: ${item.filePath}`)
                   continue
                 }
                 // Decoded through the SAME codec `read` uses, so the text the addresses were printed over is the
@@ -637,12 +668,12 @@ export const EditTool = Tool.define(
                 const source = TextCodec.decode(bytesOld, item.filePath, item.codepage)
                 if (source.kind === "binary") {
                   refusals.push(
-                    `${item.filePath} is a binary file — \`edit\` addresses text lines only. Inspect it with \`read\` and \`hex: true\`.`,
+                    `[binary-file] ${item.filePath} is a binary file — \`edit\` addresses text lines only. Inspect it with \`read\` and \`hex: true\`.`,
                   )
                   continue
                 }
                 if (source.kind === "undecodable") {
-                  refusals.push(`Cannot decode ${item.filePath}: ${source.reason}`)
+                  refusals.push(`[undecodable] Cannot decode ${item.filePath}: ${source.reason}`)
                   continue
                 }
                 // The new lines are fitted to the TARGET's ending — CRLF for Delphi/ANSI, else the file's majority —
@@ -660,7 +691,7 @@ export const EditTool = Tool.define(
                   continue
                 }
                 if (resolution.text === source.text) {
-                  refusals.push(`${item.filePath}: no changes to apply — the result is identical to the file.`)
+                  refusals.push(`[no-change] ${item.filePath}: no changes to apply — the result is identical to the file.`)
                   continue
                 }
                 const form = TextCodec.fit(item.filePath, source, resolution.text)
@@ -758,6 +789,7 @@ export const EditTool = Tool.define(
             changed.length === 1
               ? "Edit applied successfully."
               : `Edit applied successfully to ${changed.length} files.`
+          if (decodedStringified) output += "\n\n(decoded stringified `files` (JSON.parse) to its array, then validated its entries.)"
           for (const plan of planned) {
             // A conversion is never silent (owner: «агент получает уведомление»): the file's FORM changed beyond
             // the lines the agent addressed, and the next read prints different bytes.

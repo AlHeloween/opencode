@@ -152,7 +152,7 @@ describe("tool.edit — a list of addresses, resolved then applied", () => {
     const content = "alpha\nbeta\n"
     const h = labels(content)
     expect(() => resolveEdits(content, [{ fromHash: "deadbeef", newString: "X" }], "\n", "src/x.ts")).toThrow(
-      /^src\/x\.ts: edit 1: `fromHash` is not in this file/,
+      /^\[stale-hash\] src\/x\.ts: edit 1: `fromHash` is not in this file/,
     )
     expect(() =>
       resolveEdits(
@@ -164,7 +164,7 @@ describe("tool.edit — a list of addresses, resolved then applied", () => {
         "\n",
         "src/x.ts",
       ),
-    ).toThrow(/^src\/x\.ts: two edits claim line 1/)
+    ).toThrow(/^\[overlap\] src\/x\.ts: two edits claim line 1/)
   })
 
   test("ALL entries resolve BEFORE any is applied — a later span is not moved by an earlier edit", () => {

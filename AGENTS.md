@@ -476,6 +476,12 @@ Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` or `bypass_constitution`.
 
 **Unknown apps are crash-prone too** — any executable that is not a known tool is auto-wrapped into `cmd_runner start -- …`; without `cmd_runner` it is refused (fail-closed). Details: [docs/tools-and-sidecars.md](docs/tools-and-sidecars.md)
 
+**Never write file content through shell `echo`/`>>`/`>`.** cmd.exe emits non-ASCII in the OEM code page (cp866):
+`·` became byte `0xFA` — invalid UTF-8 — and `—` silently became `-`. Measured 2026-10-12: one such append
+left `_progress_log.md` «not UTF-8», the next tool read it as a legacy code page, and its save rewrote
+**2 521 lines double-encoded** (plan `2026-10-14_progress-log-mojibake`, commit `7d45f72fb3`). File content
+is written through `edit`/`write` (or an ADM descriptor); a shell redirect is for ASCII output logs only.
+
 ---
 
 
@@ -721,21 +727,33 @@ All detailed docs live in `docs/`. Here's the quick map:
 - [Style guide](docs/style-guide.md) — the worked examples behind the TS/Python rules
 
 
-## Search instruments — the graph BEFORE the text (2026-10-10)
+## Search instruments — by the question's layer (2026-10-18)
 
+Choose the instrument by the layer the question lives on — the kernel's own G1 rule. A fixed
+graph-before-grep order is retired (owner, 2026-10-18: «Так - мы привязали codegraph к греп
+как правило - это глупо.»):
 
-Order — the kernel's own chain, made blunt here because it keeps being skipped:
+- text/literal → `grep` (fossil grep / Zoekt where present);
+- files by name → `glob` / `list` («a file was found» is their whole answer);
+- structure, callers, impact → `codegraph`;
+- own trajectory → `messagesearch` (sv-chain skill for the vector chain);
+- prior art, patents, standards, papers → `universalsearch` hybrid (`/hybrid`, then
+  `/web/context` on the URL for `content_hash`).
 
-1. **`codegraph`** — does this symbol exist, who calls it, what breaks if it changes. FIRST, always, for structure.
-2. `messagesearch` / `universalsearch` — prior art and prior decisions about that code.
-3. `glob` / `list` — locating files by name. That is what they are for; «a file was found» is their whole answer.
-4. **`grep` — LAST, and only after the graph has been asked.** It is a text tool, never a structure tool.
+An empty result is a claim about that tool on that layer only, never absence on another layer.
 
-**One measured exception, and it is the only one.** BOTH graph indexes are blind to declarations INSIDE a function (measured 2026-10-10: `failToolCall`, `session/processor.ts:848` — 4 `grep` hits, 0 in codegraph, 0 in CBM — while the top-level `MAX_TOOL_CALLS_PER_MESSAGE` in the SAME file, SAME fresh index, SAME `const` shape, IS in the graph). So when the graph says «not found», `grep` is the correct NEGATIVE TEXT CONTROL — and what it establishes is «the graph does not index it; the text does occur», never «it does not exist».
+**Measured facts kept.** BOTH graph indexes are blind to declarations INSIDE a function (measured
+2026-10-10: `failToolCall`, `session/processor.ts:848` — 4 `grep` hits, 0 in codegraph, 0 in CBM —
+while the top-level `MAX_TOOL_CALLS_PER_MESSAGE` in the SAME file, SAME fresh index, SAME `const`
+shape, IS in the graph). A literal-text question belongs to a text tool; a structure question to
+the graph. What an empty graph establishes is «the graph does not index it», never «it does not exist».
 
-The owner's statement and the price of skipping the graph: [docs/tool-playbook.md](docs/tool-playbook.md)
+The owner's statement and the price of asking the wrong layer: [docs/tool-playbook.md](docs/tool-playbook.md)
 
-**A skipped graph call is not a style slip — it is the grounding step itself skipped**, and the fabricated zen gate is what that looks like downstream. @KAIZEN: the second occurrence of «grepped on a structural question instead of asking the graph» is a tool-USAGE defect, not weather.
+**Asking the wrong layer is not a style slip — it is the grounding step itself skipped.** @KAIZEN
+history (kept from the 2026-10-10 order): the second occurrence of «grepped on a structural
+question instead of asking the graph» is a tool-USAGE defect, not weather — under layer routing
+the same defect is any question asked on the wrong layer.
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 

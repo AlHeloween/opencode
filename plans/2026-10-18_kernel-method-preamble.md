@@ -17,7 +17,11 @@ note: hash values are generative tags — search them, never compute them.
 - [x] RED tests: premise order + not-an-oracle, Claude :3005/hybrid, parity, caps (3 RED, 1 guard pass)
 - [x] Implementation: premise (3 sentences, names not explanations) + Claude hybrid rung (WebFetch debugging only); codex/cursor checked, no rung to replace
 - [x] Oracle: pytest 333 passed + 3 stale-receiver reds, 4-variant render repr identical, t84 tokenize green, _build.ps1 exit 0 smoke 10.0.1439
-- [ ] Commit via scripts/commit_own.py + progress-log line; STOP before --install
+- [x] Commit e5b8f97a67 via scripts/commit_own.py + progress-log line; STOP before --install
+- [x] Addendum 1 (instrument by layer): RED 22 failed / 2 guards passed → GREEN; graph-before-scanners + grep-last removed in all 4 variants, layer routing + honest-empty clause in; AGENTS.md § Search instruments rewritten (51911 → 52177 B); grounding pin retired with dated reason
+- [x] Addendum 2 (patents + domain grounding): engineering route +Google_Patents/Espacenet primary, +USPTO/WIPO_Patentscope secondary; software secondary +Google_Patents; patent-authority rule line; G1 DOMAIN_GROUNDING rule + DOMAIN_TERMS slot (G1 outputs, G2 requires); per-variant patent host binding; missing-comma near-miss (t84 class, tuples) found by test_addons and fixed
+- [x] Caps: utf8 69_000 → 70_000 (source + validate ceiling + reward pins), tokens 9_400 → 9_500, G0+G1 pre-action 7_800 → 8_500; product 69903 B, max tokens 9460; nothing cut
+- [ ] Oracle + build + commit for the addenda; STOP before --install
 
 ## 1. Grounding (measured)
 

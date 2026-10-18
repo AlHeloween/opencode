@@ -483,7 +483,7 @@ GATES = (
         objective="Separate the user's request from the executable goal and ground both in observable project evidence.",
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT", "RESEARCHER_AGENT"),
         requires=("USER_REQUEST", "DIGITAL_INTENTION"),
-        outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT", "STRUCTURAL_EVIDENCE"),
+        outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT", "STRUCTURAL_EVIDENCE", "DOMAIN_TERMS"),
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE", "ANTI_CHURN"),
         local_rules=(
             _rule("G1", "INTENT_PROJECTION_RULE", "Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal."),
@@ -503,6 +503,7 @@ GATES = (
         "OUTCOME_CONTRACT_RULE",
         "Before planning, define an observation that distinguishes success from plausible-looking output.",
     ),
+            _rule("G1", "DOMAIN_GROUNDING", "Ground EVERY technology, instrument or domain term on the task path FIRST — project docs, then wiki, then patents, standards and primary papers — before planning or code, whether or not it seems familiar: familiarity is recall, the weakest rung (@INFORMATION_STATUS); an ungrounded technology is reinvented, never inferred. Emit DOMAIN_TERMS; a term without source_ref keeps G1 open; record the glossary in project memory with each source's content_hash."),
         ),
         fsm=G1_FSM,
     ),
@@ -512,7 +513,7 @@ GATES = (
         name="DECOMPOSE",
         objective="Convert the grounded residual into small, independent, smoke-testable candidate tasks.",
         identities=("BUILD_MODE", "PLAN_MODE", "GENERAL_AGENT", "ORCHESTRATOR_AGENT"),
-        requires=("EXECUTION_GOAL", "PROJECT_GEOMETRY", "SVM"),
+        requires=("EXECUTION_GOAL", "PROJECT_GEOMETRY", "SVM", "DOMAIN_TERMS"),
         outputs=("FRACTAL_GEOMETRY", "CENTRAL_TASKS", "SVM"),
         shared_rules=("SAFETY_PRECEDENCE", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
         local_rules=(
@@ -862,7 +863,7 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
     classes=MappingProxyType({
         "science": "DOI, primary paper, preprint/retraction, dataset, reproducibility; peer-reviewed outranks preprint.",
         "biomed": "guideline date, study design, peer review, retraction; Cochrane/guidelines outrank preprints.",
-        "engineering": "standard number/version, official spec, measurement provenance.",
+        "engineering": "standard number/version, official spec, measurement provenance. A patent is primary authority for the claimed method, never proof that it works.",
         "law": "jurisdiction, edition, effective date, official registry; commentary cannot outrank primary law.",
         "social": "dataset version, collection date, methodology, primary source.",
         "software": "exact version, official docs/spec/repo; blogs cannot outrank the spec.",
@@ -876,7 +877,7 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
         SourceRoute("medicine", "biomed", ("CochraneLibrary", "PubMed"), ("MEDLINE", "CINAHL")),
         SourceRoute("psychology", "biomed", ("PsycINFO", "PsycArticles"), ("PubMed", "OSF_Preprints")),
         SourceRoute("agriculture", "biomed", ("FAO", "AGRICOLA"), ("AGRIS", "CAB_Abstracts")),
-        SourceRoute("engineering", "engineering", ("IEEEXplore", "EngineeringVillage"), ("Compendex", "INSPEC")),
+        SourceRoute("engineering", "engineering", ("IEEEXplore", "EngineeringVillage", "Google_Patents", "Espacenet"), ("Compendex", "INSPEC", "USPTO", "WIPO_Patentscope")),
         SourceRoute("cs", "engineering", ("ACM_DL", "arXiv_CS"), ("IEEEXplore", "CiteSeerX")),
         SourceRoute("law", "law", ("HeinOnline", "Westlaw"), ("LexisNexis", "ScholarCaseLaw")),
         SourceRoute("sociology", "social", ("ICPSR", "SocINDEX"), ("SocAbstracts", "AgeLine")),
@@ -884,7 +885,7 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
         SourceRoute("history", "social", ("JSTOR", "HathiTrust"), ("InternetArchive", "ProjectMUSE")),
         SourceRoute("education", "social", ("ERIC", "OECD_Ed"), ("EdSource", "LearnTechLib")),
         SourceRoute("anthropology", "social", ("eHRAF", "AnthroSource"), ("AIO",)),
-        SourceRoute("software", "software", ("official_docs", "canonical_repo"), ("package_registry", "accepted_spec")),
+        SourceRoute("software", "software", ("official_docs", "canonical_repo"), ("package_registry", "accepted_spec", "Google_Patents")),
     ),
 )
 
@@ -965,7 +966,8 @@ KERNEL = Kernel(
     # word: «64 - 65 без разницы, главное чтобы работало»; the cap is a bloat guard, never a cut).
     # 2026-10-17 (t79 causal-chain): independence in MEDOID_SIMPLEX + CAUSAL_CHAIN at G3 measure product 67_326 B — the next band above the measurement; nothing cut.
     # 2026-10-17 (t82 review, Legislator + outside falsifier): four SV-lineage fixes (field-scoped ban, task-own parent on every turn, one-parent siblings, no zero/non-hex/example copy) measure product 68_032 B — the next band above the measurement; nothing cut.
-    utf8_budget=69_000,
+    # 2026-10-18 (t90 addenda: layer routing + patents + DOMAIN_TERMS): product measures 69_903 B — the next band above the measurement; nothing cut.
+    utf8_budget=70_000,
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1
@@ -1057,6 +1059,7 @@ KERNEL = Kernel(
         "CLEAN_NEXT_STATE": "{terminal_mode, completed, risks, residual, route}",
         "RESIDUAL_GOAL": "{gap, bound, route, form_holds}",
         "QUALITY_VECTOR": "{performance, stability, ux, automation, documentation, maintainability, organization}",
+        "DOMAIN_TERMS": "Glossary entries [{term, definition, source_ref}] for the task path's technologies, instruments and domain terms; an entry lacking source_ref leaves G1 open.",
         # 2026-09-29 (owner: «SVM = STATE VECTOR MANIFEST»; ADID 12.2 §I.3 is where it is worked out best):
         # the acronym was never expanded beside @SV_FORMAT, the semantic vector, and 12.2's turn chain and goal
         # hierarchy were missing. No runtime consumer reads these fields (grep over packages/opencode/src).

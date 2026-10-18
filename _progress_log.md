@@ -1,5 +1,8 @@
 ﻿# Progress Log
 
+## [2026-10-18] t90 addenda — instrument by layer + patents/DOMAIN_TERMS (STOP before --install)
+
+RED (test_layer_and_patents.py): 22 failed / 2 guards passed; GREEN after: 24 passed. Full suite: 357 passed + 3 stale-receiver reds (production prompt, cursor rule, claude kernel — receivers not reinstalled per brief). Found by test_addons: missing-comma implicit-concat near-miss on 4 inserted patent lines (t84 tokenize class covers only [...] lists, not tuples) — fixed one file at a time after an atomic batch refusal. Sizes: product 69903 B / 9376 tok, claude 69808 / 9460, codex 69618 / 9388, cursor 69596 / 9457. Caps: utf8 69_000 → 70_000 (source + validate ceiling + reward pins), tokens 9_400 → 9_500, G0+G1 pre-action 7_800 → 8_500; nothing cut. AGENTS.md § Search instruments rewritten to layer routing (51911 → 52177 B). _build.ps1 run 20261018T143942Z_bd5338c6 exit 0, bytes_written 65749, smoke 10.0.1445. Plan stays ACTIVE for Legislator review.
 ## [2026-10-18] Codex — SV recovery и отчёты роботов
 
 CONFIRMED ✓ source9e3728562995b35ca4154a0b7d80e499f9184e47ec1b70317b2734b2b2f7c97c;

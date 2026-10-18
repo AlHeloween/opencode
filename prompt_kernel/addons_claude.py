@@ -35,13 +35,13 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            "graph-before-scanners on indexed code: query relevant symbols/consumers before glob/grep/read; empty or irrelevant structure is an evidence gap, not absence. refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights.",
+            "Choose the instrument by the question's layer: text/literal → Grep (explicit path); structure, callers or impact → codegraph_explore; own trajectory → session history (search_session_transcripts); prior art → Universal Search hybrid (POST 127.0.0.1:3005/hybrid, then /web/context for content_hash). An empty result is a claim about that tool on that layer only, never absence on another layer.",
             # 2026-09-29 tool check (@TOOLCHAIN_QUALIFICATION, cheapest primitive each): search_session_transcripts
             # returned two past sessions, so «(no history search on this host)» had become false.
             # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
             # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
             # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
-            "instrument chain, in order: where/which -> adm --query -> codegraph_explore -> session history (search_session_transcripts) -> Universal Search hybrid (POST 127.0.0.1:3005/hybrid, then /web/context for content_hash) -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
+            "refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
         ),
     ),
     GateAddon(
@@ -59,6 +59,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_GROUNDING",
         (
             "ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, Universal Search hybrid (POST 127.0.0.1:3005/hybrid, then /web/context for content_hash); WebFetch for pipeline debugging only.",
+            "patents: hybrid /search discovers, /web/context on the patent URL stamps content_hash; Google Patents search pages are client-rendered, never scraped.",
             # KAIZEN countermeasure: Glob timed out at the repo root four times in one session (ripgrep 20 s) while the
             # same pattern with a path answered — a half-working tool, so the standard changes, not the workaround.
             "file enumeration: Glob/Grep/Read with an explicit path — at the repo root they time out (20 s); inventory via git ls-files; never shell ls/dir/find/cat.",

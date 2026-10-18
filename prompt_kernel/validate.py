@@ -235,10 +235,10 @@ def validate_kernel(kernel: Kernel) -> list[str]:
 
     if [rule.id for rule in kernel.shared_rules].count("ROOT_OF_TRUTH") != 1:
         errors.append("ROOT_OF_TRUTH must have exactly one canonical definition")
-    # 2026-10-17 (t82 review): the hard ceiling steps with utf8_budget to 69_000 — product measures 68_032 B;
+    # 2026-10-18 (t90 addenda: layer routing + patents + DOMAIN_TERMS): the hard ceiling steps with utf8_budget to 70_000 — product measures 69_903 B;
     # the cap is a bloat guard, never a cut.
-    if not kernel.utf8_budget or kernel.utf8_budget > 69_000:
-        errors.append("UTF-8 budget must be explicit and no greater than 69000 bytes")
+    if not kernel.utf8_budget or kernel.utf8_budget > 70_000:
+        errors.append("UTF-8 budget must be explicit and no greater than 70000 bytes")
     from .dedup import find_unapproved_semantic_overlaps
 
     errors.extend(f"unapproved semantic overlap: {overlap}" for overlap in find_unapproved_semantic_overlaps(kernel))

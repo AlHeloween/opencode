@@ -549,7 +549,8 @@ def test_pre_action_section_stays_small() -> None:
     # 2026-10-08 (no raise): VCS_ROLES portability — $ORG_HOME/$ORG_PORT named, Protocol via `org.py protocol`; measured 6_730 B.
     # R1d/e requested structural evidence and explicit parent/tool refresh ownership,
     # both finding aids before planning. Measured 7_510 B; retain a finite band.
-    assert section <= 7_800, section
+    # 2026-10-18 (t90 addenda: layer routing + DOMAIN_TERMS in G1): measured 8_447 B — the next band above the measurement; nothing cut.
+    assert section <= 8_500, section
 
 
 def test_testimony_clause_covers_done_and_closed_ticket_in_both_variants() -> None:

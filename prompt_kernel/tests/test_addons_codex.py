@@ -126,7 +126,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 2026-10-17 (t82 review): four SV-lineage fixes measure 9_111 — the next band above the measurement; nothing cut.
     # 2026-10-17 (t84 SV legend): measures 9_156 — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 method preamble): premise method/why/not-an-oracle measures 9_244 — the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 9_400
+    # 2026-10-18 (t90 addenda: layer routing + patents + DOMAIN_TERMS): measures 9_388 — the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 9_500
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

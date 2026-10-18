@@ -32,7 +32,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
             # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
             # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
             # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
-            "instrument chain: discover executables -> qualified adm query -> mounted CodeGraph -> tools/codex_svchain.py for own trajectory -> web/fetch or cua_repl -> filesystem search. On indexed code use graph-before-scanners; an empty or irrelevant graph result is a recorded evidence gap, not a proof of absence.",
+            "Choose the instrument by the question's layer: text/literal → rg and node_repl filesystem reads; structure, callers or impact → mounted CodeGraph; own trajectory → tools/codex_svchain.py; prior art → web/fetch (static) or cua_repl (interactive). An empty result is a claim about that tool on that layer only, never absence on another layer.",
             "refresh owner: the authorized parent runs adm --rag index/codegraph sync, or the query tool supplies verified freshness. Receipt names worktree, index, owner, command/result reference and current source hashes; edits invalidate it. A read-only explorer requests that receipt from its parent instead of acquiring shell rights.",
         ),
     ),
@@ -48,9 +48,10 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "TOOL_GROUNDING",
         (
-            "discover mounted codegraph_explore by capability; query relevant symbols/callers before node_repl filesystem reads or rg scans. No index/unqualified tool requires recorded proof and qualification, never an invented binding.",
+            "discover mounted codegraph_explore by capability; route by layer — text/literal to rg and node_repl filesystem reads, structure/callers to the graph. No index/unqualified tool requires recorded proof and qualification, never an invented binding.",
             "file enumeration/read: node_repl filesystem API, or discovered file/search tools; rg for text search. Never shell ls/dir/find/cat.",
             "static web: web/fetch; interactive pages: cua_repl browser API after reading its documentation.",
+            "patents: web/fetch reads the patent URL for content_hash; Google Patents search pages are client-rendered, so discover the id first.",
         ),
     ),
     GateAddon(

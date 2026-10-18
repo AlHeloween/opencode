@@ -55,7 +55,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            'instrument chain: executable discovery -> qualified retrieval MCP -> structural CodeGraph MCP -> Codebase/Web -> Grep/Search Files/Read File. On indexed code use graph-before-scanners; discover the actual MCP wire id, never guess it. Record no-index or irrelevant-result evidence before fallback.',
+            "Choose the instrument by the question's layer: text/literal → Grep/Search Files/Read File; structure, callers or impact → structural CodeGraph MCP (discover the actual MCP wire id, never guess it); prior art → Codebase/Web. An empty result is a claim about that tool on that layer only, never absence on another layer.",
             'refresh owner: authorized parent executes refresh, or the MCP supplies verified freshness; receipt names worktree, index, owner, command/result and source hashes. Edits invalidate it. A read-only explorer requests the receipt, never extra Terminal rights.',
         ),
     ),
@@ -71,11 +71,12 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "TOOL_GROUNDING",
         (
-            "ground indexed code via discovered structural MCP first, then Read File, Grep, Search Files and Codebase for uncovered details; a subagent summary is testimony until its path:line is read.",
+            "route by layer: text/literal → Read File, Grep, Search Files and Codebase; structure/callers → discovered structural MCP; a subagent summary is testimony until its path:line is read.",
             'file enumeration: Search Files / List Directory / Grep — never shell ls/dir/find/cat; a capped listing is a sample, not an inventory.',
             'platform: Windows = PowerShell in Terminal; never mix syntaxes.',
             'the Run/approval mode governs Terminal: a denied or sandbox-blocked command is a host blocker to report, never a route around.',
             'Fetch Rules returns the .cursor/rules context this file belongs to — one source to look up, never a second copy to reconcile.',
+            "patents: Web reads the patent URL; Google Patents search pages are client-rendered, so discover the id first.",
         ),
     ),
     GateAddon(

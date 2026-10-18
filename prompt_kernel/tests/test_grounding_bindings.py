@@ -2,10 +2,14 @@
 from prompt_kernel.tests.test_variant_parity import REGISTRIES
 
 
-def test_each_host_names_structural_first_and_refresh_ownership() -> None:
+def test_each_host_routes_instruments_by_layer_with_refresh_ownership() -> None:
+    # 2026-10-18 (t90 addendum 1, owner: «мы привязали codegraph к греп как правило — это глупо»):
+    # the graph-before-scanners pin is retired; every host routes by the question's layer instead.
     for host, addons in REGISTRIES.items():
         lines = "\n".join(line for a in addons if a.gate_id == "G1" for line in a.lines)
-        assert "graph-before-scanners" in lines, host
+        assert "Choose the instrument by the question's layer" in lines, host
+        assert "never absence on another layer" in lines, host
+        assert "graph-before-scanners" not in lines, host
         assert "refresh owner" in lines, host
         assert "read-only explorer" in lines, host
 

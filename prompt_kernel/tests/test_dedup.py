@@ -195,4 +195,5 @@ def test_compacted_runtime_budget() -> None:
     # 2026-10-17 (t82 review): four SV-lineage fixes measure 9_101 — the next band above the measurement; nothing cut.
     # 2026-10-17 (t84 SV legend): example block + one-line bullet measure 9_146 — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 method preamble): premise method/why/not-an-oracle + hybrid rung measure 9_234 — the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 9_400
+    # 2026-10-18 (t90 addenda: layer routing + patents + DOMAIN_TERMS): product measures 9_376 — the next band above the measurement; nothing cut.
+    assert normalized_token_count(text) <= 9_500

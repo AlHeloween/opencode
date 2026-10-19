@@ -106,10 +106,7 @@ prev-md5: d3e4f5a60718293a4b5c6d7e8f01a2b3
 parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
--->
-- [ ] T4 list (6%) — census + cluster (missing-path ×9, stale BLOCKED ×1). Diff `ls.ts` throws vs `ls.txt`:
-  every `throw`/refusal keyed, doc line per key; stale BLOCKED absent from both (t95). Example parses
-  against `Parameters`. RED, fix, GREEN. <!-- sv:
+- [x] T4 list (6%) — DONE 2026-10-19: census 184/11 (missing path ×9, stale BLOCKED ×1 historical) + cluster. Diff before: SILENCE (all five Parameters optional but undocumented; missing-path behavior unnamed). After: `## Parameters` table (all optional, defaults) + `## Missing path` (reported, never invented; check path first) + `## Example` JSON (parses; path valid per Parameters). No throws in ls.ts (missing dir returns output; fs `No such file` surfaces from rg/stat — caller-avoidable, counted). GREEN run 20261019T105356Z_014b6f97 exit 0. <!-- sv:
 ```yaml
 Keywords: list-audit 0.40, missing-path 0.30, stale-gate-gone 0.20, example-parse 0.10
 Semantic dominant: List doc states exactly what its missing-path refusals do now that the stale gate is gone.

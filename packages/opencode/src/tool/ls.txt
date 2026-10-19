@@ -2,6 +2,27 @@ Gates: G1 whole-tree listing (no ignores by default) → G6 bind; result = Infer
 Principle: why = the one listing that cannot hide paths; NOT for content — read the files it names.
 Directory tree listing. Product `list` replaces shell ls/dir/tree.
 
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | working directory | Optional path to the directory to list; must be a directory when given |
+| `ignore` | string[] | — | List of glob patterns to ignore (always applied) |
+| `gitignore` | boolean | false | Apply the noise list + .gitignore; default lists the whole tree so absence is never an artefact |
+| `directoriesOnly` | boolean | false | When true, show only directories (no files) |
+| `dates` | boolean | true | Show local mtime per entry |
+
+## Missing path (caller-avoidable, never silent)
+
+- A path that does not exist is reported (`Directory not found` / `No such file or directory`) — never invented, never an empty tree.
+- Check the path first (a narrow `path` beats the whole worktree); a stale experiment or build-output path is the usual cause.
+
+## Example
+
+```json
+{"path": "packages/opencode/src/tool"}
+```
+
 Default: lists the WHOLE tree. The noise list (node_modules/, __pycache__/, .git/, dist/, build/, target/, vendor/, bin/, obj/, .idea/, .vscode/, .zig-cache/, zig-out, .coverage, coverage/, tmp/, temp/, .cache/, cache/, logs/, .venv/, venv/, env/) is NOT applied and .gitignore is NOT honoured — a listing that hides paths cannot support «absent», which is how `bin/` was once declared empty while `bin/opencode.exe` sat in it. Pass `gitignore: true` for the quiet shape; explicit `ignore` globs always apply.
 
 Output: a tree rooted at an absolute path, directories suffixed `/`, each entry indented under its parent and shown by NAME — only the root line carries a full path. Each entry shows local mtime `YYYY-MM-DD HH:mm:ss` (default on; `dates: false` for compact output) — freshly changed files are visible at a glance. `directoriesOnly: true` = structure only (tree -d). Cap: 100 entries — and when the cap cuts the tree the OUTPUT says so (`TRUNCATED … this listing is INCOMPLETE`) while `metadata.truncated` is true, because a listing that drops entries in silence cannot support «absent».

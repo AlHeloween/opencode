@@ -109,9 +109,14 @@ export const GrepTool = Tool.define(
           }
 
           const ins = yield* InstanceState.context
-          const gate = scannerGate({ sessionID: ctx.sessionID, tool: "grep", worktree: ins.worktree })
-          if (gate) throw new Error(gate.message)
-
+          const target = AppFileSystem.resolve(
+            path.isAbsolute(params.path ?? ins.directory)
+              ? (params.path ?? ins.directory)
+              : path.join(ins.directory, params.path ?? "."),
+          )
+          const note = scannerGate({ sessionID: ctx.sessionID, tool: "grep", worktree: ins.worktree, target })
+          const withNote = (text: string) => (note ? `${text}\n${note.note}` : text)
+          const emptyWithNote = note ? { ...empty, output: withNote(empty.output) } : empty
           yield* ctx.ask({
             permission: "grep",
             patterns: [pattern],
@@ -123,11 +128,7 @@ export const GrepTool = Tool.define(
             },
           })
 
-          const search = AppFileSystem.resolve(
-            path.isAbsolute(params.path ?? ins.directory)
-              ? (params.path ?? ins.directory)
-              : path.join(ins.directory, params.path ?? "."),
-          )
+          const search = target
           const info = yield* fs.stat(search).pipe(Effect.catch(() => Effect.succeed(undefined)))
           const cwd = info?.type === "Directory" ? search : path.dirname(search)
           const file = info?.type === "Directory" ? undefined : [path.relative(cwd, search)]
@@ -177,7 +178,7 @@ export const GrepTool = Tool.define(
           // Cause UNKNOWN; the next instrument is a probe of `Ripgrep.search` on a NUL-containing
           // fixture, not another guess. Until then «No matches found» for a directory holding a
           // binary file remains a statement the tool cannot make.
-          if (result.items.length === 0) return empty
+          if (result.items.length === 0) return emptyWithNote
 
           const rows = result.items.map((item) => ({
             path: AppFileSystem.resolve(
@@ -216,7 +217,7 @@ export const GrepTool = Tool.define(
           const limit = 100
           const truncated = matches.length > limit
           const final = truncated ? matches.slice(0, limit) : matches
-          if (final.length === 0) return empty
+          if (final.length === 0) return emptyWithNote
 
           const total = matches.length
           const output = [`Found ${total} matches${truncated ? ` (showing first ${limit})` : ""}`]
@@ -261,7 +262,7 @@ export const GrepTool = Tool.define(
               matches: total,
               truncated,
             },
-            output: output.join("\n"),
+            output: withNote(output.join("\n")),
           }
         }).pipe(Effect.orDie),
     }

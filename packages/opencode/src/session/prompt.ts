@@ -1669,7 +1669,7 @@ export const layer = Layer.effect(
         // sync, then explore with the task text — and attaches the result to that user message as
         // a synthetic part the model sees before its first tool call. A failure is logged and the
         // turn proceeds; the pre-built graph counts as the session's codegraph call (graph-first
-        // latch), so the backstop never refuses the session that just received the graph. Hooked
+        // reminder latch), so scanners run without the reminder note in the session that just received the graph. Hooked
         // HERE, not in prompt(): the loop is the turn's actual start — a noReply prompt records a
         // message without opening work, and the harness drives loop() directly.
         //

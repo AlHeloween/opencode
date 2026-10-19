@@ -75,8 +75,7 @@ export const ListTool = Tool.define(
         Effect.gen(function* () {
           const ins = yield* InstanceState.context
           const searchPath = path.resolve(ins.directory, params.path || ".")
-          const gate = scannerGate({ sessionID: ctx.sessionID, tool: "list", worktree: ins.worktree })
-          if (gate) throw new Error(gate.message)
+          const note = scannerGate({ sessionID: ctx.sessionID, tool: "list", worktree: ins.worktree, target: searchPath })
           yield* assertExternalDirectoryEffect(ctx, searchPath, { kind: "directory" })
 
           yield* ctx.ask({
@@ -209,8 +208,7 @@ export const ListTool = Tool.define(
               `narrow \`path\`, or pass \`directoriesOnly: true\` to check the shape first.)\n`
             : ""
 
-          const output = `${searchPath}/\n` + renderDir(".", 0) + notice
-
+          const output = `${searchPath}/\n` + renderDir(".", 0) + notice + (note ? `\n${note.note}` : "")
           return {
             title: path.relative(ins.worktree, searchPath),
             metadata: {

@@ -6,20 +6,24 @@ import path from "path"
 import {
   SCANNER_TOOLS,
   graphFirstDisabled,
+  graphFirstNote,
   hasCodegraphDir,
   isCodegraphTool,
   noteToolCall,
+  markPrebuilt,
   resetGraphFirstState,
   scannerGate,
 } from "../../src/session/graph-first"
 
 const withIndex = mkdtempSync(path.join(os.tmpdir(), "gf-with-"))
-mkdirSync(path.join(withIndex, ".codegraph"))
+mkdirSync(path.join(withIndex, ".codegraph"), { recursive: true })
 const withoutIndex = mkdtempSync(path.join(os.tmpdir(), "gf-without-"))
+const outsideDir = mkdtempSync(path.join(os.tmpdir(), "gf-outside-"))
 
 afterAll(() => {
   rmSync(withIndex, { recursive: true, force: true })
   rmSync(withoutIndex, { recursive: true, force: true })
+  rmSync(outsideDir, { recursive: true, force: true })
 })
 
 describe("session.graph-first", () => {
@@ -32,21 +36,36 @@ describe("session.graph-first", () => {
     expect(isCodegraphTool("glob")).toBe(false)
   })
 
-  test("the FIRST scanner call of a session is refused once, with the route", () => {
+  test("graphFirstNote follows layer routing and never refuses", () => {
+    const note = graphFirstNote("grep")
+    expect(note).toMatch(/codegraph_explore/i)
+    expect(note).toMatch(/grep/i)
+    expect(note).toMatch(/glob\/list|glob.*list/i)
+    expect(note).not.toMatch(/BLOCKED/i)
+  })
+
+  test("the FIRST scanner call of a session RUNS with a one-time note", () => {
     resetGraphFirstState("s1")
     const hit = scannerGate({ sessionID: "s1", tool: "grep", worktree: withIndex })
     expect(hit).toBeDefined()
-    expect(hit!.message).toMatch(/codegraph/i)
-    // Once-only latch: the second scanner call runs freely.
+    expect(hit!.note).toMatch(/codegraph/i)
+    expect(hit!.note).not.toMatch(/BLOCKED/i)
+    // Once-only latch: the second scanner call runs without a note.
     expect(scannerGate({ sessionID: "s1", tool: "grep", worktree: withIndex })).toBeUndefined()
     expect(scannerGate({ sessionID: "s1", tool: "glob", worktree: withIndex })).toBeUndefined()
     expect(scannerGate({ sessionID: "s1", tool: "list", worktree: withIndex })).toBeUndefined()
   })
 
-  test("a codegraph call arms the latch — scanners run freely after it", () => {
+  test("a codegraph call arms the latch — scanners run note-free after it", () => {
     resetGraphFirstState("s2")
     noteToolCall("s2", "codegraphcodegraphexplore")
     expect(scannerGate({ sessionID: "s2", tool: "grep", worktree: withIndex })).toBeUndefined()
+  })
+
+  test("markPrebuilt suppresses the note (control)", () => {
+    resetGraphFirstState("s2b")
+    markPrebuilt("s2b")
+    expect(scannerGate({ sessionID: "s2b", tool: "grep", worktree: withIndex })).toBeUndefined()
   })
 
   test("non-codegraph calls do NOT arm the latch (control)", () => {
@@ -62,12 +81,23 @@ describe("session.graph-first", () => {
     expect(scannerGate({ sessionID: "s4", tool: "glob", worktree: withoutIndex })).toBeUndefined()
   })
 
-  test("opt-out env disables the gate (control)", () => {
+  test("opt-out env disables the note (control)", () => {
     resetGraphFirstState("s5")
     expect(scannerGate({ sessionID: "s5", tool: "list", worktree: withIndex, env: { OPENCODE_GRAPH_FIRST: "0" } })).toBeUndefined()
   })
 
-  test("a non-scanner tool is never gated", () => {
+  test("a path outside the worktree gets no note and does not consume the latch", () => {
+    resetGraphFirstState("s-out")
+    const outside = scannerGate({ sessionID: "s-out", tool: "list", worktree: withIndex, target: outsideDir })
+    expect(outside).toBeUndefined()
+    // The latch is unconsumed: the next in-worktree call still notes.
+    const hit = scannerGate({ sessionID: "s-out", tool: "list", worktree: withIndex, target: withIndex })
+    expect(hit).toBeDefined()
+    expect(hit!.note).not.toMatch(/BLOCKED/i)
+    expect(scannerGate({ sessionID: "s-out", tool: "list", worktree: withIndex })).toBeUndefined()
+  })
+
+  test("a non-scanner tool is never noted", () => {
     resetGraphFirstState("s6")
     expect(scannerGate({ sessionID: "s6", tool: "read", worktree: withIndex })).toBeUndefined()
     expect(scannerGate({ sessionID: "s6", tool: "bash", worktree: withIndex })).toBeUndefined()

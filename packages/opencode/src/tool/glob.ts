@@ -44,8 +44,10 @@ export const GlobTool = Tool.define(
       execute: (params: { pattern: string; path?: string; gitignore?: boolean }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const ins = yield* InstanceState.context
-          const gate = scannerGate({ sessionID: ctx.sessionID, tool: "glob", worktree: ins.worktree })
-          if (gate) throw new Error(gate.message)
+          let search = params.path ?? ins.directory
+          search = path.isAbsolute(search) ? search : path.resolve(ins.directory, search)
+          const note = scannerGate({ sessionID: ctx.sessionID, tool: "glob", worktree: ins.worktree, target: search })
+          const withNote = (text: string) => (note ? `${text}\n${note.note}` : text)
           yield* ctx.ask({
             permission: "glob",
             patterns: [params.pattern],
@@ -55,15 +57,12 @@ export const GlobTool = Tool.define(
               path: params.path,
             },
           })
-
-          let search = params.path ?? ins.directory
-          search = path.isAbsolute(search) ? search : path.resolve(ins.directory, search)
           const info = yield* fs.stat(search).pipe(Effect.catch(() => Effect.succeed(undefined)))
           if (!info) {
             return {
               title: path.relative(ins.worktree, search),
               metadata: { count: 0, truncated: false },
-              output: `Directory not found: ${search}`,
+              output: withNote(`Directory not found: ${search}`),
             }
           }
           if (info.type === "File") {
@@ -133,7 +132,7 @@ export const GlobTool = Tool.define(
               count: files.length,
               truncated,
             },
-            output: output.join("\n"),
+            output: withNote(output.join("\n")),
           }
         }).pipe(Effect.orDie),
     }

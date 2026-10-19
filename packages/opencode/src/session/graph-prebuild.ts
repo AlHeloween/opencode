@@ -10,8 +10,8 @@
  * (AGENTS.md § Granularity); into the turn (mutable tail), never the system prefix.
  *
  * A failed sync/explore is logged and the turn proceeds — the graph is an ADD, never a gate.
- * The pre-built graph counts as the session's codegraph call for the graph-first latch
- * (graph-first.ts markPrebuilt), so the scanner backstop never refuses a session that just
+ * The pre-built graph counts as the session's codegraph call for the graph-first reminder
+ * (graph-first.ts markPrebuilt), so scanners run without the reminder note in a session that just
  * received the graph.
  *
  * [KV-CACHE SAFE] — the context rides the turn's messages (mutable tail); the system prefix is

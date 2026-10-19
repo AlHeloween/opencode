@@ -1,5 +1,8 @@
 ﻿# Progress Log
 
+## [2026-10-19] t90/t96 addendum — byte budget 75 000, headroom spent on clarity (STOP before --install)
+
+Owner verbatim: budget to 75k (kernel is a tiny part of real data) + frameless aicall ambiguity check afterwards; every ambiguity costs tokens and time. utf8 74_000 → 75_000 + validate ceiling + reward pins (75000/75001) with dated owner-quote comments. Clarity, not padding: pair sentence names the agreeing legs, pass→miss/missed_elsewhere, receipt named, instrument qualified. Suite: 454 passed + 3 stale-receiver reds; product 73960 B (headroom 1040), max tokens 10083 ≤ 10100. _build.ps1 run 20261019T045627Z_8d01fa64 exit 0, bytes_written 67151, smoke 10.0.1455. Ready for the Legislator ambiguity falsifier.
 ## [2026-10-19] t96 three oracles — documentation joins code+execution (STOP before --install)
 
 Standards grounded first: IEEE 1063-2001 SUPERSEDED by 26512 (IEEE SA fetch, Inferred b5f605aa) — listed with status, not as live; ISO/IEC/IEEE 26514:2022 current (ISO fetch, 75a42e10); 29148:2018 via ISO+IEEE corroboration. RED 28 failed → GREEN 28 passed. Full suite: 454 passed + 3 stale-receiver reds. Stamp legs + unique_detection; frame legs sentence ×4 (parity); shared THREE_ORACLES rule (#### header, @MEDOID_SIMPLEX referenced); G2 extended to brief wording (my first draft drifted — fixed to implementation side); test_render stamp pin moved with dated reason. Caps: utf8 → 74_000 (product 73905), tokens → 10_100 (max 10075); nothing cut. _build.ps1 run 20261019T044952Z_2ab48b05 exit 0, bytes_written 67139, smoke 10.0.1454. One writer (t90 precondition waived in writing); plan stays ACTIVE for Legislator+aicall review and owner install word.

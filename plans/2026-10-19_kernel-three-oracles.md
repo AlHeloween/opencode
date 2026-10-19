@@ -17,7 +17,8 @@ note: hash values are generative tags — search them, never compute them.
 - [x] RED tests (28 failed) → GREEN 28 passed: triad slot, per-aspect ≥3, catalogue + numbers, frame legs, G2 leaves, mutation controls
 - [x] Implement: stamp legs + unique_detection field, frame legs sentence ×4 (parity holds), shared THREE_ORACLES rule (#### header), G2 SMALLER extended to brief wording; test_render stamp pin moved with dated reason
 - [x] Oracle: full suite 454 passed + 3 stale reds; bands utf8 → 74_000 (product 73905), tokens → 10_100 (max 10079); t84 green; repr per variant identical core
-- [ ] Commit via scripts/commit_own.py + progress-log line; STOP before --install
+- [x] Commit via scripts/commit_own.py + progress-log line for t96 (242485c6c9); STOP before --install
+- [x] Budget 75k (owner verbatim): utf8 74_000 → 75_000 + validate ceiling + reward pins with dated owner-quote comments; headroom spent on clarity, not padding — pair sentence names the agreeing legs, pass→miss/missed_elsewhere, receipt named, instrument qualified; product 73960 B, max tokens 10083 ≤ 10100; suite 454+3 stale; STOP before --install
 
 ## 1. Grounding
 

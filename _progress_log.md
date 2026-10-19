@@ -8018,3 +8018,6 @@ After host restart: tree clean for own paths, HEAD c1e13a25, plan re-read (T0–
 ## [2026-10-19] t94 T10-task — sample 2 errors (TDZ, not doc) + aborted/host note (GREEN, one commit)
 
 Census: 59 ok / 2 err — BOTH `Cannot access 'ge' before initialization` (TDZ ReferenceError, same session t92 IANA verification, `researcher_agent` delegations). `ge` occurs nowhere in `packages/opencode/src` (grep `\bge\b`, `(const|let|var) ge` — zero hits): source outside our tree, no reproducer buildable → tier-3 per LEAN (recorded with session receipts, doc not bent, no blind fix). Fix (doc-only): `## Aborted and host failures` (aborted ends delegation; host failure = external defect with its own reproducer). No throws in task.ts (no allowlist entry); existing example parses. Test: description-contract 4/4 GREEN run 20261019T134408Z_2e5b1554 exit 0. Next: T10-webfetch (3/748, all aborted).
+## [2026-10-19] t94 closing oracle — contract + typecheck + build GREEN, state persisted (next T10-webfetch)
+
+Contract 4/4 GREEN run 20261019T134408Z_2e5b1554 exit 0 (T10-task slice). `bun typecheck` exit 0 run 20261019T134501Z_7c5a8e37. `_build.ps1` exit 0 smoke 10.0.1462 run 20261019T134545Z_43bd3e4e ([OK] Build complete - artifacts in dist/). Plan State + boxes current (T10-webfetch next). No bin/, no --no-verify.

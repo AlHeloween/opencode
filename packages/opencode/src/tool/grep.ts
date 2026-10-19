@@ -96,7 +96,7 @@ export const GrepTool = Tool.define(
       execute: (params: { pattern: string; path?: string; include?: string; gitignore?: boolean }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           if (!params.pattern) {
-            throw new Error("pattern is required")
+            throw new Error("[pattern-required] pattern is required")
           }
 
           // Normalize regex for Rust engine (BRE → ERE)

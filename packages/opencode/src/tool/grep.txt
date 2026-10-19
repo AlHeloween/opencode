@@ -8,6 +8,16 @@ Content search by regex (Rust regex / ERE). Use for finding code by content; use
 {"pattern": "classifyAstNode\\\\(", "include": "*.ts", "path": "packages/opencode/src"}
 ```
 
+## Refusals
+
+Every refusal starts with its key.
+
+| Key | When | What to do |
+|---|---|---|
+| `[pattern-required]` | `pattern` is empty or missing | Pass the regex to search for (Rust regex / ERE) |
+
+An `include` filter that matches nothing is a claim about the FILTER — re-run it with a control that must match, then report. Stale `[graph-first: BLOCKED]` errors are historical (removed in t95). External failures (invalid ripgrep output, aborted calls, missing `path`) are counted separately, never as refusals.
+
 - `pattern` is **required** — the regex (Rust regex / ERE).
 - `path` is optional — the directory to search in; omit for the working directory.
 - `include` is optional — a file glob filter, e.g. `"*.ts"` or `"*.{js,jsx}"`.

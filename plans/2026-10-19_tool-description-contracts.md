@@ -157,9 +157,7 @@ parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
-- [ ] T9 grep (1%) — census + cluster (stale BLOCKED ×8 historical, aborted, invalid-output, missing path).
-  Diff `grep.ts` vs `grep.txt` (pattern dialect Rust/ERE, `include` filter control rule, gitignore default).
-  Stale BLOCKED gone. Example parses. RED, fix, GREEN. <!-- sv:
+- [x] T9 grep (1%) — DONE 2026-10-19: census 2572/26 (stale BLOCKED ×8 historical t95, aborted, invalid ripgrep output, missing path) + cluster. Keyed the 1 throw in grep.ts (`[pattern-required]`); doc gains `## Refusals` table + include-filter control rule + stale-gate/external note (existing example parses). Allowlist drops `grep.ts`. Contract 4/4 GREEN run 20261019T111002Z_947f0aa2 exit 0. <!-- sv:
 ```yaml
 Keywords: grep-audit 0.40, dialect-contract 0.30, stale-block-gone 0.20, example-parse 0.10
 Semantic dominant: Grep doc states the dialect and filter-control rules the code enforces after the stale gate removal.

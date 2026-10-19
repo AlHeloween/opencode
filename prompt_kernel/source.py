@@ -196,6 +196,11 @@ SHARED_RULES = (
         "RESIDUAL_ROUTING",
         "Work remains → emit bounded residual goal, route through declared edge.",
     ),
+    _rule(
+        "KERNEL",
+        "THREE_ORACLES",
+        "Acceptance is covered only when documentation (meaning), code (mechanism) and execution (reality) agree on the criterion; each aspect is itself covered by ≥3 independent oracles under @MEDOID_SIMPLEX — its independence test is referenced, never restated. An aspect with fewer is a degenerate simplex: the criterion stays Unknown on that aspect and names the missing legs as residual. Documentation counts as an oracle only when EXECUTED against the live system: a procedure with a prediction and a capture per step, or examples parsed against the schema; a doc that is only written is a simulation. A disagreement of a pair is a DIVERGENCE_EVENT, and the pair names where to look: code and run agree but the doc differs — the meaning was misread; doc and run agree but the code differs — an implementation defect; doc and code agree but the run differs — environment or data. Each oracle's stamp carries a UNIQUE-DETECTION receipt (ORACLE_STAMP.unique_detection): an injected defect that this oracle catches and the other two oracles of the same aspect pass — an EXPECTED_FAIL control; an oracle without one is subsumed and does not count as a leg. Injected defects come from the three aspects — a documented-scenario violation, a code mutant, an environment/data fault; the agent's own defects from its own code reading are ONE source (@MEDOID_SIMPLEX). Each leg DECLARES its family from the catalogue and carries the receipt; three legs from DIFFERENT families of one aspect — two legs from one family are one leg. A unit test and an assertion by the same author from the same reading are ONE leg; two screenshot tools on one frame are ONE; a DOM-state read (E1) and a viewport capture (E2) are different families. Catalogue, names only. Documentation (meaning): D1 requirements traceability (ISO/IEC/IEEE 29148); D2 executed procedure / operator manual with per-step capture (ISO/IEC/IEEE 26514; IEEE 1063 superseded by 26512); D3 executable examples / doctest against schema or API; D4 frameless reader teach-back (aicall reconstructs intent from the doc alone); D5 doc ↔ contract diff (schema, CLI help, refusal keys). Code (mechanism): C1 static analysis / type system; C2 structural graph (callers, impact, consumers); C3 mutation testing; C4 invariants / contracts / property-based tests; C5 independent diff review against the requirement. Execution (reality): E1 persisted-state read-back; E2 observed output / capture vs prior prediction; E3 end-to-end on real data; E4 outside measurement / telemetry; E5 differential / back-to-back.",
+    ),
 )
 
 
@@ -519,7 +524,7 @@ GATES = (
         local_rules=(
             _rule("G2", "DECOMPOSE", "Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle.",
                 BP("AND", BP("HAS", "Searchable"), BP("HAS", "Executable"), BP("HAS", "BoundedOracle"))),
-            _rule("G2", "SMALLER_IS_INSTRUMENTABLE", "Smaller is instrumentable: split until every acceptance criterion has a buildable, drivable oracle.",
+            _rule("G2", "SMALLER_IS_INSTRUMENTABLE", "Smaller is instrumentable: split until every leaf is observable on all three aspects (documentation, code, execution); a leaf without its documentation aspect is not yet a leaf. The same three aspects cover an instrument itself (@TOOLCHAIN_QUALIFICATION), so the geometry is the same at every scale.",
                 BP("IMPLIES", BP("HAS", "acceptance_criterion"), BP("AND", BP("HAS", "buildable_oracle"), BP("HAS", "drivable_oracle")))),
             _rule("G2", "CUT_UNSUPPORTED", "Cut before planning: unsupported evidence → Unknown or residual.",
                 BP("IMPLIES", BP("NOT", BP("HAS", "evidence")), BP("OR", BP("EQ", value=("status", "Unknown")), BP("HAS", "residual")))),
@@ -968,7 +973,8 @@ KERNEL = Kernel(
     # 2026-10-17 (t82 review, Legislator + outside falsifier): four SV-lineage fixes (field-scoped ban, task-own parent on every turn, one-parent siblings, no zero/non-hex/example copy) measure product 68_032 B — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 addenda: layer routing + patents + DOMAIN_TERMS): product measures 69_903 B — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 review 1: contradiction + bounds): product measures 70_617 B — the next band above the measurement; nothing cut.
-    utf8_budget=71_000,
+    # 2026-10-19 (t96 three oracles: triad + catalogue + unique-detection): product measures 73_905 B — the next band above the measurement; nothing cut.
+    utf8_budget=74_000,
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1
@@ -1053,7 +1059,7 @@ KERNEL = Kernel(
         "PLAN_BINDING": "{task_id: [paths, symbols, dependencies, expected_diff, sv, oracle, structural_evidence_ref, plan_strategy_ref]}",
         "IMPLEMENTATION_RESULT": "{task_id, actual_diff, execution_evidence}",
         "VERIFIED_OUTCOME": "{acceptance_id: pass|fail, evidence_ref}",
-        "ORACLE_STAMP": "{claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}",
+        "ORACLE_STAMP": "{claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?, legs: {documentation, code, execution}, unique_detection?: {defect, caught_here, passed_elsewhere}}",
         "DIVERGENCE_EVENT": "{claim_id, evidence_ref}",
         "SOURCE_STAMP": "{authority_class, url_provenance, content_hash}",
         "CLOSURE_PROOF": "{acceptance_coverage, oracle_result, critical_risks, residual, open_boxes, portfolio_audit_ref}",

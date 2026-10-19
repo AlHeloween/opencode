@@ -147,15 +147,15 @@ def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> N
         assert clause in _render_reward(mutant, "product")
 
 
-def test_reward_restoration_budget_accepts_declared_71000_ceiling() -> None:
-    # 2026-10-18 (t90 review 1): product measures 70_617 B — utf8_budget AND the
-    # validate.py hard ceiling step to the next band, 71_000.
-    assert validate_kernel(replace(KERNEL, utf8_budget=71_000)) == []
+def test_reward_restoration_budget_accepts_declared_74000_ceiling() -> None:
+    # 2026-10-19 (t96 three oracles): product measures 73_905 B — utf8_budget AND the
+    # validate.py hard ceiling step to the next band, 74_000.
+    assert validate_kernel(replace(KERNEL, utf8_budget=74_000)) == []
 
 
-def test_reward_restoration_budget_rejects_71001_above_finite_ceiling() -> None:
-    errors = validate_kernel(replace(KERNEL, utf8_budget=71_001))
-    assert any("71_000" in error or "71000" in error for error in errors), errors
+def test_reward_restoration_budget_rejects_74001_above_finite_ceiling() -> None:
+    errors = validate_kernel(replace(KERNEL, utf8_budget=74_001))
+    assert any("74_000" in error or "74000" in error for error in errors), errors
 
 
 # 2026-10-15 (t44 B6, Claude's review of a0e15e87b5): the rejected shapes are mutation controls:

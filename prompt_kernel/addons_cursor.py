@@ -245,6 +245,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "ACCEPTANCE_FRAME",
         (
             'ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, mechanismᵢ, predictionᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; mechanismᵢ is path:line or formula, predictionᵢ is written before the observation; an empty mechanismᵢ or predictionᵢ leaves the criterion Unknown; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).',
+            "Each criterion names its three legs {documentation, code, execution}; an uncovered leg is residual."
         ),
     ),
     # PATH_PLANS: host-agnostic, so the wording is the shared one (verbatim from

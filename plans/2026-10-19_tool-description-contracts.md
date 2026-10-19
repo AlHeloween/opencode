@@ -116,8 +116,7 @@ parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
-- [ ] T5 question (50%, n=3, all aborted) — census + cluster (all `Tool execution aborted`, no schema).
-  Diff: code has no schema/refusal surface beyond abort; doc must not promise what abort prevents. Test:
+- [x] T5 question (50%, n=3, all aborted) — DONE 2026-10-19: census 3/3 aborted (interrupted, all external) + cluster. Diff: no schema/refusal surface beyond abort; doc example parses; added `## Aborted calls` (external stop, counted separately) + ask-only-what-words-alone-settle restraint. No keys either side. GREEN run 20261019T105529Z_b3e636b1 exit 0. Test:
   keys empty both sides, no example to parse or example parses. Fix `.txt` only if it over-promises. <!-- sv:
 ```yaml
 Keywords: question-abort 0.60, no-schema-surface 0.25, doc-restraint 0.15

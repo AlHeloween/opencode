@@ -7985,3 +7985,6 @@ Census: 215 ok / 24 err — all external (localhost:3000 refused / aborted) + na
 ## [2026-10-19] t94 T4 — list doc adds parameters + missing-path + example (GREEN, one commit)
 
 Census: 184 ok / 11 err — 9x missing path (stale experiment/build-output paths, caller-avoidable) + 1x stale graph-first BLOCKED (historical, t95 removed) + 1x per-request log path. Diff before: SILENCE (five all-optional Parameters undocumented; missing-path behavior unnamed). Fix (doc-only, from code): `## Parameters` table + `## Missing path` (reported, never invented; check path first) + `## Example` JSON (parses; path valid per Parameters). ls.ts owns no throws (missing dir returns output; fs No-such-file surfaces from rg/stat). Test: description-contract 4/4 GREEN run 20261019T105356Z_014b6f97 exit 0. Next: T5 question (doc restraint, all-aborted).
+## [2026-10-19] t94 T5 — question doc restraint for aborted calls (GREEN, one commit)
+
+Census: 3 ok / 3 err — all `Tool execution aborted` (interrupted, external). Diff: no schema/refusal surface beyond abort; doc example parses. Fix (doc-only): `## Aborted calls` (external stop, counted separately; ask-only-what-words-alone-settle). No keys either side. Test: description-contract 4/4 GREEN run 20261019T105529Z_b3e636b1 exit 0. Next: T6 recall (10/10 missing reason + key six ok:false refusals + example with reason).

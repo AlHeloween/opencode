@@ -35,3 +35,8 @@ Answers are returned as an array of arrays of labels (`ReadonlyArray<ReadonlyArr
 - If you recommend a specific option, make it the first option and add "(Recommended)" at the end of the label.
 - Keep `header` short — it's displayed as a tab/title in the UI.
 - Include clear `description` text for each option to help the user understand the tradeoffs.
+
+## Aborted calls (counted separately, never caller-avoidable)
+
+- An aborted or interrupted call is an external stop: the question was never answered, and nothing about the options was wrong.
+- Ask only what the user's words alone can settle; anything answerable from the project belongs to grounding, not to this tool.

@@ -9,7 +9,7 @@ Use this for quickly finding errors, warnings, and bug markers in runtime logs.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `pattern` | string | — | Search pattern (regex or plain text) |
+| `pattern` | string | **required** | Search pattern (regex or plain text) |
 | `level` | string (optional) | all | Log level filter: "ERROR", "WARN", "bug", "INFO" |
 | `since` | string (optional) | — | Time window. Examples: "5m", "1h", "30m", "today" |
 | `limit` | number | 20 | Maximum results to return (default: 20, max: 100) |
@@ -41,3 +41,16 @@ Use this for quickly finding errors, warnings, and bug markers in runtime logs.
 ## Output Format
 
 Returns file:line with matched lines and surrounding context. Results sorted by time (newest first).
+
+## External failures (counted separately, never caller-avoidable)
+
+- `ripgrep (rg) is not installed` — the host has no `rg` binary; install it.
+- A spawn failure (`ENAMETOOLONG`, `uv_spawn`) — the search never ran; the arguments were not searched.
+- `rg failed (exit 2)` — bad pattern or unreadable path; rg's own words are returned with the FLOOR it printed.
+- An unparseable `since` widens the search (all files) instead of narrowing it — never absence.
+
+## Example
+
+```json
+{"pattern": "stream error", "level": "ERROR", "since": "30m", "limit": 15, "context": 1}
+```

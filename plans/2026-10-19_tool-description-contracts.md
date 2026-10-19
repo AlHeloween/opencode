@@ -53,7 +53,7 @@ repetition-loop sessions are counted separately, never silently.
 
 ## Tasks
 
-- [ ] T0 Generic contract + un-keyed-throw guard (all tools) — extend the t93 helper into
+- [x] T0 Generic contract + un-keyed-throw guard (all tools) — DONE 2026-10-19: `test/tool/description-contract.test.ts` GREEN 4/4 run 20261019T085733Z_b02b2d6a (commit 198d902241). RED path recorded: aicall [Exact], messagesearch labels, run.txt JSONL, edit 7-vs-20, allowlist census. EXPECTED_FAIL: removed `[same-file]` line → 3/1 fail run 20261019T085815Z_60467854; restored, GREEN run 20261019T085836Z_5267b38d. Extend the t93 helper into
   `test/tool/description-contract.test.ts`: for every tool with a description (`.txt` import or inline
   `description:`), extract refusal keys from code (`["']\[[A-Za-z][A-Za-z0-9_+-]{2,}\]`) and from the doc;
   every code key appears in the doc and vice versa; every `throw new Error("` / `return { ok: false, error:`
@@ -81,12 +81,7 @@ parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
-- [ ] T2 logsearch (27% raw, 1 avoidable) — census + cluster (ENAMETOOLONG ×6 external/tool-bug,
-  missing-pattern ×1). Diff: `pattern` required in Schema (`Schema.String`) vs doc table (`string | —`);
-  mark SILENCE if doc does not say required; every `rg` failure path (missing rg, spawn error) has a key
-  or is named external. RED test, fix `.txt` from code (explicit `(required)` + external-failure line),
-  GREEN. If ENAMETOOLONG is a code defect (argv too long), record as defect line, fix code in its own
-  commit with its own test. <!-- sv:
+- [x] T2 logsearch (27% raw, 1 avoidable) — DONE 2026-10-19: census + cluster (ENAMETOOLONG ×6 external/tool-bug, missing-pattern ×1). Diff before: SILENCE `pattern` required; after: doc `**required**` + `## External failures` + `## Example` JSON. No keys in code, none in doc (vacuous pass). GREEN run 20261019T085959Z_f1a76525. ENAMETOOLONG recorded as suspected argv-too-long defect for a later code fix — not bent in the doc. <!-- sv:
 ```yaml
 Keywords: logsearch-audit 0.40, required-pattern 0.30, external-spawn 0.20, defect-line 0.10
 Semantic dominant: Logsearch doc states the required pattern and names the external spawn failures it cannot prevent.

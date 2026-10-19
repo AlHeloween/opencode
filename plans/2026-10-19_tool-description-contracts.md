@@ -53,7 +53,7 @@ repetition-loop sessions are counted separately, never silently.
 
 ## State 2026-10-19 (stop with next named — bounds held for shared tree)
 
-Landed: T0 (generic contract, EXPECTED_FAIL, GREEN) + T2 (logsearch doc). Commits 198d902241 (T0), 0edc8fc3fa (T2). Oracles: contract 4/4 GREEN, EXPECTED_FAIL 3/1 fail, `bun typecheck` exit 0 (run 20261019T090153Z_8269e70d), `_build.ps1` exit 0 smoke 10.0.1457 (run 20261019T090224Z_6ecfb4d0). Census/clusters in Context + T-boxes. Orphans: none (four mapped). NEXT: T3 universalsearch (priority order; doc-only external-dependency + `source` values, keys empty both sides, example parses). After that T6 recall (10/10 missing `reason`, key six `ok:false` refusals, example with reason). ENAMETOOLONG kept as suspected argv-too-long code defect for its own commit+test, not bent in any doc.
+Landed 2026-10-19: T0 contract+EXPECTED_FAIL (198d902241), T2 logsearch (0edc8fc3fa), T3 universalsearch (ffe50230), T4 list (671edc13), T5 question (ef9e5e79), T6 recall keys+example (aa706817), T7 glob (fa5c195e), T8 read 8-sites/5-keys + brace self-repair (f064047e), T9 grep (67dc9000), T1 edit residual (no change needed). T10 scoping census 2026-10-19 (all remaining tools ≤3%: bash 11/2628 BLOCKED/aborted, cmd 8/2327, webfetch 3/748 aborted, write 3/749, task 2/61, run 2/1936, aicall 1/29 provider-model, codegraph 1/35, jobwait 1/639; shell 1x AI_NoSuchToolError legacy). NEXT: T10-write (the one non-aborted write error + parameters/required + example schema test), then T10-task, then remaining alphabetical + kernel-prose move to docs/tool-playbook.md. T11 orphans: none (four mapped). T12 post-promotion measure owed separately.
 
 ## Tasks
 
@@ -73,9 +73,7 @@ parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
-- [ ] T1 edit (t93-owned residual only) — add the un-keyed-throw guard to `edit.ts` (no new bare throws;
-  `resolveEdits` internal `throw` already keyed via `resolveAddresses` refusals). Census re-run, 1–2
-  examples (stale-hash, same-file). No `.txt` rewrite beyond the guard. <!-- sv:
+- [x] T1 edit (t93-owned residual only) — DONE 2026-10-19: guard already covers edit.ts (contract key-equality 20==20 GREEN; unkeyed-scan finds no bare throw — `resolveEdits`/`refusals.join` throws are keyed by construction, no allowlist entry). Census rerun 2026-10-19: 1564 ok / 1317 err, 877 in loop ses_ec2961e15ffefWEjqE2WOQOj10 → ≈22% week ex-loop, ≈11–12% 10-17..19 (t93-owned). No `.txt` change needed. <!-- sv:
 ```yaml
 Keywords: edit-residual 0.50, throw-guard 0.30, census-rerun 0.20
 Semantic dominant: Close the t93 residual for edit: no un-keyed throw survives, census re-run recorded.

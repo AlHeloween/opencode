@@ -137,8 +137,7 @@ parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
-- [ ] T7 glob (2%) — census + cluster (access-denied external ×1, stale BLOCKED ×5 historical, aborted ×4).
-  Diff `glob.ts` vs `glob.txt`; stale BLOCKED gone from both. Example parses. RED, fix, GREEN. <!-- sv:
+- [x] T7 glob (2%) — DONE 2026-10-19: census 447/10 (1 access-denied external, 5 stale BLOCKED historical t95, 4 aborted) + cluster. Keyed the 1 throw in glob.ts (`[not-a-directory]`); doc gains `## Refusals` table + missing-path/external note (existing example parses). Allowlist drops `glob.ts`. Contract 4/4 GREEN run 20261019T110106Z_8078c1df, glob.test.ts 3/3 run 20261019T110119Z_6561e4a8. <!-- sv:
 ```yaml
 Keywords: glob-audit 0.40, stale-block-gone 0.30, access-denied-external 0.20, example-parse 0.10
 Semantic dominant: Glob doc matches the code after the stale gate removal, with external denial counted separately.

@@ -95,7 +95,6 @@ function extractDocKeys(doc: string): Set<string> {
 // (fewer un-keyed than listed); a new bare throw fails (more than listed).
 const UNKEYED_ALLOWLIST: Record<string, number> = {
   "grep.ts": 1,
-  "glob.ts": 1,
   "tool.ts": 2,
   "universalsearch.ts": 17,
   "fossilgrep.ts": 2,

@@ -66,7 +66,7 @@ export const GlobTool = Tool.define(
             }
           }
           if (info.type === "File") {
-            throw new Error(`glob path must be a directory: ${search}`)
+            throw new Error(`[not-a-directory] glob path must be a directory: ${search}`)
           }
           yield* assertExternalDirectoryEffect(ctx, search, { kind: "directory" })
 

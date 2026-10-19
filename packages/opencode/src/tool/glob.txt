@@ -8,6 +8,16 @@ Path/name file search. Use for finding files by name pattern; use Grep for conte
 {"pattern": "**/*.test.ts", "path": "packages/opencode/test", "gitignore": true}
 ```
 
+## Refusals
+
+Every refusal starts with its key.
+
+| Key | When | What to do |
+|---|---|---|
+| `[not-a-directory]` | `path` names a file, not a directory | Pass a directory in `path`, or omit it for the working directory |
+
+A `path` that does not exist is reported (`Directory not found`), never invented. External failures (access-denied listings, aborted calls) and the historical stale gate (removed in t95) are counted separately, never as refusals.
+
 - `pattern` is **required** — the glob to match files against.
 - `path` is optional — the directory to search in; omit for the working directory.
 - `gitignore` is optional, default `false` — see below.

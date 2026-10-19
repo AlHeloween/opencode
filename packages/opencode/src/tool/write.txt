@@ -28,3 +28,8 @@ Write a whole file — create it, or replace it entirely. For a change to a file
 |---|---|
 | `filePath` | **required** | The file to write. |
 | `content` | **required** | The whole file content. |
+
+## Permission refusals (counted separately, never caller-avoidable from the doc)
+
+- Every write asks permission `edit` and the user's rules can refuse it — the refusal names the rule that fired (e.g. a deny on the path), not this description.
+- A syntax-hallucinated code file is REJECTED before it hits disk (`REJECTED — …`); fix the syntax and retry.

@@ -53,7 +53,7 @@ repetition-loop sessions are counted separately, never silently.
 
 ## State 2026-10-19 (stop with next named — bounds held for shared tree)
 
-Landed 2026-10-19: T0 contract+EXPECTED_FAIL (198d902241), T2 logsearch (0edc8fc3fa), T3 universalsearch (ffe50230), T4 list (671edc13), T5 question (ef9e5e79), T6 recall keys+example (aa706817), T7 glob (fa5c195e), T8 read 8-sites/5-keys + brace self-repair (f064047e), T9 grep (67dc9000), T1 edit residual (no change needed). T10 scoping census 2026-10-19 (all remaining tools ≤3%: bash 11/2628 BLOCKED/aborted, cmd 8/2327, webfetch 3/748 aborted, write 3/749, task 2/61, run 2/1936, aicall 1/29 provider-model, codegraph 1/35, jobwait 1/639; shell 1x AI_NoSuchToolError legacy). NEXT: T10-write (the one non-aborted write error + parameters/required + example schema test), then T10-task, then remaining alphabetical + kernel-prose move to docs/tool-playbook.md. T11 orphans: none (four mapped). T12 post-promotion measure owed separately.
+Landed 2026-10-19: T0 contract+EXPECTED_FAIL (198d902241), T2 logsearch (0edc8fc3fa), T3 universalsearch (ffe50230), T4 list (671edc13), T5 question (ef9e5e79), T6 recall keys+example (aa706817), T7 glob (fa5c195e), T8 read 8-sites/5-keys + brace self-repair (f064047e), T9 grep (67dc9000), T1 edit residual (no change), T10-write doc-only (permission-refusal note; the 1 non-aborted error was an `edit`-permission deny naming the user rule, 2 aborted). T10 scoping census holds (rest ≤3%). NEXT: T10-task (2/61 — sample the 2 errors, parameters/required + example schema test), then remaining alphabetical + kernel-prose move to docs/tool-playbook.md. T11 orphans: none (four mapped). T12 post-promotion measure owed separately.
 
 ## Tasks
 

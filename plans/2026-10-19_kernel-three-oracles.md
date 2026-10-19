@@ -19,6 +19,9 @@ note: hash values are generative tags — search them, never compute them.
 - [x] Oracle: full suite 454 passed + 3 stale reds; bands utf8 → 74_000 (product 73905), tokens → 10_100 (max 10079); t84 green; repr per variant identical core
 - [x] Commit via scripts/commit_own.py + progress-log line for t96 (242485c6c9); STOP before --install
 - [x] Budget 75k (owner verbatim): utf8 74_000 → 75_000 + validate ceiling + reward pins with dated owner-quote comments; headroom spent on clarity, not padding — pair sentence names the agreeing legs, pass→miss/missed_elsewhere, receipt named, instrument qualified; product 73960 B, max tokens 10083 ≤ 10100; suite 454+3 stale; STOP before --install
+- [x] Review 1 (12 falsifier fixes): RED (3 wiring + 40 aspect/leg/stamp/rule/frame/G2/mutation) → GREEN 71 passed; wiring G3/G8/G9 + guards; aspect/leg split (stamp aspects, frame aspects, divergence aspects); per-oracle stamp (aspect, family, required unique_detection); in-aspect independence + E1/E2 override; ALL-others-miss; agree/diverge/action/G1-return; per-family executed doc; Unknown bars SUCCESS; 1-drivable-leaf vs 3-at-acceptance; qualify-once; never-provisional; open catalogue; suite 492 passed, byte asserts red per budget rule below
+- [x] Budget (owner's call, NOT raised here): product 75630 B / 10269 tok, claude 75535/10353, codex 75378/10284, cursor 75360/10353 vs ceiling 75000/10100 — over by 630 B and 253 tok on required clarification text only; nothing cut; 5 byte asserts + 2 masked token asserts stay red for the owner
+- [ ] Build + commit for review 1; STOP before --install
 
 ## 1. Grounding
 

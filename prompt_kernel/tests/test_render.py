@@ -166,7 +166,7 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     # read-back check had nothing to compare against. Optional because evidence that is not
     # an artifact (a live probe) has no stable digest to record.
     # 2026-10-19 (t96 three oracles): legs + unique_detection join the stamp. The pin stays the three RESULTS plus the legs.
-    assert "ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?, legs: {documentation, code, execution}, unique_detection?: {defect, caught_here, missed_elsewhere}}" in text
+    assert "ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?, aspects: {documentation, code, execution}, aspect, family, unique_detection: {defect, caught_here, missed_elsewhere}}" in text
     assert "DIVERGENCE_EVENT: {claim_id, evidence_ref}" in text
     assert "Locate Exact medoids" in text
     assert "Affect opens oracle gap" in text

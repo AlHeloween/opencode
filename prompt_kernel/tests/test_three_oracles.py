@@ -45,7 +45,7 @@ def _gate_block(text: str, gate_id: str) -> str:
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
 def test_triad_slot_in_all_variants(variant) -> None:
     text = render_kernel(KERNEL, *VARIANTS[variant])
-    assert "legs: {documentation, code, execution}" in text
+    assert "aspects: {documentation, code, execution}" in text
     assert "unique_detection" in text
     assert triad_ok(text)
 
@@ -83,9 +83,9 @@ def test_catalogue_families_present(variant) -> None:
 
 
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
-def test_frame_names_three_legs_per_variant(variant) -> None:
+def test_frame_names_three_aspects_per_variant(variant) -> None:
     g3 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G3")
-    assert "names its three legs" in g3
+    assert "names its three aspects" in g3
 
 
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
@@ -114,3 +114,124 @@ def test_guard_rejects_relaxed_per_aspect_count(variant) -> None:
     mutant = text.replace("≥3 independent oracles under @MEDOID_SIMPLEX", "")
     assert mutant != text
     assert not triad_ok(mutant)
+
+
+# --- t96 review 1 (Legislator + frameless falsifier) ---
+
+
+def _wiring_ok(gates) -> bool:
+    by_id = {gate.id: gate for gate in gates}
+    return all("THREE_ORACLES" in by_id[gid].shared_rules for gid in ("G3", "G8", "G9"))
+
+
+def test_gate_wiring_names_three_oracles() -> None:
+    """R1F1: acceptance and closure gates carry the rule."""
+    assert _wiring_ok(KERNEL.gates)
+
+
+def test_guard_rejects_unwired_gate() -> None:
+    """R1F1 mutation control: drop the wiring, the guard fails."""
+    from dataclasses import replace
+
+    gates = [
+        replace(gate, shared_rules=tuple(r for r in gate.shared_rules if r != "THREE_ORACLES"))
+        if gate.id == "G8"
+        else gate
+        for gate in KERNEL.gates
+    ]
+    assert _wiring_ok(KERNEL.gates)
+    assert not _wiring_ok(gates)
+
+
+def test_guard_rejects_optional_unique_detection() -> None:
+    """R1F3 mutation control: optional receipt never counts."""
+    text = render_kernel(KERNEL)
+    assert "unique_detection:" in text
+    assert "unique_detection?" not in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_aspect_leg_terms_distinct(variant) -> None:
+    """R1F2: ASPECT for the three, LEG for one oracle."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "aspects: {documentation, code, execution}" in text
+    assert "two of the three aspects" in text
+    assert "two of the three legs" not in text
+    assert "names its three aspects" in _gate_block(text, "G3")
+    assert "names its three legs" not in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_independence_within_aspect(variant) -> None:
+    """R1F4: family AND receipt inside, categories over the whole."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "different catalogue family AND a receipt" in text
+    assert "still governs the claim as a whole" in text
+    assert "for E1/E2" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_all_other_legs_miss(variant) -> None:
+    """R1F5: ALL others miss; other aspects do not matter."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "ALL the other legs of that aspect miss" in text
+    assert "do not matter for this receipt" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_agreement_and_divergence(variant) -> None:
+    """R1F6: agree, diverge, triage action, return to G1."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "every leg of it passes" in text
+    assert "itself a divergence" in text
+    assert "re-run every leg" in text
+    assert "return to G1" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_documentation_executed_per_family(variant) -> None:
+    """R1F7: each doc family names its execution."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    for executed in ("resolved to", "walked with", "executed or parsed", "compared against", "diffed against"):
+        assert executed in text, executed
+    assert "only read is not a leg" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_unknown_scope(variant) -> None:
+    """R1F8: Unknown bars SUCCESS, task stays open."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "cannot reach SUCCESS" in text
+    assert "keeps the task open" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_leaf_vs_acceptance_level(variant) -> None:
+    """R1F9: one drivable leg stops a leaf, three accept."""
+    g2 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G2")
+    assert "ONE drivable leg per aspect" in g2
+    assert "missing aspect is residual" in g2
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "ACCEPTED (G8/G9)" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_recursion_stops(variant) -> None:
+    """R1F10: qualify once, no per-use re-qualification."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "qualified once" in text
+    assert "not re-qualified per use" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_no_receipt_no_leg(variant) -> None:
+    """R1F11: unconstructible defect means residual, never provisional."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "never counts provisionally" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_catalogue_open(variant) -> None:
+    """R1F12: new families declared, same-family tools still one."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "new family may be declared" in text

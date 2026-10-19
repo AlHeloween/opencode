@@ -1,5 +1,8 @@
 ﻿# Progress Log
 
+## [2026-10-19] t96 review 1 — 12 ambiguity fixes (STOP before --install, ceiling decision to owner)
+
+RED (15 new tests: wiring, aspect/leg, stamp, F4-F12) → GREEN 71 passed in file. Full suite: 492 passed; failures are exactly the 5 byte asserts (product 75630, claude 75535, codex 75378, cursor 75360 vs 75000) + 2 masked token asserts (max 10353 vs 10100) + 3 stale receivers — no semantic red. Rule body identical across variants (sha 018e0bad20a9f6ef). Wiring G3/G8/G9 + guards; aspect/leg split; per-oracle stamp (aspect, family, required receipt); E1/E2 override; ALL-miss; agree/diverge/action/G1-return; per-family executed doc; Unknown bars SUCCESS; leaf/acceptance split; qualify-once; never-provisional; open catalogue. _build.ps1 run 20261019T085801Z_67944bd3 exit 0, bytes_written 66749, smoke 10.0.1456. Nothing cut; ceiling raise is the owner's call.
 ## [2026-10-19] t90/t96 addendum — byte budget 75 000, headroom spent on clarity (STOP before --install)
 
 Owner verbatim: budget to 75k (kernel is a tiny part of real data) + frameless aicall ambiguity check afterwards; every ambiguity costs tokens and time. utf8 74_000 → 75_000 + validate ceiling + reward pins (75000/75001) with dated owner-quote comments. Clarity, not padding: pair sentence names the agreeing legs, pass→miss/missed_elsewhere, receipt named, instrument qualified. Suite: 454 passed + 3 stale-receiver reds; product 73960 B (headroom 1040), max tokens 10083 ≤ 10100. _build.ps1 run 20261019T045627Z_8d01fa64 exit 0, bytes_written 67151, smoke 10.0.1455. Ready for the Legislator ambiguity falsifier.

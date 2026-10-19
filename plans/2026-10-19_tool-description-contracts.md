@@ -147,9 +147,7 @@ parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
-- [ ] T8 read (1%) — census + cluster (file-not-found, offset-out-of-range, encoding). Diff `read.ts`
-  throws/keys vs `read.txt` (address format, `hex`, `encoding` page rule, similar-names hint). Every
-  refusal keyed; doc line per key. Example parses. RED, fix, GREEN. <!-- sv:
+- [x] T8 read (1%) — DONE 2026-10-19: census 4905/68 (file-not-found w/ similar names, offset-out-of-range, bad-encoding) + cluster. Keyed 8 refusal sites in read.ts under 5 keys (`[not-found]` ×2 Effect.fail, `[offset-out-of-range]` ×2, `[bad-encoding]`, `[binary-file]` ×2 incl. lines(), `[undecodable]`); doc gains matching 5-row `## Refusals` table (existing example parses). Fixed one self-made brace deletion (duplicate-line repair dropped a `}`; restored, diff verified additive-only). Allowlist drops `read.ts`. Contract 4/4 GREEN run 20261019T110645Z_30f3f98a, read.test.ts 46/46 run 20261019T110659Z_8150e3c8. <!-- sv:
 ```yaml
 Keywords: read-audit 0.40, address-contract 0.30, encoding-page 0.20, example-parse 0.10
 Semantic dominant: Read doc states exactly the address, range and encoding refusals the code enforces.

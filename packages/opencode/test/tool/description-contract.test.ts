@@ -100,7 +100,6 @@ const UNKEYED_ALLOWLIST: Record<string, number> = {
   "fossilgrep.ts": 2,
   "bash.ts": 3,
   "cmd.ts": 3,
-  "read.ts": 2,
   "cua.ts": 16,
   "samply.ts": 2,
   "shell-constitution.ts": 3,

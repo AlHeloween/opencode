@@ -85,11 +85,11 @@ export const ReadTool = Tool.define(
 
       if (items.length > 0) {
         return yield* Effect.fail(
-          new Error(`File not found: ${filepath}\n\nDid you mean one of these?\n${items.join("\n")}`),
+          new Error(`[not-found] File not found: ${filepath}\n\nDid you mean one of these?\n${items.join("\n")}`),
         )
       }
 
-      return yield* Effect.fail(new Error(`File not found: ${filepath}`))
+      return yield* Effect.fail(new Error(`[not-found] File not found: ${filepath}`))
     })
 
     const list = Effect.fn("ReadTool.list")(function* (filepath: string) {
@@ -137,13 +137,13 @@ export const ReadTool = Tool.define(
       ctx: Tool.Context,
     ) {
       if (params.offset !== undefined && params.offset < 1) {
-        return yield* Effect.fail(new Error("offset must be greater than or equal to 1"))
+        return yield* Effect.fail(new Error("[offset-out-of-range] offset must be greater than or equal to 1"))
       }
       const codepage = params.encoding === undefined ? undefined : TextCodec.codePage(params.encoding)
       if (params.encoding !== undefined && codepage === undefined) {
         return yield* Effect.fail(
           new Error(
-            `\`encoding\`: ${JSON.stringify(params.encoding)} is not a code page — pass a legacy page such as windows-1251, windows-1252, gbk, shift_jis or ibm866. UTF-8 and BOM files are detected on their own.`,
+            `[bad-encoding] \`encoding\`: ${JSON.stringify(params.encoding)} is not a code page — pass a legacy page such as windows-1251, windows-1252, gbk, shift_jis or ibm866. UTF-8 and BOM files are detected on their own.`,
           ),
         )
       }
@@ -380,7 +380,7 @@ export const ReadTool = Tool.define(
             },
           }
         }
-        return yield* Effect.fail(new Error(`Cannot read binary file: ${filepath}`))
+        return yield* Effect.fail(new Error(`[binary-file] Cannot read binary file: ${filepath}`))
       }
 
       // A refusal from the decoder (no host page) is a FAILURE the model can act on, not a defect.
@@ -390,7 +390,7 @@ export const ReadTool = Tool.define(
       })
       if (file.count < file.offset && !(file.count === 0 && file.offset === 1)) {
         return yield* Effect.fail(
-          new Error(`Offset ${file.offset} is out of range for this file (${file.count} lines)`),
+          new Error(`[offset-out-of-range] Offset ${file.offset} is out of range for this file (${file.count} lines)`),
         )
       }
 
@@ -530,8 +530,8 @@ export async function lines(filepath: string, opts: { limit: number; offset: num
   if (streamed) return { ...streamed, codepage: undefined }
   // `codepage` is the model's choice for a legacy file (H10) — canonical, validated by the caller.
   const decoded = TextCodec.decode(new Uint8Array(await Bun.file(filepath).arrayBuffer()), filepath, opts.codepage)
-  if (decoded.kind === "binary") throw new Error(`Cannot read binary file: ${filepath}`)
-  if (decoded.kind === "undecodable") throw new Error(`Cannot decode ${filepath}: ${decoded.reason}`)
+  if (decoded.kind === "binary") throw new Error(`[binary-file] Cannot read binary file: ${filepath}`)
+  if (decoded.kind === "undecodable") throw new Error(`[undecodable] Cannot decode ${filepath}: ${decoded.reason}`)
   const window = lineWindow(opts)
   const parts = decoded.text.split("\n")
   if (parts.at(-1) === "") parts.pop() // the terminator of the last line opens no line of its own

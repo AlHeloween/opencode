@@ -45,3 +45,15 @@ Offset, address (the same chain, over the row's bytes), hex, ASCII. Rows are ali
 | `limit` | 2000 / 512 | Lines (bytes in hex mode). |
 | `hex` | false | Read any file as a hex dump. |
 | `encoding` | host page | Code page of a legacy file; ignored for UTF-8 and BOM files. |
+
+## Refusals
+
+Every refusal starts with its key. Nothing is guessed when an address does not resolve.
+
+| Key | When | What to do |
+|---|---|---|
+| `[not-found]` | `filePath` names nothing on disk | Create it, fix the path, or pick from the similar names listed |
+| `[offset-out-of-range]` | `offset` is below 1 or past the last line | Read from offset 1, or from the footer's offset for the rest |
+| `[bad-encoding]` | `encoding` is not a code page | Pass the legacy page `read` names (`gbk`, `windows-1252`, …); UTF-8/BOM need none |
+| `[binary-file]` | File is binary and `hex` is not true | Read it with `hex: true`, or pick a text file |
+| `[undecodable]` | File cannot be decoded | Read with the right `encoding` |

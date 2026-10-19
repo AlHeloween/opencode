@@ -8012,3 +8012,6 @@ T1 edit residual DONE (no code change): guard already covers edit.ts — key-equ
 ## [2026-10-19] t94 T10-write — permission-refusal note (GREEN, one commit)
 
 Census: 746 ok / 3 err — 2x aborted (external), 1x `edit`-permission deny naming the user rule (authorization outcome, not a doc defect). Fix (doc-only, from code): `## Permission refusals` (user rules can refuse; refusal names the rule) + syntax-REJECT note. No throws in write.ts (REJECTED is returned output, keyed refusals N/A); existing example parses. Test: description-contract 4/4 GREEN run 20261019T132555Z_02c73630 exit 0. Next: T10-task (2/61 — sample the 2 errors).
+## [2026-10-19] t94 post-restart oracle — contract + typecheck + build GREEN (state commit)
+
+After host restart: tree clean for own paths, HEAD c1e13a25, plan re-read (T0–T9+T1 done, T10/T11/T12 open, next T10-write — since landed as 805732ed). Oracle re-run before any new edit: description-contract 4/4 GREEN run 20261019T132458Z_cb2562b8 exit 0. Closing oracle: contract 4/4 GREEN 166c81c9 (pre-restart) + 02c73630/30f3f98a/947f0aa2 slices; `bun typecheck` exit 0 run 20261019T132653Z_75a0b925; `_build.ps1` exit 0 smoke 10.0.1461 run 20261019T132732Z_4a5cd231 ([OK] Build complete). No bin/, no --no-verify.

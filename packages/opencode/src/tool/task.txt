@@ -59,3 +59,8 @@ Independent explorations or analyses should be parallel Task calls.
 | `command` | string | — | The command that triggered this task (set by the caller harness) |
 
 Do NOT use for a single trivial operation (read a file, grep a pattern).
+
+## Aborted and host failures (counted separately, never caller-avoidable)
+
+- An aborted call (parent or child interrupted) ends the delegation without a verdict — silence is failed execution, never task completion.
+- A host runtime failure (e.g. a `ReferenceError` from the harness around the delegation) is an external defect with its own reproducer, not a schema or refusal error: record the session receipts, do not bend this doc around it.

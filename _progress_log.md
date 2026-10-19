@@ -8021,3 +8021,30 @@ Census: 59 ok / 2 err — BOTH `Cannot access 'ge' before initialization` (TDZ R
 ## [2026-10-19] t94 closing oracle — contract + typecheck + build GREEN, state persisted (next T10-webfetch)
 
 Contract 4/4 GREEN run 20261019T134408Z_2e5b1554 exit 0 (T10-task slice). `bun typecheck` exit 0 run 20261019T134501Z_7c5a8e37. `_build.ps1` exit 0 smoke 10.0.1462 run 20261019T134545Z_43bd3e4e ([OK] Build complete - artifacts in dist/). Plan State + boxes current (T10-webfetch next). No bin/, no --no-verify.
+## [2026-10-19] t98 — undo applies, TUI disconnects; dialog-anchor + preserve-foreign fixed, dist crash falsified
+
+D1 dialog-vs-server contract (proven RED→GREEN): server folds an assistant target to its parent user
+(revert.ts:66-75, pinned by revert-user-anchor.test.ts), but the 10-14 confirmed handler
+(session-revert.ts:15) demanded equality — every dialog-Revert on an assistant row threw on a 200.
+Fix F1: `revertAnchorID()` (mirrors the server rule) in session-revert.ts, dialog-message.tsx passes the
+anchor. RED harness run 20261019T133324Z_a5c6cd91 exit 1 (wire carried the assistant id) → GREEN run
+20261019T133614Z_6d5f18c3 1 pass / 13 expects. Unit session-revert-anchor.test.ts 4/0
+(run 20261019T133536Z_74aa0fc7). Controls green: session-revert.test.ts 1/56
+(run 20261019T133641Z_9be0995e), session-revert-request.test.ts 6/23 (20261019T133708Z_9f74a749),
+revert-user-anchor.test.ts 2/5 — re-ran post-restart 20261019T133720Z_a5ac49b8 exit 0.
+D2 concurrent scope (proven RED→GREEN): service probe showed session-1 undo deleting session-2's
+disjoint file. Fix F2 (revert.ts): preserve foreign files via revertTo preserve path + scope the drift
+oracle to the session's files. RED run 20261019T133053Z_463c596c (bAfter missing) / scope-only RED run
+20261019T133214Z_fa17b413 → GREEN run 20261019T133549Z_9959abc0 2/0.
+H5 crash hunt (owner redirect: undo applies, TUI disconnects; 21:22 host death): dead-run forensics
+(C:\Windows\logs\cmd_runner\20261019T035158Z_d7c6fc50 — mouse-only tail, undecodable, direct-terminal
+blind) + shared-DB forensics (no revert state anywhere) could NOT confirm an undo preceded the death —
+correlation stays UNCONFIRMED. Isolated dist-TUI reproducer (.temp/t98-dist, seeded via product services,
+dist\bin\opencode.exe --session through cmd_runner): /undo applied (DB revert set, file BEFORE),
+redo applied (revert null, file AFTER), process alive throughout (run 20261019T135122Z_5a0207bf).
+H5 FALSIFIED on this path/build — no crash, no disconnect. Residual: same-file write-write conflict
+(pre-turn wins), deleted-by-other resurrection, unmapped plan (no MASTER_PLAN render — shared map).
+Oracles: `bun typecheck` exit 0 run 20261019T135512Z_5ef03f35; `_build.ps1` exit 0 run
+20261019T135544Z_53339a24. Files: session-revert.ts + dialog-message.tsx (F1), session/revert.ts (F2),
+tests session-revert-assistant/-anchor, t98-undo-scope (+superseded probe t98-undo-probe),
+plans/2026-10-19_undo-broken.md. No shared-tree undo; no bin/; no --no-verify; no provider keys in copy.

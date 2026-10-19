@@ -195,7 +195,22 @@ export const layer = Layer.effect(
         // I-1: one full Fossil leaf = earliest patch hash (structure of that checkin).
         // Not per-file mix — renames/moves/deletes must match the leaf exactly.
         const targetHash = patches[0]!.hash
-        yield* snap.revertTo(targetHash)
+        // t98: scope the file restore to this session's turn. A full-leaf
+        // checkout would also revert work other sessions committed after the
+        // target (measured: a concurrent session's disjoint file deleted).
+        // Keep every tracked file outside this turn's own set at its current
+        // content via the revertTo preserve path; the drift oracle below is
+        // scoped to the session's files for the same reason.
+        const sessionSet = new Set(sessionFiles.map((f) => f.replaceAll("\\", "/")))
+        const afterTarget = yield* snap.patch(targetHash)
+        const foreign = afterTarget.files.filter((f) => !sessionSet.has(f.replaceAll("\\", "/")))
+        if (foreign.length > 0) {
+          log.info("revert: preserving files outside this turn", {
+            sessionID: input.sessionID,
+            files: foreign.length,
+          })
+        }
+        yield* snap.revertTo(targetHash, foreign.length > 0 ? { preserveFiles: foreign } : undefined)
         // ORACLE IN THE CODE (2026-09-21): the restore is not done until the WORKTREE says it moved.
         //
         // Measured failure: with the file restore applied, the checkout could leave the tree where it
@@ -205,11 +220,13 @@ export const layer = Layer.effect(
         // this project may report as one.
         //
         // The check is on CONTENT, not on the leaf's name: `revertTo` navigates to the leaf holding
-        // `targetHash`, and what a restore promises is that the working copy matches it. An empty
-        // diff is exactly that promise, so this can neither be satisfied by a stale hash probe nor
+        // `targetHash`, and what a restore promises is that the working copy matches it. The
+        // scoped brief (`patch(targetHash)` filtered to this turn's files) is exactly that
+        // promise for the files this undo owns — foreign files preserved above intentionally
+        // differ from the target — so this can neither be satisfied by a stale hash probe nor
         // fail because the navigation named the same content differently.
-        const drift = (yield* snap.diff(targetHash)).trim()
-        if (drift.length > 0) {
+        const driftFiles = (yield* snap.patch(targetHash)).files.filter((f) => sessionSet.has(f.replaceAll("\\", "/")))
+        if (driftFiles.length > 0) {
           for (const c of crossing) {
             const row = all.find((m) => m.info.id === c.id)
             if (!row) continue
@@ -224,7 +241,7 @@ export const layer = Layer.effect(
             sessionID: input.sessionID,
             expected: targetHash,
             target: patches[0]!.files[0] ?? "unknown",
-            driftLines: drift.split("\n").length,
+            driftLines: driftFiles.length,
           })
           return yield* sessions.get(input.sessionID)
         }

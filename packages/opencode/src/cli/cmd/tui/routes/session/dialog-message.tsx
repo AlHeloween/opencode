@@ -10,7 +10,7 @@ import type { PromptInfo } from "@tui/component/prompt/history"
 import { strip } from "@tui/component/prompt/part"
 import { errorMessage } from "@/util/error"
 import { useToast } from "@tui/ui/toast"
-import { revertSession } from "./session-revert"
+import { revertAnchorID, revertSession } from "./session-revert"
 
 export function DialogMessage(props: {
   messageID: string
@@ -67,7 +67,8 @@ export function DialogMessage(props: {
             }
             if (reverting()) return
             setReverting(true)
-            revertSession(sdk.client.session, { sessionID: props.sessionID, messageID: msg.id })
+            const anchorID = revertAnchorID(sync.data.message[props.sessionID] ?? [], msg.id)
+            revertSession(sdk.client.session, { sessionID: props.sessionID, messageID: anchorID })
               .then(() => {
                 if (props.setPrompt) {
                   const parts = sync.data.part[msg.id] ?? []

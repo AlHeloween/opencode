@@ -13,6 +13,7 @@
 - [DAIS: граф утверждений и проверок](dais-evidence-graph.md) — native Fossil/SCIP/Zoekt, паспорта утверждений, FAIL/STALE и границы доказательства
 - [Исследование Haiku 5.5 — 2026-10-16](../experiments_history/2026-10-16_haiku-research/REPORT.md) — live wire, hidden thinking, signed replay, HTTP/2 cancellation; воспроизводители и границы без заявления product fix
 - [Контролируемое сравнение Haiku/OpenCode/omp](../experiments_history/2026-10-16_haiku-omp-compare/REPORT.md) — actual CLI capture, восемь payload arms через общий gateway; различие bundle подтверждено, конкретная причина и продолжение остаются открыты
+- [Kernel portability — 2026-10-19](kernel-portability-2026-10-19.md) — Gemini Pro with vs without the kernel on one SV (drift vs G0→G9 to SUCCESS), frameless Sonnet contrast, environment labels; evidence in `../experiments_history/2026-10-19_kernel-portability-chat/RESULT.md`
 - [Граф reasoning по умолчанию](reasoning-flow.md) — получение, хранение, экран, replay, route-specific потери и границы SDK; срез кода до исправления
 
 - [Отчётность и wiki организации](organization-reporting.md) — входы к паспорту, портфелю, участникам и отчётам Agent Corporation
@@ -24,6 +25,7 @@
 - [Kernel package](../prompt_kernel/README.md) — gate graph, serialization order, source of the runtime prefix
 - [Kernel assembly point](kernel-assembly-point.md) — where `source.py` becomes `reasoning_prompt.txt`
 - [Награда кернела](reward-contract.md) — историческая измеренная формула и слагаемое подтверждённого завершения задач
+- [Аудит неопределённых контрактов — 2026-10-15](../experiments_history/2026-10-15_kernel-undefined-audit/parent-review.md) — robot candidates, независимая проверка, разные единицы подсчёта и непокрытые ссылки
 - [Аудит кернела и addons — 2026-10-12](../plans_completed/2026-10-12_kernel-addons-correctness-audit.md) — K01–K10, воспроизведённые дефекты, полный baseline FAIL и границы поведенческой проверки
 - [Ремонт кернела и ADID delivery](../plans/postponed/2026-10-12_kernel-contract-repair-and-adid-release.md) — source fixes проверены; release/install остановлен на delivery harness, доказательства и lift signal сохранены
 - [Two-canon protocol](two-canon-protocol.md) — ADID 15.3 ↔ kernel parity: one protocol, two compilers

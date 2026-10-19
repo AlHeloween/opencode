@@ -1,0 +1,10 @@
+Keywords: small-steps-trllm 0.35, scale-is-degenerate-simplex 0.25, evaluation-system-first 0.25, server-first-step 0.15
+Semantic dominant: TR-LLM is approached in small verified steps because scale applied to a one-aspect benchmark stays a degenerate simplex, and the evaluation system it needs, three-by-three oracles with measured independence, is already being built and exercised on our own project before the server arrives.
+md5: 8f4a2d60c1e93b57e0d2a9c14b6f37e1
+prev-md5: 5d1e8b37a2f04c96b0e7d1a26c9f3e48
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+
+Расшифруй этот семантический вектор.
+
+В конце ответа предложи ОДИН следующий вопрос для углубления, отдельной последней строкой, начиная её с «СЛЕДУЮЩИЙ ВОПРОС:».

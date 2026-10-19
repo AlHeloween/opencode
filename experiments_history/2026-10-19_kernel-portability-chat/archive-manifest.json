@@ -1,0 +1,76 @@
+{
+  "scope": "Verbatim 2026-10-19 chat transcripts (owner pastes) plus the frameless Sonnet run driver, log and outputs, with RESULT.md findings. No credentials, no binaries. Line endings preserved byte-exact under * -text.",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 90,
+      "sha256": "8e0276aa5cc4267930e8e2c3260c00bf1fd34487c2ab657baa51de405fbb19c8"
+    },
+    {
+      "path": "gemini-no-kernel-chain.md",
+      "bytes": 46760,
+      "sha256": "e01f1e1675ff0dbd4d39d6cc3af7a3258b01de8c65d313e7adb9350295d7d732"
+    },
+    {
+      "path": "gemini-reflections-and-owner-words.md",
+      "bytes": 3573,
+      "sha256": "097acb0b72b347b9846c747160813a990256891d74ccb608c2e8cca7b60f3be3"
+    },
+    {
+      "path": "gemini-with-kernel-full-cycle.md",
+      "bytes": 42016,
+      "sha256": "11bb4e58e9ec9b8696ae22af37d081cca128eb44779d989e4b9079085c061a3d"
+    },
+    {
+      "path": "hop1.txt",
+      "bytes": 937,
+      "sha256": "36dc74a394592e1ea07eff0c9ae8579794787ddbd3b31d533f81bc40129acd57"
+    },
+    {
+      "path": "log.json",
+      "bytes": 15551,
+      "sha256": "1404d1b87b83ec200dca415db5760ecb0fdff28dc55eae083ecc96b3eb50c742"
+    },
+    {
+      "path": "out1.md",
+      "bytes": 4188,
+      "sha256": "ba31e54753eb852eb6bf87f3eebe04d071e56f923f8561c7b700ddf4ff3b1fd0"
+    },
+    {
+      "path": "out2.md",
+      "bytes": 3541,
+      "sha256": "a4af4a66092480cb6cf679e9569b7d5c6abc377a42bbf8395ba43a09506ebbe2"
+    },
+    {
+      "path": "out3.md",
+      "bytes": 2794,
+      "sha256": "93ff47f9a2ed51620ebad1bd252aa7cdb89ebfd0c1038b89d2410cd1c55990ad"
+    },
+    {
+      "path": "out4.md",
+      "bytes": 2267,
+      "sha256": "97ab20d68e1597331afbeb48654273ed8a55cba4bc895c5bbc31f020b6cb4bc3"
+    },
+    {
+      "path": "RESULT.md",
+      "bytes": 6613,
+      "sha256": "65f26fa2b8589b252668ecdd28d0592c876491d2c10e2df732127af4965b4cee"
+    },
+    {
+      "path": "run.py",
+      "bytes": 1521,
+      "sha256": "1002c92e946a5e75f8f84c9bb61d3fc30cb38b672b2a6151904769a5d1e5b085"
+    }
+  ],
+  "checks": {
+    "verbatim_hashes": "PASS",
+    "regular_files": "PASS",
+    "private_marker_scan": "PASS",
+    "prefix_match_task_record": "PASS"
+  },
+  "limitations": [
+    "n = 1 per arm; no randomization, no blinding, no repeat runs.",
+    "Frameless-run cost/session ($0.1663, 9d8665a5-3daa-472a-b458-daba7ade41a1) per the task record; run.py prints them to stdout, they are not stored in the files.",
+    "G7-G9 of the kernel run are simulated predictions: no sandbox, no file writes, no measured content_hash."
+  ]
+}

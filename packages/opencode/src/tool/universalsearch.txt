@@ -36,7 +36,7 @@ Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-prov
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `query` | string | — | Search query or research question |
+| `query` | string | — (required unless `job_id` polls) | Search query or research question; required for every `source` except a `job_id` poll |
 | `source` | web \| code \| hybrid \| agent | hybrid | Prefer hybrid for REUSE; web/code for a single leg |
 | `limit` | number | 5 web / 10 code | Max results |
 | `max_turns` | number | 5 | Agent iterations (agent mode only) |
@@ -55,3 +55,16 @@ Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-prov
 ```
 
 Service must be running. Health-checked before each request.
+
+## External failures (counted separately, never caller-avoidable)
+
+- Service down or refused at the configured URL (default http://127.0.0.1:3005): the search never ran — the tool throws instead of returning empty.
+- Service disabled in config: the tool throws instead of searching.
+- An aborted call (interrupted) is an external stop, not a schema or refusal error.
+- `source: "agent"` starts a server-side job: the first call returns a job id, polling it past the wait budget reports a timeout — the research may still be running on the server.
+
+## Example
+
+```json
+{"query": "cloudflare idle connection timeout", "source": "web", "limit": 5}
+```

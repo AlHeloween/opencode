@@ -95,7 +95,7 @@ parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
-- [ ] T3 universalsearch (10%, all external) — census + cluster (service-down, aborted). Diff: no refusal
+- [x] T3 universalsearch (10%, all external) — DONE 2026-10-19: census 215/24 (service refused/aborted, all external) + cluster. Diff before: SILENCE (`query` Schema.optional but code throws per-source unless `job_id` polls; external down/disabled/abort unnamed). After: query row `required unless job_id polls` + `## External failures` (down/refused, disabled, aborted, agent-job timeout) + `## Example` call JSON (parses; keys valid per Parameters). No keys either side (17 bare throws stay allowlisted — code owns no keyed refusals, doc promises nothing the throws contradict). GREEN run 20261019T105154Z_e4182411 exit 0. census + cluster (service-down, aborted). Diff: no refusal
   keys in code vs doc promises; doc must name the external dependency (`localhost:3000` service) and the
   `source` values. RED test (keys empty on both sides + example parses), fix `.txt` only. <!-- sv:
 ```yaml

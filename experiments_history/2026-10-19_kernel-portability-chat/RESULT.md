@@ -89,3 +89,15 @@ A mismatch means the evidence changed: stop and report, do not quote.
 - Sonnet shares a model family with the SV's author; Gemini does not.
 - G7–G9 of the kernel run executed nothing: no sandbox, no file writes, no
   measured `content_hash` — the SUCCESS terminal is a simulated one.
+
+## Refuted: «models cannot set their own tasks»
+
+Owner, verbatim, 2026-10-19: «Я же тут недавно смотрел презентацию и там четко грузили что вот модели сами себе задачу ставить не могут. И мы в живую это опровергли.» The presentation itself is not on disk and is not cited; it is described only as «a public claim».
+
+1. **What was refuted.** From an abstract SV (strategy: small steps, evaluation system first) the model derived a CONCRETE task nobody named: log rotation with locked-file skip as a patient zero (`gemini-with-kernel-full-cycle.md`, sha256 `11bb4e58e9ec9b8696ae22af37d081cca128eb44779d989e4b9079085c061a3d`, lines 64–65). It decomposed, planned, verified (simulated) and closed that task (G9 SUCCESS, lines 380–405), then proposed the next cycle («Новый цикл?», line 429). The owner's input was consent only («yes», 8 bare turns at lines 42, 63, 92, 165, 230, 282, 324, 378) — never content.
+
+2. **Why the public claim looks true.** It is measured on bare models: the same model without the kernel drifted within 7 hops (`gemini-no-kernel-chain.md`, sha256 `e01f1e1675ff0dbd4d39d6cc3af7a3258b01de8c65d313e7adb9350295d7d732`). The missing piece is the geometry of the process, not the capability.
+
+3. **The exact boundary.** Owner's correction, verbatim: «SV это понятно - намерение. Но все остальное и система логов с ast - ну как бы это чисто идея модели.» The SV carried DIRECTION only — small steps, evaluation system first, three-by-three oracles, before the server (`hop1.txt`: no domain, no artifact, no task, no way to verify). Everything concrete was the model's own idea: the domain (log rotation); the hard part (files locked by another process); the `--skip-locked` contract (line 70); the AST oracle looking for `except PermissionError` around `move` (line 73); the sandbox with a file locked by a background process (line 76); three defect injections, one per aspect (lines 335–354); the Windows/Linux locking risk (lines 153–154, 242). So the model CHOSE WHAT TO DO and HOW TO PROVE IT under an intention that only said why and where to. The intention itself came from outside (G0 / SV) — the project principle, owner verbatim: «правильно заданное цифровое намерение первично». Do not understate this as «it only decomposed a given task»: no task was given.
+
+4. **Limits.** n = 1, a tool-less chat, simulated G7–G9, and the presentation itself is not cited (no source on disk).

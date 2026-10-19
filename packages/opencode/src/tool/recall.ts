@@ -356,7 +356,7 @@ export function readToolResult(input: {
         return {
           ok: false,
           error:
-            "keep is for narrowing a tool result — an attachment is ONE payload (its data URL), so a kept slice would send the provider a truncated one. Read it with a range instead.",
+            "[keep-on-attachment] keep is for narrowing a tool result — an attachment is ONE payload (its data URL), so a kept slice would send the provider a truncated one. Read it with a range instead.",
         }
       }
       const slice = sliceResult(payload, input)
@@ -378,7 +378,7 @@ export function readToolResult(input: {
       }
     }
 
-    if (part.type !== "tool") return { ok: false, error: `part ${input.id} is a ${part.type ?? "unknown"} part, not a tool result` }
+    if (part.type !== "tool") return { ok: false, error: `[not-a-tool-part] part ${input.id} is a ${part.type ?? "unknown"} part, not a tool result` }
     // A recall of a recall nests a label inside a label (`recall: recall: recall: webfetch: …`) and
     // addresses nothing new — the way back to a result is ONE step. The stored recall knows which part
     // it read, so the refusal hands over that address instead of the wrapper.
@@ -386,7 +386,7 @@ export function readToolResult(input: {
       const source = (part.state?.input as { id?: unknown } | undefined)?.id
       return {
         ok: false,
-        error: `part ${input.id} is a recall result — recall the result it read instead${
+        error: `[recall-of-recall] part ${input.id} is a recall result — recall the result it read instead${
           typeof source === "string" ? `: id=${source}` : ""
         }`,
       }
@@ -398,12 +398,12 @@ export function readToolResult(input: {
     if (status !== "completed" && status !== "error") {
       return {
         ok: false,
-        error: `part ${input.id} is ${status ?? "unknown"} — only a finished result can be recalled`,
+        error: `[unfinished-result] part ${input.id} is ${status ?? "unknown"} — only a finished result can be recalled`,
       }
     }
 
     const output = status === "completed" ? (part.state?.output ?? "") : (part.state?.error ?? "")
-    if (output.length === 0) return { ok: false, error: `part ${input.id} stored an empty result` }
+    if (output.length === 0) return { ok: false, error: `[empty-result] part ${input.id} stored an empty result` }
 
     // ONE selector, shared with the replay rendering of a kept selection (`message-v2.selectLines`),
     // reached through the ONE slicer an attachment uses too.
@@ -449,7 +449,7 @@ export function readToolResult(input: {
       if (reason === undefined || reason === "") {
         return {
           ok: false,
-          error: "a release needs a reason — it is persisted with the release, so letting go of a result can be audited later",
+          error: "[release-needs-reason] a release needs a reason — it is persisted with the release, so letting go of a result can be audited later",
         }
       }
       return {

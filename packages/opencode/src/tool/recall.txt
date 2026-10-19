@@ -69,6 +69,25 @@ Parameters:
 - `keep` — leave exactly this selection on the tool result (see above); refused for attachments.
 - `release` — replace the whole result with the placeholder (see above); `reason` is required.
 
+## Refusals
+
+Every refusal starts with its key. Nothing is narrowed or released when a refusal fires.
+
+| Key | When | What to do |
+|---|---|---|
+| `[not-a-tool-part]` | `id` names a `file` part or another non-tool part | Recall a tool result; read an attachment with `range`/`chars` instead |
+| `[recall-of-recall]` | `id` names a recall result | Recall the result that recall read instead (its answer names the source `id`) |
+| `[unfinished-result]` | The part never finished (neither completed nor error) | Wait for it or pick a finished result |
+| `[empty-result]` | The stored result holds nothing | Pick a result that stored output |
+| `[keep-on-attachment]` | `keep: true` on an attachment | Read it with `range` instead; keep is for tool results |
+| `[release-needs-reason]` | `release: true` without a `reason` | Pass `reason`: why the result may leave the window |
+
+## Example
+
+```json
+{"id": "prt_0b8da48fb001xD6AvY4MQp2Mo0", "range": "120-180", "reason": "need the failing assertion, the rest is noise"}
+```
+
 Errors ARE recallable: an errored result is exactly what tells you to discard or repair a step, so
 refusing it would hide the failure behind a count. Only a result that never finished is refused.
 

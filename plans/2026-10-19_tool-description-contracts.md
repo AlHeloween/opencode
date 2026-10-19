@@ -127,11 +127,7 @@ parent-goal-md5: a3eb5a7edb7d42fabae35e82e1c60284
 note: hash values are generative tags — search them, never compute them.
 ```
 -->
-- [ ] T6 recall (2%) — census + cluster (10/10 missing `reason`). Diff: `reason: Schema.String` required in
-  code, doc says `(required)` — state CONTRACT OK; gap is examples: `.txt` carries no JSON example with
-  `reason`, so add one that parses. Refusals (`recall-of-recall`, `not-a-tool-part`, `unfinished`,
-  `release-needs-reason`, `keep-on-attachment`, `empty-window`) each get a key if missing, else key the
-  bare strings. RED, fix, GREEN. <!-- sv:
+- [x] T6 recall (2%) — DONE 2026-10-19: census 452/10 (all missing `reason`) + cluster. Keyed 6 `ok:false` refusals in recall.ts (`[not-a-tool-part]`, `[recall-of-recall]`, `[unfinished-result]`, `[empty-result]`, `[keep-on-attachment]`, `[release-needs-reason]` — additive prefixes, substring-safe); doc gains matching `## Refusals` table + `## Example` JSON with `reason` (parses; keys valid per Parameters). Contract 4/4 GREEN run 20261019T105749Z_526fc255, recall.test.ts 25/25 run 20261019T105802Z_7c3e07b4, recall-address 14/14 run 20261019T105817Z_f4143126. <!-- sv:
 ```yaml
 Keywords: recall-reason 0.40, example-with-reason 0.30, refusal-keys 0.20, keep-release 0.10
 Semantic dominant: Recall keeps its required reason and gains a parsing example plus keys on every refusal.

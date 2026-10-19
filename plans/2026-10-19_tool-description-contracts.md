@@ -51,6 +51,10 @@ repetition-loop sessions are counted separately, never silently.
   universalsearch → list → question → recall → glob → read → grep → all remaining tools with a
   description (alphabetical), then tools with inline descriptions.
 
+## State 2026-10-19 (stop with next named — bounds held for shared tree)
+
+Landed: T0 (generic contract, EXPECTED_FAIL, GREEN) + T2 (logsearch doc). Commits 198d902241 (T0), 0edc8fc3fa (T2). Oracles: contract 4/4 GREEN, EXPECTED_FAIL 3/1 fail, `bun typecheck` exit 0 (run 20261019T090153Z_8269e70d), `_build.ps1` exit 0 smoke 10.0.1457 (run 20261019T090224Z_6ecfb4d0). Census/clusters in Context + T-boxes. Orphans: none (four mapped). NEXT: T3 universalsearch (priority order; doc-only external-dependency + `source` values, keys empty both sides, example parses). After that T6 recall (10/10 missing `reason`, key six `ok:false` refusals, example with reason). ENAMETOOLONG kept as suspected argv-too-long code defect for its own commit+test, not bent in any doc.
+
 ## Tasks
 
 - [x] T0 Generic contract + un-keyed-throw guard (all tools) — DONE 2026-10-19: `test/tool/description-contract.test.ts` GREEN 4/4 run 20261019T085733Z_b02b2d6a (commit 198d902241). RED path recorded: aicall [Exact], messagesearch labels, run.txt JSONL, edit 7-vs-20, allowlist census. EXPECTED_FAIL: removed `[same-file]` line → 3/1 fail run 20261019T085815Z_60467854; restored, GREEN run 20261019T085836Z_5267b38d. Extend the t93 helper into

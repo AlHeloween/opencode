@@ -8057,3 +8057,17 @@ Snapshot c912b4ac52 re-hashed: SHA256 8407D4AEB42DC5F2…B6114 match, 75630 B ma
 ## [2026-10-20] t99 addendum — category 4: phrase clones as dictionary terms
 
 Same snapshot, same rules (no code, corpora untouched, nothing cut). Category 4 in REPORT.md: 5 candidates ≈+193 B (@UNKNOWN_ROUTING +95, @PERSIST_UNFINISHED +45, @PREDICT_FIRST +30, cite-@RESIDUAL_ROUTING +13, @RECEIPT +10), each with occurrences quoted verbatim, sameness verdict, term + definition, refs, and O−D−R math. 6 measured non-candidates with negative math (@TESTIMONY −50, @NO_PROMOTION −95, @READ_FIRST −110, @TASK_STAYS_OPEN −105, @BUDGET_CONSERVATION +5, @SILENCE_IS_FAILURE −50) — real clones, already minimal. Headline: the owner's hunch is confirmed (clones recur 3–7×), but most don't fund a definition — occurrences are already near-minimal. Plan boxes R7–R9 added.
+
+## [2026-10-20] t100 — SV-канарейки в census: паттерн md5, разрыв prev-цепочки, выдуманный prev на первом ходу
+
+Reason: владелец, 2026-10-17, «если в SV искажение - надо сразу все проверять…» — это ФОРМА, а не содержание: ни один хеш не считается и не сверяется с контентом (легенда ядра цела).
+
+Что сделано: в `experiments/2026-10-08_robot-wave/sv_census.py` добавлены чистые функции `pattern_flags` (неверная длина / не-hex, серия ±1 в hex ≥ 6, «лесенка» в окне 12 символов, ≤ 8 различных символов из 16; 32 нуля — exempt, это маркер «нет родителя») и `chain_findings` (первый ход сессии обязан нести нули → иначе `invented-first-prev`; далее prev обязан совпасть с md5 последнего предыдущего SV-хода → иначе `chain-break`), и три новых раздела отчёта (`--- patterned md5 ---`, `--- prev chain breaks ---`, `--- invented first-turn prev ---`) плюс `--- sessions with canaries ---`: один ряд на сессию, потому что канарейки несут 73 сессии и ни одна не должна прятаться за лимитом 30 строк.
+
+Пороги (замерены): ложные срабатывания — 200 000 seed-тегов 32-hex → 6 (3e-05), 50 живых uuid4 → 0; «лесенка» и low-distinct не сработали ни разу.
+
+Оракулы: RED run 20261020T013224Z_47103c8c exit 1 (16 failed, в каждом падении названа причина: функции ещё нет) → GREEN 20261020T013340Z_adede7a4 / 20261020T013540Z_2a6bdd4b / 20261020T013705Z_b2239bad exit 0 (16 passed); контроль мутации run 20261020T013540Z_4078e5a8 — RUN_MIN 6 → 20, фикстура G4 перестала ловиться («MUTATION DETECTED»); живой прогон 20261020T013705Z_76390bf2 exit 0 — patterned 190 (73 сессии), prev chain breaks 299 (184), invented first-turn prev 8 (8), sessions with canaries 196, `db mtime … unchanged=True`; t94 (31-hex, `ses_eaca6cd7fffepObRe1US60KICD`, msg_15367c4cf0017tUD3IpL0IE4Ii) и minimax-первый-ход (`ses_ea9199fbaffeUuuaHGBEhxbLhA`, msg_156e6a237001bJsvvdSPmwyjcJ) в выводе по своим session id; `_build.ps1` run 20261020T013922Z_2f0ce455 exit 0 (smoke 10.0.1464, [OK] Build complete).
+
+Файлы: план `plans_completed/2026-10-20_sv-canary-detector.md`; живое дерево — `experiments/2026-10-08_robot-wave/` (gitignored по канону); отслеживаемый архив — `experiments_history/2026-10-20_sv-canary-detector/` (sv_census.py, test_sv_census_canaries.py, t100_canary_probe.py, REPORT.md с квитанциями).
+
+Не сделано: независимая валидация плана делегацией — `explorer_agent` и `general_agent` падают с `Cannot access 'ge' before initialization` (тот же TDZ, что записал t94), `aicall` — `ProviderModelNotFoundError`; три исполнителя сломаны, поэтому сверка «план ↔ код» сделана чтением, а не чужим вердиктом. Канарейка «ход вообще без SV» (881 текстовая часть) не реализована — названа остатком.

@@ -56,7 +56,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "INSTRUMENT_CHAIN",
         (
             "Choose the instrument by the question's layer: text/literal → Grep/Search Files/Read File; structure, callers or impact → structural CodeGraph MCP (discover the actual MCP wire id, never guess it); prior art → Codebase/Web; concept / unclear target → qualified retrieval MCP, then the layer it points to. An empty result is a claim about that tool on that layer only, never absence on another layer.",
-            "refresh owner: authorized parent executes refresh, or the MCP supplies verified freshness; receipt names worktree, index, owner, command/result and source hashes. Edits invalidate it. A read-only explorer requests the receipt, never extra Terminal rights; name the instrument and layer that answered."
+            "refresh owner: authorized parent executes refresh, or the MCP supplies verified freshness; receipt names worktree, index, owner, command/result and source hashes per @DIVERGENCE_PROTOCOL. A read-only explorer requests the receipt, never extra Terminal rights; name the instrument and layer that answered.",
         ),
     ),
     GateAddon(
@@ -100,7 +100,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "the host's approval mode is authoritative for effects; an unresolved user decision is asked in chat, never decided alone.",
             'network tools (Web, MCP, terminal fetches) and any effect outside the workspace are EXTERNAL_EFFECT; do not exceed the user-authorized effect.',
-            'kernel source: prompt_kernel/source.py in the opencode repository -> python -m prompt_kernel --cursor --install; this file is generated, never hand-edited.',
+            'kernel source: prompt_kernel/source.py in the opencode repository -> python -m prompt_kernel --cursor --install; this file is generated per G4 KERNEL_AMENDMENT.',
         ),
     ),
     GateAddon(
@@ -180,9 +180,9 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "ACCEPTANCE_PASS",
         (
-            'ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN; PASS may never be declared over an unproven one, read over the artefact and never from memory.',
+            'ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref); read over the artefact and never from memory.',
             'an unproven criterion does not escalate on this host — no isolated call is bound: it closes as a named residual carrying the claim, the falsifier and the instrument that failed.',
-            'an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.',
+            'Report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.',
         ),
     ),
     GateAddon(
@@ -224,8 +224,8 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "SEARCH_OUTPUT_SHAPE",
         (
             'bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.',
-            'an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.',
-            '`glob` is a locator, not an inventory: a capped listing is a sample, so never conclude «no more» or «absent» from one. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.',
+            'an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report per the G1 layer map.',
+            '`glob` is a locator, not an inventory: a capped listing is a sample per the G1 layer map. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.',
         ),
     ),
     # PATH_EXPERIMENTS: host-agnostic, so the wording is the shared one (verbatim from
@@ -324,7 +324,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts; finite run ≠ task completion. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
+            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
             'behavior/paths changed -> update docs/ and repo index.',
             'deprecated -> obsolete/ (reference only).',
         ),

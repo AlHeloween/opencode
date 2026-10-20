@@ -41,7 +41,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
             # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
             # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
-            "refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync; name the instrument and layer that answered."
+            "refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness per @DIVERGENCE_PROTOCOL; a read-only explorer requests the receipt, never shell rights. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync; name the instrument and layer that answered.",
         ),
     ),
     GateAddon(
@@ -58,7 +58,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "TOOL_GROUNDING",
         (
-            "ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, Universal Search hybrid (POST 127.0.0.1:3005/hybrid, then /web/context for content_hash); WebFetch for pipeline debugging only.",
+            "ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob; WebFetch for pipeline debugging only.",
             "patents: discover the patent id via hybrid /search, then /web/context on the patent URL for content_hash.",
             # KAIZEN countermeasure: Glob timed out at the repo root four times in one session (ripgrep 20 s) while the
             # same pattern with a path answered — a half-working tool, so the standard changes, not the workaround.
@@ -151,14 +151,14 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "permission/identity uncertain -> defer to the harness's prompt; unresolved decision -> AskUserQuestion.",
             "network-calling MCP tools (e.g. call_model) are EXTERNAL_EFFECT; stay free-tier unless allow_paid:true is explicit.",
-            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated, never hand-edited.",
+            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated per G4 KERNEL_AMENDMENT.",
         ),
     ),
     GateAddon(
         "G6",
         "TOOL_BINDING",
         (
-            "map symbols/ownership: codegraph_explore (if .codegraph/) else Grep/Glob/Read; read-only.",
+            "map symbols/ownership per G1 layer map; read-only.",
         ),
     ),
     GateAddon(
@@ -180,7 +180,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_IMPLEMENT",
         (
             "mutate: Edit, Write, one hunk at a time; no bulk patch tool.",
-            "shell = process orchestration only; never file browsing — use Glob/Grep/Read.",
+            "shell = process orchestration only per G1 file enumeration.",
         ),
     ),
     GateAddon(
@@ -232,8 +232,8 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "SEARCH_OUTPUT_SHAPE",
         (
             "bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.",
-            "an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.",
-            "`glob` is a locator, not an inventory: a capped listing is a sample, so never conclude «no more» or «absent» from one. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
+            "an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report per the G1 layer map.",
+            "`glob` is a locator, not an inventory: a capped listing is a sample per the G1 layer map. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
         ),
     ),
     GateAddon(
@@ -271,7 +271,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             "prove via tests; long-running probes: run_in_background:true then Monitor.",
             "read logs/db from the files directly; no logsearch/dbread tool.",
             "rendered-page/visual claims need the Browser tool oracle (screenshot/read_page); typecheck is not proof.",
-            "shell ls/dir scans are not evidence — Glob/Grep/Read only.",
+            "shell ls/dir scans are not evidence per G1 file enumeration.",
             "sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.",
             # Owner, 2026-10-01: «снеси скрипт питона, и мы используем только второй маршрут» — tools/aicall.py deleted.
             "the isolated call: skill aicall — frameless `claude -p --model sonnet` from an empty dir outside any repo, no tools, no MCP — the ONLY route, no other model or script. Attach the evidence inline; Inferred at best, never a stamp.",
@@ -295,7 +295,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts; finite run ≠ task completion. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
+            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
         ),
@@ -312,9 +312,9 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "ACCEPTANCE_PASS",
         (
-            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN; PASS may never be declared over an unproven one, read over the artefact and never from memory.",
+            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref); read over the artefact and never from memory.",
             "an unproven criterion may escalate ONCE, and only where DELEGATION admits it: the isolated call gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY. It contradicts -> persist the finding, compact, re-enter G0; it agrees -> nothing moved, the criterion stays uncovered and closes as residual.",
-            "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
+            "Report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),
     ),
     GateAddon(

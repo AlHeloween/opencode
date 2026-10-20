@@ -72,7 +72,7 @@ def test_g1_domain_grounding_slot_in_all_variants(variant) -> None:
     text = render_kernel(KERNEL, *VARIANTS[variant])
     g1 = _gate_block(text, "G1")
     assert "DOMAIN_TERMS" in g1
-    assert "keeps G1 open" in g1
+    assert "For a missing or Unknown source_ref, apply @DOMAIN_TERMS" in g1  # owner-approved cut #11, 2026-10-20 (was: "keeps G1 open")
 
 
 # --- t90 review 1 (Legislator FAIL findings) ---
@@ -131,7 +131,7 @@ def test_domain_reuse_reads_glossary(variant) -> None:
 def test_domain_unknown_exit(variant) -> None:
     """F4c: sourceless terms close as residual, never silent."""
     g1 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G1")
-    assert "source_ref: Unknown" in g1
+    assert "Unknown source_ref" in g1  # owner-approved cut #11, 2026-10-20 (was: "source_ref: Unknown")
     assert "no plan step rests on that term" in g1
 
 

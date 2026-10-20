@@ -166,7 +166,7 @@ def test_independence_within_aspect(variant) -> None:
     """R1F4: family AND receipt inside, categories over the whole."""
     text = render_kernel(KERNEL, *VARIANTS[variant])
     assert "different catalogue family AND a receipt" in text
-    assert "still governs the claim as a whole" in text
+    assert "family split overrides" in text  # owner-approved cut #9, 2026-10-20 (was: "still governs the claim as a whole")
     assert "for E1/E2" in text
 
 
@@ -194,7 +194,7 @@ def test_documentation_executed_per_family(variant) -> None:
     text = render_kernel(KERNEL, *VARIANTS[variant])
     for executed in ("resolved to", "walked with", "executed or parsed", "compared against", "diffed against"):
         assert executed in text, executed
-    assert "only read is not a leg" in text
+    assert "(reading a static copy is not a leg)" in text  # owner-approved cut #6, 2026-10-20 (was: "only read is not a leg")
 
 
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
@@ -220,7 +220,7 @@ def test_recursion_stops(variant) -> None:
     """R1F10: qualify once, no per-use re-qualification."""
     text = render_kernel(KERNEL, *VARIANTS[variant])
     assert "qualified once" in text
-    assert "not re-qualified per use" in text
+    assert "only no per-use re-qualification" in text  # owner-approved cut #12, 2026-10-20 (was: "not re-qualified per use")
 
 
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
@@ -302,5 +302,5 @@ def test_that_side_defined(variant) -> None:
 def test_qualified_once_stale(variant) -> None:
     """R2C8: STALE rule pointed at, no blanket exemption."""
     text = render_kernel(KERNEL, *VARIANTS[variant])
-    assert "goes STALE" in text
+    assert "STALE on tool/driver/env change" in text  # owner-approved cut #1, 2026-10-20 (was: "goes STALE" in G2; STALE lives in @TOOLCHAIN_QUALIFICATION)
     assert "no blanket exemption" in text

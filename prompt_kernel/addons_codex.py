@@ -33,7 +33,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
             # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
             # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
             "Choose the instrument by the question's layer: text/literal → rg and node_repl filesystem reads; structure, callers or impact → mounted CodeGraph; own trajectory → tools/codex_svchain.py; prior art → web/fetch (static) or cua_repl (interactive); concept / unclear target → qualified adm query, then the layer it points to. An empty result is a claim about that tool on that layer only, never absence on another layer.",
-            "refresh owner: the authorized parent runs adm --rag index/codegraph sync, or the query tool supplies verified freshness. Receipt names worktree, index, owner, command/result reference and current source hashes; edits invalidate it. A read-only explorer requests that receipt from its parent instead of acquiring shell rights; name the instrument and layer that answered."
+            "refresh owner: the authorized parent runs adm --rag index/codegraph sync, or the query tool supplies verified freshness. Receipt names worktree, index, owner, command/result reference and current source hashes per @DIVERGENCE_PROTOCOL. A read-only explorer requests that receipt from its parent instead of acquiring shell rights; name the instrument and layer that answered.",
         ),
     ),
     GateAddon(
@@ -139,7 +139,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "runtime ACL is authoritative; unresolved user decision -> Ask.",
             "network tools and real Browser actions are EXTERNAL_EFFECT; do not exceed the user-authorized effect.",
-            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated, never hand-edited.",
+            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated per G4 KERNEL_AMENDMENT.",
         ),
     ),
     GateAddon(
@@ -221,8 +221,8 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "SEARCH_OUTPUT_SHAPE",
         (
             "bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.",
-            "an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.",
-            "`glob` is a locator, not an inventory: a capped listing is a sample, so never conclude «no more» or «absent» from one. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
+            "an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report per the G1 layer map.",
+            "`glob` is a locator, not an inventory: a capped listing is a sample per the G1 layer map. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
         ),
     ),
     GateAddon(
@@ -281,7 +281,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts; finite run ≠ task completion. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
+            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
         ),
@@ -290,9 +290,9 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "ACCEPTANCE_PASS",
         (
-            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN; PASS may never be declared over an unproven one, read over the artefact and never from memory.",
+            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref); read over the artefact and never from memory.",
             "an unproven criterion does not escalate on this host — no isolated call is bound: it closes as a named residual carrying the claim, the falsifier and the instrument that failed, so a host that has one can take it.",
-            "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
+            "Report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),
     ),
     GateAddon(

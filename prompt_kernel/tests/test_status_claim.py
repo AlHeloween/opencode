@@ -66,7 +66,7 @@ def test_every_terminal_edge_carries_its_claim() -> None:
 
 def test_every_stop_rule_demands_scope_and_falsifier() -> None:
     stop = _gate_rule("G9", "BOUNDED_STOP_CONDITIONS")
-    assert "unfinished task + next action + receipt" in stop
+    assert "Failed attempts, external dependencies and silence" in stop  # owner-approved cut #2, 2026-10-20 (was: "unfinished task + next action + receipt" in stop; persistence lives in interrupt/control_flow)
     assert "task stays open" in stop
     assert "SUCCESS still requires @CLOSURE_PROOF" in stop
     assert "routes tried with receipts" in _shared()["TOOLCHAIN_QUALIFICATION"]
@@ -115,8 +115,8 @@ def test_kaizen_split_carries_falsifiability_gates() -> None:
     shared = _shared()
     jidoka = shared["JIDOKA"]
     assert "A defect stops the line — tool or process" in jidoka
-    assert "its reproducer fails NOW (@ANTI_CHURN)" in jidoka
-    assert "per @STATUS_CLAIM" in jidoka
+    assert "a reproducer fails NOW" in jidoka  # owner-approved cut #24, 2026-10-20 (was: "its reproducer fails NOW (@ANTI_CHURN)")
+    assert "Per @STATUS_CLAIM" in jidoka  # owner-approved cut #24, 2026-10-20 (was lowercase "per @STATUS_CLAIM")
     assert "a check beats a caution" in jidoka
     kaizen = shared["KAIZEN"]
     assert "updates the standard it ran under" in kaizen

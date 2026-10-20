@@ -221,9 +221,10 @@ def test_runtime_is_followable_without_opening_the_adid_document() -> None:
         "oracle-confirmed acceptance",
         "zero critical risks",
         "task stays open",
-        "unfinished task + next action + receipt",
     ):
         assert case in stop, case
+    # owner-approved cut #2, 2026-10-20 (was: "unfinished task + next action + receipt" in stop): finite-run persistence lives in the global interrupt/control_flow contract.
+    assert "persist unfinished task, next action and continuation receipt" in text
     assert "SUCCESS still requires @CLOSURE_PROOF" in stop
     # The classification is a GATE between clustering and selection, and an absent classification
     # reads as REJECTED — the project's own rule that a missing indicator means "not working", not
@@ -316,9 +317,9 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     # 2026-10-14 (t42): split — the stop-the-line half is Jidoka, not Kaizen (owner: «Kaizen — это
     # непрерывное улучшение на каждом шаге вообще-то»); the defect is a claim whose reproducer fails NOW.
     assert "A defect stops the line — tool or process" in jidoka
-    assert "its reproducer fails NOW (@ANTI_CHURN)" in jidoka
+    assert "a reproducer fails NOW" in jidoka  # owner-approved cut #24, 2026-10-20 (was: "its reproducer fails NOW (@ANTI_CHURN)")
     assert "cheapest primitive check" in jidoka
-    assert "per @STATUS_CLAIM" in jidoka
+    assert "Per @STATUS_CLAIM" in jidoka  # owner-approved cut #24, 2026-10-20 (was lowercase "per @STATUS_CLAIM" mid-sentence; new sentence starts with capital)
     kaizen = shared["KAIZEN"]
     assert "updates the standard it ran under" in kaizen
     assert "before/after on one predicate (@SMOKE_BEFORE)" in kaizen
@@ -367,7 +368,7 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     # non-success terminal without the old stop-claim vocabulary.
     assert "SUCCESS still requires @CLOSURE_PROOF" in stop
     assert "only a real owner decision or quoted exclusion permits a non-success terminal" in stop
-    assert "never invents completion" in stop
+    assert "persist unfinished task, next action and continuation receipt" in render_kernel(KERNEL)  # owner-approved cut #2, 2026-10-20 (was: "never invents completion" in stop; persistence lives in interrupt)
     # Owner, 2026-09-29: «Особенно lean… без этой проверки начинается ковыряние и доказательство ерунды».
     # LEAN reaches the oracle and the bug report, not only G2 selection — and earns its rendered name.
     g8 = {rule.id: rule.text for gate in KERNEL.gates if gate.id == "G8" for rule in gate.local_rules}
@@ -379,12 +380,12 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     assert "A premise admitted at G2 stays admitted unless @DIVERGENCE_PROTOCOL re-opened it" in lean_g8
     assert "diverged premise (any claim a verdict rests on)" in shared["DIVERGENCE_PROTOCOL"]
     assert "classified alone, by reading, before an oracle is spent on it" in lean_g8
-    assert "tiers 1-2 → the oracle may run" in lean_g8
-    assert "neither ever proven" in lean_g8
+    assert "per @LEAN_RANKING" in lean_g8  # owner-approved cut #30, 2026-10-20 (was: "tiers 1-2 → the oracle may run")
+    assert "proving nonsense" in lean_g8  # owner-approved cut #30, 2026-10-20 (was: "neither ever proven"; central G8→G2 route stays)
     # 2026-10-14 (t42): LEAN ranks explanations and fix variants — never whether the observed deviation
     # is investigated (a real defect with a wrong user-suggested cause must still reach reproduction).
     assert "reported failure → @LEAN_RANKING of its proposed EXPLANATION and fix variants — never whether the observed deviation is investigated" in shared["BUG_FIX_PROCEDURE"]
-    assert "tier 4 → Unknown + @RISK_LEDGER" in lean_g8
+    assert "(4) Unusable / Harmful" in next(rule.text for gate in KERNEL.gates if gate.id == "G2" for rule in gate.local_rules if rule.id == "LEAN_RANKING")  # owner-approved cut #30, 2026-10-20 (tier outcomes live in @LEAN_RANKING, not in G8)
     assert "#### @LEAN_RANKING" in render_kernel(KERNEL)
     # SVM is a briefing: read as evidence it is the self-winding channel the owner named.
     svm = dict(KERNEL.state_fields)["SVM"]
@@ -564,5 +565,5 @@ def test_testimony_clause_covers_done_and_closed_ticket_in_both_variants() -> No
     from prompt_kernel.addons_claude import CLAUDE_GATE_ADDONS
 
     for text in (render_kernel(KERNEL), render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())):
-        assert "a «done» or a closed ticket, the user's included, is testimony about state, not a decision" in text
+        assert "per @ORACLE_ROLE" in text  # owner-approved cut #20, 2026-10-20 (was: "a «done» or a closed ticket, the user's included, is testimony about state, not a decision")
         assert "it re-digests the stamped artifact, and reruns the work on a mismatch or when no stamp exists" in text

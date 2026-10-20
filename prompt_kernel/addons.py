@@ -44,7 +44,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
             # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
             # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
-            "refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync; name the instrument and layer that answered."
+            "refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness per @DIVERGENCE_PROTOCOL; a read-only explorer requests the receipt, never shell rights. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync; name the instrument and layer that answered.",
         ),
     ),
     GateAddon(
@@ -143,7 +143,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_AUTHORIZE",
         (
             "identity or permission uncertain -> checkstate; unresolved decision -> question (ASK).",
-            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated, never hand-edited.",
+            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated per G4 KERNEL_AMENDMENT.",
         ),
     ),
     GateAddon(
@@ -225,8 +225,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "SEARCH_OUTPUT_SHAPE",
         (
             "bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.",
-            "an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.",
-            "`glob` is a locator, not an inventory: a capped listing is a sample, so never conclude «no more» or «absent» from one. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
+            "an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report per the G1 layer map.",
+            "`glob` is a locator, not an inventory: a capped listing is a sample per the G1 layer map. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
         ),
     ),
     GateAddon(
@@ -296,7 +296,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts; finite run ≠ task completion. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
+            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
         ),
@@ -313,9 +313,9 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "ACCEPTANCE_PASS",
         (
-            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN; PASS may never be declared over an unproven one, read over the artefact and never from memory.",
+            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref); read over the artefact and never from memory.",
             "an unproven criterion may escalate ONCE, only where DELEGATION admits it: aicall gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY — contradicts → persist, compact, re-enter G0; agrees → nothing moved, the criterion closes as residual.",
-            "an uncovered criterion is a residual, not a rounding error; report verification and validation apart — acceptance is a measurement, not a ceremony.",
+            "Report verification and validation apart — acceptance is a measurement, not a ceremony.",
         ),
     ),
     GateAddon(

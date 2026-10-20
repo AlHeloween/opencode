@@ -53,10 +53,10 @@ Owner, verbatim: «если модели уже и тестировать на �
 
 This track measures thinking by METHOD, which tracks 1–3 do not: decoding, finding and adherence are different abilities.
 - **Closed-book with TRIZ loaded.** The model gets the method (ИКР / Ideal Final Result, technical and physical contradictions, the 40 principles, ARIZ, resources, Su-Field) and the problem. No web, no repository search.
-- **A/B.** The same problem without TRIZ and with TRIZ. The difference is the measured contribution of the method, not general model strength.
-- **Anti-memorisation.** Altshuller's classic training problems are published widely, so answers may be recalled. Two counters:
-  - each classic problem also appears TRANSPOSED into another domain with the same contradiction structure;
-  - the score is the PROCESS against the ARIZ steps: contradiction formulated, ИКР stated, resources found, principle named. A right answer with a wrong or absent process counts as recall, not reasoning.
+- **Recall counts.** Owner, verbatim: «если модель сможет решить классические задачи и они у нее в весах - это даже лучше, тоже защитывается. Там универсальные алгоритмы и как только мы добавим ТРИЗ в корпус - ну ок эти алгоритмы придут в движение.» A classic problem solved from the weights proves the universal algorithm is present.
+- **The A/B is the activation measurement.** A = the kernel without TRIZ names; B = the kernel with the TRIZ name corpus. The difference measures how far the NAMES set the latent algorithms in motion. This is the first clean measurement of the hypothesis «names activate latent knowledge» (memory `project-kernel-names-activate-latent-knowledge`).
+- **Transfer is a separate score, never a penalty.** Each classic problem also appears TRANSPOSED into another domain with the same contradiction structure. Solving it shows the model carries the algorithm to a new place, one step above knowing it.
+- **The process is recorded alongside**, against the ARIZ steps (contradiction, ИКР, resources, principle). It explains the result and feeds the handoff; it does not override a correct recalled answer.
 - **Canonical answers** come from primary TRIZ sources with `content_hash`. Their grounding is a by-product of t101 (the TRIZ ↔ kernel correspondence, on Nemotron 3 Ultra).
 - As in every track: proof, and a handoff a second model reproduces.
 

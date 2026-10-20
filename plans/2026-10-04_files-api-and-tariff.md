@@ -176,6 +176,7 @@ Status: ACTIVE · owner-approved 2026-10-04 · T1, T2, T5 done; T3, T4 open (box
 | **Что это даёт** | payload 7.75 MB → ~0.06 MB; снимается риск лимита 48 MiB, к которому мы идём с каждой несвёрнутой картинкой |
 | **Чего НЕ даёт** | **денег.** Картинка ≤1024 токена, на тёплом кэше $0.003/M — практически бесплатно |
 | **Дым** | 1) на проводе `file_id`, не data-URI; 2) payload упал ниже 0.1 MB; 3) модель видит то же изображение; 4) протухшая ссылка даёт внятную ошибку, а не пустой ответ |
+| **Статус t103 (2026-10-20)** | Форматная половина закрыта, адресация — нет. DONE: always-webp в единой точке (`attachment/handlers/image.ts` + jimp-мост для BMP, sharp BMP не читает — измерено; `[unsupported-image-format]` вместо raw; отказы видны как текстовые пометки в `prompt.ts`/`processor.ts`), upload-once кэш по sha256 (`provider/files-cache.ts`, 1 upload на 2 посылки — тест). OPEN (нужен транспортный хук): эмиссия `file_id` — конвертер `@ai-sdk/deepseek@3.0.48` отдаёт `file_id` только для `data.type === "reference"`, а `standardizePrompt` из data-URL такое не строит; без хука на уровне ModelMessage бокс T3 тикать нельзя. T4 ждёт T3. Тесты: `test/attachment/image-webp-always.test.ts` 8/8, `image.test.ts` 10/10, `normalize.test.ts` 7/7, `image-normalize.test.ts` 2/2, `deepseek-image.test.ts` 1/1, typecheck exit 0 |
 
 ### T4 · Кеш не меняется
 

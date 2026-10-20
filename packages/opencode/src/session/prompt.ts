@@ -1525,7 +1525,23 @@ export const layer = Layer.effect(
           Effect.forEach(
             x,
             (part): Effect.Effect<MessageV2.Part> =>
-              part.type === "file" ? normalizeAttachment(part) : Effect.succeed(part),
+              part.type === "file"
+                ? normalizeAttachment(part).pipe(
+                    // t103: a refusal becomes a VISIBLE note, never raw bytes
+                    // (provider 400/2013 on bmp) and never a silent drop.
+                    Effect.catch((error) =>
+                      Effect.succeed(
+                        assign({
+                          messageID: info.id,
+                          sessionID: input.sessionID,
+                          type: "text",
+                          synthetic: true,
+                          text: `[Attached file refused: ${(part as any).filename ?? "file"} (${(part as any).mime}) — ${String((error as any)?.message ?? error).slice(0, 200)}]`,
+                        }),
+                      ),
+                    ),
+                  )
+                : Effect.succeed(part),
             { concurrency: "unbounded" },
           ),
         ),

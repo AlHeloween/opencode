@@ -19,28 +19,86 @@ async function extractImageMeta(buffer: Buffer): Promise<{
 }
 
 /**
- * Image attachments are normalised with TWO policies (2026-09-24):
+ * Image attachments are normalised with ONE policy (t103, 2026-10-20):
+ * every image becomes WebP before any provider sees it, whatever its source.
  *  - overflow (larger than max_width/max_height): resize to fit, then WebP q80 —
- *    the quality loss is paid only where scaling already changes the pixels;
- *  - fits: LOSSLESS WebP, and only when it actually shrinks the payload; otherwise
- *    the original bytes pass through untouched. A lossy re-encode of an already-fitting
- *    image was pure blur (owner: «ресайз делать только если не влазит — размытое все»,
- *    2026-09-24).
+ *    the quality loss is paid only where scaling already changes the pixels
+ *    (owner 2026-09-24: «ресайз делать только если не влазит — размытое все»);
+ *  - fits: LOSSLESS WebP, unconditionally — pixels bit-identical, so the
+ *    2026-09-24 no-blur ruling holds and no provider allowlist is ever met
+ *    with a foreign format (owner 2026-10-20: bmp error 2013 from MiniMax).
  * `animated: true` keeps GIF/WebP animation instead of collapsing it.
+ *
+ * sharp cannot decode every format it can be handed — BMP is the measured one
+ * (`Input buffer contains unsupported image format`, t103 probe 2026-10-20;
+ * sharp input docs list jpeg/png/webp/gif/svg/heif/tiff, no BMP). Those bytes
+ * take the jimp bridge (jimp reads BMP) back into PNG and rejoin the sharp
+ * pipeline. Anything NEITHER decoder reads is REFUSED with
+ * `[unsupported-image-format]` — named, never forwarded raw: forwarding raw
+ * is exactly the 2013 crash this file exists to prevent.
  */
+function magicOf(buffer: Buffer): string {
+  return Array.from(buffer.subarray(0, 4))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join(" ")
+}
+
+/** jimp bridge for formats sharp cannot decode (BMP): read with jimp, PNG out. */
+async function jimpPngBridge(buffer: Buffer): Promise<Buffer | null> {
+  try {
+    const mod = (await import("jimp")) as any
+    const Jimp = mod.Jimp ?? mod.default?.Jimp ?? mod.default
+    if (!Jimp?.read) return null
+    const img = await Jimp.read(buffer)
+    const png = (await img.getBuffer("image/png")) as Buffer
+    return Buffer.from(png)
+  } catch {
+    return null
+  }
+}
+
+async function canSharpRead(buffer: Buffer): Promise<boolean> {
+  try {
+    await sharp(buffer).metadata()
+    return true
+  } catch {
+    return false
+  }
+}
+
+function refuse(mime: string, buffer: Buffer, via: string): Error {
+  return new Error(
+    `[unsupported-image-format] cannot decode ${mime} (${buffer.length} bytes, magic=${magicOf(buffer)}) via ${via}: ` +
+      `neither sharp nor jimp could read it — refusing to forward raw bytes to the provider`,
+  )
+}
+
 async function toWebp(
   buffer: Buffer,
   maxWidth: number,
   maxHeight: number,
-): Promise<{ data: Buffer; width: number; height: number } | null> {
-  const image = sharp(buffer, { animated: true })
-  const meta = await image.metadata()
+  mime: string,
+): Promise<{ data: Buffer; width: number; height: number }> {
+  let input = buffer
+  if (!(await canSharpRead(buffer))) {
+    const bridged = await jimpPngBridge(buffer)
+    if (!bridged) throw refuse(mime, buffer, "sharp+jimp")
+    input = bridged
+  }
+  const image = sharp(input, { animated: true })
+  let meta: { width?: number; height?: number }
+  try {
+    meta = await image.metadata()
+  } catch (error) {
+    throw refuse(mime, buffer, `sharp-metadata(${String(error).slice(0, 120)})`)
+  }
   const needsResize = !!(meta.width && meta.height && (meta.width > maxWidth || meta.height > maxHeight))
   if (!needsResize) {
-    // Nothing overflows — do NOT buy weight with sharpness. Try a lossless pass and
-    // keep it only if it actually shrinks the payload; else keep the original bytes.
+    // ALWAYS WebP, even when lossless is larger than the source (t103): a
+    // photo jpg can triple in bytes, but a foreign format on the wire is a
+    // provider 400 — and the Files-API reference (plan T3) removes the bytes
+    // from the request once it lands. Pixels stay bit-identical (lossless).
     const lossless = await image.webp({ lossless: true, effort: 4 }).toBuffer({ resolveWithObject: true })
-    if (lossless.data.length >= buffer.length) return null
     return { data: lossless.data, width: lossless.info.width, height: lossless.info.height }
   }
   // `resolveWithObject` returns the OUTPUT dimensions — what actually goes on
@@ -105,17 +163,14 @@ export const ImageHandler: Handler = {
       if (commaIdx <= 0) return attachment
 
       const buf = Buffer.from(attachment.url.slice(commaIdx + 1), "base64")
-      const webp = yield* Effect.tryPromise(() => toWebp(buf, maxWidth, maxHeight)).pipe(
-        // Undecodable or exotic input: keep the original bytes rather than
-        // losing the attachment. sharp cannot read every format — expected.
-        // The failure value is `undefined` (not a `Buffer`) so the success type
-        // stays `{ data, width, height }`, which the return below reads.
-        Effect.catch((error) => {
-          log.debug("image normalize failed, keeping original", { error: String(error) })
-          return Effect.succeed(undefined)
-        }),
-      )
-      if (!webp) return attachment
+      // t103: decode failure is a REFUSAL with `[unsupported-image-format]`,
+      // never keep-original — keep-original forwarded a BMP raw and the
+      // provider answered 400/2013. The failure channel is in-contract
+      // (`Handler.normalize` returns `Effect<_, Error>`).
+      const webp = yield* Effect.tryPromise({
+        try: () => toWebp(buf, maxWidth, maxHeight, attachment.mime),
+        catch: (error) => (error instanceof Error ? error : new Error(String(error))),
+      })
       return {
         ...attachment,
         mime: "image/webp",

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Cause, Effect, Exit } from "effect"
 import sharp from "sharp"
 import { normalizeAttachment, filePartFromNormalized } from "../../src/attachment/normalize"
 
@@ -58,16 +58,22 @@ describe("normalizeAttachment", () => {
     expect(out).toBe(part)
   })
 
-  test("keeps the original bytes when the image cannot be decoded", async () => {
+  test("refuses an undecodable image with a named reason instead of keeping raw bytes (t103)", async () => {
+    // SUPERSEDES 2026-10-20 (t103, owner: bmp error 2013): keep-original
+    // forwarded undecodable bytes raw and the provider answered 400. The
+    // last-resort guard still covers infra failures, never a decoded refusal.
     const part = {
       type: "file" as const,
       mime: "image/png",
       url: `data:image/png;base64,${Buffer.from("not an image").toString("base64")}`,
     }
 
-    const out = await Effect.runPromise(normalizeAttachment(part).pipe(Effect.orDie))
+    const exit = await Effect.runPromise(Effect.exit(normalizeAttachment(part)))
 
-    expect(out).toBe(part)
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      expect(String(Cause.squash(exit.cause))).toContain("[unsupported-image-format]")
+    }
   })
 
   test("lifts the produced dimensions onto the part the budget will price", async () => {

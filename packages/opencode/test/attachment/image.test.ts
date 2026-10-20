@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Cause, Effect, Exit } from "effect"
 import sharp from "sharp"
 import { ImageHandler } from "../../src/attachment/handlers/image"
 
@@ -130,19 +130,22 @@ describe("ImageHandler", () => {
     expect(meta.height).toBeLessThanOrEqual(200)
   })
 
-  test("normalize keeps the original when the input cannot be decoded", async () => {
+  test("normalize refuses input neither decoder reads, with a named reason (t103)", async () => {
+    // SUPERSEDES 2026-10-20 (t103, owner: bmp error 2013): keep-original
+    // forwarded a BMP raw and the provider answered 400. A refusal is the
+    // contract now — never raw bytes on the wire.
     const junk = Buffer.from("this is not an image")
     const url = makeDataUrl(junk, "image/png")
     const att: any = {
       type: "file", kind: "image", mime: "image/png", url, filename: "junk.png",
     }
 
-    const result = await Effect.runPromise(
-      (ImageHandler as any).normalize(att, {}).pipe(Effect.orDie),
-    ) as any
+    const exit = await Effect.runPromise(Effect.exit((ImageHandler as any).normalize(att, {})))
 
-    expect(result.url).toBe(url)
-    expect(result.mime).toBe("image/png")
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      expect(String(Cause.squash(exit.cause))).toContain("[unsupported-image-format]")
+    }
   })
 
   test("describe formats image info", () => {
@@ -202,18 +205,18 @@ describe("ImageHandler", () => {
     expect(result.metadata.height).toBe(meta.height)
   })
 
-  test("normalize records no dimensions when it could not decode", async () => {
+  test("a refusal carries no bytes forward and records no dimensions (t103)", async () => {
+    // SUPERSEDES 2026-10-20 (t103): same keep-original contract as above —
+    // there is no surviving part to stamp dimensions on, and the original
+    // bytes must not reach the provider in any form.
     const url = makeDataUrl(Buffer.from("this is not an image"), "image/png")
     const att: any = { type: "file", kind: "image", mime: "image/png", url, filename: "junk.png" }
 
-    const result = await Effect.runPromise(
-      (ImageHandler as any).normalize(att, {}).pipe(Effect.orDie),
-    ) as any
+    const exit = await Effect.runPromise(Effect.exit((ImageHandler as any).normalize(att, {})))
 
-    // Original bytes survive, and an unknown size must stay unknown rather than
-    // become a fabricated number — the same reason media is 0 without a
-    // measurement rather than an invented heuristic.
-    expect(result.url).toBe(url)
-    expect(result.metadata).toBeUndefined()
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      expect(String(Cause.squash(exit.cause))).toContain("[unsupported-image-format]")
+    }
   })
 })

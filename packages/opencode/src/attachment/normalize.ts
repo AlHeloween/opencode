@@ -22,15 +22,19 @@ const registerHandlers = () => (handlersReady ??= import("./handlers/index").the
 /**
  * Normalise an attachment-shaped value through the handler registered for its
  * kind. Only images implement `normalize` today, so this is the single
- * conversion point for "all images become WebP" (2026-09-18, Alexander).
+ * conversion point for "all images become WebP" (2026-09-18, Alexander;
+ * t103, 2026-10-20: unconditional — bmp included via the jimp bridge).
  *
  * Ingestion calls it once, BEFORE the value is written to the message history:
  * what is stored is what every later request sends, so the encode happens once
  * instead of on every turn. The value only needs `mime` + `url`; the result is
  * rebuilt from the ORIGINAL value so handler-only fields (`kind`) never leak
- * into a stored part. Kinds without a handler pass through untouched, and a
- * failed conversion keeps the original bytes (ImageHandler.normalize catches
- * its own decode errors).
+ * into a stored part. Kinds without a handler pass through untouched.
+ *
+ * t103: an image NEITHER decoder reads FAILS with `[unsupported-image-format]`
+ * instead of falling back to the original bytes — the fallback forwarded a BMP
+ * raw and the provider answered 400/2013. The last-resort guard below still
+ * covers INFRA failures (handler registration import), never a decoded refusal.
  */
 export function normalizeAttachment<
   T extends {
@@ -39,7 +43,7 @@ export function normalizeAttachment<
     dimensions?: { width: number; height: number }
     durationSeconds?: number
   },
->(value: T, config?: unknown): Effect.Effect<T> {
+>(value: T, config?: unknown): Effect.Effect<T, Error> {
   return Effect.gen(function* () {
     const normalized = yield* Effect.gen(function* () {
       yield* Effect.tryPromise(() => registerHandlers())
@@ -48,11 +52,13 @@ export function normalizeAttachment<
         config,
       )
     }).pipe(
-      // A conversion failure must never block the message it belongs to:
-      // keep the original value and record why. ImageHandler.normalize
-      // already falls back to the original bytes on decode errors — this is
-      // the last-resort guard, so the error channel stays `never`.
+      // A conversion failure must never block the message it belongs to —
+      // EXCEPT an image refusal: `[unsupported-image-format]` means the bytes
+      // cannot go on the wire in ANY form, so keeping the original would
+      // re-create the 2013 crash. Refusals propagate (the failure channel is
+      // in-contract); infra failures keep the last-resort original.
       Effect.catch((error) => {
+        if (String((error as any)?.message ?? error).includes("[unsupported-image-format]")) return Effect.fail(error as Error)
         log.debug("attachment normalize failed, keeping original", { mime: value.mime, error: String(error) })
         return Effect.succeed(undefined)
       }),

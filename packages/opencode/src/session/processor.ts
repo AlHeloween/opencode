@@ -775,17 +775,36 @@ export const layer: Layer.Layer<
           for (const attachment of mediaAttachments) {
             // Images become WebP once, before storage (2026-09-18) — the
             // deliver-once part is what every later request replays.
-            const normalized = yield* normalizeAttachment(attachment)
+            const normalized = yield* normalizeAttachment(attachment).pipe(
+              Effect.map((value) => ({ ok: true as const, value })),
+              Effect.catch((error) =>
+                Effect.succeed({ ok: false as const, error: String((error as any)?.message ?? error).slice(0, 200) }),
+              ),
+            )
             // ONE constructor — assembling this part by hand is how `dimensions`
             // got dropped here: the video frames `read.ts` samples arrive as
             // image parts and are priced from them, and they came out at 0.
-            yield* session.updatePart({
-              id: PartID.ascending(),
-              ...filePartFromNormalized(normalized, {
+            if (normalized.ok) {
+              yield* session.updatePart({
+                id: PartID.ascending(),
+                ...filePartFromNormalized(normalized.value, {
+                  messageID: mediaUserMsg.id,
+                  sessionID: ctx.sessionID,
+                }),
+              } satisfies MessageV2.Part)
+            } else {
+              // t103: an undecodable image is REFUSED with a named note — never
+              // forwarded raw (raw bmp caused provider 400/2013) and never
+              // dropped silently; the bytes stay in the tool part for recall.
+              yield* session.updatePart({
+                id: PartID.ascending(),
                 messageID: mediaUserMsg.id,
                 sessionID: ctx.sessionID,
-              }),
-            } satisfies MessageV2.Part)
+                type: "text",
+                text: `[attached image refused: ${normalized.error}]`,
+                synthetic: true,
+              } satisfies MessageV2.Part)
+            }
           }
           deliveredMsgID = mediaUserMsg.id
         }
@@ -1086,18 +1105,35 @@ export const layer: Layer.Layer<
             // Stream-emitted files (provider-generated images) normalise the
             // same way as ingested ones (2026-09-18) — and through the same
             // constructor, so a field the handler reports cannot be lost here.
-            const normalized = yield* normalizeAttachment({
+            const normalizedExit = yield* normalizeAttachment({
               mime: fileValue.mediaType ?? fileValue.mime ?? "application/octet-stream",
               url: fileValue.url ?? "",
               filename: fileValue.filename,
-            })
-            yield* session.updatePart({
-              id: PartID.ascending(),
-              ...filePartFromNormalized(normalized, {
+            }).pipe(
+              Effect.map((value) => ({ ok: true as const, value })),
+              Effect.catch((error) =>
+                Effect.succeed({ ok: false as const, error: String((error as any)?.message ?? error).slice(0, 200) }),
+              ),
+            )
+            if (normalizedExit.ok) {
+              yield* session.updatePart({
+                id: PartID.ascending(),
+                ...filePartFromNormalized(normalizedExit.value, {
+                  messageID: ctx.assistantMessage.id,
+                  sessionID: ctx.assistantMessage.sessionID,
+                }),
+              } satisfies MessageV2.FilePart)
+            } else {
+              // t103: refusal note, same contract as the tool-media path above.
+              yield* session.updatePart({
+                id: PartID.ascending(),
                 messageID: ctx.assistantMessage.id,
                 sessionID: ctx.assistantMessage.sessionID,
-              }),
-            } satisfies MessageV2.FilePart)
+                type: "text",
+                text: `[image refused: ${normalizedExit.error}]`,
+                synthetic: true,
+              } satisfies MessageV2.Part)
+            }
             return
           }
 

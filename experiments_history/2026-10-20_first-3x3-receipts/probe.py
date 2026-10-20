@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import json
 import re
 import subprocess
 import sys
@@ -32,7 +33,21 @@ from prompt_kernel.addons_codex import CODEX_GATE_ADDONS  # noqa: E402
 from prompt_kernel.addons_cursor import CURSOR_GATE_ADDONS  # noqa: E402
 
 GLOSSARY = ROOT / "docs" / "glossary.md"
-PLAN = ROOT / "plans" / "2026-10-19_kernel-three-oracles.md"
+def _plan_path() -> Path:
+    """The t96 plan moves between plans/ and plans_completed/ as it closes.
+
+    A one-line path constant broke the whole probe on 2026-10-20 (the plan moved,
+    the D legs read a missing file, the run died instead of reporting). The input
+    domain here is the plan's LOCATION, so the probe must qualify over both.
+    """
+    for base in ("plans", "plans_completed"):
+        candidate = ROOT / base / "2026-10-19_kernel-three-oracles.md"
+        if candidate.is_file():
+            return candidate
+    return ROOT / "plans" / "2026-10-19_kernel-three-oracles.md"
+
+
+PLAN = _plan_path()
 SRC = ROOT / "prompt_kernel" / "source.py"
 TESTS = ROOT / "prompt_kernel" / "tests" / "test_three_oracles.py"
 INSTALLED = ROOT / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.txt"
@@ -253,18 +268,20 @@ def leg_e2_observed_vs_prediction(b: dict) -> tuple[bool, str]:
 
 
 def leg_e3_e2e(b: dict) -> tuple[bool, str]:
-    """The measured suite result is the one the plan recorded."""
+    """The measured suite is GREEN and the INSTALLED receiver matches the pinned baseline.
+
+    A closed plan's recorded suite result is a frozen history, not a live expectation —
+    the suite grows every time a plan lands, so the live check is: no failures at all,
+    and the production prompt on disk equals the sha the baseline pins.
+    """
     s = b["suite"]
-    plan = b["plan"]
-    want_passed = int(re.findall(r"suite (\d+) passed", plan)[-1])
-    want_failed = int(re.findall(r"(\d+) failed", plan)[-1])
-    caps = [i for i in s["failed_ids"] if "budget" in i or "runtime_budget" in i]
-    stale = [i for i in s["failed_ids"] if i not in caps]
+    installed_sha = hashlib.sha256(INSTALLED.read_bytes()).hexdigest()
+    pinned = json.loads((ROOT / "prompt_kernel" / "baseline.json").read_text(encoding="utf-8"))["production"]["sha256"]
     detail = (
-        f"measured {s['passed']} passed / {s['failed']} failed "
-        f"({len(caps)} token cap(s), {len(stale)} stale receiver(s)); plan recorded {want_passed} / {want_failed}"
+        f"measured {s['passed']} passed / {s['failed']} failed; "
+        f"installed sha {installed_sha[:16]} vs pinned {pinned[:16]}"
     )
-    ok = s["passed"] == want_passed and s["failed"] == want_failed and len(caps) == 4 and len(stale) == 3
+    ok = s["failed"] == 0 and installed_sha.lower() == pinned.lower()
     return (ok, detail)
 
 
@@ -347,10 +364,11 @@ def defect_e2_source(b: dict) -> dict:
 
 
 def defect_e3_record(b: dict) -> dict:
-    """The measured suite result drifts from the plan's record."""
+    """A failure appears in the measured suite."""
     m = dict(b)
     s = dict(b["suite"])
-    s["passed"] = s["passed"] - 2
+    s["failed"] = s["failed"] + 1
+    s["passed"] = s["passed"] - 1
     m["suite"] = s
     return m
 

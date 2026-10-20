@@ -80,37 +80,50 @@ the t96 plan recorded).
 
 ## Measured drift (facts, not tasks)
 
-- The built artifact read back on 2026-10-20 is `prompt_kernel/dist/2026-10-20_09-52-39_reasoning_prompt.txt`; the
-  in-process render carries the CURRENT rule text in all four variants.
-- The installed product prompt `packages/opencode/src/session/prompt/reasoning_prompt.txt` carries NO rule block —
-  the rule is declared, wired, documented and exercised, and **not yet in the runtime**.
+- **The rule is in the runtime (2026-10-20, after the owner's word).** Four receivers installed from the current
+  source: product `packages/opencode/src/session/prompt/reasoning_prompt.txt` (78 175 B, sha256 `7e30b1f3…`),
+  claude `.claude/reasoning_kernel.md` (78 080 B, `cbdb5e28…`), cursor `.cursor/rules/reasoning-kernel.mdc`
+  (77 905 B, receiver `d512b317…`), codex global `C:\Users\Alexander\.codex\AGENTS.md` (status INSTALLED,
+  `74d55fd0…`). The baseline pin `prompt_kernel/baseline.json` was repinned to the installed production sha
+  (`prev_sha256` keeps `d89955e6…`), and the kernel suite is **824 passed / 0 failed**.
+- The install carries t102 as well as t96: the source moved between the earlier install (`d89955e6…`, 76 799 B) and
+  this one (78 175 B) because the TRIZ name corpus landed — commits `67df5fbc29` / `ade25c662d` / `8ae72091d4`, each
+  marked "STOP before --install". The owner's byte word («Ну, ради ТРИЗ можно поднять планку до 85000») covered the
+  growth, and his install word came when the tree showed exactly three stale receivers.
+- The t96 plan moved to `plans_completed/` (its work closed), so the probe resolves that plan in EITHER location — a
+  leg must not depend on a file's address, only on its content.
 - The t99 candidate table (`experiments/2026-10-20_kernel-audit/REPORT.md`) offers ≈764 B of true cuts
-  (duplicates ≈624 B + wordy ≈140 B) ≈ ≈105 tokens at the measured ratio 76 799 B / 10 474 tok ≈ 7.33 B per token.
-  The product is 374 tokens over the 10 100 ceiling, so **cuts alone cannot close the gap** — the owner's number is
-  the only lever that closes it in one step.
+  (duplicates ≈624 B + wordy ≈140 B) ≈ ≈105 tokens at the measured ratio 76 799 B / 10 474 tok ≈ 7.33 B per token —
+  a third less than the ≈374-token gap it would have had to close. The owner's ceiling (85 000 B / 11 600 tok, derived
+  from his byte word) closed it in one step.
 
 ## Boxes
 
 - [x] TASK-1 — the criterion and its nine legs named (table above), each with a catalogue family and a source address
 - [x] TASK-2 — the receipt harness built and run: 9 injected defects, 9/9 receipts HOLD, all three aspects COVERED
   (probe + `RECEIPTS.md`, 2026-10-20)
-- [ ] TASK-3 — re-run the probe whenever a leg set changes (@THREE_ORACLES: «A receipt is re-run whenever the leg set
-  of its aspect changes»): any edit to `prompt_kernel/source.py`, `prompt_kernel/tests/test_three_oracles.py`,
-  `docs/glossary.md` or the t96 plan re-opens the receipts above
-- [ ] TASK-4 — the SECOND criterion (K2: the rule is INSTALLED in the runtime) — its execution legs are the installed
-  prompt read-back, installed == render, and the three stale receivers going green. BLOCKED on the owner's two
-  decisions recorded in the t96 plan (token ceiling; install word). Not closable by any executor.
+- [x] TASK-3 — re-run the probe whenever a leg set changes (@THREE_ORACLES: «A receipt is re-run whenever the leg set
+  of its aspect changes»): DONE 2026-10-20 — the E3 leg changed (a closed plan's recorded suite is history, not a live
+  expectation; the live check is "no failures at all AND the installed prompt equals the pinned baseline") and the
+  probe was re-run against the installed tree: 9/9 receipts HOLD, all three aspects COVERED
+- [x] TASK-4 — the SECOND criterion (K2: the rule is INSTALLED in the runtime): DONE 2026-10-20 — the owner's install
+  word; four receivers installed (product `7e30b1f3…`, claude `cbdb5e28…`, cursor `d512b317…`, codex-global
+  `74d55fd0…`), baseline repinned (`prev_sha256` keeps `d89955e6…`), kernel suite 824 passed / 0 failed, probe
+  re-verified 9/9
 
 ## Smoke Tests
 
 - `python experiments/2026-10-20_first-3x3_receipts/probe.py` — exit 0; the verdict lines read
   `D: 3 leg(s) … COVERED`, `C: 3 leg(s) … COVERED`, `E: 3 leg(s) … COVERED`, and `Every leg carries a
   unique-detection receipt.` Any `FAILS (not unique)` or a `DEGENERATE SIMPLEX` verdict is a red.
-- The probe re-measures the kernel suite itself (522 passed / 7 failed = 4 token caps + 3 stale receivers); a fourth
-  red or a changed count is a divergence, not a pass.
+- The probe re-measures the kernel suite itself: the expectation is now ZERO failures and the installed production
+  prompt's sha256 equal to `prompt_kernel/baseline.json`'s pin. A failure, or an installed sha that drifts from the
+  pin, is a divergence — not a pass.
 
 ## Residual
 
-- The install of @THREE_ORACLES into the four receivers is the owner's word plus the owner's token ceiling
-  (`plans/2026-10-19_kernel-three-oracles.md`, the open owner-decisions box). This plan does not touch a receiver.
+- A live session keeps the previous system prefix until it compacts: the new kernel reaches a running session only
+  after a fresh session (or a compact), and the product candidate carries it after `_build.ps1`.
+- The rollback path stays named in the baseline: `prev_sha256` `d89955e6…` (the pre-install render) and the
+  `rollback` artifact pointer with its dated reason — unchanged by this install.
 - D4 (frameless teach-back) stays a falsifier route, never a leg — it cannot be shown to miss an injected defect.

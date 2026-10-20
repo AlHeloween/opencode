@@ -1,5 +1,37 @@
 ﻿# Progress Log
 
+## [2026-10-20] t100 — install: @THREE_ORACLES is in the runtime (owner's word), 4 receivers, baseline repinned, kernel suite 824/0
+
+Owner's word on the ceiling+install question: raise the token ceiling and install. Measured before the act — the tree had moved under us: the ceiling was ALREADY 85 000 B / 11 600 tok (owner: «Ну, ради ТРИЗ можно поднять планку до 85000»; tokens derived at the measured 7.33 B/tok), the t96 plan was already closed and moved to `plans_completed/`, and three receivers were stale because the source moved with the t102 TRIZ corpus (`67df5fbc29` / `ade25c662d` / `8ae72091d4`, each marked "STOP before --install"). Installed the CURRENT render into all four receivers: product `packages/opencode/src/session/prompt/reasoning_prompt.txt` 78 175 B sha256 `7e30b1f3…`, claude `.claude/reasoning_kernel.md` 78 080 B `cbdb5e28…`, cursor `.cursor/rules/reasoning-kernel.mdc` 77 905 B (receiver `d512b317…`), codex global `C:\Users\Alexander\.codex\AGENTS.md` status=INSTALLED `74d55fd0…`. Baseline pin `prompt_kernel/baseline.json` repinned to the installed production sha (`prev_sha256` keeps `d89955e6…`; the rollback pointer and its dated reason unchanged). Kernel suite **824 passed / 0 failed**. The t100 plan's E3 leg changed with the install (a closed plan's recorded suite is HISTORY, not a live expectation; the live check is zero failures AND the installed prompt equals the pinned baseline) — the probe was re-run against the installed tree: **9/9 receipts HOLD**, D/C/E = 3 legs COVERED. The t100 plan closed and moved to `plans_completed/2026-10-20_first-3x3-criterion.md`; its four SVM manifests re-set under the new key; `svm render` re-maps the map. The t99 candidate table's ≈764 B of true cuts (≈ ≈105 tokens) would have covered a third of the ≈374-token gap — the owner's ceiling closed it in one step. A live session keeps the previous system prefix until it compacts; the product candidate carries the new kernel after `_build.ps1`.
+## [2026-10-20] Codex event handoff — MiniMax Free и независимый readback
+
+CONFIRMED ✓ authenticated host /provider: minimax-m3.1-flash-free на Zen/Go
+connected, catalogcost0; приоритет owner сохранён в eventplan revision3.
+Actualrobot ses_ea8b9a07effe5MRrgWLvO6hBpY: opencode/minimax-m3.1-flash-free,
+final msg_1574e0945001MGsuD07tuF34wN. SSE pendingtool вернулся COMPLETE без
+owner statusprompt (5048events,2status+2message GET, безtimerpolling).
+Родительпрочиталactualstate/WHOLEstdout/rawcases: run008c47e2 exit0/loss0,
+wait16/16+dispatch16/16,4frozenpins unchanged.17tools/0errors,11runtime
+step-start vs10briefbound — budgetcompliance не заявляется. Build62894319
+exit0/loss0, candidate10.0.1473 вdist; не установлен.
+Receipt: experiments/2026-10-19_codex-event-handoff/parent-verification-2026-10-20.json
+(sha2562098f6fa1eea136ebff53683e9845a0e2a52c277b798624e4c10dded301be4bd).
+План2026-10-19_codex-robot-event-handoff.md ACTIVE: nativeStopE4 ещё не
+реализован, stableCLI liveE3 не проверен; formal3aspect/familycontrols и
+compact captured_records=0 остаютсянепринятыми. Следующее: glossary+E4binding,
+MiniMax boundedimplementation, nativeStop no-watch/watch. Continuation:
+minimax-acceptance-dispatch.json + minimax-event-terminal-1.json +
+native-stop-gate-prepared.json в том жеexperiment. Чужойstaging сохранён.
+
+```yaml
+Keywords: event-readback 0.45, minimax-free 0.30, native-stop-residual 0.25
+Semantic dominant: Подтверждены32fixtureсценария иживойвозвратbootstrap; полнаяStopцепочкаостаётсяоткрытой.
+md5: a81f20bca67d43e9925a308d1e476fb0
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 6b8e3a09c1754d62af4037e9b2d81650
+note: hash values are generative tags — search them, never compute them.
+```
+
 ## [2026-10-20] t102 review 2 — two carrier seams, plan restored to plans/ (STOP before --install)
 
 RED 4 failed on stated reasons → GREEN 295/295 (CONTRADICTION names the outcome; no compromised (security read) / residual: (list glue); no carrier holds instrument — ANALYSIS now says methods). All 289 prior corpus tests green ⇒ names byte-identical. Full suite 821 passed + 3 stale-receiver reds only. Sizes: product 78175/10566, claude 78080/10650, codex 77923/10581, cursor 77905/10650 vs 85000/11600 — inside both. Plan fix: git mv plans_completed/→plans/ (HEAD tracked both, worktree had plans/ deleted); R2 ticked, INSTALL open; moves to plans_completed/ only after install read-back. Nothing cut; no --install.

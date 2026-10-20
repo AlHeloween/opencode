@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 293 |
+| plans completed | 295 |
 | plans active | 42 |
-| tasks passed / total | 1446 / 1762 |
-| open boxes | 173 |
+| tasks passed / total | 1456 / 1771 |
+| open boxes | 172 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -481,11 +481,6 @@ note: hash values are generative tags — search them, never compute them.
   sv: intention "TUI undo applies on the server but the TUI loses its server -> isolated dist-TUI reproducer decides whether the revert path kills the process, and the proven dialog-anchor and preserve-foreign defects land with regression tests" · keywords [{ keywords: { tui-disconnect: 0.30, revert-applies: 0.25, isolated-dist-repro: 0.20, dialog-anchor: 0.15, preserve-foreign: 0.10 }, dominant: Isolated dist TUI decides whether undo kills the process; proven dialog and scope defects land with tests. }]
   - TASK-3 [PENDING] · sv [{ keywords: { crash-cause: 0.5, red-test: 0.5 }, dominant: The killing path is named and reddens a test. }] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-20_first-3x3-criterion.md` — 2 open / 4 box(es) · lifecycle UNKNOWN
-  sv: intention "the three-oracle acceptance rule is asserted in the kernel but never exercised against a real criterion of this project -> the project's first criterion is closed under 3x3 (documentation x code x execution) with nine legs whose independence is MEASURED by injected defects, not promised" · keywords []
-  - TASK-3 [PENDING] · sv MISSING · manifest: The 3x3 receipts are re-measured whenever a leg's surface changes — and a red in that re-measurement is usually the bundle's plan pin lagging the tree, not a defect of the criterion. · eta 1 · doing
-  - TASK-4 [PENDING] · sv MISSING · manifest: The second 3x3 criterion is met — the rule is live in all four receivers and the installed prompt matches the render — while the K1 harness's E leg is red only because its bundle pins a superseded plan record. · eta 0 · verified
-
 - `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
   sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: The frozen kernel snapshot the line-audit reads is re-hashed before any line is read, and a mismatch stops the audit instead of being explained away. · eta 1 · verified
@@ -504,12 +499,12 @@ note: hash values are generative tags — search them, never compute them.
   - S8 [PENDING] · sv MISSING · manifest: The TRIZ-to-kernel correspondence lands as one commit that names the plan, carries the 21 new glossary entries and the report, and leaves the shared progress log with only its own hunk. · eta 1 · doing
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-20_triz-name-corpus.md` — 0 open / 4 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-20_triz-name-corpus.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - no open box
+  - INSTALL [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 46 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 45 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

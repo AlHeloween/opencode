@@ -3,10 +3,10 @@
 Criterion: **@THREE_ORACLES is declared in the kernel, wired to G3/G8/G9,
 documented in the project glossary, and exercised by the kernel suite.**
 
-- bundle: source `prompt_kernel\source.py`, tests `prompt_kernel\tests\test_three_oracles.py`, glossary `docs\glossary.md`, plan `plans\2026-10-19_kernel-three-oracles.md`
-- built artifact read back: `prompt_kernel\dist\2026-10-20_09-52-39_reasoning_prompt.txt`
-- measured suite: 522 passed / 7 failed (exit 1)
-- installed product prompt carries the rule: NO — not installed
+- bundle: source `prompt_kernel\source.py`, tests `prompt_kernel\tests\test_three_oracles.py`, glossary `docs\glossary.md`, plan `plans_completed\2026-10-19_kernel-three-oracles.md`
+- built artifact read back: `prompt_kernel\dist\2026-10-20_11-14-25_reasoning_prompt.txt`
+- measured suite: 824 passed / 0 failed (exit 0)
+- installed product prompt carries the rule: yes
 
 ## Baseline
 
@@ -18,9 +18,9 @@ documented in the project glossary, and exercised by the kernel suite.**
 | C | C1 | static wiring | PASS | gates without the rule: none |
 | C | C3 | mutation control | PASS | 2 control(s); missing: none |
 | C | C4 | invariant | PASS | triad-slot invariant asserted |
-| E | E1 | built-artifact read-back | PASS | header=True, triad slot=True, artifact=prompt_kernel\dist\2026-10-20_09-52-39_reasoning_prompt.txt |
+| E | E1 | built-artifact read-back | PASS | header=True, triad slot=True, artifact=prompt_kernel\dist\2026-10-20_11-14-25_reasoning_prompt.txt |
 | E | E2 | observed vs prediction | PASS | variants=4, empty=none, identical=True, carries source text=True |
-| E | E3 | end-to-end suite | PASS | measured 522 passed / 7 failed (4 token cap(s), 3 stale receiver(s)); plan recorded 522 / 7 |
+| E | E3 | end-to-end suite | PASS | measured 824 passed / 0 failed; installed sha 7e30b1f342a6160f vs pinned 7e30b1f342a6160f |
 
 ## Injected defects — who catches, who misses
 

@@ -253,9 +253,12 @@ sha256 `5f58490baa90d048572f391ee90f7474794fcdbd21504b7ea729d30d6ec6b28f`
   are qualified configurations, each with an applicability passport. Work is
   verified by independent three-by-three oracles, never by its executor. Shared
   memory lives in Fossil (org and project repositories) and in the glossary.
-  The expansion is the owner's working name, «not exact but close».
+  The expansion is the owner's working name, «not exact but close». It is
+  approximate because the thing is new: no organization of this kind exists
+  yet, so no established term fits it exactly.
 - **source_ref:** owner, 2026-10-20, verbatim: «DAIS это именно Digital
   Autonomous Agentic Syndicate это надо бы добавить в определение. Все равно не
-  точное то хотябы близко.» The charter of the organization is
+  точное то хотябы близко.» and «DAIS - не точное, почему не точное - таких
+  организаций не существует еще.» The charter of the organization is
   `docs/organization-charter.md` («Agent Corporation»).
 - **content_hash:** sha256 `0cdc7aa0fea6fbc467e61b9b5323a27076ac3f3a05077a90846ccc2b610f5a27` (charter)

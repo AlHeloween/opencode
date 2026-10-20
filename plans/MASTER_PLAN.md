@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 286 |
-| plans active | 32 |
-| tasks passed / total | 1350 / 1637 |
-| open boxes | 144 |
+| plans completed | 292 |
+| plans active | 41 |
+| tasks passed / total | 1431 / 1744 |
+| open boxes | 170 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -431,8 +431,75 @@ parent-goal-md5: 00000000000000000000000000000000]
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-18_codex-oauth-empty-error.md` — 4 open / 4 box(es) · lifecycle UNKNOWN
+  sv: intention "от пустого {} при OAuth-логине -> к понятной ошибке или рабочему логину" · keywords []
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-18_global-recents-constraint.md` — 1 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "stale per-worktree/session/chain model picks run unchecked -> every worktree, session and chain layer is checked against the global recents allowlist before a model is used" · keywords []
+  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-18_kernel-method-preamble.md` — 1 open / 15 box(es) · lifecycle UNKNOWN
+  sv: intention "kernel states machinery without stating its method -> every kernel variant opens with the working method, its why, and the no-human-oracle line, and the Claude variant grounds search on Universal Search hybrid" · keywords []
+  - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-19_codex-robot-event-handoff.md` — 4 open / 4 box(es) · lifecycle ACTIVE
+  sv: intention "внешний робот завершает работу, отчёт остаётся без реакции родителя -> событие OpenCode завершает ожидающий вызов инструмента Codex, родитель получает адресный отчёт и продолжает независимую приёмку без таймерного опроса" · keywords []
+  - E1 [PENDING] · sv [completion-predicate 0.60, primary-preservation 0.40] · manifest: MISSING — nobody has written down what this box is
+  - E2 [PENDING] · sv [event-handoff 0.60, bounded-lifetime 0.40] · manifest: MISSING — nobody has written down what this box is
+  - E3 [PENDING] · sv [parent-continuation 0.50, independent-oracle 0.50] · manifest: MISSING — nobody has written down what this box is
+  - E4 [PENDING] · sv [native-stop 0.50, watch-binding 0.30, delivery-oracle 0.20] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-19_edit-description-contract.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
+  sv: intention "edit tool description drifts from its refusals -> description rewritten from the code's own refusals with a contract test that fails on drift" · keywords [```yaml
+Keywords: edit-description-contract 0.35, refusal-catalogue 0.25, contradiction-same-file 0.20, stringified-files-schema 0.12, contract-test 0.08
+Semantic dominant: Rewrite the edit tool description from the code's own refusals and pin it with a test so the txt cannot drift from the ts.
+md5: 84719f6efd224ad99c3f617cb2c92570
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+```]
+  - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-19_kernel-three-oracles.md` — 1 open / 11 box(es) · lifecycle UNKNOWN
+  sv: intention "acceptance closes on one oracle or on unmeasured independence -> every criterion closes only when documentation, code and execution agree, each aspect covered by ≥3 declared, receipt-carrying legs" · keywords []
+  - TASK-10 [PENDING] · sv MISSING · manifest: The t96 plan closes on two owner decisions — the token ceiling number and the install word for the four receivers — with the three stale-receiver tests as the receipt that the install happened. · eta 1 · waiting-on-user
+
+- `plans/2026-10-19_tool-description-contracts.md` — 3 open / 13 box(es) · lifecycle UNKNOWN
+  sv: intention "tool descriptions drift from refusals across 36 tools -> each description checked against its code by refusal keys, schema and examples, in error-rate order, so no model fails a tool because its manual promised what the code refuses" · keywords [```yaml
+Keywords: tool-description-audit 0.35, refusal-key-contract 0.25, error-census-priority 0.20, orphan-descriptions 0.12, contract-tests 0.08
+Semantic dominant: The edit lesson is applied to every tool: each description is checked against its code by refusal keys, schema and examples, in order of measured failure rate, so that no model fails a tool because its manual promised something the code refuses.
+md5: a3eb5a7edb7d42fabae35e82e1c60284
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+```]
+  - TASK-11 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-12 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-13 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-19_undo-broken.md` — 1 open / 5 box(es) · lifecycle ACTIVE
+  sv: intention "TUI undo applies on the server but the TUI loses its server -> isolated dist-TUI reproducer decides whether the revert path kills the process, and the proven dialog-anchor and preserve-foreign defects land with regression tests" · keywords [{ keywords: { tui-disconnect: 0.30, revert-applies: 0.25, isolated-dist-repro: 0.20, dialog-anchor: 0.15, preserve-foreign: 0.10 }, dominant: Isolated dist TUI decides whether undo kills the process; proven dialog and scope defects land with tests. }]
+  - TASK-3 [PENDING] · sv [{ keywords: { crash-cause: 0.5, red-test: 0.5 }, dominant: The killing path is named and reddens a test. }] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
+  sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-10 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 35 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 44 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

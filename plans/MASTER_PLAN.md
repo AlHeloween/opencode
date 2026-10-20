@@ -151,9 +151,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 296 |
-| plans active | 41 |
-| tasks passed / total | 1457 / 1771 |
-| open boxes | 171 |
+| plans active | 43 |
+| tasks passed / total | 1457 / 1782 |
+| open boxes | 182 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -481,6 +481,16 @@ note: hash values are generative tags — search them, never compute them.
   sv: intention "TUI undo applies on the server but the TUI loses its server -> isolated dist-TUI reproducer decides whether the revert path kills the process, and the proven dialog-anchor and preserve-foreign defects land with regression tests" · keywords [{ keywords: { tui-disconnect: 0.30, revert-applies: 0.25, isolated-dist-repro: 0.20, dialog-anchor: 0.15, preserve-foreign: 0.10 }, dominant: Isolated dist TUI decides whether undo kills the process; proven dialog and scope defects land with tests. }]
   - TASK-3 [PENDING] · sv [{ keywords: { crash-cause: 0.5, red-test: 0.5 }, dominant: The killing path is named and reddens a test. }] · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-20_hr-delegator-driver.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
+  sv: intention "manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate" · keywords []
+  - TASK-1 [PENDING] · sv [handshake-brief, triz-probe, predicate-list] · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv [dossier-gate, model-extracts-gate-decides] · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv [model-profile, trait-receipt, testimony-until-measured] · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv [idle-send, receipt-readback, layer-model-check] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv [watch-to-boundary, executor-ledger, independent-verifier] · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv [owner-boundary, named-decisions, no-canned-yes] · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv [state-namespace, no-new-json, legacy-readonly] · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
   sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: The frozen kernel snapshot the line-audit reads is re-hashed before any line is read, and a mismatch stops the audit instead of being explained away. · eta 1 · verified
@@ -494,6 +504,18 @@ note: hash values are generative tags — search them, never compute them.
   - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-10 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-20_robot-personnel-delegator.md` — 4 open / 4 box(es) · lifecycle ACTIVE
+  sv: intention "подбор роботов, инициализация по SV и назначение проверяющего выполняются Codex вручную -> внешний робот кадровик-делегатор автоматически ведёт этот цикл по проверяемым досье, с отдельным проверяющим и адресуемым результатом" · keywords [Keywords: robot-personnel 0.30, sv-handshake 0.25, independent-verification 0.25, evidence-dossier 0.20
+Semantic dominant: Автоматизировать назначение внешних роботов и независимых проверок без подмены доказательств кадровым мнением.
+md5: 25f8c07b61a94d3e8b204af59c716de2
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.]
+  - TASK-1 [PENDING] · sv [robot-personnel, sv-handshake, qualification] · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv [delegation-cycle, event-handoff, evidence-dossier] · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv [independent-verification, refusal-controls, receipts] · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv [dais-pilot, dossier-feedback, whole-goal] · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-20_triz-kernel-correspondence.md` — 2 open / 9 box(es) · lifecycle UNKNOWN
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
   - S8 [PENDING] · sv MISSING · manifest: The TRIZ-to-kernel correspondence lands as one commit that names the plan, carries the 21 new glossary entries and the report, and leaves the shared progress log with only its own hunk. · eta 1 · doing
@@ -501,6 +523,6 @@ note: hash values are generative tags — search them, never compute them.
 
 ## The checks
 
-This body names all 44 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 46 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

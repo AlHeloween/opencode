@@ -26,6 +26,7 @@ import { useToast } from "../ui/toast"
 import { Global } from "@opencode-ai/core/global"
 import {
   getPlanStatus,
+  NO_STANDARD_CUTOFF,
   formatProgressBar,
   reconcilePlans,
   isPlanHygieneClean,
@@ -201,6 +202,11 @@ const [planData, setPlanData] = createSignal<PlanStatus>({
   totalTasks: 0,
   completedTasks: 0,
   completion: 0,
+  // Empty like the rest: no box has been read for its standard yet, and `refreshPlanStatus`
+  // replaces the whole object on first load. The cutoff is the constant, not a copy of it.
+  noStandard: [],
+  noStandardGrandfathered: [],
+  noStandardCutoff: NO_STANDARD_CUTOFF,
 })
 const [turnCount, setTurnCount] = createSignal(0)
 const [cycleCount, setCycleCount] = createSignal(0)

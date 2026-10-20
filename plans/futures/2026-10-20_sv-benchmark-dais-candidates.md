@@ -46,6 +46,20 @@ Memory: `feedback-model-eval-is-kernel-adherence`, `project-goal-industrial-agi-
    - result: the oracles are green on the Legislator's re-run.
    - Calibration: t100 on minimax 10-20.
 
+## Track 4: TRIZ reasoning, closed-book (owner, 2026-10-20)
+
+Owner, verbatim: «если модели уже и тестировать на интеллект то вгружаем ТРИЗ и погоняем стандартные задачи и сравниваем с
+решениями без OSINT потому что они на думалку и умение использовать ТРИЗ.»
+
+This track measures thinking by METHOD, which tracks 1–3 do not: decoding, finding and adherence are different abilities.
+- **Closed-book with TRIZ loaded.** The model gets the method (ИКР / Ideal Final Result, technical and physical contradictions, the 40 principles, ARIZ, resources, Su-Field) and the problem. No web, no repository search.
+- **A/B.** The same problem without TRIZ and with TRIZ. The difference is the measured contribution of the method, not general model strength.
+- **Anti-memorisation.** Altshuller's classic training problems are published widely, so answers may be recalled. Two counters:
+  - each classic problem also appears TRANSPOSED into another domain with the same contradiction structure;
+  - the score is the PROCESS against the ARIZ steps: contradiction formulated, ИКР stated, resources found, principle named. A right answer with a wrong or absent process counts as recall, not reasoning.
+- **Canonical answers** come from primary TRIZ sources with `content_hash`. Their grounding is a by-product of t101 (the TRIZ ↔ kernel correspondence, on Nemotron 3 Ultra).
+- As in every track: proof, and a handoff a second model reproduces.
+
 ## The path does not matter; the proof and the handoff do (owner, 2026-10-20)
 
 Owner, verbatim: «задачку можно решить 2мя путями - можно решить, а можно найти решение через OSINT - вопрос сможет ли

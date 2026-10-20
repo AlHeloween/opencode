@@ -46,6 +46,21 @@ Memory: `feedback-model-eval-is-kernel-adherence`, `project-goal-industrial-agi-
    - result: the oracles are green on the Legislator's re-run.
    - Calibration: t100 on minimax 10-20.
 
+## The path does not matter; the proof and the handoff do (owner, 2026-10-20)
+
+Owner, verbatim: «задачку можно решить 2мя путями - можно решить, а можно найти решение через OSINT - вопрос сможет ли
+модель потом доказать свое решение и передать эти данные соратникам.»
+
+- **Solving and finding are both legitimate.** Finding is the kernel's own G1 (@REUSE_BEFORE: search before invention). minimax's 10-20 hop 1, which found the SV's source on disk, is correct behaviour and not «cheating». The decode-only track 1 measures a different ability; it does not disqualify the finding path.
+- **Every track is scored on two things, whatever the path:**
+  1. **Proof:** oracles, receipts, source hashes and claims marked with their instrument. An unproved solution is Guess, whether found or derived.
+  2. **Handoff:** an SV with a correct lineage, plus artifact addresses (path:line, hash, run id) and measured/not-measured, so that a peer can re-verify without the author.
+- **The handoff test is mandatory.**
+  - A SECOND model receives only the first model's handoff and must reproduce the verification on its own.
+  - If it reproduces it, the result counts as proved and transferred. If it cannot, the result scores zero, whatever the path.
+  - This is the DAIS membership criterion: peer-confirmed oracles («подтверждение оракулов сослуживцами … святое и неприкосновенно», owner 10-18).
+  - A model that solves but cannot hand over is a loner, not a member.
+
 ## Rules that keep it non-degenerate
 
 - **Living, rotating sets.** Items are drawn from recent history and replaced every run. An item that leaked onto disk or into a public place moves from track 1 to track 2.

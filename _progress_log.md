@@ -8048,3 +8048,6 @@ Oracles: `bun typecheck` exit 0 run 20261019T135512Z_5ef03f35; `_build.ps1` exit
 20261019T135544Z_53339a24. Files: session-revert.ts + dialog-message.tsx (F1), session/revert.ts (F2),
 tests session-revert-assistant/-anchor, t98-undo-scope (+superseded probe t98-undo-probe),
 plans/2026-10-19_undo-broken.md. No shared-tree undo; no bin/; no --no-verify; no provider keys in copy.
+## [2026-10-20] t99 kernel line audit — read-only report, nothing cut
+
+Snapshot c912b4ac52 re-hashed: SHA256 8407D4AEB42DC5F2…B6114 match, 75630 B match; all 654 lines read by eye, no code for analysis, corpora untouched. REPORT.md: 7 duplicates ≈624 B (keep-place per row), 14 persons/host ≈4108 B moved to add-on (only person: org login `claude` in G1 line 332; no D:\ paths/session ids/owner quotes), 11 wordy ≈140 B exact cuts; total candidates ≈4872 B (≈6.4%, true cuts ≈764 B ≈1.0%). Rejected list: 9 deliberate restatements + generic owner/examples + corpora + 15 ambiguous shortens. Files: experiments/2026-10-20_kernel-audit/REPORT.md, plans/2026-10-20_kernel-line-audit.md. No prompt_kernel/, no bin/, no analysis script.

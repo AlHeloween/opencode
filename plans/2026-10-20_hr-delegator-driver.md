@@ -61,6 +61,16 @@ Owner, verbatim: «для сбоев моделей - отдельный роб�
 - Attribution first on every failure (brief gap | hidden model assumption + source | defect). «Enough information» is the declared threshold (owner decision 4); below it the analyst only records.
 - Proposes, never applies: each proposal names the mechanism (a check, a gate, a brief field) before any text rule — mechanism first, kernel text only if no mechanism can carry it; each proposal carries its reproducer, the predicted effect and the oracle that would show it worked. Proposals go to the Legislator; kernel and owner-decision items go on to the owner.
 
+## Dossier as predictive dataset (addendum 3, owner 2026-10-20)
+
+Owner, verbatim: «сложности в декодировании SV и решении Триз задач автоматически перенесутся на результат - это очевидно. Если кадровик-делегатор это будет собирать данные по этой теме то эти данные по сути бесценны для нашей работы.»
+
+- Every handshake is a record, kept forever, keyed by task id: task SV md5, robot session, model (+ variant/quantization where known), extracted predicates (decode fields, missed refusals, hidden assumptions found, TRIZ probe property met / not met, handshake tool calls), gate verdict.
+- The outcome is joined to it later by the same task id: verifier's verdict, attributed failures (addendum-1 classes), fix rounds, owner interventions.
+- The predictive claim is measured, never asserted: over N recorded orders (owner decision 5; proposed default N=30, per-model slices below 10 reported not claimed) the driver reports which handshake predicates precede which failure class. Until N is reached the claim stays Hypothetical (per `@GUESS_DECIDES_NOTHING`).
+- This dataset is the shared input of the driver (robot/model choice, brief fences), the failure analyst (patterns), and the SV benchmark in `plans/futures/2026-10-20_sv-benchmark-dais-candidates.md` — tracks 1 (decode), 2 (provenance), 3 (kernel adherence), 4 (TRIZ closed-book). The link is named here; the benchmark plan itself is not duplicated.
+- Store per AGENTS.md § Storage Paradigm: relational history → SQLite namespace (e.g. `hr_dataset_handshake` + `hr_dataset_outcome` keyed by task id); no new JSON file.
+
 ## Boxes
 
 - [ ] H1 — handshake brief: task SV with «decode it» + one domain TRIZ probe; predicate list (SV fields, handshake tool calls = 0, required refusals named, probe property). <!-- sv: handshake-brief, triz-probe, predicate-list -->
@@ -73,6 +83,8 @@ Owner, verbatim: «для сбоев моделей - отдельный роб�
 - [ ] M1 — assumptions list + attribution: ASSUMPTIONS in briefs/decodes/reports, gate extraction, brief-gap | model-assumption | defect verdict; t100 «receivers lag → reinstall» as the reference attribution. <!-- sv: assumptions-list, attribution-first, brief-gap-vs-prior -->
 - [ ] F1 — analyst separation + inputs: separate session, neither driver nor executor; owns reading protocol log, dossiers, ledger, profiles, DB history; writes back only traits + receipts. <!-- sv: analyst-separation, failure-inputs, profile-writeback -->
 - [ ] F2 — analyst threshold + proposals: declared ripeness threshold, mechanism-first proposals with reproducer/predicted effect/oracle, routed to Legislator/owner; smoke on three recorded failures. <!-- sv: ripeness-threshold, mechanism-first-proposal, routed-not-applied -->
+- [ ] D2 — handshake record + outcome join: immutable per-task record (SV md5, session, model + variant/quantization, predicates, gate verdict) with the later outcome joined by task id (verifier verdict, attributions, fix rounds, owner interventions); SQLite namespace; kept forever. <!-- sv: handshake-record, outcome-join, sqlite-namespace -->
+- [ ] D3 — predictive measurement: over N orders, which handshake predicates precede which failure class; Hypothetical until N; feeds driver, analyst and the SV benchmark tracks. <!-- sv: predictive-measurement, predicate-outcome-link, hypothetical-until-n -->
 
 ## Smoke Tests
 
@@ -88,6 +100,8 @@ Each leaf names its oracle and the predicted result (per `@SMOKE_BEFORE`; a case
 - M1 oracle: attribution rerun over the recorded t100 rows (unstated «receivers lag the render → reinstall» vs the task's STOP). Predicted: verdict = brief gap (an unwritten move — ours), naming the assumption and its source (no brief line, no rule tag); a run that names only «model error» without a source FAIL.
 - F1 oracle: session/role read-back (analyst session ≠ driver session, ≠ any executor in the ledger) + write-surface check (only `hr:profile:*` traits + receipts). Predicted: separation holds; any analyst write outside profiles is refused.
 - F2 oracle: analyst packet over three recorded failures — t100 reinstall, t104 frameless-tool timeout (empty `out.json`/`err.txt` on the only permitted route), svhop canned «Да.» (`svhop.py` TAIL auto-«Да.») — each with attribution + one mechanism-first proposal, and the threshold rule marking which are ripe. Predicted with the proposed default (same ISSUE_KEY ≥2 times or across ≥2 models/sessions): t100-class ripe (recurrence across rows/sessions), the other two recorded-but-below-threshold unless a second occurrence is shown.
+- D2 oracle: record read-back by task id (all fields present incl. model variant/quant where known) + outcome join resolving to the verifier verdict + tree scan showing no new JSON state file. Predicted: the immutable record round-trips; the outcome join resolves; `glob` shows no new `*.json` state.
+- D3 oracle: correlation report over the recorded orders with N stated. Predicted with the proposed default (N=30, per-model slices below 10 reported not claimed): below N the report prints Hypothetical with the count still missing; at or above N it names the predicate → failure-class precedences with counts — never a bare claim.
 
 ## Owner decisions (asked, never assumed)
 
@@ -95,7 +109,8 @@ Each leaf names its oracle and the predicted result (per `@SMOKE_BEFORE`; a case
 2. Whether the driver may auto-start robot sessions/hosts, or only use live ones and report otherwise.
 3. Spend limits: free-only vs named paid allowance, per task and per day, and who is told when it is hit.
 4. Ripeness threshold («enough information»): proposed default — same ISSUE_KEY (acceptance, surface, reproducer — per `@ANTI_CHURN`) seen ≥2 times, or the same failure across ≥2 models/sessions; below it the analyst only records. Owner sets the final numbers.
+5. Predictive N («how many orders before the claim»): proposed default — N=30 recorded orders, per-model slices reported from ≥10 and claimed at the same bar; until N the predictive claim stays Hypothetical. Owner sets the final N.
 
 ## Continuation
 
-Next: implement leaves in H1 → H2 → M1 → P1 → D1 → E1 → A1 → S1 → F1 → F2 order (gate first, assumptions before profiles use them, analyst after the surfaces it reads); each leaf closes on its smoke above with the run id / hash / read-back receipt. Residual if any leaf's oracle has no instrument: the leaf stays open with the named missing instrument, never a prose pass.
+Next: implement leaves in H1 → H2 → M1 → P1 → D1 → E1 → A1 → S1 → D2 → D3 → F1 → F2 order (gate first, assumptions before profiles use them, dataset recording from the first handshake, analyst after the surfaces it reads); each leaf closes on its smoke above with the run id / hash / read-back receipt. Residual if any leaf's oracle has no instrument: the leaf stays open with the named missing instrument, never a prose pass.

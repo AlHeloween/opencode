@@ -41,7 +41,7 @@ def test_s01_marker_scope(variant) -> None:
     """S01: marker applies in reasoning records; MUST NOT alter shipped product text."""
     text = render_kernel(KERNEL, *VARIANTS[variant]) if VARIANTS[variant][1] is not None else render_kernel(KERNEL, VARIANTS[variant][0])
     assert "The ASSERTION_STATUS marker applies in reasoning records" in text
-    assert "memory, replies and working notes" in text  # round2 S01: dropped "commits" from reasoning-records list (commit messages are established format; 60-commit bodies carry 0 ✓/CONFIRMED)
+    assert "memory, replies and working notes. Commit messages are an established external format: no marker." in text  # round3 S01: added commit-messages sentence (60-commit bodies carry 0 marks); list stays without "commits"
     assert "It MUST NOT alter shipped product text" in text
     assert "a marker there is a defect." in text
 
@@ -86,7 +86,7 @@ def test_s05_unknown_member() -> None:
 def test_s06_stall_vs_exhaustion() -> None:
     """S06: STALL runs same-run descent; exhaustion persists next-run route."""
     prog = _shared("LOOP_PROGRESS")
-    assert "STALL routes to G9, where closure decides; with every budget (step, tool, loop) above zero the descent G9 → G1/G2 runs in this run." in prog  # round2 S06: "with budget left" → "with every budget (step, tool, loop) above zero"
+    assert "STALL routes to G9, where closure decides; with every budget (step, tool, loop, depth, time) above zero the descent G9 → G1/G2 runs in this run." in prog  # round3 S06: named all five budgets (depth+time); with 2 missing both branches fired
     assert "Exhaustion routes to G9 too, but persists that descent as the next run's route and never executes it." in prog
 
 
@@ -95,7 +95,7 @@ def test_s07_bootstrap_prerequisites() -> None:
     boot = KERNEL.state_fields["BOOTSTRAP"]
     assert "plus the idempotent grounding prerequisites G1 itself names (organization init, index refresh, snapshot reopen)" in boot
     assert "a read-only identity requests them from its parent" in boot
-    assert "where the ACL denies one, it is a capability gap routed per @TOOLCHAIN_QUALIFICATION, never skipped silently" in boot  # round2 S07: appended capability-gap clause
+    assert "where the ACL denies one, it is requested from the parent or another permitted executor and recorded as residual — never self-granted, never skipped silently" in boot  # round3 S07: ACL denial → parent/permitted executor + residual (was TOOL-repair route, contradicts never-self-authorization)
 
 
 def test_s09_oracle_fail_criterion() -> None:
@@ -119,5 +119,4 @@ def test_s10_majority_names_where_to_look() -> None:
 def test_s11_divergence_precedence() -> None:
     """S11: diverged stamped premise goes to G1 first."""
     div = _shared("DIVERGENCE_PROTOCOL")
-    assert "Precedence: when a stamped PREMISE (a dependency a verdict rests on) diverges, G1 full re-grounding comes first" in div  # round2 S11: stamped PREMISE + @THREE_ORACLES route for current-criterion disagreements
-    assert "a disagreement among the current criterion's own aspects follows @THREE_ORACLES" in div  # round2 S11 second half
+    assert "Precedence: when a stamped PREMISE (a dependency a verdict rests on) diverges, G1 full re-grounding comes first; a disagreement among the current criterion's own aspects follows @THREE_ORACLES; an event that is both follows the premise branch first." in div  # round3 S11: added tie-break — both follows premise branch first

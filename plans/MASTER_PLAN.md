@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 292 |
-| plans active | 43 |
-| tasks passed / total | 1440 / 1757 |
-| open boxes | 174 |
+| plans completed | 293 |
+| plans active | 42 |
+| tasks passed / total | 1446 / 1762 |
+| open boxes | 173 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -464,10 +464,6 @@ note: hash values are generative tags — search them, never compute them.
 ```]
   - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-19_kernel-three-oracles.md` — 1 open / 11 box(es) · lifecycle UNKNOWN
-  sv: intention "acceptance closes on one oracle or on unmeasured independence -> every criterion closes only when documentation, code and execution agree, each aspect covered by ≥3 declared, receipt-carrying legs" · keywords []
-  - TASK-10 [PENDING] · sv MISSING · manifest: The t96 plan closes on two owner decisions — the token ceiling number and the install word for the four receivers — with the three stale-receiver tests as the receipt that the install happened. · eta 1 · waiting-on-user
-
 - `plans/2026-10-19_tool-description-contracts.md` — 3 open / 13 box(es) · lifecycle UNKNOWN
   sv: intention "tool descriptions drift from refusals across 36 tools -> each description checked against its code by refusal keys, schema and examples, in error-rate order, so no model fails a tool because its manual promised what the code refuses" · keywords [```yaml
 Keywords: tool-description-audit 0.35, refusal-key-contract 0.25, error-census-priority 0.20, orphan-descriptions 0.12, contract-tests 0.08
@@ -487,8 +483,8 @@ note: hash values are generative tags — search them, never compute them.
 
 - `plans/2026-10-20_first-3x3-criterion.md` — 2 open / 4 box(es) · lifecycle UNKNOWN
   sv: intention "the three-oracle acceptance rule is asserted in the kernel but never exercised against a real criterion of this project -> the project's first criterion is closed under 3x3 (documentation x code x execution) with nine legs whose independence is MEASURED by injected defects, not promised" · keywords []
-  - TASK-3 [PENDING] · sv MISSING · manifest: The 3x3 receipts are re-measured whenever a leg's surface changes — the first firing came from the glossary re-ground, and all nine unique-detection receipts still hold. · eta 1 · doing
-  - TASK-4 [PENDING] · sv MISSING · manifest: The second 3x3 criterion is the rule living in the runtime, and it closes only when the installed prompt read-back matches the render and the three stale receivers turn green. · eta 1 · waiting-on-user
+  - TASK-3 [PENDING] · sv MISSING · manifest: The 3x3 receipts are re-measured whenever a leg's surface changes — and a red in that re-measurement is usually the bundle's plan pin lagging the tree, not a defect of the criterion. · eta 1 · doing
+  - TASK-4 [PENDING] · sv MISSING · manifest: The second 3x3 criterion is met — the rule is live in all four receivers and the installed prompt matches the render — while the K1 harness's E leg is red only because its bundle pins a superseded plan record. · eta 0 · verified
 
 - `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
   sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []
@@ -505,8 +501,12 @@ note: hash values are generative tags — search them, never compute them.
 
 - `plans/2026-10-20_triz-kernel-correspondence.md` — 2 open / 9 box(es) · lifecycle UNKNOWN
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - S8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S8 [PENDING] · sv MISSING · manifest: The TRIZ-to-kernel correspondence lands as one commit that names the plan, carries the 21 new glossary entries and the report, and leaves the shared progress log with only its own hunk. · eta 1 · doing
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-20_triz-name-corpus.md` — 0 open / 4 box(es) · lifecycle UNKNOWN
+  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
+  - no open box
 
 ## The checks
 

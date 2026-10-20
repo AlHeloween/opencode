@@ -244,3 +244,18 @@ sha256 `5f58490baa90d048572f391ee90f7474794fcdbd21504b7ea729d30d6ec6b28f`
 - **Definition.** 3×3 matrix (system/subsystem/supersystem × past/present/future) for problem analysis and forecasting.
 - **source_ref:** https://en.wikipedia.org/wiki/TRIZ (See also: Nine windows)
 - **content_hash:** sha256 `c6a399d121a143162118f46895a57599a9be2d087f18f142fb45d229e3aefdd5` (Wikipedia TRIZ page)
+
+## DAIS (Digital Autonomous Agentic Syndicate)
+
+- **Definition.** The owner's name for the organization of autonomous agents
+  (robots on several model families, the Legislator, human owner) that works
+  from a set Digital Intention through the kernel's gated protocol. Its members
+  are qualified configurations, each with an applicability passport. Work is
+  verified by independent three-by-three oracles, never by its executor. Shared
+  memory lives in Fossil (org and project repositories) and in the glossary.
+  The expansion is the owner's working name, «not exact but close».
+- **source_ref:** owner, 2026-10-20, verbatim: «DAIS это именно Digital
+  Autonomous Agentic Syndicate это надо бы добавить в определение. Все равно не
+  точное то хотябы близко.» The charter of the organization is
+  `docs/organization-charter.md` («Agent Corporation»).
+- **content_hash:** sha256 `0cdc7aa0fea6fbc467e61b9b5323a27076ac3f3a05077a90846ccc2b610f5a27` (charter)

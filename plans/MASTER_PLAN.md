@@ -151,9 +151,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 298 |
-| plans active | 43 |
-| tasks passed / total | 1472 / 1802 |
-| open boxes | 188 |
+| plans active | 44 |
+| tasks passed / total | 1472 / 1805 |
+| open boxes | 191 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -481,6 +481,19 @@ note: hash values are generative tags — search them, never compute them.
   sv: intention "TUI undo applies on the server but the TUI loses its server -> isolated dist-TUI reproducer decides whether the revert path kills the process, and the proven dialog-anchor and preserve-foreign defects land with regression tests" · keywords [{ keywords: { tui-disconnect: 0.30, revert-applies: 0.25, isolated-dist-repro: 0.20, dialog-anchor: 0.15, preserve-foreign: 0.10 }, dominant: Isolated dist TUI decides whether undo kills the process; proven dialog and scope defects land with tests. }]
   - TASK-3 [PENDING] · sv [{ keywords: { crash-cause: 0.5, red-test: 0.5 }, dominant: The killing path is named and reddens a test. }] · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-20_edit-label-remap-slice-2.md` — 3 open / 3 box(es) · lifecycle UNKNOWN
+  sv: intention "chained labels go stale after a batch edit -> return an old-to-new map for every label the agent knew, so no later edit addresses a moved line by its old hash" · keywords [```yaml
+Keywords: label-remap-batch 0.40, chainHash-stale-labels 0.25, old-to-new-map 0.20, report-budget-8k 0.15
+Semantic dominant: Return an old-to-new label map for every hash the agent knew in the edited file so later edits never use a stale chained label.
+md5: 5d7c1a9e3f2b4860a1d4c7e9f0b2d4a6
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: b89560e8bbec4459b72bebac364fcd6d
+note: hash values are generative tags — search them, never compute them.
+```]
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-20_hr-delegator-driver.md` — 13 open / 13 box(es) · lifecycle UNKNOWN
   sv: intention "manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate" · keywords []
   - TASK-1 [PENDING] · sv [internship-admission, sv-decode-exam, trivial-triz-exam] · manifest: MISSING — nobody has written down what this box is
@@ -529,6 +542,6 @@ note: hash values are generative tags — search them, never compute them.]
 
 ## The checks
 
-This body names all 46 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 47 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

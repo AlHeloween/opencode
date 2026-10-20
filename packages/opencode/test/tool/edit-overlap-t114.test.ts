@@ -145,4 +145,40 @@ describe("t114 edit overlap in original coordinates", () => {
     expect(report).toContain("Y")
     expect(linesOf).toBeDefined()
   })
+
+  test("(g) canonical a,b,c: three lines replaced in ONE batch, order-independent, report correct", () => {
+    const content = "a\nb\nc\n"
+    const h = labels(content)
+    const editsABC = [
+      { fromHash: h[1]!, newString: "a1\na2\na3" },
+      { fromHash: h[2]!, newString: "b1\nb2\nb3" },
+      { fromHash: h[3]!, newString: "c1\nc2\nc3" },
+    ]
+    const expected = "a1\na2\na3\nb1\nb2\nb3\nc1\nc2\nc3\n"
+    expect(resolveEdits(content, editsABC)).toBe(expected)
+    // Entry order c,a,b reads back byte-identical: resolve-then-apply, never one-by-one.
+    expect(resolveEdits(content, [editsABC[2]!, editsABC[0]!, editsABC[1]!])).toBe(expected)
+    // Applied spans slice the written file back.
+    const res = resolveAddresses(content, editsABC, "\n", "g.txt")
+    if (res.kind !== "text") throw new Error("expected text for (g)")
+    const final = res.text.split("\n")
+    const slice = (s: number, e: number) => final.slice(s, e + 1).join("\n")
+    expect(slice(res.spans[0]!.start, res.spans[0]!.end)).toBe("a1\na2\na3")
+    expect(slice(res.spans[1]!.start, res.spans[1]!.end)).toBe("b1\nb2\nb3")
+    expect(slice(res.spans[2]!.start, res.spans[2]!.end)).toBe("c1\nc2\nc3")
+    const report = addressReport({
+      path: "g.txt",
+      oldText: content,
+      finalText: res.text,
+      spans: res.spans,
+      created: false,
+      formatTouched: false,
+    })
+    for (const line of ["a1", "a3", "b1", "b3", "c1", "c3"]) expect(report).toContain(line)
+    // The echoed label resolves in the very next edit — no re-read, no stale hash.
+    const echo = report.split("\n").find((l) => l.endsWith(": b2"))
+    expect(echo).toBeDefined()
+    const hb2 = echo!.match(/^\d+\s+([0-9a-f]{8}): /)![1]!
+    expect(resolveEdits(res.text, [{ fromHash: hb2, newString: "B2" }])).toBe("a1\na2\na3\nb1\nB2\nb3\nc1\nc2\nc3\n")
+  })
 })

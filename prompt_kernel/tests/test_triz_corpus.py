@@ -119,3 +119,33 @@ def test_guard_rejects_unwired_corpus() -> None:
     ]
     by_id = {gate.id: gate for gate in gates}
     assert "TRIZ_ANALYSIS" not in by_id["G1"].shared_rules
+
+
+def _triz_carriers() -> dict[str, str]:
+    """The three carrier texts, read from the model, not the render."""
+    shared = {rule.id: rule.text for rule in KERNEL.shared_rules}
+    evo = [
+        rule.text
+        for protocol in KERNEL.protocols
+        if protocol.id == "EVOLUTION_LOOP"
+        for rule in protocol.local_rules
+        if rule.id == "TRIZ_EVOLUTION"
+    ]
+    return {
+        "TRIZ_CONTRADICTION": shared["TRIZ_CONTRADICTION"],
+        "TRIZ_ANALYSIS": shared["TRIZ_ANALYSIS"],
+        "TRIZ_EVOLUTION": evo[0],
+    }
+
+
+@pytest.mark.parametrize("carrier", ["TRIZ_CONTRADICTION", "TRIZ_ANALYSIS", "TRIZ_EVOLUTION"])
+def test_carrier_names_triz(carrier) -> None:
+    """Review 1: without the word TRIZ, bare names drift into project meanings."""
+    assert "TRIZ" in _triz_carriers()[carrier]
+
+
+@pytest.mark.parametrize("banned", ["Ground the", "tool corpus", "evolution corpus"])
+def test_carrier_drops_borrowed_words(banned) -> None:
+    """Review 1: Ground/tool-corpus/evolution-corpus are the kernel's own words;
+    each counted once on 2026-10-20, all three inside the old carriers."""
+    assert render_kernel(KERNEL).count(banned) == 0, banned

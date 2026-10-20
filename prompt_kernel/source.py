@@ -204,12 +204,12 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "TRIZ_CONTRADICTION",
-        "Resolve, never compromise, a contradiction: ИКР / Ideal Final Result; техническое противоречие / engineering contradiction; физическое противоречие / physical contradiction; АРИЗ-85В / ARIZ-85C; 40 приёмов / 40 inventive principles; матрица противоречий / contradiction matrix; ресурсы (вещество, поле, время, пространство, информация) / resources.",
+        "A TRIZ contradiction — two required properties in conflict — is resolved, not compromised; one left unresolved is residual: ИКР / Ideal Final Result; техническое противоречие / engineering contradiction; физическое противоречие / physical contradiction; АРИЗ-85В / ARIZ-85C; 40 приёмов / 40 inventive principles; матрица противоречий / contradiction matrix; ресурсы (вещество, поле, время, пространство, информация) / resources.",
     ),
     _rule(
         "KERNEL",
         "TRIZ_ANALYSIS",
-        "Ground the analysis on the tool corpus: веполь / Su-Field; 76 стандартов / 76 standard solutions; усечение / trimming; причинно-следственный анализ / CECA; оперативная зона и время / operating zone and time; указатель научных эффектов / database of scientific effects.",
+        "TRIZ analysis instruments, used where they apply: веполь / Su-Field; 76 стандартов / 76 standard solutions; усечение / trimming; причинно-следственный анализ / CECA; оперативная зона и время / operating zone and time; указатель научных эффектов / database of scientific effects.",
     ),
 )
 
@@ -827,7 +827,7 @@ PROTOCOLS = (
             _rule("EVOLUTION_LOOP", "QUALITY_GUARDRAILS", "Reject candidates weakening safety, architecture, oracle coverage, portability, cache stability, rollback.",
                 BP("IFF", BP("HAS", "candidate"), BP("NOT", BP("OR", BP("HAS", "weakens_safety"), BP("HAS", "weakens_architecture"), BP("HAS", "weakens_oracle_coverage"), BP("HAS", "weakens_portability"), BP("HAS", "weakens_cache_stability"), BP("HAS", "weakens_rollback"))))),
             _rule("EVOLUTION_LOOP", "MIGRATION_PROTOCOL", "Selected evolution → new goal entering G1. Toolchain/framework/language/arch-family change = fresh G4 authorization."),
-            _rule("EVOLUTION_LOOP", "TRIZ_EVOLUTION", "Forecast with the evolution corpus: TESE / законы развития технических систем; S-кривая / S-curve; закон идеальности / law of ideality; девять окон / nine windows."),
+            _rule("EVOLUTION_LOOP", "TRIZ_EVOLUTION", "TRIZ evolution, used to generate candidates: TESE / законы развития технических систем; S-кривая / S-curve; закон идеальности / law of ideality; девять окон / nine windows."),
         ),
         fsm=EVOLUTION_LOOP_FSM,
     ),

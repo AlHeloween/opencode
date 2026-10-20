@@ -34,11 +34,13 @@ scrubbed so a simulated peer commits via the shared index like a real peer
 would. Every other git command that touches an index runs with
 ``GIT_INDEX_FILE=<priv>``.
 
-Exit codes: 0 committed (new sha on stdout); 2 usage/refusal (bad session id,
-detached or unborn HEAD, bad pathspec, bad/non-applying/out-of-scope patch,
-nothing staged); 1 operational failure (hook failed, ref update still racing
-after --retries, git errors). A failed T5 sync never fails the commit: it warns
-on stderr, the commit stands.
+Exit codes: 0 committed and shared index in sync (new sha on stdout);
+2 usage/refusal (bad session id, detached or unborn HEAD, bad pathspec,
+bad/non-applying/out-of-scope patch, nothing staged); 1 operational failure
+(hook failed, ref update still racing after --retries, git errors, or the T5
+shared-index sync could not run to completion -- the commit itself still stands
+and its sha is printed, but the exit is non-zero with a named shared-index
+message instead of a silent warn-and-trap).
 """
 
 import argparse
@@ -160,19 +162,58 @@ def patch_files(cwd, env, patch):
     return touched
 
 
-def sync_shared_index(cwd, shared_env, pathspec, before):
+def _is_lock_error(text):
+    return "index.lock" in text
+
+
+def _run_shared_update(cwd, shared_env, git_args):
+    """One shared-index write with a single wait-and-retry on lock contention.
+
+    Owner rule for the shared tree: on index.lock wait 5 s and retry once
+    (COMMIT_OWN_SYNC_DELAY overrides the delay for tests).
+    Returns None on success, else the failure text.
+    """
+    try:
+        run_git(git_args, cwd, shared_env)
+        return None
+    except RuntimeError as exc:
+        msg = str(exc)
+        if not _is_lock_error(msg):
+            return msg
+        try:
+            delay = float(os.environ.get("COMMIT_OWN_SYNC_DELAY", "5"))
+        except ValueError:
+            delay = 5.0
+        if delay > 0:
+            time.sleep(delay)
+        try:
+            run_git(git_args, cwd, shared_env)
+            return None
+        except RuntimeError as exc2:
+            return str(exc2)
+
+
+def sync_shared_index(cwd, shared_env, pathspec, before, git_dir):
     """T5: bring the SHARED index entries for our own paths to the new HEAD.
 
     Compare-and-swap per entry: rewritten only when the entry is byte-identical
     to the capture taken at start; a meanwhile-changed entry (a neighbour staged
-    this same path) is left alone with a warning, never forced. Best-effort:
-    every failure returns a warning string, the commit already stands.
+    this same path) is left alone with a warning, never forced. Writes are
+    batched into one update-index call per direction, so a lock race either
+    applies nothing or is retried once after 5 s -- never a half-synced trap.
+    A pre-existing index.lock aborts before touching anything. Every failure
+    returns a warning string, the commit already stands; lock contention is
+    named as index.lock so the caller can fail loudly.
     """
     warns = []
+    lock_path = os.path.join(git_dir, "index.lock")
+    if os.path.exists(lock_path):
+        return ["shared-index sync skipped: index.lock present at %s, leaving shared index untouched (commit stands)" % lock_path]
     try:
         want = read_head_entries(cwd, shared_env, pathspec)
     except RuntimeError as exc:
         return ["cannot read HEAD entries (%s); shared index left as is" % exc]
+    to_upsert = []
     for path, (mode, sha) in sorted(want.items()):
         try:
             cur = read_index_entries(cwd, shared_env, [path]).get(path)
@@ -185,13 +226,18 @@ def sync_shared_index(cwd, shared_env, pathspec, before):
         if cur is not None and cur[2] != "0":
             warns.append("shared index entry for %r is conflicted (stage %s), leaving it" % (path, cur[2]))
             continue
-        try:
-            cmd = ["update-index", "--cacheinfo", "%s,%s,%s" % (mode, sha, path)]
-            if cur is None:
-                cmd.insert(1, "--add")
-            run_git(cmd, cwd, shared_env)
-        except RuntimeError as exc:
-            warns.append("cannot sync %r (%s)" % (path, exc))
+        to_upsert.append((path, mode, sha))
+    if to_upsert:
+        cmd = ["update-index", "--add"]
+        for path, mode, sha in to_upsert:
+            cmd += ["--cacheinfo", "%s,%s,%s" % (mode, sha, path)]
+        err = _run_shared_update(cwd, shared_env, cmd)
+        if err is not None:
+            warns.append("cannot sync %d shared-index entries (%s)" % (len(to_upsert), err))
+            if _is_lock_error(err):
+                warns.append("shared-index sync aborted: index.lock contention, entries left untouched")
+                return warns
+    to_remove = []
     for path in sorted(before):
         if path in want:
             continue
@@ -203,10 +249,13 @@ def sync_shared_index(cwd, shared_env, pathspec, before):
         if cur != before.get(path):
             warns.append("shared index entry for %r changed meanwhile, leaving it" % path)
             continue
-        try:
-            run_git(["update-index", "--remove", "--", path], cwd, shared_env)
-        except RuntimeError as exc:
-            warns.append("cannot drop %r (%s)" % (path, exc))
+        to_remove.append(path)
+    if to_remove:
+        err = _run_shared_update(cwd, shared_env, ["update-index", "--remove", "--"] + to_remove)
+        if err is not None:
+            warns.append("cannot drop %d shared-index entries (%s)" % (len(to_remove), err))
+            if _is_lock_error(err):
+                warns.append("shared-index sync aborted: index.lock contention, entries left untouched")
     return warns
 
 
@@ -296,11 +345,19 @@ def main(argv):
             new = run_git(["commit-tree", tree, "-p", head, "-m", args.message], cwd, env).stdout.strip()
             update = run_git(["update-ref", ref, new, head], cwd, os.environ, check=False)
             if update.returncode == 0:
-                for w in sync_shared_index(cwd, shared_env, args.paths, shared_before):
+                warns = sync_shared_index(cwd, shared_env, args.paths, shared_before, git_dir)
+                for w in warns:
                     sys.stderr.write("commit_own: warn: %s\n" % w)
                 sys.stderr.write(
                     "commit_own: staged [%s] -> %s (attempt %d)\n" % (staged.replace("\n", " "), new, attempt)
                 )
+                if any(_is_lock_error(w) for w in warns):
+                    sys.stderr.write(
+                        "commit_own: shared-index sync FAILED (index.lock contention, commit %s stands, shared index left stale; "
+                        "remove the stale lock only after proving no git process holds it, then sync with `git read-tree HEAD -- <paths>`)\n" % new
+                    )
+                    sys.stdout.write(new + "\n")
+                    return 1
                 sys.stdout.write(new + "\n")
                 return 0
             sys.stderr.write(

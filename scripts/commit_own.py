@@ -125,7 +125,16 @@ def read_index_entries(cwd, env, pathspec):
 
 def read_head_entries(cwd, env, pathspec):
     """HEAD blobs: path -> (mode, sha). Absent when not in HEAD."""
-    proc = run_git(["ls-tree", "HEAD", "-z", "--"] + pathspec, cwd, env, check=False)
+    # -r matters. A DIRECTORY pathspec expands to the files under it ONLY with
+    # -r; without it `want` misses the files a commit just added, and the T5
+    # sync's drop branch then STAGES THEIR DELETION in the shared index.
+    # Measured 2026-10-20: a commit whose pathspec was a DIRECTORY
+    # (experiments_history/2026-10-20_sv-axis-falsifier) landed correctly and then
+    # left `D` + `??` for exactly the four files it had just added — the next
+    # plain `git commit` would have deleted them from the repository.
+    # read_index_entries (ls-files) recursed all along, so the two sides disagreed
+    # and the loser's rule was applied.
+    proc = run_git(["ls-tree", "-r", "HEAD", "-z", "--"] + pathspec, cwd, env, check=False)
     if proc.returncode != 0:
         raise RuntimeError("git ls-tree HEAD failed (%d): %s" % (proc.returncode, (proc.stderr or "").strip()))
     out = {}

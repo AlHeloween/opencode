@@ -30,11 +30,14 @@ sha256 `5f58490baa90d048572f391ee90f7474794fcdbd21504b7ea729d30d6ec6b28f`
   status. The SV transmits intention and shape, not the axes' content — name
   the axes in a dominant (measured 2026-10-19:
   `experiments_history/2026-10-19_kernel-portability-chat/RESULT.md` §5).
-  The second half of that rule is now MEASURED, not asserted: an isolated arm given
-  this glossary reconstructed the project's construction (D/C/E aspects, ≥3 legs per
-  aspect, the `unique_detection` receipt) where the same prompt without it fell back
-  to correlation-based independence (n = 1 per arm, 2026-10-20:
-  `experiments_history/2026-10-20_sv-axis-falsifier/RESULT.md`).
+  The rule's two halves are now MEASURED apart (n = 1 per arm, 2026-10-20:
+  `experiments_history/2026-10-20_sv-axis-falsifier/RESULT.md`): an isolated arm given this
+  glossary reconstructed the project's construction — D/C/E aspects, ≥3 legs per aspect, the
+  `unique_detection` receipt — 4/4; the same arm with ONLY the axes named in the dominant (no
+  glossary) recovered the aspect NAMES and the leg count but not the families, not the
+  independence instrument, not the subsumption rule — 2/4; the historical vector alone — 0/4,
+  falling back to correlation-based independence. So the GLOSSARY is the load-bearing half:
+  naming the axes in a dominant buys at most half of what the term pages buy.
 - **source_ref:** `prompt_kernel/source.py:826` (`SV_CONTRACT`, tag
   `SV_FORMAT`); format §1.2 of the rendered kernel.
 - **content_hash:** sha256 `5f58490baa90d048572f391ee90f7474794fcdbd21504b7ea729d30d6ec6b28f`

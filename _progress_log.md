@@ -1,5 +1,8 @@
 ﻿# Progress Log
 
+## [2026-10-20] t102 INSTALL C2 — 4 receivers live, 825/0, build 10.0.1476
+
+Owner word «Ревью, затем ставлю» (t104 6/6 + Legislator oracles in brief). Gate: prompt_kernel/ clean, source.py HEAD 887b54382c — held, installed exactly this change. Install t84 order: product 78207 B 3a268fc0, claude 78112 B a3980ad3, cursor 77937 B f312b812 (receiver cd61dac0), codex-global 30277429 (live C:/Users/Alexander/.codex/AGENTS.md; backup .../AGENTS.md.20261020-1529.bak 77923 B 74d55fd0). k3_finish repin 7e30b1f3 → 3a268fc0 + installed==render True ×4. Suite 825 passed / 0 failed. _build.ps1 run 20261020T073040Z_f86b5894 exit 0, bytes_written 65740, smoke 10.0.1476. Receivers + baseline committed; cached index verified empty.
 ## [2026-10-20] t102 review 3 post-install — physical contradiction in the carrier (STOP before --install)
 
 Accepted C2 only (t104 3rd pass; C1/C3/C5/C8-C14 ruled out with ground in brief). RED 1 failed on stated reason → GREEN 296/296 (test_contradiction_covers_opposite_states); all 295 prior corpus tests green ⇒ names byte-identical. Full suite 822 passed + 3 receiver-staleness reds (expected: receivers hold review-2 text via t100 reinstall, source moved). Sizes: product 78207/10571, claude 78112/10655, codex 77955/10586, cursor 77937/10655 vs 85000/11600 — inside both. Record in plans_completed/2026-10-20_triz-name-corpus.md (already there; INSTALL box DONE by t100). Nothing cut; no --install (only on owner-quoted word).

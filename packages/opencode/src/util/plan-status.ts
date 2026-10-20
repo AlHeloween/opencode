@@ -15,7 +15,8 @@
  * True "all done" for AGI: active.length === 0 && misplaced.length === 0
  * (after reconcile, misplaced should be empty unless IO failed).
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from "fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync } from "fs"
+import { execFileSync } from "child_process"
 import path from "path"
 import * as Log from "@opencode-ai/core/util/log"
 import { planHeaderLabel } from "@/memory/spine"
@@ -45,6 +46,12 @@ export interface PlanStatus {
    *  incomplete — the form the owner made binding on 2026-10-14 (t42 §1.5/§2). An empty routes
    *  list is Guess, and Guess decides nothing: the finding NAMES every missing piece. */
   stopClaims: { file: string; problems: string[] }[]
+  /** OPEN boxes (`- [ ]`) with no governing standard in new/edited plans — red debt (t107). */
+  noStandard: { file: string; boxes: number }[]
+  /** The same boxes in plans untouched since the cutoff — visible grey, never red. */
+  noStandardGrandfathered: { file: string; boxes: number }[]
+  /** The cutoff both lists above were split on. */
+  noStandardCutoff: string
   /** The reciprocal of the plan map — see {@link masterPlanCoverage}. `present: false` is a finding of its
     * own, never merged into `misses`: «no map at all» and «a map that missed a plan» are different things. */
   masterPlan: { present: boolean; misses: string[] }
@@ -602,8 +609,122 @@ export function masterPlanCoverage(worktree: string): { present: boolean; misses
   }
 }
 
+/**
+ * THE GOVERNING STANDARD (owner, 2026-10-20): «когда составляется план под каждым пунктом
+ * должен значиться стандарт» and «все действия должны быть регламентированы».
+ *
+ * A plan box complies when its line carries `std:` with a named standard
+ * (e.g. `std: ISO/IEC/IEEE 29119-3:2021`) or `std: none found (<instrument> «query»)` —
+ * an explicit search with its receipt (t107 handshake: «no-standard-is-a-result»).
+ * A bare `std: none` is debt: it wears the shape of an entry and decides nothing.
+ *
+ * Only OPEN boxes (`- [ ]`) are audited: a closed box is history, not debt — the same rule
+ * `criticalRisks` keeps (open plans only), because a finished plan's gaps decide nothing.
+ * `NO_STANDARD_CUTOFF` is the handshake contract (2026-10-21); moving it needs a reason
+ * written here, next to the number it moves — a bare date change is a silent redefinition.
+ */
+export const NO_STANDARD_CUTOFF = "2026-10-21"
+
+export type BoxStandardKind = "named" | "none-found" | "bare-none" | "missing"
+
+export function parseBoxStandard(line: string): { kind: BoxStandardKind; detail?: string } {
+  // A box may trail bookkeeping (`<!-- sv: … -->`): tags are not standards, strip them first.
+  const stripped = line.replace(/<!--[\s\S]*?-->/g, " ").trim()
+  const m = stripped.match(/\bstd\s*:(.*)$/i)
+  if (!m) return { kind: "missing" }
+  const value = m[1]!.trim()
+  if (value === "") return { kind: "bare-none", detail: value }
+  // `none found` counts ONLY with its receipt: the instrument and query in parens.
+  if (/^none\s+found\s*\(.+\)$/i.test(value)) return { kind: "none-found", detail: value }
+  if (/^none\b/i.test(value)) return { kind: "bare-none", detail: value }
+  return { kind: "named", detail: value }
+}
+
+/**
+ * Edited = the plan file changed after the cutoff IN GIT (`git log -1 --format=%cI`).
+ * Last-touch date covers creation too (a creation IS a change), so one check answers both.
+ * No history (untracked file) reads as edited: a file git never saw is new, hence red.
+ * No git at all falls back to mtime; an unreadable file reads red — unknown state is debt,
+ * never a silent pass.
+ */
+export function isEditedAfterCutoff(absPath: string, cutoff: string = NO_STANDARD_CUTOFF): boolean {
+  const day = cutoff.slice(0, 10)
+  try {
+    const out = execFileSync("git", ["log", "-1", "--format=%cI", "--", absPath], {
+      cwd: path.dirname(absPath),
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim()
+    if (!out) return true
+    return out.slice(0, 10) >= day
+  } catch {
+    try {
+      return statSync(absPath).mtime >= new Date(`${day}T00:00:00Z`)
+    } catch {
+      return true
+    }
+  }
+}
+
+export interface NoStandardCounts {
+  boxes: number
+  plans: string[]
+  files: { file: string; boxes: number }[]
+}
+
+export interface NoStandardReport {
+  cutoff: string
+  /** Boxes in new/edited plans — red debt. */
+  debt: NoStandardCounts
+  /** The same boxes in untouched plans — visible grey, not red. */
+  grandfathered: NoStandardCounts
+}
+
+export function getNoStandardReport(
+  worktree: string,
+  opts?: { cutoff?: string; isEdited?: (absPath: string, cutoff: string) => boolean },
+): NoStandardReport {
+  const cutoff = opts?.cutoff ?? NO_STANDARD_CUTOFF
+  const isEdited = opts?.isEdited ?? isEditedAfterCutoff
+  const plansDir = path.join(worktree, "plans")
+  const debt: NoStandardCounts = { boxes: 0, plans: [], files: [] }
+  const grandfathered: NoStandardCounts = { boxes: 0, plans: [], files: [] }
+  for (const file of collectPlans(plansDir)) {
+    const abs = path.join(plansDir, file)
+    let body: string
+    try {
+      body = readFileSync(abs, "utf-8")
+    } catch (e) {
+      log.debug("plan file unreadable while counting box standards", {
+        file,
+        error: e instanceof Error ? e.message : String(e),
+      })
+      continue
+    }
+    let missing = 0
+    for (const m of body.matchAll(/^\s*- \[ \] (.+)$/gm)) {
+      const kind = parseBoxStandard(m[1]!).kind
+      if (kind === "bare-none" || kind === "missing") missing++
+    }
+    if (missing === 0) continue
+    const rel = `plans/${file.replace(/\\/g, "/")}`
+    const target = isEdited(abs, cutoff) ? debt : grandfathered
+    target.boxes += missing
+    target.plans.push(rel)
+    target.files.push({ file: rel, boxes: missing })
+  }
+  debt.plans.sort()
+  debt.files.sort((a, b) => (a.file < b.file ? -1 : 1))
+  grandfathered.plans.sort()
+  grandfathered.files.sort((a, b) => (a.file < b.file ? -1 : 1))
+  return { cutoff, debt, grandfathered }
+}
+
 /** Get plan completion status for a worktree. */
-export function getPlanStatus(worktree: string): PlanStatus {
+export function getPlanStatus(
+  worktree: string,
+  opts?: { cutoff?: string; isEdited?: (absPath: string, cutoff: string) => boolean },
+): PlanStatus {
   const plansDir = path.join(worktree, "plans")
   const completedDir = path.join(worktree, "plans_completed")
 
@@ -727,6 +848,7 @@ export function getPlanStatus(worktree: string): PlanStatus {
     totalTasks += total
     completedTasks += done
   }
+  const noStandardReport = getNoStandardReport(worktree, opts)
 
   // Completion uses fully standardized completed files only (in plans_completed, no open items)
   const completion = totalPlans > 0 ? Math.round((completed.length / totalPlans) * 100) : 0
@@ -744,6 +866,9 @@ export function getPlanStatus(worktree: string): PlanStatus {
     totalTasks,
     completedTasks,
     completion,
+    noStandard: noStandardReport.debt.files,
+    noStandardGrandfathered: noStandardReport.grandfathered.files,
+    noStandardCutoff: noStandardReport.cutoff,
   }
 }
 
@@ -868,6 +993,8 @@ export function planHygieneWorkerFooter(): string {
 /** One-line hygiene summary for orch prompts. */
 export function formatPlanHygiene(status: PlanStatus, reconcile?: ReconcileResult): string {
   const statedNoChecklist = status.noChecklistStated.length
+  const noStdDebtBoxes = status.noStandard.reduce((n, p) => n + p.boxes, 0)
+  const noStdGreyBoxes = status.noStandardGrandfathered.reduce((n, p) => n + p.boxes, 0)
   const lines = [
     `Plan progress: ${formatProgressBar(status)}`,
     `Active (open [ ]): ${status.active.join(", ") || "none"}`,
@@ -889,6 +1016,21 @@ export function formatPlanHygiene(status: PlanStatus, reconcile?: ReconcileResul
     ...(status.noChecklistStated.length
       ? [
           `Stated, no checklist: ${status.noChecklistStated.map((p) => `${p.file} ${p.lifecycle}`).join(" · ")}`,
+        ]
+      : []),
+    // THE GOVERNING STANDARD (owner, 2026-10-20): every box names its standard. Red debt for
+    // boxes in new/edited plans, a visible grey list for untouched ones — the TRIZ split: one
+    // flag cannot be both loud and silent, so the cutoff carries the difference, not the count.
+    ...(status.noStandard.length
+      ? [
+          `No standard: ${noStdDebtBoxes} box(es) in ${status.noStandard.length} plan(s) — red debt (new/edited since ${status.noStandardCutoff}); every box carries std: or std: none found (<instrument> «query»): ` +
+            status.noStandard.map((p) => `${p.file} ×${p.boxes}`).join(" · "),
+        ]
+      : []),
+    ...(status.noStandardGrandfathered.length
+      ? [
+          `No standard (grandfathered): ${noStdGreyBoxes} box(es) in ${status.noStandardGrandfathered.length} plan(s) — visible, not red; editing the plan promotes its boxes to debt: ` +
+            status.noStandardGrandfathered.map((p) => `${p.file} ×${p.boxes}`).join(" · "),
         ]
       : []),
     // AN ALERT, not a measure: it prints only when it fires, because its zero is already stated one line

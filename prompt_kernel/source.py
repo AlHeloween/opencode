@@ -204,7 +204,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "TRIZ_CONTRADICTION",
-        "A TRIZ contradiction — two properties the outcome requires, in conflict — is resolved, not traded off; while it stands, the outcome needing both is residual, never delivered by halves. TRIZ contradiction methods: ИКР / Ideal Final Result; техническое противоречие / engineering contradiction; физическое противоречие / physical contradiction; АРИЗ-85В / ARIZ-85C; 40 приёмов / 40 inventive principles; матрица противоречий / contradiction matrix; ресурсы (вещество, поле, время, пространство, информация) / resources.",
+        "A TRIZ contradiction — two required properties in conflict, or one property required in opposite states — is resolved, not traded off; while it stands, the outcome needing both is residual, never delivered by halves. TRIZ contradiction methods: ИКР / Ideal Final Result; техническое противоречие / engineering contradiction; физическое противоречие / physical contradiction; АРИЗ-85В / ARIZ-85C; 40 приёмов / 40 inventive principles; матрица противоречий / contradiction matrix; ресурсы (вещество, поле, время, пространство, информация) / resources.",
     ),
     _rule(
         "KERNEL",

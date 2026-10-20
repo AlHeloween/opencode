@@ -1,5 +1,8 @@
 ﻿# Progress Log
 
+## [2026-10-20] t102 review 3 post-install — physical contradiction in the carrier (STOP before --install)
+
+Accepted C2 only (t104 3rd pass; C1/C3/C5/C8-C14 ruled out with ground in brief). RED 1 failed on stated reason → GREEN 296/296 (test_contradiction_covers_opposite_states); all 295 prior corpus tests green ⇒ names byte-identical. Full suite 822 passed + 3 receiver-staleness reds (expected: receivers hold review-2 text via t100 reinstall, source moved). Sizes: product 78207/10571, claude 78112/10655, codex 77955/10586, cursor 77937/10655 vs 85000/11600 — inside both. Record in plans_completed/2026-10-20_triz-name-corpus.md (already there; INSTALL box DONE by t100). Nothing cut; no --install (only on owner-quoted word).
 ## [2026-10-20] Паспорт применимости робота — дополнение исходника устава
 
 CONFIRMED ✓ прямое поручение владельца «Хорошо сказано давай это запишем» выполнено в docs/organization-charter.md, статья4, раздел «Робот как проверяемое инженерное решение». Записаны квалифицируемая конфигурация (модель/настройки/кернел/инструменты/контекст), состав паспорта, границы неизвестного и пересмотр применимости при изменении конфигурации. fs readback подтвердил раздел и ключевые формулировки, Markdown fences сбалансированы; git diff --check exit0. SHA256 исходника после записи: 0cdc7aa0fea6fbc467e61b9b5323a27076ac3f3a05077a90846ccc2b610f5a27. Это документальный принцип, не приёмка работающего кадрового driver; wiki этой редакцией не обновлялась, отдельный publication readback сохранён как требование приложения Б. Код и runtime не менялись.

@@ -166,3 +166,9 @@ def test_contradiction_drops_misleading_words(banned) -> None:
 def test_no_carrier_holds_instrument(carrier) -> None:
     """Review 2: an instrument is a qualified evidence tool; TRIZ brings methods."""
     assert "instrument" not in _triz_carriers()[carrier], carrier
+
+
+def test_contradiction_covers_opposite_states() -> None:
+    """Review 3 (C2): one property required in opposite states is a
+    physical contradiction, and the list names it — the carrier must too."""
+    assert "opposite states" in _triz_carriers()["TRIZ_CONTRADICTION"]

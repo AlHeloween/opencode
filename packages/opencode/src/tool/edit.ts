@@ -56,11 +56,8 @@ function formatTimestamp() {
  */
 function isGitIgnored(filePath: string): Promise<boolean> {
   return new Promise((resolve) => {
-    execFile(
-      "git",
-      ["check-ignore", "--quiet", "--", filePath],
-      { cwd: Instance.worktree, timeout: 5000 },
-      (error) => resolve(!error),
+    execFile("git", ["check-ignore", "--quiet", "--", filePath], { cwd: Instance.worktree, timeout: 5000 }, (error) =>
+      resolve(!error),
     )
   })
 }
@@ -94,13 +91,13 @@ function writeBackup(
       .pipe(Effect.catch(() => Effect.void))
 
     const entries = yield* afs.readDirectory(dir).pipe(Effect.catch(() => Effect.succeed([] as string[])))
-const backups = entries.filter((entry) => entry.endsWith(".bak")).sort()
-if (backups.length > MAX_BACKUPS_PER_SESSION) {
-  for (let i = 0; i < backups.length - MAX_BACKUPS_PER_SESSION; i++) {
-    yield* afs.remove(path.join(dir, backups[i])).pipe(Effect.catch(() => Effect.void))
-    yield* afs.remove(path.join(dir, backups[i] + ".meta.json")).pipe(Effect.catch(() => Effect.void))
-  }
-}
+    const backups = entries.filter((entry) => entry.endsWith(".bak")).sort()
+    if (backups.length > MAX_BACKUPS_PER_SESSION) {
+      for (let i = 0; i < backups.length - MAX_BACKUPS_PER_SESSION; i++) {
+        yield* afs.remove(path.join(dir, backups[i])).pipe(Effect.catch(() => Effect.void))
+        yield* afs.remove(path.join(dir, backups[i] + ".meta.json")).pipe(Effect.catch(() => Effect.void))
+      }
+    }
   })
 }
 
@@ -202,7 +199,7 @@ export type Resolution =
  */
 export type AppliedSpan = { start: number; end: number }
 
-type Span = { start: number; end: number; replacement: string }
+type Span = { start: number; end: number; replacement: string; index: number; isInsertion: boolean }
 
 /** `resolveAddresses` for a caller that wants a throw: one Error whose lines are the whole refusal set. */
 export function resolveEdits(
@@ -237,15 +234,20 @@ export function resolveAddresses(
   const resolved = edits.map((edit, index): Span | string => {
     const at = (what: string) => named(`edit ${index + 1}: ${what}`)
     const drifted = (field: string) =>
-      "[stale-hash] " + at(`\`${field}\` is not in this file — the address drifted, or the file changed since it was read`) +
+      "[stale-hash] " +
+      at(`\`${field}\` is not in this file — the address drifted, or the file changed since it was read`) +
       ". Re-read and pass the current hashes."
     // The line a hash names, or a refusal. `allowSeed`: only an insertion may name the state before line 1.
     const lineOf = (field: string, hash: string, allowSeed: boolean): number | string => {
       const parsed = parseHash(hash)
-      if (parsed === undefined) return "[not-hex] " + at(`\`${field}\` is not an 8-hex address: ${JSON.stringify(hash)}`)
+      if (parsed === undefined)
+        return "[not-hex] " + at(`\`${field}\` is not an 8-hex address: ${JSON.stringify(hash)}`)
       if (hash === seed) {
         if (allowSeed) return -1
-        return "[seed-not-line] " + at(`\`${field}\` 00000000 is no line — to insert before line 1 pass \`insertAfter: "00000000"\``)
+        return (
+          "[seed-not-line] " +
+          at(`\`${field}\` 00000000 is no line — to insert before line 1 pass \`insertAfter: "00000000"\``)
+        )
       }
       const found = chain.indexOf(parsed)
       return found === -1 ? drifted(field) : found
@@ -253,17 +255,21 @@ export function resolveAddresses(
     const isSpan = edit.fromHash !== undefined
     const isInsertion = edit.insertAfter !== undefined
     if (isSpan === isInsertion) {
-      return "[either-or] " + at(
-        "pass EITHER `fromHash` (+ optional `toHash`) to replace the lines from..to, OR `insertAfter` to insert after a line — " +
-          (isSpan ? "not both" : "one of them is required"),
+      return (
+        "[either-or] " +
+        at(
+          "pass EITHER `fromHash` (+ optional `toHash`) to replace the lines from..to, OR `insertAfter` to insert after a line — " +
+            (isSpan ? "not both" : "one of them is required"),
+        )
       )
     }
     if (isInsertion) {
-      if (edit.toHash !== undefined) return "[toHash-on-insert] " + at("`toHash` belongs to a span — an insertion has only `insertAfter`")
+      if (edit.toHash !== undefined)
+        return "[toHash-on-insert] " + at("`toHash` belongs to a span — an insertion has only `insertAfter`")
       // The EMPTY span after that line: end = start - 1.
       const after = lineOf("insertAfter", edit.insertAfter!, true)
       if (typeof after === "string") return after
-      return { start: after + 1, end: after, replacement: edit.newString }
+      return { start: after + 1, end: after, replacement: edit.newString, index, isInsertion: true }
     }
     // INCLUSIVE: `fromHash` IS the first line, `toHash` the last; absent or equal = that one line.
     const start = lineOf("fromHash", edit.fromHash!, false)
@@ -271,20 +277,56 @@ export function resolveAddresses(
     const end = edit.toHash === undefined ? start : lineOf("toHash", edit.toHash, false)
     if (typeof end === "string") return end
     if (end < start) return "[inverted] " + at("`toHash` precedes `fromHash` — an inverted range")
-    return { start, end, replacement: edit.newString }
+    return { start, end, replacement: edit.newString, index, isInsertion: false }
   })
   const refusals = resolved.filter((entry): entry is string => typeof entry === "string")
   if (refusals.length > 0) return { kind: "refused", refusals }
   const spans = resolved.filter((entry): entry is Span => typeof entry !== "string")
 
-  // A refusal, never a merge decision: two entries claiming one line — or two claiming one insertion point —
-  // have no defined order, and «last writer wins» is exactly the silent outcome this design exists to remove.
-  const ordered = [...spans].sort((a, b) => a.start - b.start)
-  const clashes = ordered
-    .slice(1)
-    .filter((span, i) => span.start <= ordered[i]!.end || span.start === ordered[i]!.start)
-    .map((span) => "[overlap] " + named(`two edits claim line ${span.start + 1} — refuse rather than let one silently win`))
+  // t114 — every entry is addressed in ORIGINAL coordinates. A TRUE overlap is two NON-EMPTY spans
+  // sharing an original line — «last writer wins» stays forbidden. An insertion is the EMPTY gap AFTER
+  // its line (start = after + 1, end = after): a gap AT a span's edge (insertAfter N + replace N+1..,
+  // or replace ..N + insertAfter N) sits BETWEEN lines, not on one — it lands before the following
+  // span's replacement and after the preceding one's. Several insertions at one gap apply in ENTRY
+  // ORDER. A gap STRICTLY inside a replaced span (s < gap <= e) splits it — a true conflict.
+  const clashes: string[] = []
+  for (let i = 0; i < spans.length; i++) {
+    for (let j = i + 1; j < spans.length; j++) {
+      const a = spans[i]!
+      const b = spans[j]!
+      const first = Math.min(a.index, b.index) + 1
+      const second = Math.max(a.index, b.index) + 1
+      const pair = `edit ${first} and edit ${second}`
+      if (!a.isInsertion && !b.isInsertion) {
+        const overlap = Math.max(a.start, b.start)
+        if (overlap <= Math.min(a.end, b.end)) {
+          clashes.push(
+            "[overlap] " +
+              named(`two edits claim line ${overlap + 1} (${pair}) — refuse rather than let one silently win`),
+          )
+        }
+      } else if (a.isInsertion !== b.isInsertion) {
+        const gap = a.isInsertion ? a : b
+        const span = a.isInsertion ? b : a
+        // The gap sits strictly inside the span: it would split the replaced block — no defined seam.
+        if (span.start < gap.start && gap.start <= span.end) {
+          clashes.push(
+            "[overlap] " +
+              named(
+                `two edits claim line ${gap.start + 1} (${pair}) — an insertion inside a replaced span has no seam; refuse rather than let one silently win`,
+              ),
+          )
+        }
+      }
+      // Two insertions at one gap never clash: entry order decides (documented in edit.txt).
+    }
+  }
   if (clashes.length > 0) return { kind: "refused", refusals: clashes }
+  // Ascending by ORIGINAL start; an insertion at a span's leading edge (same start) lands BEFORE it;
+  // entry order breaks the remaining ties (insertions at one gap). Bottom-up apply below relies on it.
+  const ordered = [...spans].sort(
+    (a, b) => a.start - b.start || Number(b.isInsertion) - Number(a.isInsertion) || a.index - b.index,
+  )
 
   // Where every written block LANDS in the final text (plan 2026-10-09_edit-address-report). Ascending walk with a
   // running shift: a span's new position is its original one plus the deltas of the spans ABOVE it — the coordinate
@@ -419,7 +461,9 @@ export function addressReport(
 
   if (merged.length > 0) {
     add(
-      input.created ? "Written lines — the labels are current:" : "Written lines, with context — the labels are current:",
+      input.created
+        ? "Written lines — the labels are current:"
+        : "Written lines, with context — the labels are current:",
       merged[0]!.start,
     )
     for (const window of merged) {
@@ -473,7 +517,7 @@ const FileChange = Schema.Struct({
         }),
         newString: Schema.String.annotate({
           description:
-            "The lines that replace fromHash..toHash, or the lines inserted after `insertAfter`. `\"\"` with `fromHash` deletes the span. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
+            'The lines that replace fromHash..toHash, or the lines inserted after `insertAfter`. `""` with `fromHash` deletes the span. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file\'s own endings.',
         }),
       }),
     ).annotate({
@@ -555,10 +599,15 @@ export const EditTool = Tool.define(
             const edits = entry.edits ?? []
             const at = (what: string) => `files[${index}] (${entry.filePath}): ${what}`
             if (entry.content !== undefined && edits.length > 0) {
-              throw new Error("[content+edits] " + at("`content` creates a new file; it cannot be combined with `edits`."))
+              throw new Error(
+                "[content+edits] " + at("`content` creates a new file; it cannot be combined with `edits`."),
+              )
             }
             if (entry.content === undefined && edits.length === 0) {
-              throw new Error("[missing-change] " + at("pass `edits` — at least one addressed change — or `content` to create a new file."))
+              throw new Error(
+                "[missing-change] " +
+                  at("pass `edits` — at least one addressed change — or `content` to create a new file."),
+              )
             }
             // The page the model READ a legacy file in (H10). Validated here, before any file is touched.
             const codepage = entry.encoding === undefined ? undefined : TextCodec.codePage(entry.encoding)
@@ -571,7 +620,10 @@ export const EditTool = Tool.define(
               )
             }
             if (entry.encoding !== undefined && entry.content !== undefined) {
-              throw new Error("[encoding+content] " + at("`encoding` names the page an EXISTING legacy file is read in; a new file has none."))
+              throw new Error(
+                "[encoding+content] " +
+                  at("`encoding` names the page an EXISTING legacy file is read in; a new file has none."),
+              )
             }
             return {
               entry,
@@ -654,7 +706,9 @@ export const EditTool = Tool.define(
                   continue
                 }
                 if (!existed) {
-                  refusals.push(`[not-found] ${item.filePath} not found — an address can only name lines of a file that exists`)
+                  refusals.push(
+                    `[not-found] ${item.filePath} not found — an address can only name lines of a file that exists`,
+                  )
                   continue
                 }
                 const info = yield* afs.stat(item.filePath)
@@ -691,7 +745,9 @@ export const EditTool = Tool.define(
                   continue
                 }
                 if (resolution.text === source.text) {
-                  refusals.push(`[no-change] ${item.filePath}: no changes to apply — the result is identical to the file.`)
+                  refusals.push(
+                    `[no-change] ${item.filePath}: no changes to apply — the result is identical to the file.`,
+                  )
                   continue
                 }
                 const form = TextCodec.fit(item.filePath, source, resolution.text)
@@ -789,7 +845,8 @@ export const EditTool = Tool.define(
             changed.length === 1
               ? "Edit applied successfully."
               : `Edit applied successfully to ${changed.length} files.`
-          if (decodedStringified) output += "\n\n(decoded stringified `files` (JSON.parse) to its array, then validated its entries.)"
+          if (decodedStringified)
+            output += "\n\n(decoded stringified `files` (JSON.parse) to its array, then validated its entries.)"
           for (const plan of planned) {
             // A conversion is never silent (owner: «агент получает уведомление»): the file's FORM changed beyond
             // the lines the agent addressed, and the next read prints different bytes.
@@ -858,4 +915,3 @@ export function trimDiff(diff: string): string {
 
   return trimmedLines.join("\n")
 }
-

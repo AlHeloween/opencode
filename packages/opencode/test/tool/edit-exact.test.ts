@@ -260,21 +260,39 @@ describe("tool.edit — the span's edges: deletion, the final terminator, insert
     expect(resolveEdits(mixed, [{ fromHash: m[1]!, newString: "X\r\nY" }])).toBe("X\nY\r\nb\nc\nd\n")
   })
 
-  test("two insertions at one point, or an insertion where a span starts, are refused — no defined order", () => {
+  test("t114: two insertions at one point apply in ENTRY ORDER; an insertion at a span's edge is not an overlap", () => {
     const content = "a\nb\n"
     const h = labels(content)
-    expect(() =>
+    expect(
       resolveEdits(content, [
         { insertAfter: h[1]!, newString: "x" },
         { insertAfter: h[1]!, newString: "y" },
       ]),
-    ).toThrow(/claim line/)
-    expect(() =>
+    ).toBe("a\nx\ny\nb\n")
+    // Insertion after line 1, span starting at line 2: the gap sits BETWEEN them — insertion lands before.
+    expect(
       resolveEdits(content, [
         { insertAfter: h[1]!, newString: "x" },
         { fromHash: h[2]!, newString: "B" },
       ]),
-    ).toThrow(/claim line/)
+    ).toBe("a\nx\nB\n")
+  })
+
+  test("t114: an insertion strictly inside a replaced span is refused, naming both entries", () => {
+    const content = "a\nb\nc\nd\n"
+    const h = labels(content)
+    let message = ""
+    try {
+      resolveEdits(content, [
+        { fromHash: h[2]!, toHash: h[4]!, newString: "R" },
+        { insertAfter: h[3]!, newString: "x" },
+      ])
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error)
+    }
+    expect(message).toContain("[overlap]")
+    expect(message).toContain("edit 1")
+    expect(message).toContain("edit 2")
   })
 
   test("a `toHash` ABOVE `fromHash` is still an inverted range", () => {
@@ -329,7 +347,9 @@ describe("tool.edit — the report hands back the fresh addresses", () => {
     expect(line).toBeDefined()
     const hash = line!.match(/^\d+\s+([0-9a-f]{8}): /)![1]!
     // No re-read anywhere: the report's own label IS the address.
-    expect(resolveEdits(finalText, [{ fromHash: hash, newString: "GAMMA" }])).toBe("alpha\nBETA-1\nBETA-2\nGAMMA\ndelta\n")
+    expect(resolveEdits(finalText, [{ fromHash: hash, newString: "GAMMA" }])).toBe(
+      "alpha\nBETA-1\nBETA-2\nGAMMA\ndelta\n",
+    )
   })
 
   test("the map starts at the FIRST moved line — a change at the top restates everything below it", () => {

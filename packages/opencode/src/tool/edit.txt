@@ -26,7 +26,7 @@ Replace lines A..B, both inclusive; `newString` carries every line to keep. Repl
 
 Use the hash `read` printed beside the line you mean. An address pins the file, not the line number: identical lines have different hashes, and CRLF and LF hash alike.
 
-After an edit, take the next addresses from THAT edit's result, never from the earlier `read`: a change moves every address below it and none above. In one call, every entry uses the addresses of the SAME read, so batch several changes to one file into one `edits` array instead of sequential calls.
+After an edit, take the next addresses from THAT edit's result, never from the earlier `read`: a change moves every address below it and none above. In one call, every entry uses the addresses of the SAME read, so batch several changes to one file into one `edits` array instead of sequential calls. Every entry resolves against the ORIGINAL file: an insertion after line N and a replacement starting at N+1 share no line — the insertion lands before that replacement (and after a replacement ending at N). Several insertions at one point apply in entry order.
 
 A missing file lists similar names.
 
@@ -63,7 +63,7 @@ Every refusal starts with its key and names the file and entry. Nothing is writt
 | `[either-or]` | An entry has both or neither of `fromHash` and `insertAfter` | Pass one form: span or insertion |
 | `[toHash-on-insert]` | `toHash` with `insertAfter` | Drop `toHash`; an insertion has only `insertAfter` |
 | `[inverted]` | `toHash` precedes `fromHash` | Order the span first to last |
-| `[overlap]` | Two entries claim one line or one insertion point | Merge them into one entry |
+| `[overlap]` | Two replacements share an original line, or an insertion sits strictly inside a replaced span | Merge them into one entry, or move the insertion to the span's edge |
 
 ## Parameters
 

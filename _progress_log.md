@@ -8169,3 +8169,7 @@ Reason: владелец, 2026-10-17, «если в SV искажение - на
 ## [2026-10-20] t105 — HR-delegator driver plan (plan only, no code)
 
 Plan `plans/2026-10-20_hr-delegator-driver.md` written: intention `manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate`, 7 boxes (H1/H2/P1/D1/E1/A1/S1), Smoke Tests with oracle + predicted result per leaf, Owner decisions (driver model, auto-start, spend limits). `svm render` run: 46 plans, gapsBefore named this plan (gap closed). No source changed; `_build.ps1` not run per order. Next: implement H1 → H2 → P1 → D1 → E1 → A1 → S1, each closing on its smoke receipt.
+
+## [2026-10-20] t105 addenda 1+2 — assumptions first-class + failure analyst (plan only)
+
+Added to `plans/2026-10-20_hr-delegator-driver.md`: ASSUMPTIONS list in every brief/decode/report with gate extraction and brief-gap | model-assumption | defect attribution (reference: t100 unstated «receivers lag → reinstall»); second role (failure analyst, separate session, reads protocol log + dossiers + ledger + profiles + `opencode.db` read-only, writes back only traits + receipts, mechanism-first proposals to Legislator/owner). New boxes M1/F1/F2 with smokes (M1 on t100 rows; F2 packet on t100 reinstall + t104 frameless timeout + svhop canned «Да.» with ripeness rule); owner decision 4 (proposed default: same ISSUE_KEY ≥2 times or across ≥2 models/sessions). `svm render`: 46 plans, gapsBefore []. No source changed; no `_build.ps1`.

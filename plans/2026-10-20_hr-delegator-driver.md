@@ -44,6 +44,23 @@ State store (per AGENTS.md § Storage Paradigm — key namespace, never a new JS
 
 A profile is testimony until measured again: a trait steers the brief (e.g. extra fences for a model that tends to patch locally) but never certifies a dossier.
 
+## Assumptions are first-class (addendum 1, owner 2026-10-20)
+
+Owner, verbatim: «ходы не были прописаны, модель делает подразумевая, и не говорит почему, часто это ок, но часто понять причины реально невозможно и может получиться не ок из за подразумеваний, а мы их оценим как косяк, а по сути это просто assumptions откуда-то взявшиеся.»
+
+- Every brief the driver sends, every handshake decode and every robot report carries an explicit ASSUMPTIONS list: each item names what was taken as given and from where (brief line, rule tag, model prior, other).
+- The handshake gate extracts that list as a predicate source: an assumption contradicting the order is fixed in the brief BEFORE the order goes out, never punished after.
+- Attribution before any verdict: brief gap (an unwritten move — ours) | model assumption (a prior — goes into the model profile with its source) | defect (a stated rule broken). Reference case: t100 acted on the unstated «receivers lag the render → reinstall» (`docs/robot-protocol-log.md`, 2026-10-20 rows).
+
+## Failure analyst — second role (addendum 2, owner 2026-10-20)
+
+Owner, verbatim: «для сбоев моделей - отдельный робот который будет сотрудничать с кадровиком-делегатором, его задача анализировать сбои и предлагать решения, когда соберет достаточно информации.»
+
+- Separate robot, separate session: neither the driver nor any executor of the work it analyses; analyst independence follows the same rule as verifier independence (per `@AUTHORITY_SEPARATION`).
+- Inputs it owns reading: `docs/robot-protocol-log.md`, the driver's dossiers and executor ledger, model profiles, robot session history in `.opencode/data/opencode.db` (read-only). The driver hands it every failure with its receipts; the analyst writes back only into model profiles (trait + receipt), never into the work or a dossier verdict.
+- Attribution first on every failure (brief gap | hidden model assumption + source | defect). «Enough information» is the declared threshold (owner decision 4); below it the analyst only records.
+- Proposes, never applies: each proposal names the mechanism (a check, a gate, a brief field) before any text rule — mechanism first, kernel text only if no mechanism can carry it; each proposal carries its reproducer, the predicted effect and the oracle that would show it worked. Proposals go to the Legislator; kernel and owner-decision items go on to the owner.
+
 ## Boxes
 
 - [ ] H1 — handshake brief: task SV with «decode it» + one domain TRIZ probe; predicate list (SV fields, handshake tool calls = 0, required refusals named, probe property). <!-- sv: handshake-brief, triz-probe, predicate-list -->
@@ -53,6 +70,9 @@ A profile is testimony until measured again: a trait steers the brief (e.g. extr
 - [ ] E1 — execution guarantee: watch to boundary, read final message + diff + DB rows, executor ledger per task, every check routed to a robot that took no part. <!-- sv: watch-to-boundary, executor-ledger, independent-verifier -->
 - [ ] A1 — authority boundary: driver never answers a robot's question in the owner's name; owner decisions named (install words, money/paid models, ceilings, kernel cuts); t100 canned-«Да.» as the regression case. <!-- sv: owner-boundary, named-decisions, no-canned-yes -->
 - [ ] S1 — driver state namespaces + no-new-JSON invariant; `sessions.json` read-only legacy. <!-- sv: state-namespace, no-new-json, legacy-readonly -->
+- [ ] M1 — assumptions list + attribution: ASSUMPTIONS in briefs/decodes/reports, gate extraction, brief-gap | model-assumption | defect verdict; t100 «receivers lag → reinstall» as the reference attribution. <!-- sv: assumptions-list, attribution-first, brief-gap-vs-prior -->
+- [ ] F1 — analyst separation + inputs: separate session, neither driver nor executor; owns reading protocol log, dossiers, ledger, profiles, DB history; writes back only traits + receipts. <!-- sv: analyst-separation, failure-inputs, profile-writeback -->
+- [ ] F2 — analyst threshold + proposals: declared ripeness threshold, mechanism-first proposals with reproducer/predicted effect/oracle, routed to Legislator/owner; smoke on three recorded failures. <!-- sv: ripeness-threshold, mechanism-first-proposal, routed-not-applied -->
 
 ## Smoke Tests
 
@@ -65,13 +85,17 @@ Each leaf names its oracle and the predicted result (per `@SMOKE_BEFORE`; a case
 - E1 oracle: `watch3.py verdict` on a recorded finished session + `git diff` + DB message rows read-back + ledger showing executor ≠ verifier. Predicted: boundary reported only on idle + trailing SV with lineage ok; any check assigned to the executor is refused and rerouted.
 - A1 oracle: canned-«Да.» probe — a robot question needing the owner's install/money/ceiling word is forwarded to the owner, never answered. Predicted: driver emits a named owner decision (install/money/ceiling/kernel-cut) and stops; zero owner words originate from the driver.
 - S1 oracle: namespace read-back (`hr:task:*`, `hr:profile:*`) + tree scan showing no new JSON state file. Predicted: keys round-trip; `glob` shows no new `*.json` state besides the legacy `sessions.json`.
+- M1 oracle: attribution rerun over the recorded t100 rows (unstated «receivers lag the render → reinstall» vs the task's STOP). Predicted: verdict = brief gap (an unwritten move — ours), naming the assumption and its source (no brief line, no rule tag); a run that names only «model error» without a source FAIL.
+- F1 oracle: session/role read-back (analyst session ≠ driver session, ≠ any executor in the ledger) + write-surface check (only `hr:profile:*` traits + receipts). Predicted: separation holds; any analyst write outside profiles is refused.
+- F2 oracle: analyst packet over three recorded failures — t100 reinstall, t104 frameless-tool timeout (empty `out.json`/`err.txt` on the only permitted route), svhop canned «Да.» (`svhop.py` TAIL auto-«Да.») — each with attribution + one mechanism-first proposal, and the threshold rule marking which are ripe. Predicted with the proposed default (same ISSUE_KEY ≥2 times or across ≥2 models/sessions): t100-class ripe (recurrence across rows/sessions), the other two recorded-but-below-threshold unless a second occurrence is shown.
 
 ## Owner decisions (asked, never assumed)
 
 1. Which model runs the driver itself (pinned provider/model for the driver's own turns).
 2. Whether the driver may auto-start robot sessions/hosts, or only use live ones and report otherwise.
 3. Spend limits: free-only vs named paid allowance, per task and per day, and who is told when it is hit.
+4. Ripeness threshold («enough information»): proposed default — same ISSUE_KEY (acceptance, surface, reproducer — per `@ANTI_CHURN`) seen ≥2 times, or the same failure across ≥2 models/sessions; below it the analyst only records. Owner sets the final numbers.
 
 ## Continuation
 
-Next: implement leaves in H1 → H2 → P1 → D1 → E1 → A1 → S1 order (gate first, guarantees next, boundary + store last); each leaf closes on its smoke above with the run id / hash / read-back receipt. Residual if any leaf's oracle has no instrument: the leaf stays open with the named missing instrument, never a prose pass.
+Next: implement leaves in H1 → H2 → M1 → P1 → D1 → E1 → A1 → S1 → F1 → F2 order (gate first, assumptions before profiles use them, analyst after the surfaces it reads); each leaf closes on its smoke above with the run id / hash / read-back receipt. Residual if any leaf's oracle has no instrument: the leaf stays open with the named missing instrument, never a prose pass.

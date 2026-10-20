@@ -17,6 +17,9 @@ note: hash values are generative tags — search them, never compute them.
 - [x] **T2** Implement: `TRIZ_CONTRADICTION` + `TRIZ_ANALYSIS` shared rules wired into G2/G5 and G1/G6; `TRIZ_EVOLUTION` local rule in EVOLUTION_LOOP (add-only, one carrier clause per placement, names exactly as approved)
 - [x] **T3** Oracle: corpus GREEN 283/283; full suite 809 passed + 3 stale-receiver reds only; bytes/tokens per variant inside 85 000 / 11 600
 - [x] **T4** Commit via `scripts/commit_own.py` + progress-log line; STOP before `--install` (Legislator review + frameless pass, then owner install word)
+- [x] **R1** Review 1 (frameless Sonnet, carrier clauses only; names byte-identical): RED 6 failed on stated reasons → GREEN 289/289 (new `test_carrier_names_triz` ×3 + `test_carrier_drops_borrowed_words` ×3); all 283 existing corpus tests stay green; full suite 815 passed + 3 stale-receiver reds only; sizes product 78090/10552, claude 77995/10636, codex 77838/10567, cursor 77820/10636 vs 85000/11600 — inside both; commit + log; STOP before `--install` (second frameless pass, then owner install word)
+- [x] **R2** Review 2 (frameless Sonnet 2nd pass, two carrier seams; names byte-identical): RED 4 failed on stated reasons → GREEN 295/295 (CONTRADICTION names outcome, no compromised / residual:, no carrier holds instrument); all 289 prior corpus tests green; full suite 821 passed + 3 stale-receiver reds only; sizes product 78175/10566, claude 78080/10650, codex 77923/10581, cursor 77905/10650 vs 85000/11600 — inside both; plan restored to plans/ as one copy (git mv); commit + log; STOP before --install
+- [ ] **INSTALL** 4 receivers + repin + read-back (owner install word); plan moves to plans_completed/ only after the read-back
 
 ## Smoke Tests
 

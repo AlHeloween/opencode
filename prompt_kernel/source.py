@@ -204,12 +204,12 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "TRIZ_CONTRADICTION",
-        "A TRIZ contradiction — two required properties in conflict — is resolved, not compromised; one left unresolved is residual: ИКР / Ideal Final Result; техническое противоречие / engineering contradiction; физическое противоречие / physical contradiction; АРИЗ-85В / ARIZ-85C; 40 приёмов / 40 inventive principles; матрица противоречий / contradiction matrix; ресурсы (вещество, поле, время, пространство, информация) / resources.",
+        "A TRIZ contradiction — two properties the outcome requires, in conflict — is resolved, not traded off; while it stands, the outcome needing both is residual, never delivered by halves. TRIZ contradiction methods: ИКР / Ideal Final Result; техническое противоречие / engineering contradiction; физическое противоречие / physical contradiction; АРИЗ-85В / ARIZ-85C; 40 приёмов / 40 inventive principles; матрица противоречий / contradiction matrix; ресурсы (вещество, поле, время, пространство, информация) / resources.",
     ),
     _rule(
         "KERNEL",
         "TRIZ_ANALYSIS",
-        "TRIZ analysis instruments, used where they apply: веполь / Su-Field; 76 стандартов / 76 standard solutions; усечение / trimming; причинно-следственный анализ / CECA; оперативная зона и время / operating zone and time; указатель научных эффектов / database of scientific effects.",
+        "TRIZ analysis methods, used where they apply: веполь / Su-Field; 76 стандартов / 76 standard solutions; усечение / trimming; причинно-следственный анализ / CECA; оперативная зона и время / operating zone and time; указатель научных эффектов / database of scientific effects.",
     ),
 )
 

@@ -149,3 +149,20 @@ def test_carrier_drops_borrowed_words(banned) -> None:
     """Review 1: Ground/tool-corpus/evolution-corpus are the kernel's own words;
     each counted once on 2026-10-20, all three inside the old carriers."""
     assert render_kernel(KERNEL).count(banned) == 0, banned
+
+
+def test_contradiction_names_outcome() -> None:
+    """Review 2: the residual is the outcome needing both, not the conflict."""
+    assert "outcome" in _triz_carriers()["TRIZ_CONTRADICTION"]
+
+
+@pytest.mark.parametrize("banned", ["compromised", "residual:"])
+def test_contradiction_drops_misleading_words(banned) -> None:
+    """Review 2: compromised reads as security; residual: glues the name list."""
+    assert banned not in _triz_carriers()["TRIZ_CONTRADICTION"], banned
+
+
+@pytest.mark.parametrize("carrier", ["TRIZ_CONTRADICTION", "TRIZ_ANALYSIS", "TRIZ_EVOLUTION"])
+def test_no_carrier_holds_instrument(carrier) -> None:
+    """Review 2: an instrument is a qualified evidence tool; TRIZ brings methods."""
+    assert "instrument" not in _triz_carriers()[carrier], carrier

@@ -1,5 +1,8 @@
 ﻿# Progress Log
 
+## [2026-10-20] t102 review 2 — two carrier seams, plan restored to plans/ (STOP before --install)
+
+RED 4 failed on stated reasons → GREEN 295/295 (CONTRADICTION names the outcome; no compromised (security read) / residual: (list glue); no carrier holds instrument — ANALYSIS now says methods). All 289 prior corpus tests green ⇒ names byte-identical. Full suite 821 passed + 3 stale-receiver reds only. Sizes: product 78175/10566, claude 78080/10650, codex 77923/10581, cursor 77905/10650 vs 85000/11600 — inside both. Plan fix: git mv plans_completed/→plans/ (HEAD tracked both, worktree had plans/ deleted); R2 ticked, INSTALL open; moves to plans_completed/ only after install read-back. Nothing cut; no --install.
 ## [2026-10-20] SV axis-naming, three arms: the GLOSSARY is the load-bearing half
 
 The axis-naming rule (RESULT.md §5: «name the axes in a dominant, and give every kernel term a glossary page») has TWO halves, and the first differential measured only the second. A third arm separates them: the SAME vector with ONLY the dominant's clause replaced by an axis-naming one («three aspects (documentation, code, execution), each with three independent oracles»), no glossary attached. aicall, openrouter `minimax/minimax-m3.1-flash:free`, temperature 0, max_tokens 20000, n = 1 per arm.

@@ -85,7 +85,7 @@ def test_no_stop_or_descend_contradiction() -> None:
 
 def test_no_predict_unpredictable_contradiction() -> None:
     oracle = _gate_rule("G8", "ORACLE")
-    assert "written without running it" in oracle
+    assert "If it cannot fail on this input" in oracle  # owner-approved S09, 2026-10-20 (was: "written without running it")
     assert "predictable beforehand" not in oracle
     assert "Predict each case before the run" in _gate_rule("G3", "SMOKE_BEFORE")
 

@@ -166,7 +166,7 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     # read-back check had nothing to compare against. Optional because evidence that is not
     # an artifact (a live probe) has no stable digest to record.
     # 2026-10-20 (t96 review 2 R2C5: triad set dropped from per-leg stamp; one stamp per leg carries aspect, family, unique_detection).
-    assert "ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?, aspect, family, unique_detection: {defect, caught_here, missed_elsewhere}}" in text
+    assert "ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL | UNKNOWN, content_hash?, aspect, family, unique_detection: {defect, caught_here, missed_elsewhere}}" in text  # owner-approved S05, 2026-10-20 (was without UNKNOWN)
     assert "DIVERGENCE_EVENT: {claim_id, evidence_ref}" in text
     assert "Locate Exact medoids" in text
     assert "Affect opens oracle gap" in text

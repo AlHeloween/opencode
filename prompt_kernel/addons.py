@@ -252,7 +252,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "ASSERTION_STATUS",
         (
-            "ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).",
+            "ASSERTION_STATUS: every assertion in a reasoning record carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).",
             "Unmarked, a claim is Guess (@INFOMARK) but reads as CONFIRMED to the next reader: that gap is the defect — its prose cannot be told from a verified one. A confidence indicator, not epistemology.",
             "an EFFECT claim — sent, wrote, dispatched, done — carries its receipt read back from the result (id / hash / count), never the request's return; else: intent.",
             "`marks:` in `<compaction-status>` counts them: the history reads for confidence, not only for content.",

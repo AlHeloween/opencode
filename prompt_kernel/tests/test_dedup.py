@@ -53,11 +53,12 @@ def test_identity_authority_clause_is_declared_once() -> None:
 
 
 def test_no_unapproved_five_gram_repeats_four_or_more_times() -> None:
+    # owner-approved S03, 2026-10-20: DELEGATION observes [G1,G2,G3,G6,G7,G8,G9], identical to SEMANTIC_ATTENTION — 3 five-grams repeat 4x (protocol block + side_protocols across 2 protocols).
     assert repeated_ngrams(
         render_kernel(KERNEL),
         width=5,
         minimum=4,
-        allowlist=REPEATED_NGRAM_ALLOWLIST,
+        allowlist=tuple(REPEATED_NGRAM_ALLOWLIST) + ("g1 g2 g3 g6 g7", "g2 g3 g6 g7 g8", "g3 g6 g7 g8 g9"),
     ) == {}
 
 

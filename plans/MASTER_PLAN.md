@@ -152,7 +152,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 296 |
 | plans active | 43 |
-| tasks passed / total | 1457 / 1787 |
+| tasks passed / total | 1458 / 1787 |
 | open boxes | 187 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -485,13 +485,13 @@ note: hash values are generative tags — search them, never compute them.
   sv: intention "manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate" · keywords []
   - TASK-1 [PENDING] · sv [handshake-brief, triz-probe, predicate-list] · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv [dossier-gate, model-extracts-gate-decides] · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv [model-profile, trait-receipt, testimony-until-measured] · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv [applicability-passport, configuration-key, stale-on-change] · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv [idle-send, receipt-readback, layer-model-check] · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv [watch-to-boundary, executor-ledger, independent-verifier] · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv [owner-boundary, named-decisions, no-canned-yes] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [state-namespace, no-new-json, legacy-readonly] · manifest: MISSING — nobody has written down what this box is
   - TASK-8 [PENDING] · sv [assumptions-list, attribution-first, brief-gap-vs-prior] · manifest: MISSING — nobody has written down what this box is
-  - TASK-9 [PENDING] · sv [analyst-separation, failure-inputs, profile-writeback] · manifest: MISSING — nobody has written down what this box is
+  - TASK-9 [PENDING] · sv [analyst-separation, failure-inputs, passport-writeback] · manifest: MISSING — nobody has written down what this box is
   - TASK-10 [PENDING] · sv [ripeness-threshold, mechanism-first-proposal, routed-not-applied] · manifest: MISSING — nobody has written down what this box is
   - TASK-11 [PENDING] · sv [handshake-record, outcome-join, sqlite-namespace] · manifest: MISSING — nobody has written down what this box is
   - TASK-12 [PENDING] · sv [predictive-measurement, predicate-outcome-link, hypothetical-until-n] · manifest: MISSING — nobody has written down what this box is
@@ -516,7 +516,7 @@ md5: 25f8c07b61a94d3e8b204af59c716de2
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000
 note: hash values are generative tags — search them, never compute them.]
-  - TASK-1 [PENDING] · sv [robot-personnel, sv-handshake, qualification] · manifest: MISSING — nobody has written down what this box is
+  - TASK-1 [PARTIAL] · sv [robot-personnel, sv-handshake, qualification] · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv [delegation-cycle, event-handoff, evidence-dossier] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [independent-verification, refusal-controls, receipts] · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv [dais-pilot, dossier-feedback, whole-goal] · manifest: MISSING — nobody has written down what this box is

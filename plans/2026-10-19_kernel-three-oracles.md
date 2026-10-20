@@ -22,6 +22,7 @@ note: hash values are generative tags — search them, never compute them.
 - [x] Review 1 (12 falsifier fixes): RED (3 wiring + 40 aspect/leg/stamp/rule/frame/G2/mutation) → GREEN 71 passed; wiring G3/G8/G9 + guards; aspect/leg split (stamp aspects, frame aspects, divergence aspects); per-oracle stamp (aspect, family, required unique_detection); in-aspect independence + E1/E2 override; ALL-others-miss; agree/diverge/action/G1-return; per-family executed doc; Unknown bars SUCCESS; 1-drivable-leaf vs 3-at-acceptance; qualify-once; never-provisional; open catalogue; suite 492 passed, byte asserts red per budget rule below
 - [x] Budget (owner's call, NOT raised here): product 75630 B / 10269 tok, claude 75535/10353, codex 75378/10284, cursor 75360/10353 vs ceiling 75000/10100 — over by 630 B and 253 tok on required clarification text only; nothing cut; 5 byte asserts + 2 masked token asserts stay red for the owner
 - [ ] Build + commit for review 1; STOP before --install
+- [x] Review 2 (ceiling 80k + 8 clarifications): RED 29 failed → GREEN on spec (100 three-oracle tests); suite 522 passed, 7 failed = 4 token caps (product 10474, claude 10558, codex 10489, cursor 10558 vs 10100) + 3 stale receivers (go green at install); bytes GREEN (product 76799, claude 76704, codex 76547, cursor 76529 vs 80000); rule sha a94b79f98c5b0725 ×4; old pins moved with dated reason (triad-slot, not-yet-a-leaf, aspect-set ×2, render stamp); STOP before --install (token ceiling is the owner's number)
 
 ## 1. Grounding
 

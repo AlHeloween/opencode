@@ -45,7 +45,7 @@ def _gate_block(text: str, gate_id: str) -> str:
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
 def test_triad_slot_in_all_variants(variant) -> None:
     text = render_kernel(KERNEL, *VARIANTS[variant])
-    assert "aspects: {documentation, code, execution}" in text
+    assert "aspect, family, unique_detection:" in text  # 2026-10-20 (t96 review 2 R2C5: triad set dropped from per-leg stamp)
     assert "unique_detection" in text
     assert triad_ok(text)
 
@@ -92,7 +92,7 @@ def test_frame_names_three_aspects_per_variant(variant) -> None:
 def test_g2_leaf_needs_three_aspects(variant) -> None:
     g2 = _gate_block(render_kernel(KERNEL, *VARIANTS[variant]), "G2")
     assert "observable on all three aspects" in g2
-    assert "not yet a leaf" in g2
+    assert "the leaf stands" in g2  # 2026-10-20 (t96 review 2 R2C1: stop rule replaces not-yet-a-leaf clash)
     assert "@TOOLCHAIN_QUALIFICATION" in g2
 
 
@@ -154,7 +154,7 @@ def test_guard_rejects_optional_unique_detection() -> None:
 def test_aspect_leg_terms_distinct(variant) -> None:
     """R1F2: ASPECT for the three, LEG for one oracle."""
     text = render_kernel(KERNEL, *VARIANTS[variant])
-    assert "aspects: {documentation, code, execution}" in text
+    assert "aspects: {documentation, code, execution}" not in text  # 2026-10-20 (t96 review 2 R2C5: triad set dropped from per-leg stamp)
     assert "two of the three aspects" in text
     assert "two of the three legs" not in text
     assert "names its three aspects" in _gate_block(text, "G3")
@@ -235,3 +235,72 @@ def test_catalogue_open(variant) -> None:
     """R1F12: new families declared, same-family tools still one."""
     text = render_kernel(KERNEL, *VARIANTS[variant])
     assert "new family may be declared" in text
+
+
+# --- t96 review 2 (ceiling 80k + eight clarifications) ---
+
+
+def test_leaf_stop_rule_stands_and_blocks() -> None:
+    """R2C1: split while it adds; then the leaf stands, residual Unknown."""
+    g2 = _gate_block(render_kernel(KERNEL), "G2")
+    assert "Keep splitting while a split adds observability" in g2
+    assert "the leaf stands" in g2
+    assert "blocks SUCCESS" in g2
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_receipt_rerun_on_leg_change(variant) -> None:
+    """R2C2: freshness + executed miss."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "re-run whenever the leg set" in text
+    assert "RAN against the injected defect" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_independence_test_placement(variant) -> None:
+    """R2C3: family+receipt inside, categories over the whole claim."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "applied to all its legs together" in text
+    assert "NOT to each aspect" in text
+    assert "no doc leg computes from the mechanism" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_receipt_inside_stamp(variant) -> None:
+    """R2C4: control in the stamp, PASS/FAIL on the leg."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "lives inside the leg's stamp" in text
+    assert "satisfied receipt counts as passing" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_content_hash_on_execution_legs(variant) -> None:
+    """R2C5: hash required on execution legs; triad set dropped."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "content_hash is required on every execution leg" in text
+    assert "aspects: {documentation, code, execution}" not in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_parsed_live(variant) -> None:
+    """R2C6: parsed means live-parsed; static copies excluded."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "parsed against the LIVE schema or API" in text
+    assert "static copy is not a leg" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_that_side_defined(variant) -> None:
+    """R2C7: the differing aspect, the failing artifact, Unknown triage."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "differs from the two that agree" in text
+    assert "that leg's artifact" in text
+    assert "two-aspect divergence on the two measured aspects" in text
+
+
+@pytest.mark.parametrize("variant", tuple(VARIANTS))
+def test_qualified_once_stale(variant) -> None:
+    """R2C8: STALE rule pointed at, no blanket exemption."""
+    text = render_kernel(KERNEL, *VARIANTS[variant])
+    assert "goes STALE" in text
+    assert "no blanket exemption" in text

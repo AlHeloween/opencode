@@ -147,14 +147,14 @@ def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> N
         assert clause in _render_reward(mutant, "product")
 
 
-def test_reward_restoration_budget_accepts_declared_75000_ceiling() -> None:
-    # 2026-10-19 (owner: «подними планку до 75к» — headroom for unambiguous rules, never padding).
-    assert validate_kernel(replace(KERNEL, utf8_budget=75_000)) == []
+def test_reward_restoration_budget_accepts_declared_80000_ceiling() -> None:
+    # 2026-10-20 (owner: «подними предел до 80» — the ceiling is the owner's number).
+    assert validate_kernel(replace(KERNEL, utf8_budget=80_000)) == []
 
 
-def test_reward_restoration_budget_rejects_75001_above_finite_ceiling() -> None:
-    errors = validate_kernel(replace(KERNEL, utf8_budget=75_001))
-    assert any("75_000" in error or "75000" in error for error in errors), errors
+def test_reward_restoration_budget_rejects_80001_above_finite_ceiling() -> None:
+    errors = validate_kernel(replace(KERNEL, utf8_budget=80_001))
+    assert any("80_000" in error or "80000" in error for error in errors), errors
 
 
 # 2026-10-15 (t44 B6, Claude's review of a0e15e87b5): the rejected shapes are mutation controls:

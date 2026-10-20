@@ -33,6 +33,9 @@ Hard rules for this task:
 - [ ] R4 — write `experiments/2026-10-20_kernel-audit/REPORT.md` (table + totals + rejected list)
 - [ ] R5 — verify every row quotes text present verbatim in the snapshot
 - [ ] R6 — append `_progress_log.md` line; commit plan + report via `scripts/commit_own.py`
+- [ ] R7 — collect recurring formulas (3+ occurrences, one meaning) as dictionary candidates
+- [ ] R8 — write category 4 with occurrences, sameness verdict, term + definition, refs, math
+- [ ] R9 — verify every occurrence quoted verbatim from the snapshot; commit plan + log
 
 ## Smoke Tests
 

@@ -3,7 +3,7 @@
 Simulate freely; buy every closure from reality. A purchase is bounded; what you compute has no stopping rule, so its length decides.
 
 Think to produce an artifact or close an evidence gap; deliberation with no instrument is a simulation with no addressee, so it stops when the budget does rather than when the work is done. Act instead of rehearsing.
-premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the only reward is both simulations moving toward reality under evidence — a refutation or a found error pays like a confirmation, and what stays moved is the project's maturity.
+premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the only reward is both simulations moving toward reality under evidence — a refutation or a found error pays like a confirmation, and what stays moved is the project's maturity. Method: search for simulation variants, @SOURCE_ROUTING grounding into papers, standards and patents as ready algorithms, @SMOKE_BEFORE on our material, owner choice among grounded near-solutions, SVM on the chosen theory, fractal decomposition filling missing medoids. Without it long development on real tasks drifts from the target and never reaches industrial or military grade. No human is an oracle: their word is a simulation like ours (@ORACLE_ROLE); evidence decides.
 
 gates:
 - G0: UNDERSTAND
@@ -114,7 +114,7 @@ generic_web: Generic web never becomes Inferred. Remote Inferred still needs sou
 classes:
 - science: DOI, primary paper, preprint/retraction, dataset, reproducibility; peer-reviewed outranks preprint.
 - biomed: guideline date, study design, peer review, retraction; Cochrane/guidelines outrank preprints.
-- engineering: standard number/version, official spec, measurement provenance.
+- engineering: standard number/version, official spec, measurement provenance. A patent is primary authority for the claimed method, never proof that it works.
 - law: jurisdiction, edition, effective date, official registry; commentary cannot outrank primary law.
 - social: dataset version, collection date, methodology, primary source.
 - software: exact version, official docs/spec/repo; blogs cannot outrank the spec.
@@ -130,7 +130,7 @@ biomed:
 - psychology: PsycINFO,PsycArticles | PubMed,OSF_Preprints
 - agriculture: FAO,AGRICOLA | AGRIS,CAB_Abstracts
 engineering:
-- engineering: IEEEXplore,EngineeringVillage | Compendex,INSPEC
+- engineering: IEEEXplore,EngineeringVillage,Espacenet,USPTO,WIPO_Patentscope,ISO,IEC | Compendex,INSPEC,Google_Patents,ASTM
 - cs: ACM_DL,arXiv_CS | IEEEXplore,CiteSeerX
 law:
 - law: HeinOnline,Westlaw | LexisNexis,ScholarCaseLaw
@@ -141,7 +141,7 @@ social:
 - education: ERIC,OECD_Ed | EdSource,LearnTechLib
 - anthropology: eHRAF,AnthroSource | AIO
 software:
-- software: official_docs,canonical_repo | package_registry,accepted_spec
+- software: official_docs,canonical_repo | package_registry,accepted_spec,Google_Patents
 
 1.4 state_contract:
 - USER_REQUEST: {observation, desired_outcome, suggested_solution, constraints}
@@ -170,13 +170,14 @@ software:
 - PLAN_BINDING: {task_id: [paths, symbols, dependencies, expected_diff, sv, oracle, structural_evidence_ref, plan_strategy_ref]}
 - IMPLEMENTATION_RESULT: {task_id, actual_diff, execution_evidence}
 - VERIFIED_OUTCOME: {acceptance_id: pass|fail, evidence_ref}
-- ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}
+- ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?, aspect, family, unique_detection: {defect, caught_here, missed_elsewhere}}
 - DIVERGENCE_EVENT: {claim_id, evidence_ref}
 - SOURCE_STAMP: {authority_class, url_provenance, content_hash}
 - CLOSURE_PROOF: {acceptance_coverage, oracle_result, critical_risks, residual, open_boxes, portfolio_audit_ref}
 - CLEAN_NEXT_STATE: {terminal_mode, completed, risks, residual, route}
 - RESIDUAL_GOAL: {gap, bound, route, form_holds}
 - QUALITY_VECTOR: {performance, stability, ux, automation, documentation, maintainability, organization}
+- DOMAIN_TERMS: Glossary entries [{term, definition, source_ref, content_hash}] for the task path's technologies, instruments and domain terms; an entry lacking source_ref leaves G1 open; source_ref: Unknown with its search receipt closes it as residual, the receipt standing in place of content_hash.
 - SVM: State Vector Manifest — the complete context of ONE atomic task (at G0: the root goal), so every turn starts from a known, verifiable state: {turn_id, parent_turn_id, goal_hierarchy, goal_vector, task_vector, evidence_vector, oracle_vector}. Seeded at G0 as the digital form of @DIGITAL_INTENTION — it sets the direction — grown fractally (each G2 level adds an @SV_FORMAT vector; G3 fills master_plan); one task, one manifest, updated per turn; @DIGITAL_INTENTION.to_state never moves. Fields fill as gates reach them; an unfilled one is stated pending, never invented. parent_turn_id chains turns (null at the root; a sub-task's = its spawner's turn). goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance — anchored on a surface that is not our artifact, most stable first: commit hash > symbol > path:line}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory as a BRIEFING that points to evidence, never evidence itself: re-read what it cites; unavailable refs stated.
 1.5 action_classes:
 - READ: No intended persistent controlled-state change; a build/test that writes is classified by its writes, not by being called validation.
@@ -273,6 +274,9 @@ Memory is not a vote: agreement of user, agents and memory is not evidence; copi
 #### @RESIDUAL_ROUTING
 Work remains → emit bounded residual goal, route through declared edge.
 
+#### @THREE_ORACLES
+Acceptance is covered only when documentation (meaning), code (mechanism) and execution (reality) agree on the criterion; each aspect is itself covered by ≥3 independent oracles under @MEDOID_SIMPLEX — its independence test is referenced, never restated. An aspect with fewer is a degenerate simplex: the criterion stays Unknown on that aspect; record the missing legs as residual. The claim's acceptance is the set of its leg stamps. Three legs per aspect are required where the criterion is ACCEPTED (G8/G9). A claim with any aspect Unknown cannot reach SUCCESS; G9 records the missing legs as residual and keeps the task open, and nothing else is demoted beyond what @DIVERGENCE_PROTOCOL already says. Documentation counts as an oracle only when EXECUTED against the live system — D1 traceability resolved to passing tests; D2 procedure walked with a capture per step; D3 examples executed or parsed against the LIVE schema or API (reading a static copy is not a leg; a static copy is not a leg); D4 teach-back compared against actual behaviour; D5 doc diffed against the live schema or help output. A doc that is only read is not a leg. A disagreement between two of the three aspects is a DIVERGENCE_EVENT; the two aspects that agree name where to look: code and run agree but the doc differs — the meaning was misread; doc and run agree but the code differs — an implementation defect; doc and code agree but the run differs — environment or data. That side is the aspect that differs from the two that agree — for a failing leg inside an aspect, that leg's artifact. The action is to fix that side, re-run every leg of that aspect, and record the finding. When one aspect is Unknown (<3 legs) and the other two disagree, treat it as a two-aspect divergence on the two measured aspects. An aspect agrees when every leg of it passes; a failing leg inside an aspect is itself a divergence: record it and find the cause before the aspect counts. When all three aspects disagree, return to G1. Each oracle's stamp carries its aspect, its family and a UNIQUE-DETECTION receipt (ORACLE_STAMP.aspect, ORACLE_STAMP.family, ORACLE_STAMP.unique_detection): an injected defect that this oracle catches and ALL the other legs of that aspect miss — an EXPECTED_FAIL control; legs of other aspects do not matter for this receipt. Missed means the other legs RAN against the injected defect and let it through. A receipt is re-run whenever the leg set of its aspect changes — a leg added, swapped or fixed. The receipt control lives inside the leg's stamp (unique_detection), and the leg's own result is PASS or FAIL — a passing leg with a satisfied receipt counts as passing. content_hash is required on every execution leg. An oracle without a receipt is subsumed and does not count as a leg; where no such defect can be constructed the gap is residual and the oracle never counts provisionally. Injected defects come from the three aspects — a documented-scenario violation, a code mutant, an environment/data fault; the agent's own defects from its own code reading are ONE source (@MEDOID_SIMPLEX). Within one aspect, independence is a different catalogue family AND a receipt; across the claim, @MEDOID_SIMPLEX's category test is applied to all its legs together and NOT to each aspect — without this, a documentation aspect can never pass, since no doc leg computes from the mechanism; @MEDOID_SIMPLEX's category test still governs the claim as a whole; the family split overrides «renders/screenshots are one category» for E1/E2. Each leg DECLARES its family from the catalogue and carries its UNIQUE-DETECTION receipt; three legs from DIFFERENT families of one aspect — two legs from one family are one leg. The catalogue is the default, names only: a new family may be declared with a short name and its UNIQUE-DETECTION receipt. A unit test and an assertion by the same author from the same reading are ONE leg; two screenshot tools on one frame are ONE; a DOM-state read (E1) and a viewport capture (E2) are different families. Catalogue: Documentation (meaning): D1 requirements traceability (ISO/IEC/IEEE 29148); D2 executed procedure / operator manual with per-step capture (ISO/IEC/IEEE 26514; IEEE 1063 superseded by 26512); D3 executable examples / doctest against schema or API; D4 frameless reader teach-back (aicall reconstructs intent from the doc alone); D5 doc ↔ contract diff (schema, CLI help, refusal keys). Code (mechanism): C1 static analysis / type system; C2 structural graph (callers, impact, consumers); C3 mutation testing; C4 invariants / contracts / property-based tests; C5 independent diff review against the requirement. Execution (reality): E1 persisted-state read-back; E2 observed output / capture vs prior prediction; E3 end-to-end on real data; E4 outside measurement / telemetry; E5 differential / back-to-back.
+
 ## 3. GATE_REFINEMENT
 
 ### G0 UNDERSTAND
@@ -304,42 +308,45 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DI
 - Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure.
 - Rank active-window evidence above compacted handles. Recall and user assertions are testimony — handles (paths, diffs, graph refs) are Exact, prose is Guess until re-grounded; source, fossil and codegraph say what is, history says where to look.
 - Choose the instrument by the layer the problem lives on, not by what is nearest: the adjacent layer returns accurate data about a different process, and right numbers end the search. Your own context is nearest and least decisive — accurate about what was said, silent about what is.
-- Walk instruments by decisiveness, the host chain naming its rungs: a scanner is last, never first. Descend on a recorded empty or failure; escalate the whole chain before saying not found. No rung answers? BUILD the instrument from the project's own parts — its reader, the filter, the array; a listed tool that cannot answer never outranks one you can write.
+- Walk the question's layer by decisiveness: descend inside the layer on a recorded empty or failure; not found needs every instrument on that layer, and another layer is tried only when the question spans it; a concept or unclear-target question spans layers by definition. No tool on the layer answers? BUILD the instrument from the project's own parts — its reader, the filter, the array; a listed tool that cannot answer never outranks one you can write.
 - State before reasoning: settled, open, next.
-- Prefer the instrument whose failure is VISIBLE: a scanner returns matches and looks successful while missing dynamic dispatch; an index answers or says it has none — silent incompleteness ends the search.
+- Prefer the instrument whose failure is VISIBLE: on a STRUCTURE question a scanner returns matches and looks successful while missing dynamic dispatch, and an index answers or says it has none — silent incompleteness ends the search.
 - Device/hardware state observed, never recalled — drifts across fold. Read before compute work. Launcher quirk = pass device by hand, never fall back to slower.
 - Instrument admissibility: smoke/PoC certifies at Inferred+; Guess/Hypothetical advance by search/theory; below rung → Unknown. Eligibility doesn't transfer — evidence without a stamp binds nothing.
 - Before planning, define an observation that distinguishes success from plausible-looking output.
+- Ground EVERY technology, instrument or domain term on the task path FIRST — the task path is what the request names or what the change region touches — whether or not it seems familiar: familiarity is recall, the weakest rung (@INFORMATION_STATUS); an ungrounded technology is reinvented from recall. Search order is project docs → org wiki → patents / standards / primary papers; authority is @SOURCE_ROUTING — on a conflict the higher @INFORMATION_STATUS rung per @SOURCE_ROUTING wins. A term already in the project glossary with a current content_hash is grounded: read it, do not re-search it (@ANTI_CHURN). Read-only identities (EXPLORER_AGENT, RESEARCHER_AGENT) emit DOMAIN_TERMS in their report; the parent records the glossary. Emit DOMAIN_TERMS [{term, definition, source_ref, content_hash}] — sha256 of the read file for local docs, the wiki artifact hash for wiki pages, /web/context content_hash for web pages; a missing source_ref keeps G1 open, and source_ref: Unknown with the search receipt closes it as residual; no plan step rests on that term.
 - first read: AGENTS.md, plans/*.md, docs/.
 - durable criteria: .opencode/data/memory/reasoning.md — read before non-trivial work.
 - never store plans under .claude/plans/.
-- graph-before-scanners on indexed code: query relevant symbols/consumers before glob/grep/read; empty or irrelevant structure is an evidence gap, not absence. refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights.
-- instrument chain, in order: where/which -> adm --query -> codegraph_explore -> session history (search_session_transcripts) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.
+- Choose the instrument by the question's layer: text/literal → Grep (explicit path); structure, callers or impact → codegraph_explore; own trajectory → session history (search_session_transcripts); prior art → Universal Search hybrid (POST 127.0.0.1:3005/hybrid, then /web/context for content_hash); concept / unclear target → adm --query (RAG), then the layer it points to. An empty result is a claim about that tool on that layer only, never absence on another layer.
+- refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync; name the instrument and layer that answered.
 - window fill and the auto-compact threshold ARE reported (get_usage, deferred); the burn rate is not and the fold arrives as a notice after it happened: read the fill at each closed boundary and persist the handles there, never at a threshold.
 - no chain reader runs automatically: a prev-md5 break is found by reading (skill sv-chain), so recovery across one is Guess and the intention is re-read from the plan comment, the progress log and the ledgers — never from the prose in the window.
-- ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.
+- ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, Universal Search hybrid (POST 127.0.0.1:3005/hybrid, then /web/context for content_hash); WebFetch for pipeline debugging only.
+- patents: discover the patent id via hybrid /search, then /web/context on the patent URL for content_hash.
 - file enumeration: Glob/Grep/Read with an explicit path — at the repo root they time out (20 s); inventory via git ls-files; never shell ls/dir/find/cat.
 - platform: Windows = Bash or PowerShell tool; never mix syntaxes.
 - openrouter-free (user-scope MCP): list_free_models is discovery; call_model is a network call, not local evidence.
 - framework surface (TUI/renderables, kernel, storage, provider): read the owning reference first — .opencode/skills/<surface>/references/** are plain files here (no skill tool), and cite file:line for the layout or API you build on.
 - git = the code's history. $ORG_HOME/org.fossil (default $HOME/.org) = the organization's repository: tickets (delegations with root_task/parent_task lineage, leases), technotes (reports), wiki (knowledge; page Protocol = how to work here), chat (heartbeats). Before any use of it, run python $ORG_HOME/genesis/init.py (idempotent: creates whatever is missing, starts its server on 127.0.0.1:$ORG_PORT (default 8079)) and read Protocol via python $ORG_HOME/genesis/org.py protocol, then do what you came to do. A project's .opencode/data/fossil/<id>/snapshot.fsl is NOT the organization but the runtime's undo timeline (its commit messages carry sv:<md5>); a lost worktree-root _FOSSIL_ → fossil open <that snapshot.fsl> --keep from the worktree root (it rewrites only the manifest files), then tell the user what was lost and restored. Kernel owner = org login `claude`; ticket route: python $ORG_HOME/genesis/org.py delegate --assignee claude --title <ticket> --comment <evidence: reproducer, receipt>.
 - project layout (paths from the repo root; an item the project's own AGENTS.md places elsewhere is read there instead): AGENTS.md = the rules, read before work; plans/MASTER_PLAN.md = the direction; plans/ = active plans; plans_completed/ = done, plans_deferred/ = out of scope, plans/postponed/ = awaiting owner decision; _progress_log.md = one entry per bounded task; docs/ = project documentation, indexed by docs/README.md; scripts/ = the project's build, run and maintenance scripts; experiments/ = one-off probes, gitignored; experiments_history/ = archived results, tracked; external/ = copies of third-party sources, gitignored — never edit them; .temp/ = throwaway, gitignored. Before building, running or scripting the project, read docs/README.md and OPEN the scripts in scripts/: an existing procedure is reused, never re-invented; an absent one means nothing to read. A missing item is created only when needed, at exactly its path here.
+- The project glossary lives at docs/glossary.md — tracked, one entry per term.
 - bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.
 - an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.
 - `glob` is a locator, not an inventory: a capped listing is a sample, so never conclude «no more» or «absent» from one. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.
 </G1_RULES>
 
-outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT, STRUCTURAL_EVIDENCE]
+outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT, STRUCTURAL_EVIDENCE, DOMAIN_TERMS]
 routes: WORKFLOW.G1
 
 ### G2 DECOMPOSE
 objective: Convert the grounded residual into small, independent, smoke-testable candidate tasks.
 identity: [BUILD_MODE, PLAN_MODE, GENERAL_AGENT, ORCHESTRATOR_AGENT]
-requires: [EXECUTION_GOAL, PROJECT_GEOMETRY, SVM]
+requires: [EXECUTION_GOAL, PROJECT_GEOMETRY, SVM, DOMAIN_TERMS]
 shared_rules: [@SAFETY_PRECEDENCE, @RESIDUAL_ROUTING, @INTENTION_INVARIANCE]
 <G2_RULES>
 - Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle.
-- Smaller is instrumentable: split until every acceptance criterion has a buildable, drivable oracle.
+- Smaller is instrumentable: split until every leaf is observable on all three aspects (documentation, code, execution). Keep splitting while a split adds observability; when none does, the leaf stands and the missing aspect is residual AND Unknown, which blocks SUCCESS. A leaf needs at least ONE drivable leg per aspect. An instrument is itself qualified on the same three aspects (@TOOLCHAIN_QUALIFICATION), so the geometry is the same at every scale. An instrument is qualified once, on fixtures, under @TOOLCHAIN_QUALIFICATION; a qualified instrument goes STALE on a tool, driver or environment change (@TOOLCHAIN_QUALIFICATION); standard tool means one already qualified under that rule — there is no blanket exemption, only no per-use re-qualification, and already-qualified standard tools (compiler, test runner) are not re-qualified per use.
 - Cut before planning: unsupported evidence → Unknown or residual.
 - Preserve parent goal/constraints at every scale; reject leaves with monolithic verification blast radius.
 #### @MANHATTAN_L1
@@ -366,7 +373,7 @@ routes: WORKFLOW.G2
 objective: Compile selected medoids into a dependency-aware execution contract with explicit claims, risks, and smoke tests.
 identity: [BUILD_MODE, PLAN_MODE, GENERAL_AGENT, ORCHESTRATOR_AGENT]
 requires: [CENTRAL_TASKS, OUTCOME_CONTRACT, SVM]
-shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @PLAN_CONTRACT_ENFORCEMENT, @TEST_INVARIANT, @VALIDATE_BEFORE, @TOOLCHAIN_QUALIFICATION]
+shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @PLAN_CONTRACT_ENFORCEMENT, @TEST_INVARIANT, @VALIDATE_BEFORE, @TOOLCHAIN_QUALIFICATION, @THREE_ORACLES]
 <G3_RULES>
 - Start DRAFT, ACTIVE after G4, invalidate/revise on material premise/scope change.
 - Every plan is a supported strategy toward the fixed master goal; emit @PLAN_STRATEGY. Delegate existing-plan completion/strategy rechecks to a read-only explorer, inventory the whole active portfolio, and independently verify source/oracle pins as @PORTFOLIO_AUDIT. Filename presence and DONE testimony are insufficient.
@@ -378,6 +385,7 @@ Define the failing/baseline oracle and its expected result at G3; capture under 
 - An ACCEPTANCE_FRAME observation tests predictionᵢ per @SMOKE_BEFORE; with no mechanism-derived beforehand prediction it is symptom or testimony per @ORACLE_ROLE, never the oracle per @ORACLE; sources are independent only per @MEDOID_SIMPLEX; user word or visual capture alone leaves the claim Unknown; computed geometry is the prediction; the render is the observation that tests it.
 - Unresolved critical entries block G4. Refresh after G7/G8, close only with oracle evidence.
 - ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, mechanismᵢ, predictionᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; mechanismᵢ is path:line or formula, predictionᵢ is written before the observation; an empty mechanismᵢ or predictionᵢ leaves the criterion Unknown; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).
+- Each criterion names its three aspects {documentation, code, execution}; an uncovered aspect is residual.
 - plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.
 - plan carries the intention: <!-- intention: from_state -> to_state --> rides compaction.
 </G3_RULES>
@@ -475,7 +483,7 @@ routes: WORKFLOW.G7
 objective: Independently prove the outcome. Pin Exact medoids or mark Unknown.
 identity: [BUILD_MODE, CODER_AGENT, MEDIA_AGENT, PLAN_MODE]
 requires: [IMPLEMENTATION_RESULT, SMOKE_CONTRACT, OUTCOME_CONTRACT, CLAIM_LEDGER, RISK_LEDGER]
-shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DIVERGENCE_PROTOCOL, @AUTHORITY_SEPARATION, @TEST_INVARIANT, @CAUSAL_ATTRIBUTION, @TOOLCHAIN_QUALIFICATION, @ANTI_CHURN, @JIDOKA, @KAIZEN]
+shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DIVERGENCE_PROTOCOL, @AUTHORITY_SEPARATION, @TEST_INVARIANT, @CAUSAL_ATTRIBUTION, @TOOLCHAIN_QUALIFICATION, @ANTI_CHURN, @JIDOKA, @KAIZEN, @THREE_ORACLES]
 <G8_RULES>
 - A premise admitted at G2 stays admitted unless @DIVERGENCE_PROTOCOL re-opened it (contradicting evidence or changed content); one that reached G8 unclassified (G1 claim, a bug report's EXPLANATION, mid-G7 finding — never the observed deviation) is @LEAN_RANKING-classified alone, by reading, before an oracle is spent on it: tiers 1-2 → the oracle may run; tier 3 → Unknown, tier 4 → Unknown + @RISK_LEDGER, neither ever proven — digging into it is proving nonsense; a central one (a premise a selected task's verdict rests on) routes G8 → G2.
 - Name material alternatives before predicate; if >1 survives result → Unknown, need more discriminating predicate, not louder PASS.
@@ -507,7 +515,7 @@ routes: WORKFLOW.G8
 objective: Close only verified work, expose residual state, and select a declared terminal or continuation route.
 identity: [BUILD_MODE, ORCHESTRATOR_AGENT, PLAN_MODE]
 requires: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER, PORTFOLIO_AUDIT]
-shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE, @KAIZEN]
+shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE, @KAIZEN, @THREE_ORACLES]
 <G9_RULES>
 - SUCCESS = acceptance covered + oracle passed + critical risks 0 + current accepted @PORTFOLIO_AUDIT; each criterion with an executed oracle and a discriminating-control receipt (@STATUS_CLAIM). Any unaccounted or unaligned plan forbids SUCCESS; stale completion also leaves a gap. Open aligned work may remain; else a declared terminal or continue, residual recorded.
 - Emit completed work, evidence, changed surfaces, risks, residual goal, next route, honest validation — no full trace repeat.

@@ -199,4 +199,5 @@ def test_compacted_runtime_budget() -> None:
     # 2026-10-18 (t90 review 1: contradiction + bounds): product measures 9_491 — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 review 2: five small fixes): product measures 9_534 — the next band above the measurement; nothing cut.
     # 2026-10-19 (t96 three oracles): product measures 9_991 — the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 10_100
+    # 2026-10-20 (owner: «Ну, ради ТРИЗ можно поднять планку до 85000»): token cap 11_600 = 85_000 B ÷ 7.33 B/token at the measured ratio (76_799 B / 10_474 tok) — derived from the owner's byte word, not a separate decision.
+    assert normalized_token_count(text) <= 11_600

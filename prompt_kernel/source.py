@@ -974,8 +974,8 @@ KERNEL = Kernel(
     # 2026-10-18 (t90 addenda: layer routing + patents + DOMAIN_TERMS): product measures 69_903 B — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 review 1: contradiction + bounds): product measures 70_617 B — the next band above the measurement; nothing cut.
     # 2026-10-19 (t96 three oracles: triad + catalogue + unique-detection): product measures 73_905 B — the next band above the measurement; nothing cut.
-    # 2026-10-20 (owner: «подними предел до 80» — the ceiling is the owner's number; never step it yourself, report bytes and stop).
-    utf8_budget=80_000,
+    # 2026-10-20 (owner: «Ну, ради ТРИЗ можно поднять планку до 85000» — the ceiling is the owner's number; never step it yourself, report bytes and stop).
+    utf8_budget=85_000,
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

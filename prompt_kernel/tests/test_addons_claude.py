@@ -147,8 +147,9 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 2026-10-18 (t90 addenda: layer routing + patents + DOMAIN_TERMS): measures 9_460 — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 review 1: contradiction + bounds): measures 9_575 — the next band above the measurement; nothing cut.
     # 2026-10-18 (t90 review 2: five small fixes): measures 9_618 — the next band above the measurement; nothing cut.
-    # 2026-10-19 (t96 three oracles): measures 10_075 — the next band above the measurement; nothing cut.
-    assert normalized_token_count(text) <= 10_100
+    # 2026-10-20 (t96 three oracles): measures 10_075 — the next band above the measurement; nothing cut.
+    # 2026-10-20 (owner: «Ну, ради ТРИЗ можно поднять планку до 85000»): token cap 11_600 = 85_000 B ÷ 7.33 B/token at the measured ratio (76_799 B / 10_474 tok) — derived from the owner's byte word, not a separate decision.
+    assert normalized_token_count(text) <= 11_600
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

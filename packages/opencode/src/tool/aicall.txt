@@ -57,6 +57,11 @@ user/file content.
   self-grading-with-an-extra-seat that the falsifier exists to avoid. Prefer a
   model designed without reasoning over one that had it bolted on — the
   registry's `reasoning` flag is the field to read.
+- **An empty result is a truncated budget, not a refusal.** Measured 2026-10-20 on the free
+  tier: the same prompt returned no text at `max_tokens` 1500 and 6000, and the full answer
+  at 20000 — a reasoning model spends the budget before the answer reaches the text. The
+  tool now names this as `FAILED (empty completion)`; raise `max_tokens` and re-run instead
+  of recording "the model declined".
 
 ## Parameters
 

@@ -93,3 +93,30 @@ describe("aicall router guard (t72)", () => {
     expect(result).not.toContain("cost: free")
   })
 })
+
+describe("aicall empty completion (2026-10-20)", () => {
+  test("an empty completion is a named failure, not an empty answer", async () => {
+    const { emptyCompletionReport } = await import("../../src/tool/aicall")
+    const report = emptyCompletionReport(
+      {
+        providerID: ProviderID.make("openrouter"),
+        id: ModelID.make("minimax/minimax-m3.1-flash:free"),
+      },
+      "ENVELOPE-LINE",
+    )
+
+    expect(report.title).toContain("FAILED (empty completion)")
+    expect(report.output).toContain("AICALL FAILED (empty completion)")
+    expect(report.output).toContain("ENVELOPE-LINE")
+    expect(report.output).toContain("max_tokens")
+    expect(report.metadata.model.modelID).toBe(ModelID.make("minimax/minimax-m3.1-flash:free"))
+  })
+
+  test("whitespace-only text counts as empty, real text does not", async () => {
+    const { isEmptyCompletion } = await import("../../src/tool/aicall")
+    expect(isEmptyCompletion("")).toBe(true)
+    expect(isEmptyCompletion("   \n\t ")).toBe(true)
+    expect(isEmptyCompletion(undefined)).toBe(true)
+    expect(isEmptyCompletion("да")).toBe(false)
+  })
+})

@@ -35,6 +35,31 @@ export function isRouterModel(model: { providerID: string; id: string; name?: st
   return false
 }
 
+/**
+ * 2026-10-20: an EMPTY completion is a FAILURE, not an empty answer.
+ *
+ * Measured on the free tier (`minimax/minimax-m3.1-flash:free`, one prompt): `max_tokens` 1500
+ * -> empty, 6000 -> empty, 20000 -> the full answer, while a 26-char control answered at
+ * `max_tokens` 50. The request SUCCEEDS in that case - a reasoning model spends the budget on
+ * reasoning tokens and the answer never reaches the text - so the tool printed its envelope
+ * and nothing else, which reads exactly like a refusal and gets recorded as "the model
+ * declined". Same doctrine as the rejection path below: a tool that cannot say why it failed
+ * cannot be repaired.
+ */
+export function isEmptyCompletion(text: string | undefined): boolean {
+  return !text?.trim()
+}
+
+export function emptyCompletionReport(model: Pick<Provider.Model, "providerID" | "id">, envelope: string) {
+  return {
+    title: `aicall FAILED (empty completion): ${model.providerID}/${model.id}`,
+    metadata: {
+      model: { providerID: model.providerID, modelID: model.id },
+    },
+    output: `${envelope}\n\nAICALL FAILED (empty completion): the request SUCCEEDED and the model returned no text. This is not a provider refusal - the usual cause is a reasoning model whose token budget (max_tokens) was consumed before the answer reached the text. Raise max_tokens and re-run: the same prompt answered at 20000 where it was empty at 6000. Nothing was written.`,
+  }
+}
+
 export function requestEnvelope(
   model: Pick<Provider.Model, "providerID" | "id" | "api" | "parameters" | "model_type" | "cost" | "limit"> & { name?: string },
   userText: string,
@@ -285,6 +310,12 @@ export const AiCallTool = Tool.define(
           }
 
           const output = attempted.value.text
+
+          // 2026-10-20: an empty completion is a failure, not an empty answer - and it must
+          // not reach output_file, which would overwrite the target with nothing.
+          if (isEmptyCompletion(output)) {
+            return emptyCompletionReport(model, envelope)
+          }
 
           // Optionally save to file
           if (params.output_file) {

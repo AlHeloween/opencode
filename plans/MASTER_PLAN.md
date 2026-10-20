@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 295 |
-| plans active | 42 |
-| tasks passed / total | 1456 / 1771 |
-| open boxes | 172 |
+| plans completed | 296 |
+| plans active | 41 |
+| tasks passed / total | 1457 / 1771 |
+| open boxes | 171 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -499,12 +499,8 @@ note: hash values are generative tags — search them, never compute them.
   - S8 [PENDING] · sv MISSING · manifest: The TRIZ-to-kernel correspondence lands as one commit that names the plan, carries the 21 new glossary entries and the report, and leaves the shared progress log with only its own hunk. · eta 1 · doing
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-20_triz-name-corpus.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
-  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - INSTALL [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 ## The checks
 
-This body names all 45 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 44 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

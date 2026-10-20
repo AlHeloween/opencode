@@ -51,7 +51,12 @@ Memory: `feedback-model-eval-is-kernel-adherence`, `project-goal-industrial-agi-
 Owner, verbatim: «задачку можно решить 2мя путями - можно решить, а можно найти решение через OSINT - вопрос сможет ли
 модель потом доказать свое решение и передать эти данные соратникам.»
 
-- **Solving and finding are both legitimate.** Finding is the kernel's own G1 (@REUSE_BEFORE: search before invention). minimax's 10-20 hop 1, which found the SV's source on disk, is correct behaviour and not «cheating». The decode-only track 1 measures a different ability; it does not disqualify the finding path.
+- **Finding is the first duty, not a shortcut.** Owner, verbatim: «Здесь слово жульничество вообще неуместно у всех моделей есть RAM он устойчивый, веса тут не причем. Если идет реальный R&D - чел выдумал решение которое хуже того что было уже в открытых источниках и не смог его доказать и доказать целесообразность выбора - он идиот.»
+  - Prior-art search is mandatory (G1 @REUSE_BEFORE), with a receipt: what was searched, where, and what was found.
+  - The choice is justified against the alternatives found (G6: «explain any invention»).
+  - An invented solution that is worse than one found, or was never compared, scores ZERO even if it «works».
+  - minimax's 10-20 hop 1, which found the SV's source on disk, is the correct first move.
+  - The decode-only track 1 measures a different ability (what an SV carries by itself) and ranks nothing above this rule.
 - **Every track is scored on two things, whatever the path:**
   1. **Proof:** oracles, receipts, source hashes and claims marked with their instrument. An unproved solution is Guess, whether found or derived.
   2. **Handoff:** an SV with a correct lineage, plus artifact addresses (path:line, hash, run id) and measured/not-measured, so that a peer can re-verify without the author.

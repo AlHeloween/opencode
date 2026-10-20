@@ -151,9 +151,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 292 |
-| plans active | 41 |
-| tasks passed / total | 1431 / 1744 |
-| open boxes | 170 |
+| plans active | 43 |
+| tasks passed / total | 1440 / 1757 |
+| open boxes | 174 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -485,9 +485,14 @@ note: hash values are generative tags — search them, never compute them.
   sv: intention "TUI undo applies on the server but the TUI loses its server -> isolated dist-TUI reproducer decides whether the revert path kills the process, and the proven dialog-anchor and preserve-foreign defects land with regression tests" · keywords [{ keywords: { tui-disconnect: 0.30, revert-applies: 0.25, isolated-dist-repro: 0.20, dialog-anchor: 0.15, preserve-foreign: 0.10 }, dominant: Isolated dist TUI decides whether undo kills the process; proven dialog and scope defects land with tests. }]
   - TASK-3 [PENDING] · sv [{ keywords: { crash-cause: 0.5, red-test: 0.5 }, dominant: The killing path is named and reddens a test. }] · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-20_first-3x3-criterion.md` — 2 open / 4 box(es) · lifecycle UNKNOWN
+  sv: intention "the three-oracle acceptance rule is asserted in the kernel but never exercised against a real criterion of this project -> the project's first criterion is closed under 3x3 (documentation x code x execution) with nine legs whose independence is MEASURED by injected defects, not promised" · keywords []
+  - TASK-3 [PENDING] · sv MISSING · manifest: The 3x3 receipts are re-measured whenever a leg's surface changes — the first firing came from the glossary re-ground, and all nine unique-detection receipts still hold. · eta 1 · doing
+  - TASK-4 [PENDING] · sv MISSING · manifest: The second 3x3 criterion is the rule living in the runtime, and it closes only when the installed prompt read-back matches the render and the three stale receivers turn green. · eta 1 · waiting-on-user
+
 - `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
   sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-1 [PENDING] · sv MISSING · manifest: The frozen kernel snapshot the line-audit reads is re-hashed before any line is read, and a mismatch stops the audit instead of being explained away. · eta 1 · verified
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -498,8 +503,13 @@ note: hash values are generative tags — search them, never compute them.
   - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-10 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-20_triz-kernel-correspondence.md` — 2 open / 9 box(es) · lifecycle UNKNOWN
+  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
+  - S8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 44 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 46 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

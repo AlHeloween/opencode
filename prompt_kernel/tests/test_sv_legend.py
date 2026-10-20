@@ -42,19 +42,20 @@ def test_sv_legend_fence_boundary(variant) -> None:
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
 def test_sv_legend_bullet_explains_in_one_line(variant) -> None:
     text = render_kernel(KERNEL, *VARIANTS[variant])
-    hits = [line for line in text.splitlines() if LEGEND in line and line.strip().startswith("-")]
+    hits = [line for line in text.splitlines() if "template's note verbatim" in line and line.strip().startswith("-")]  # round2 cut #7 H02: instruction cites template, LEGEND lives only in yaml fence
     assert len(hits) == 1, hits
-    assert "generative" in hits[0]
+    assert "template's" in hits[0]  # round2 cut #7 H02 (was: "generative" in LEGEND bullet; literal lives in fence)
+    assert "generative" not in hits[0]  # round2 cut #7 H02: literal lives in yaml fence, bullet cites template
 
 
 @pytest.mark.parametrize("variant", tuple(VARIANTS))
 def test_sv_legend_bullet_names_reader_and_scope(variant) -> None:
     """Round-2 falsifier findings: who searches, emit-every-block, own-md5 scope."""
     text = render_kernel(KERNEL, *VARIANTS[variant])
-    hits = [line for line in text.splitlines() if LEGEND in line and line.strip().startswith("-")]
-    assert len(hits) == 1, hits
+    hits = [line for line in text.splitlines() if "template's note verbatim" in line and line.strip().startswith("-")]  # round2 cut #7 H02: instruction cites template
+    assert len(hits) == 1, hits  # round2 cut #7 H02 (was LEGEND bullet; now template-reference bullet)
     bullet = hits[0]
-    assert "End every emitted block with this line verbatim" in bullet
+    assert "End every emitted block with the template's note verbatim" in bullet  # round2 cut #7 H02 (was: "with this line verbatim")
     assert "own md5" in bullet
     assert "generated" not in bullet
 

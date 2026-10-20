@@ -102,7 +102,7 @@ def _render_sv_contract(contract: SemanticVectorContract) -> list[str]:
         "- md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters). Mint a fresh one for every vector you emit; a received md5 never becomes your own md5 — equal own-md5s are always a defect.",
         f"- prev-md5: previous md5 or {contract.first_prev_md5}; a mid-session break means the chain lost a turn — recovery across it is Guess, not Inferred",
         f"- parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; {contract.first_prev_md5} if none. A task arriving with an SV carries that task's first SV md5 here — its brief/artifact vector, never the sender's chat vector — on every turn of that task; equal parent-goal-md5s share one parent. A received 000..., non-32-hex or example md5 is no parent: write 000... and name the defect in your reply.",
-        "- note: hash values are generative tags — search them, never compute them. End every emitted block with this line verbatim; a reader searches these tags to find the turns that carry them. Besides their form, only the uniqueness of each own md5 is checked.",
+        "- End every emitted block with the template's note verbatim; a reader searches these tags to find the turns that carry them. Besides their form, only the uniqueness of each own md5 is checked.",
         f"- trivial: {contract.trivial_emission}",
         "- invariant: a semantic vector is an attention fingerprint, never a claim status",
         "",
@@ -261,15 +261,15 @@ def render_kernel(
         "",
         f"precedence: {' > '.join(kernel.precedence)}",
         "reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name. A shared rule that no gate lists in its shared_rules applies at every gate.",
-        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, interrupt, terminal, or protocol return. Terminal ends this run; protocols cannot reopen it. A finite run limit also ends the run: at G9 with CLEAN_NEXT_STATE (completed, residual, next action, continuation receipt), the task open — not a terminal, never a WAITING_APPROVAL; a delegated run's budgets come from its delegator's brief.",
+        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, interrupt, terminal, or protocol return. Terminal ends this run; protocols cannot reopen it. A finite run limit also ends the run: at G9 with CLEAN_NEXT_STATE (completed, residual, next action, continuation receipt), the task open — not a terminal, never a WAITING_APPROVAL.",
         "terms:",
     ])
     for name, description in kernel.terms.items():
         lines.append(f"- {name}: {description}")
     lines.extend([
         "1.1 @INFOMARK",
-        "Guess -> (web hit) Hypothetical -> (authority|code) Inferred -> (smoke/PoC PASS) Exact",
-        "failed proof -> Unknown; simulation never equals reality",
+        "ladder: @SOURCE_ROUTING",
+        "simulation never equals reality",
         "promotion: @INFORMATION_STATUS",
         "",
     ])

@@ -61,6 +61,10 @@ CUTS = [
     (33, "map symbols/ownership: codegraph_explore (if .codegraph/) else Grep/Glob/Read; read-only.", ("claude",)),
     (34, "on task's Exact medoids only", ("product", "claude", "codex", "cursor")),
     (35, "the installed .txt is generated, never hand-edited.", ("product", "claude", "codex", "cursor")),
+    (4, "Guess -> (web hit) Hypothetical -> (authority|code) Inferred -> (smoke/PoC PASS) Exact", ("product", "claude", "codex", "cursor")),  # round2: owner-approved cut #4 H01 in render.py (was STOPPED-JUSTIFIED round1)
+    (4, "failed proof -> Unknown; ", ("product", "claude", "codex", "cursor")),  # round2: owner-approved cut #4 H01 second span in render.py
+    (7, "note: hash values are generative tags — search them, never compute them. End every emitted block with this line verbatim;", ("product", "claude", "codex", "cursor")),  # round2: owner-approved cut #7 H02 in render.py (template literal kept at 1.2 head)
+    (22, "a delegated run's budgets come from its delegator's brief.", ("product", "claude", "codex", "cursor")),  # round2: owner-approved cut #22 DUP-05 in render.py control_flow_rule
 ]
 
 HOMES = [

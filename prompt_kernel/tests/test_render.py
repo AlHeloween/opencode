@@ -35,8 +35,7 @@ def test_runtime_is_map_first_and_progressively_refined() -> None:
 RUN_LIMIT_SENTENCE = (
     "A finite run limit also ends the run: at G9 with CLEAN_NEXT_STATE "
     "(completed, residual, next action, continuation receipt), the task open — "
-    "not a terminal, never a WAITING_APPROVAL; a delegated run's budgets come "
-    "from its delegator's brief."
+    "not a terminal, never a WAITING_APPROVAL."  # round2 cut #22 DUP-05: dropped "; a delegated run's budgets come from its delegator's brief" (budgets live in @LOOP_PROGRESS/BOOTSTRAP)
 )
 
 VARIANTS = {
@@ -59,7 +58,7 @@ def test_control_flow_rule_carries_run_limit_exit(variant) -> None:
 def test_run_limit_exit_guard_rejects_dropped_clauses() -> None:
     line = _control_flow_rule_line(render_kernel(KERNEL))
     assert RUN_LIMIT_SENTENCE in line
-    for dropped in ("not a terminal, never a WAITING_APPROVAL; ", "the task open — "):
+    for dropped in ("not a terminal, never a WAITING_APPROVAL.", "the task open — "):  # round2 cut #22 DUP-05: tail dropped, control_flow now ends with period
         mutant_line = line.replace(dropped, "")
         assert mutant_line != line
         with pytest.raises(AssertionError):
@@ -126,7 +125,7 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "1.1 @INFOMARK" in text
     assert "promotion: @INFORMATION_STATUS" in text
     assert "simulation never equals reality" in text
-    assert "failed proof -> Unknown" in text
+    assert "ladder: @SOURCE_ROUTING" in text  # round2 cut #4 H01: ladder chain replaced by reference (was: "failed proof -> Unknown")
     assert "statuses: @INFORMATION_STATUS" in text
     assert "Generic web never becomes Inferred" in text
     # Re-pinned 2026-10-02 (ORACLE_ROLE fix, owner): the phrase now names the user as one of the simulations; the

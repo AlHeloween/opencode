@@ -201,6 +201,16 @@ SHARED_RULES = (
         "THREE_ORACLES",
         "Acceptance is covered only when documentation (meaning), code (mechanism) and execution (reality) agree on the criterion; each aspect is itself covered by ≥3 independent oracles under @MEDOID_SIMPLEX — its independence test is referenced, never restated. An aspect with fewer is a degenerate simplex: the criterion stays Unknown on that aspect; record the missing legs as residual. The claim's acceptance is the set of its leg stamps. Three legs per aspect are required where the criterion is ACCEPTED (G8/G9). A claim with any aspect Unknown cannot reach SUCCESS; G9 records the missing legs as residual and keeps the task open, and nothing else is demoted beyond what @DIVERGENCE_PROTOCOL already says. Documentation counts as an oracle only when EXECUTED against the live system — D1 traceability resolved to passing tests; D2 procedure walked with a capture per step; D3 examples executed or parsed against the LIVE schema or API (reading a static copy is not a leg; a static copy is not a leg); D4 teach-back compared against actual behaviour; D5 doc diffed against the live schema or help output. A doc that is only read is not a leg. A disagreement between two of the three aspects is a DIVERGENCE_EVENT; the two aspects that agree name where to look: code and run agree but the doc differs — the meaning was misread; doc and run agree but the code differs — an implementation defect; doc and code agree but the run differs — environment or data. That side is the aspect that differs from the two that agree — for a failing leg inside an aspect, that leg's artifact. The action is to fix that side, re-run every leg of that aspect, and record the finding. When one aspect is Unknown (<3 legs) and the other two disagree, treat it as a two-aspect divergence on the two measured aspects. An aspect agrees when every leg of it passes; a failing leg inside an aspect is itself a divergence: record it and find the cause before the aspect counts. When all three aspects disagree, return to G1. Each oracle's stamp carries its aspect, its family and a UNIQUE-DETECTION receipt (ORACLE_STAMP.aspect, ORACLE_STAMP.family, ORACLE_STAMP.unique_detection): an injected defect that this oracle catches and ALL the other legs of that aspect miss — an EXPECTED_FAIL control; legs of other aspects do not matter for this receipt. Missed means the other legs RAN against the injected defect and let it through. A receipt is re-run whenever the leg set of its aspect changes — a leg added, swapped or fixed. The receipt control lives inside the leg's stamp (unique_detection), and the leg's own result is PASS or FAIL — a passing leg with a satisfied receipt counts as passing. content_hash is required on every execution leg. An oracle without a receipt is subsumed and does not count as a leg; where no such defect can be constructed the gap is residual and the oracle never counts provisionally. Injected defects come from the three aspects — a documented-scenario violation, a code mutant, an environment/data fault; the agent's own defects from its own code reading are ONE source (@MEDOID_SIMPLEX). Within one aspect, independence is a different catalogue family AND a receipt; across the claim, @MEDOID_SIMPLEX's category test is applied to all its legs together and NOT to each aspect — without this, a documentation aspect can never pass, since no doc leg computes from the mechanism; @MEDOID_SIMPLEX's category test still governs the claim as a whole; the family split overrides «renders/screenshots are one category» for E1/E2. Each leg DECLARES its family from the catalogue and carries its UNIQUE-DETECTION receipt; three legs from DIFFERENT families of one aspect — two legs from one family are one leg. The catalogue is the default, names only: a new family may be declared with a short name and its UNIQUE-DETECTION receipt. A unit test and an assertion by the same author from the same reading are ONE leg; two screenshot tools on one frame are ONE; a DOM-state read (E1) and a viewport capture (E2) are different families. Catalogue: Documentation (meaning): D1 requirements traceability (ISO/IEC/IEEE 29148); D2 executed procedure / operator manual with per-step capture (ISO/IEC/IEEE 26514; IEEE 1063 superseded by 26512); D3 executable examples / doctest against schema or API; D4 frameless reader teach-back (aicall reconstructs intent from the doc alone); D5 doc ↔ contract diff (schema, CLI help, refusal keys). Code (mechanism): C1 static analysis / type system; C2 structural graph (callers, impact, consumers); C3 mutation testing; C4 invariants / contracts / property-based tests; C5 independent diff review against the requirement. Execution (reality): E1 persisted-state read-back; E2 observed output / capture vs prior prediction; E3 end-to-end on real data; E4 outside measurement / telemetry; E5 differential / back-to-back.",
     ),
+    _rule(
+        "KERNEL",
+        "TRIZ_CONTRADICTION",
+        "Resolve, never compromise, a contradiction: ИКР / Ideal Final Result; техническое противоречие / engineering contradiction; физическое противоречие / physical contradiction; АРИЗ-85В / ARIZ-85C; 40 приёмов / 40 inventive principles; матрица противоречий / contradiction matrix; ресурсы (вещество, поле, время, пространство, информация) / resources.",
+    ),
+    _rule(
+        "KERNEL",
+        "TRIZ_ANALYSIS",
+        "Ground the analysis on the tool corpus: веполь / Su-Field; 76 стандартов / 76 standard solutions; усечение / trimming; причинно-следственный анализ / CECA; оперативная зона и время / operating zone and time; указатель научных эффектов / database of scientific effects.",
+    ),
 )
 
 
@@ -489,7 +499,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT", "RESEARCHER_AGENT"),
         requires=("USER_REQUEST", "DIGITAL_INTENTION"),
         outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT", "STRUCTURAL_EVIDENCE", "DOMAIN_TERMS"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE", "ANTI_CHURN"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE", "ANTI_CHURN", "TRIZ_ANALYSIS"),
         local_rules=(
             _rule("G1", "INTENT_PROJECTION_RULE", "Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal."),
             _rule("G1", "STRUCTURAL_GROUNDING", "Indexed-code grounding emits @STRUCTURAL_EVIDENCE: relevant symbols/consumers, scope, query/result and source digests, with parent/tool refresh ownership. No index, failed tool or documentation-only scope needs a verified explicit fallback; an empty or irrelevant graph is a gap, never absence."),
@@ -520,7 +530,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "GENERAL_AGENT", "ORCHESTRATOR_AGENT"),
         requires=("EXECUTION_GOAL", "PROJECT_GEOMETRY", "SVM", "DOMAIN_TERMS"),
         outputs=("FRACTAL_GEOMETRY", "CENTRAL_TASKS", "SVM"),
-        shared_rules=("SAFETY_PRECEDENCE", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
+        shared_rules=("SAFETY_PRECEDENCE", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE", "TRIZ_CONTRADICTION"),
         local_rules=(
             _rule("G2", "DECOMPOSE", "Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle.",
                 BP("AND", BP("HAS", "Searchable"), BP("HAS", "Executable"), BP("HAS", "BoundedOracle"))),
@@ -619,7 +629,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE"),
         requires=("MASTER_PLAN", "CONCERN"),
         outputs=("CONCERN_RESOLUTION",),
-        shared_rules=("AUTHORITY_SEPARATION", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
+        shared_rules=("AUTHORITY_SEPARATION", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE", "TRIZ_CONTRADICTION"),
         local_rules=(
             _rule("G5", "CONCERN_LOOP", "Preserve objection verbatim, identify violated premise/scope, revise residual, return to G2, rebuild plan, re-enter G4."),
         ),
@@ -633,7 +643,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT"),
         requires=("MASTER_PLAN", "PLAN_CONTRACT", "EXECUTION_ENVELOPE", "AUTH_DECISION", "PROJECT_GEOMETRY", "STRUCTURAL_EVIDENCE", "PLAN_STRATEGY"),
         outputs=("GROUNDED_PLAN", "PLAN_BINDING"),
-        shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT", "SURFACE_PREPARATION", "TOOLCHAIN_QUALIFICATION", "TEST_INVARIANT"),
+        shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT", "SURFACE_PREPARATION", "TOOLCHAIN_QUALIFICATION", "TEST_INVARIANT", "TRIZ_ANALYSIS"),
         local_rules=(
             _rule("G6", "GROUND_PLAN_RULE", "Map symbols/ownership first, inspect implementation surface second, fill evidence gaps third. Impact query runs for every mutation binding: other consumers = answer, not precondition."),
             _rule("G6", "REUSE_BINDING", "For each task, record reused implementation/authoritative pattern; explain any invention."),
@@ -817,6 +827,7 @@ PROTOCOLS = (
             _rule("EVOLUTION_LOOP", "QUALITY_GUARDRAILS", "Reject candidates weakening safety, architecture, oracle coverage, portability, cache stability, rollback.",
                 BP("IFF", BP("HAS", "candidate"), BP("NOT", BP("OR", BP("HAS", "weakens_safety"), BP("HAS", "weakens_architecture"), BP("HAS", "weakens_oracle_coverage"), BP("HAS", "weakens_portability"), BP("HAS", "weakens_cache_stability"), BP("HAS", "weakens_rollback"))))),
             _rule("EVOLUTION_LOOP", "MIGRATION_PROTOCOL", "Selected evolution → new goal entering G1. Toolchain/framework/language/arch-family change = fresh G4 authorization."),
+            _rule("EVOLUTION_LOOP", "TRIZ_EVOLUTION", "Forecast with the evolution corpus: TESE / законы развития технических систем; S-кривая / S-curve; закон идеальности / law of ideality; девять окон / nine windows."),
         ),
         fsm=EVOLUTION_LOOP_FSM,
     ),

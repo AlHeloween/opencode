@@ -190,7 +190,7 @@ function terminated(content: string): Line[] {
  * R2): the batch exists to be one call, so its refusal must be enough to fix it in one more.
  */
 export type Resolution =
-  | { kind: "text"; text: string; spans: readonly AppliedSpan[] }
+  | { kind: "text"; text: string; spans: readonly AppliedSpan[]; origSpans: readonly OrigSpan[] }
   | { kind: "refused"; refusals: string[] }
 
 /**
@@ -198,6 +198,8 @@ export type Resolution =
  * empty seam). The addressed spans are resolved against the ORIGINAL text — these are their final coordinates.
  */
 export type AppliedSpan = { start: number; end: number }
+/** One resolved edit in ORIGINAL 0-based coordinates: `end < start` is an insertion's empty gap; `length` is the replacement line count (0 = deletion). */
+export type OrigSpan = { start: number; end: number; length: number }
 
 type Span = { start: number; end: number; replacement: string; index: number; isInsertion: boolean }
 
@@ -371,7 +373,7 @@ export function resolveAddresses(
     if (previous !== undefined && deletesBareEnd) head[head.length - 1] = { text: previous.text, eol: "" }
     result = [...head, ...fitted, ...result.slice(span.end + 1)]
   }
-  return { kind: "text", text: result.map((line) => line.text + line.eol).join(""), spans: applied }
+  return { kind: "text", text: result.map((line) => line.text + line.eol).join(""), spans: applied, origSpans: spans.map((s) => ({ start: s.start, end: s.end, length: s.replacement === "" ? 0 : terminated(s.replacement).length })) }
 }
 
 /**
@@ -380,10 +382,12 @@ export function resolveAddresses(
  * The chain runs over the whole prefix, so a change at line K moves the address of every line BELOW it — a caller
  * that just edited holds no current address for anything further down and would have to re-read, which
  * `plans_completed/2026-10-01_hash-addressed-edits.md` made mandatory by construction. This report hands the
- * labels back instead: the written lines in `read`'s own form with two lines of context, then every moved label
- * below — all computed over the FINAL text with the SAME `chainHash`/`hashLabel` `read` prints, so the next call
- * can address them directly. Labels above the first change did not move and are not repeated. Bounded; a cut
- * names the offset to `read` for the rest.
+ * labels back instead: the written lines in `read`'s own form with two lines of context, then an old-to-new map
+ * (`N  old-label -> N new-label`, or `-> deleted` when the line is gone) for every changed ORIGINAL label — all
+ * computed over the FINAL text with the SAME `chainHash`/`hashLabel` `read` prints, so the next call can address
+ * moved lines by the labels it already holds. Labels above the first change did not move and are not repeated;
+ * with `windowLabels` only labels still in the active window are listed. Bounded; a cut names the unmapped old
+ * lines and the `read` offset that recovers them.
  */
 export const ADDRESS_REPORT_BUDGET = 8 * 1024
 const ECHO_CONTEXT = 2
@@ -394,6 +398,8 @@ export function addressReport(
     oldText: string
     finalText: string
     spans: readonly AppliedSpan[]
+    origSpans: readonly OrigSpan[]
+    windowLabels?: ReadonlySet<string>
     created: boolean
     formatTouched: boolean
   },
@@ -474,17 +480,70 @@ export function addressReport(
     }
   }
 
+  let mapCutFrom = -1
   if (cutAt === -1 && !input.created && first < lines.length) {
-    add(`Every line from ${first + 1} down has a NEW address — current labels:`, first)
-    for (let i = first; i < lines.length && cutAt === -1; i++) {
-      add(`${i + 1}  ${hashes[i]!}`, i)
+    if (input.origSpans === undefined || input.origSpans.length === 0 || oldLines.length === 0) {
+      add(`Every line from ${first + 1} down has a NEW address — current labels:`, first)
+      for (let i = first; i < lines.length && cutAt === -1; i++) {
+        add(`${i + 1}  ${hashes[i]!}`, i)
+      }
+    } else {
+      add(`Old labels -> new labels:`, first)
+      const oldHashes: string[] = []
+      {
+        let running = 0
+        for (const line of oldLines) oldHashes.push(hashLabel((running = chainHash(running, line.text))))
+      }
+      const ordered = [...input.origSpans].sort((a, b) => a.start - b.start)
+      let shift = 0
+      let si = 0
+      let skipped = 0
+      let firstSkipped = -1
+      let lastSkipped = -1
+      let skippedNewMin = 0
+      for (let i = first; i < oldLines.length; i++) {
+        while (si < ordered.length && ordered[si]!.end < i) {
+          shift += ordered[si]!.length - (ordered[si]!.end - ordered[si]!.start + 1)
+          si++
+        }
+        const inside = si < ordered.length && ordered[si]!.start <= i
+        const pos = inside ? Math.min(i + shift, lines.length - 1) : i + shift
+        const oldLabel = oldHashes[i]!
+        if (input.windowLabels !== undefined && !input.windowLabels.has(oldLabel)) {
+          skipped++
+          if (firstSkipped === -1) {
+            firstSkipped = i
+            skippedNewMin = pos
+          } else if (pos < skippedNewMin) {
+            skippedNewMin = pos
+          }
+          lastSkipped = i
+          continue
+        }
+        if (cutAt !== -1) {
+          if (mapCutFrom === -1) mapCutFrom = firstSkipped === -1 ? i : Math.min(i, firstSkipped)
+          break
+        }
+        if (inside) add(`${i + 1}  ${oldLabel} -> deleted`, pos)
+        else add(`${i + 1}  ${oldLabel} -> ${pos + 1} ${hashes[pos]!}`, pos)
+        if (cutAt !== -1 && mapCutFrom === -1) mapCutFrom = i
+      }
+      if (cutAt === -1 && skipped > 0) {
+        add(
+          `(${skipped} changed line${skipped === 1 ? " is" : "s are"} not in the active window — old labels of lines ${firstSkipped + 1}..${lastSkipped + 1}; \`read\` from offset ${skippedNewMin + 1} for their current labels.)`,
+          skippedNewMin,
+        )
+      }
     }
   }
 
   if (cutAt !== -1) {
     const rest = lines.length - cutAt
     out.push(
-      `(${rest} more line${rest === 1 ? "" : "s"}, through line ${lines.length}, carry new labels too — \`read\` from offset ${cutAt + 1} to address them.)`,
+      `(${rest} more line${rest === 1 ? "" : "s"}, through line ${lines.length}, carry new labels too — \`read\` from offset ${cutAt + 1} to address them.)` +
+        (mapCutFrom === -1
+          ? ""
+          : ` Old labels of lines ${mapCutFrom + 1}..${oldLines.length} are not remapped above — \`read\` from offset ${cutAt + 1} for their current labels.`),
     )
   }
   return out.length === 1 ? "" : out.join("\n")
@@ -660,7 +719,8 @@ export const EditTool = Tool.define(
             ending: TextCodec.LineEnding | undefined
             notice: string | undefined
             diff: string
-            spans?: readonly AppliedSpan[]
+                    spans?: readonly AppliedSpan[]
+                    origSpans?: readonly OrigSpan[]
           }[] = []
 
           yield* withFileLocks(
@@ -763,7 +823,8 @@ export const EditTool = Tool.define(
                   ending: form.ending,
                   notice: form.notice,
                   diff: "",
-                  spans: resolution.spans,
+                    spans: resolution.spans,
+                    origSpans: resolution.origSpans,
                 })
               }
               if (refusals.length > 0) throw new Error(refusals.join("\n"))
@@ -861,6 +922,7 @@ export const EditTool = Tool.define(
               oldText: plan.contentOld,
               finalText: plan.contentFinal,
               spans: plan.spans ?? [],
+              origSpans: plan.origSpans ?? [],
               created: plan.status === "add",
               formatTouched: plan.contentFinal !== plan.contentNew,
             })

@@ -36,7 +36,7 @@ Line breaks are fitted to the file; send plain `\n`. A file keeps its encoding. 
 
 ## After the write
 
-The result reports the diff, LSP diagnostics, and the fresh addresses in `read`'s form with two lines of context, then every moved label below the change. Labels above did not move and are not repeated. Like `write`, which also prints an address report, the next edit can address them directly. Undo with `restore`.
+The result reports the diff, LSP diagnostics, and the fresh addresses in `read`'s own form with two lines of context, then an old-to-new map (`N  old-label -> N new-label`, or `-> deleted` when the line is gone) for every changed label, so the next edit can address moved lines by the labels it already holds. Labels above the first change did not move and are not repeated. Like `write`, which also prints an address report, the next edit can address them directly. Undo with `restore`.
 
 ## Refusals
 

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build_mode": {
+      "model": "huggingface/zai-org/GLM-5.3-Flash-BF16",
+      "variant": "max"
+    },
+    "plan_mode": {
+      "model": "huggingface/zai-org/GLM-5.3-Flash-BF16",
+      "variant": "max"
+    }
+  }
+}

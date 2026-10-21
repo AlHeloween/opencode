@@ -1,0 +1,33 @@
+{
+  "scope": "retained evidence only, not a new backend execution or full M0b acceptance",
+  "source_report": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\report.json",
+  "source_sha256": "61cc5cbf3daa06e4a58e30477f4f94bd5f9c34b40044ab70980e2f24b539f4a2",
+  "frozen_files": 40,
+  "checks": [
+    {
+      "query": "code-token-corpus",
+      "exact_count": 26,
+      "result": "PASS",
+      "changed_expected_control": "EXPECTED_FAIL"
+    },
+    {
+      "query": "symbol-text-corpus",
+      "exact_count": 26,
+      "result": "PASS",
+      "changed_expected_control": "EXPECTED_FAIL"
+    },
+    {
+      "query": "filename-corpus",
+      "exact_count": 1,
+      "result": "PASS",
+      "changed_expected_control": "EXPECTED_FAIL"
+    },
+    {
+      "query": "code-absent-control",
+      "exact_count": 0,
+      "result": "PASS",
+      "changed_expected_control": "not applicable to empty set"
+    }
+  ],
+  "result": "PASS"
+}

@@ -1,0 +1,25 @@
+{
+  "cellSize": {
+    "width": 10,
+    "height": 20
+  },
+  "checks": [
+    {
+      "check": "setImageProtocol(sixel)",
+      "ok": true,
+      "reported": "sixel"
+    },
+    {
+      "check": "decode alpha.webp",
+      "ok": true,
+      "width": 2,
+      "height": 2
+    },
+    {
+      "check": "NativeImage.fromRgba",
+      "ok": true,
+      "width": 240,
+      "height": 120
+    }
+  ]
+}

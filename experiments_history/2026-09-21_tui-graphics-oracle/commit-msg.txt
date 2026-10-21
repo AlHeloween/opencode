@@ -1,0 +1,39 @@
+feat(opentui): re-base the fork on upstream 0.5.11 (Zig 0.16) - their tree is the base
+
+Owner ruling 2026-09-20: «Может нам вообще зиг обновить выдрать наши модули из нашей версии и
+впихнуть в их, 0.16 это серьёзный архитектурный сдвиг» + «Делаем как ты говоришь». Plan and
+per-step evidence: plans/2026-09-20_rebase-on-opentui-0.5.11.md (S0-S4).
+
+MECHANICS
+- packages/opentui/packages/native = THEIR tree (Zig 0.16.0), built here -> lib/x86_64-windows/opentui.dll
+- packages/{core,solid} = their base merged by FILE OVERLAY. Never delete or rename their tree: a
+  directory renameSync is EPERM while files inside are open, and a basename skip filter (`lib`) ate
+  zig-deps/ghostty/src/lib/ and failed the build 9x.
+- our handles.zig census ported into their handles.zig (generation-retire was identical; only the
+  census API was ours).
+- app side: rasterViewport removed from the renderer config; cellSize / setImage / setImageProtocol
+  re-expressed on their per-placement model; tsconfig mirrors @tsconfig/bun's noImplicitOverride.
+
+PARKED, NOT DELETED
+- our raster/Sixel stack + the app's rasterViewport surface: git history +
+  experiments/2026-09-20_rebase-stage/pre-swap/. It returns only when a pixel oracle proves a
+  behaviour needs it.
+- our sixel payload cache: their per-placement sixel cache covers the same ground.
+
+ORACLES
+- bun typecheck exit 0 (the 120 TS4114 were THEIR files against @tsconfig/bun; 2 latent TS2345 in
+  their solid cast the way their own file already does).
+- ABI smoke: setImageProtocol("sixel") -> true, NativeImage.fromRgba(8x8) OK, census renderer=1/1.
+- PIXEL (experiments/2026-09-21_tui-graphics-oracle/): paint-frame.png shows the re-based lib
+  painting a 240x120 fromRgba gradient AND a decoded 2x2 webp through sixel in a real terminal;
+  oracle-result.json records protocol=sixel, decode alpha.webp=true, fromRgba=true, cellSize 10x20.
+- Webp now decodes natively - the codec the pre-rebase fork could not decode (jimp refuses webp, which
+  is why the app carried a sharp bridge).
+
+RESIDUAL
+- keymap is still our 0.4.x copy while core/solid are 0.5.11 (nothing imports it; their packages
+  declare it only as a workspace devDep) - a live mismatch to reconcile or remove.
+- The full TUI-with-mermaid pixel run was NOT captured: the project DB is
+  getProjectDbPath(worktree) = {worktree}/.opencode/data/opencode.db and the TUI only starts with the
+  cwd at packages/opencode, so such a run opens the developer's real database. OPENCODE_DB does not
+  move it - it maps to paths.dbPath (config.ts:1240), not to the project DB.

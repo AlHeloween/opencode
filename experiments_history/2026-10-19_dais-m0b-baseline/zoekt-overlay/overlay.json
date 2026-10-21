@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "D:\\zPython\\opencode\\external\\zoekt\\index\\builder.go": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\zoekt-overlay\\builder.go",
+    "D:\\zPython\\opencode\\external\\zoekt\\index\\indexfile_windows.go": "D:\\zPython\\opencode\\packages\\dais-code-intelligence\\compat\\zoekt\\indexfile_windows.go"
+  }
+}

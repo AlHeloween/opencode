@@ -1,0 +1,7 @@
+# The sandbox's own state — never committed.
+#
+# Its database, its captured request bodies and its logs are all outputs of a run: they are evidence to
+# read, not sources to keep. What IS kept is the scaffolding that produces them — the launcher, the two
+# configs, and the image generator (`red.png` is derived from `make-image.mjs`).
+.opencode/data/
+red.png

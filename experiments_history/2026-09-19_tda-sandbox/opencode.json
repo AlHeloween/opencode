@@ -1,0 +1,53 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // TDA sandbox — the only place the acquisition switch is on, and the only place a provider points
+  // at a local double instead of a real endpoint.
+  //
+  // WHY A LOCAL PROVIDER AND NOT `opencode/*`. The instruction `x-opencode-tda` is sent ONLY to
+  // providers whose id starts with `opencode` (three-layer contract, 2026-09-08). So the sandbox must
+  // use such an id, or the header is never sent, the gateway receives no set, and the run "succeeds" by
+  // withholding nothing. But Zen's free tier refuses this build, and allowing the header onto a
+  // third-party route would be a governance change this experiment has no authority to make.
+  //
+  // REDIRECTING THE EXISTING `opencode` ID DOES NOT WORK — measured: its `model.api.url` comes from the
+  // registry before `options.baseURL` is consulted (`provider.ts:1286-1291`), so the request went to Zen
+  // and the mock stayed empty. A fresh id has no registry entry to fight: for it, `options.baseURL`
+  // IS the api URL (`:1291`), and the models it exposes are exactly those declared here (`:1274`).
+  //
+  // WHAT THIS HONESTLY IS: the "model" is a LOCAL DOUBLE, not a model. Nothing real is called and
+  // nothing is inferred from an answer — the observation is the request body the gateway produced,
+  // which `mock-zen.mjs` records verbatim. The declared capabilities exist so the RUNTIME takes the
+  // image-native path (image input on the wire), which is the path the transform rewrites.
+  // LIMIT, stated plainly: this observes our own pipeline, not a provider's acceptance of it.
+  "model": "opencode-sandbox/vision-double",
+  "provider": {
+    "opencode-sandbox": {
+      "name": "Sandbox local double (TDA)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:8791/v1",
+        "apiKey": "sandbox-local-double"
+      },
+      "models": {
+        "vision-double": {
+          "id": "vision-double",
+          "name": "Sandbox double (image input)",
+          "attachment": true,
+          "tool_call": true,
+          "limit": { "context": 200000, "output": 32768 },
+          "modalities": { "input": ["text", "image"], "output": ["text"] }
+        }
+      }
+    }
+  },
+  "gateway": {
+    "tda": {
+      "enabled": true,
+      "holdTurns": 10,
+      "maxItems": 24,
+      "maxItemBytes": 8388608,
+      "maxHeldTokens": 100000,
+      "priceMargin": 0.25
+    }
+  }
+}

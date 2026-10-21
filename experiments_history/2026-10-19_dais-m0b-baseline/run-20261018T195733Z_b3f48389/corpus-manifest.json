@@ -1,0 +1,247 @@
+{
+  "source_root": "D:\\zPython\\opencode",
+  "files": [
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-capture/main.go",
+      "bytes": 4965,
+      "sha256": "5f2875f08fd46d73e6b0fc67063dae236ea6dd278203972c3386da1ebd26a1b2",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\cmd\\dais-capture\\main.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-capture/main_test.go",
+      "bytes": 975,
+      "sha256": "ca77ee97f5bc042f34a9697b2c5cc38c0f785d75f7f16c1ce4ebaeec94c7f879",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\cmd\\dais-capture\\main_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-ci/main.go",
+      "bytes": 4852,
+      "sha256": "5020b83a94df4d13d9f41cb3ee523e49efef5c2cdc1d36d7dc4b439c55cd10fc",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\cmd\\dais-ci\\main.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-graph/main.go",
+      "bytes": 7463,
+      "sha256": "41d890ad45ed213b9cf520650845ea3416c156aa4e2acf355068b0ac8a7f239b",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\cmd\\dais-graph\\main.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-graph/main_test.go",
+      "bytes": 2596,
+      "sha256": "ca01cf889b0e680110a41e1d553ad6df75ce54eb9927a406a4a547f6fc00a0c5",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\cmd\\dais-graph\\main_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-mcp/main.go",
+      "bytes": 4102,
+      "sha256": "d713cb455cfa3fbb8f96c51e45afbf35b856b9ce44278c602e18a81700ce22d6",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\cmd\\dais-mcp\\main.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/cmd/dais-mcp/main_test.go",
+      "bytes": 437,
+      "sha256": "2aabe7033bacd2a29954f8c845d6b3c0e66c2a5cc1072337526dfdd627fec460",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\cmd\\dais-mcp\\main_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/compat/zoekt/indexfile_windows.go",
+      "bytes": 2599,
+      "sha256": "9729c7c9273bdc88e2d6d1edadf9b13b878c37f085d30dbbf31e1ca9fc8c1268",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\compat\\zoekt\\indexfile_windows.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/capture/capture.go",
+      "bytes": 17303,
+      "sha256": "c605805d831205c012dd49ca85087ad70801091fe6c83b5b2b4e463bc04385bf",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\capture\\capture.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/capture/capture_test.go",
+      "bytes": 11398,
+      "sha256": "0031b7b5b6d0dafbff7b608aed8bd93c4cdc1f5181cbb580fae43f33e2d103b6",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\capture\\capture_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/capture/previous.go",
+      "bytes": 7942,
+      "sha256": "11ba85b62d115a915883108a6fb239c2d4edcdb218f60f8a3cf8fdb364aefd82",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\capture\\previous.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/capture/publish_other.go",
+      "bytes": 180,
+      "sha256": "1c99099760f47c5c5f072ebbeae6e3e76d457cb85b1427681c05d5d400531784",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\capture\\publish_other.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/capture/publish_windows.go",
+      "bytes": 277,
+      "sha256": "77cb1186e4b277fee725b9fb9a7d5e4ff1759cc1fabd9cabf21e67909d9294bd",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\capture\\publish_windows.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/capture/repeated_test.go",
+      "bytes": 8774,
+      "sha256": "335e671b5cbb5f6f10bc8884a3524f0fd67af840bc1d600b731fc8275d25708e",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\capture\\repeated_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/instrument_test.go",
+      "bytes": 2193,
+      "sha256": "a9d27ad7469a52a2413ebbfa132f0d792b8951a1f7f0302c27c42711d0c25d07",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\instrument_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/navigation.go",
+      "bytes": 4995,
+      "sha256": "a3ec0c4c5553b7cd871425747b977a13893d1688e586b7adc6de28d2bf9f0118",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\navigation.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/navigation_test.go",
+      "bytes": 9395,
+      "sha256": "12a5e74c5c0fbdf82c88a8a44617371ae3e6073783a828827c66b8032269411a",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\navigation_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/primitive_test.go",
+      "bytes": 1141,
+      "sha256": "7aef82cb9083dc15fb2dc130ad9a83a95bc9c228bd5a9f2e04a3acbf5573b2e4",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\primitive_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/project.go",
+      "bytes": 9948,
+      "sha256": "26ce8ae6a97fa3240176d0b95887b8d248d34bab524ac53edcc61510f18f734b",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\project.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/project_modern.go",
+      "bytes": 9244,
+      "sha256": "83163d482e59b41e7a1e2a5d53bf3c43215058ab58848c7411bdfcd14ad7bf84",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\project_modern.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/project_modern_test.go",
+      "bytes": 12521,
+      "sha256": "9c5a74f3826af55a4ea9ca65292d1502b45d341816778408b26b2186eaa02059",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\project_modern_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/reference_impact.go",
+      "bytes": 10514,
+      "sha256": "1d4c5dd0a357f1712c6414cf6e0cc92c2b7b46b299e6096fdba8a142a719e1d6",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\reference_impact.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/reference_impact_test.go",
+      "bytes": 13695,
+      "sha256": "4aa14ce917e8596d67674e51b6b0d5e4847de1782fc9dc6b48fae448a162e3de",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\reference_impact_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/snapshot.go",
+      "bytes": 182,
+      "sha256": "51866385c0061df10ab4818637eaf23b749d2a3f0c44fb2b427d8ac562fd4746",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\snapshot.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/store.go",
+      "bytes": 20705,
+      "sha256": "87e715ac957ef28b5e06967ff6dab34f32652f4c342d3f3733f111ca7e11d32f",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\store.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/store_test.go",
+      "bytes": 17088,
+      "sha256": "b9cc915a3c63eb77fe28292528734c57b5c98805de1865a85764319118f3bc36",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\store_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/testdata/modern/math.go",
+      "bytes": 111,
+      "sha256": "928cd23b68c2db07b8afe335b76404ade8b916098844adbed044da2e21338da7",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\testdata\\modern\\math.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/testdata/modern/use.go",
+      "bytes": 79,
+      "sha256": "bf438f375c90cf631f167eb8f9fdbebb1aa87d10bdc81d0017d7ab5eaed985bd",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\testdata\\modern\\use.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/evidencegraph/types.go",
+      "bytes": 2390,
+      "sha256": "ad14599e57870079906b5266c25f15a5320283361ef7d2a9dd0dc722be0b72f2",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\evidencegraph\\types.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/fossil/artifacts_test.go",
+      "bytes": 2671,
+      "sha256": "95a1802579939da4a53ae43882036588ab1841e9060238a8904a7f635fb8d523",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\fossil\\artifacts_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/fossil/provider.go",
+      "bytes": 10873,
+      "sha256": "6148fe10fc04c1cc43a5effe006142a4075189fd3924890a3c5495caca70191c",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\fossil\\provider.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/fossil/provider_test.go",
+      "bytes": 9011,
+      "sha256": "8f0d5272ac9d5e8b2f844f56064d901fb0657552da6adbbd6f67a38cffad1063",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\fossil\\provider_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/mcpserver/server.go",
+      "bytes": 14282,
+      "sha256": "bbbdfd3d5fa60afdbe266bf3ad0db3f747aa38f71c7fe5bfb189bfbfbb07fff5",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\mcpserver\\server.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/mcpserver/server_test.go",
+      "bytes": 23839,
+      "sha256": "a5969c3e5cdcd803c747534482a4bfb7fe56c0f391cced44039530292367138b",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\mcpserver\\server_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/scipmodern/schema.go",
+      "bytes": 1017,
+      "sha256": "82dc3d560bf94b2122ebae291d7107b18236548a79e7a9fe1bf03f13e05ca0ef",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\scipmodern\\schema.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/scipmodern/schema_test.go",
+      "bytes": 1422,
+      "sha256": "1d3c8c366a0cf8ea9286e3423cc305f8602c9f087799405a028501c8cf165249",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\scipmodern\\schema_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/scipwire/scip.pb.go",
+      "bytes": 95227,
+      "sha256": "61179ef826a83046aea36226ab63fcd598e66d6c53702536eff5e5d73dd70307",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\scipwire\\scip.pb.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/search/adapter.go",
+      "bytes": 17560,
+      "sha256": "f2998fae6d00936a78f2eaf714389123cf64e68c97eeb74b8ead09eeb5815d08",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\search\\adapter.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/internal/search/adapter_test.go",
+      "bytes": 12510,
+      "sha256": "afbe509f921da901e86b49c6be3e8df45d65e7a4369704b15ddb5683583e2c17",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\internal\\search\\adapter_test.go"
+    },
+    {
+      "path": "packages/dais-code-intelligence/scripts/modern-scip-descriptor/main.go",
+      "bytes": 1508,
+      "sha256": "b54aa2aa2e53560ff869efc6644e444521a1625c8028995636d457269bf8f106",
+      "frozen": "D:\\zPython\\opencode\\experiments\\2026-10-19_dais-m0b-baseline\\run-20261018T195733Z_b3f48389\\corpus\\packages\\dais-code-intelligence\\scripts\\modern-scip-descriptor\\main.go"
+    }
+  ],
+  "oversize_excluded": [],
+  "manifest_sha256": "b1676667cbdb702e75ad3da59910ec27cd14ad2e058d5bd8c515e48b15b8e6ff"
+}

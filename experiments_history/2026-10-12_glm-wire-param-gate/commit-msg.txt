@@ -1,0 +1,20 @@
+plan(2026-10-12_model-wire-param-gate): gate rejected wire params, learn them once, persist limits
+
+opencode-go/glm-5.3-flash rejected every body carrying `repetition_penalty`
+(`400 [unknown_parameter] ... json: unknown field`), which killed every main
+agent pinned to it. The field was merged into every request (session/llm.ts:629)
+and @ai-sdk/openai-compatible spreads unknown providerOptions keys into the body.
+
+- provider/wire-params.ts: one strip gate inside ProviderTransform.providerOptions
+  (seed ∪ learned), applied before the body is built
+- provider/learned-facts.ts + provider_fact table (CORE_SCHEMA_SQL): per-model facts
+  recorded from the provider's own answers, read as a plain lookup
+- provider/error.ts + session/message-v2.ts: `unknown_parameter` classified; fromError
+  records the fact once and earns exactly one retry via the existing spine
+- session/token-calibration.ts: observed context limits now survive restarts
+
+Oracles: wire-params RED->GREEN (20261012T044706Z_2906edb6 -> 20261012T044739Z_396e42f1);
+regressions 178/178 + tsgo exit 0 + 9/9 + 78/78 + 21/21; stub E2E 20261012T050006Z_eab16811
+(400-with-field -> retry-without -> PONG; provider_fact row) + persistence run
+20261012T050028Z_2eed673d; live GLM 20261012T050048Z_baac8c56 (PONG, clean wire).
+Build 20261012T051651Z_37b3a516 exit 0, smoke 10.0.1283.

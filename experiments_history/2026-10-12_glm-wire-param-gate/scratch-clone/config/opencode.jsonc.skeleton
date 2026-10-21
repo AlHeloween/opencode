@@ -1,0 +1,28 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "stubwire": {
+      "id": "stubwire",
+      "name": "Stub Wire",
+      "env": ["STUBWIRE_API_KEY"],
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:8791/v1"
+      },
+      "models": {
+        "glm-stub": {
+          "name": "GLM Stub",
+          "tool_call": true,
+          "temperature": true,
+          "reasoning": false,
+          "attachment": false,
+          "limit": { "context": 100000, "output": 4096 },
+          "modalities": { "input": ["text"], "output": ["text"] },
+          // local cleartext stub: pin http/1.1 — the h3/h2 rungs speak TLS and cannot
+          // deliver to a plain-http loopback (measured: h3 unsupported → h2 silent-empty).
+          "options": { "protocol": "http/1.1" }
+        }
+      }
+    }
+  }
+}

@@ -71,4 +71,9 @@ stay in the gitignored `experiments/` scratch tree.
 | 2026-09-13 | `vanchin-http-protocol-smoke.py` | 1 | — |
 | 2026-09-14 | `list-deepseek-models.py` | 1 | — |
 | 2026-09-14 | `probe-mem.ps1` | 1 | — |
+| 2026-09-19 | `tda-sandbox` | 9 | — |
+| 2026-09-20 | `palette-hint` | 11 | — |
+| 2026-09-21 | `tui-graphics-oracle` | 19 | — |
+| 2026-10-12 | `glm-wire-param-gate` | 14 | — |
+| 2026-10-19 | `dais-m0b-baseline` | 29 | M0b DAIS baseline — отчёт среза |
 |  | `README.md` | 1 | — |

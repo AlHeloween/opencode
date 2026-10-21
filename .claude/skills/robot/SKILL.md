@@ -114,6 +114,12 @@ tools/cmd_runner.exe start --cwd D:/zPython/opencode --timeout-s 1800 --raw --no
   not metered from the catalog.
 - Continue the same robot session with `--session <sessionID>` (from any json line), never a fresh one.
 
+## Monitor — the completion event (start it right after every send)
+
+Right after `dispatch.py` / `fleet.py dispatch` / `send_note.py`, start
+`python experiments/2026-10-08_robot-wave/watch3.py <name>=<ses_id>` with `run_in_background`. Its exit is the
+event that re-invokes Claude: read back, verify, commit in that same wake-up — never end a turn on a promise to
+check later. What watch3 reports is in its header — read it there, not here.
 ## Read back — the only things that enter Claude's window
 
 1. `state.json` of the run (status, exit, bytes written/dropped) — a silent run is UNKNOWN, never green.

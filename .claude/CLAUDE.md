@@ -35,7 +35,11 @@ in worktrees while the job needed process management and monitoring.
   does Claude tell the same robot session to install (and repin baseline). A FAIL goes back to the robot with the
   findings.
 - **Claude's job:** brief → launch → monitor → read back (final message, diff, DB rows) → run the oracle itself →
-  analyse. Every kernel-protocol error, by robot or by Claude as delegator, is one row in
+  analyse. Monitor is concrete: right after every send (`dispatch.py` / `fleet.py dispatch` / `send_note.py`) start
+  `python experiments/2026-10-08_robot-wave/watch3.py <name>=<ses_id>` with `run_in_background` — its exit
+  re-invokes Claude (read back, verify, commit in that wake-up); never end a turn on a promise to check later
+  (owner, 2026-10-21: «У тебя были реальные events на завершение ходов: 1. Баг 1 в доках этого нет. 2. Баг 2 процедуры работы ты из памяти предыдущей сессии не восстановил.»).
+  Every kernel-protocol error, by robot or by Claude as delegator, is one row in
   `docs/robot-protocol-log.md` — sorted out later with the owner, not fixed in flight.
 
 ## Reasoning kernel

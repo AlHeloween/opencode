@@ -875,6 +875,21 @@ export function sessionOrderOf(msgs: readonly MessageV2.WithParts[]): SessionOrd
  * 36-row real-corpus sample — widen only with a sample re-run proving no offender.
  */
 export const REBIND_CUE = /\b(rebind|re-bind|switch to|switch over|move to|now do|now work on|ordered onto|new order|your new task|take over|pick up)\b/i
+/**
+ * A cue governed by a modal ("must move to", "should switch to") STATES work to be
+ * done — it does not GIVE the order (t130-review3b: ckpt_15d0ee621 "the delegation
+ * procedure must move to another machine" named the plan without ordering onto it).
+ * The gate keeps `REBIND_CUE` as the vocabulary and refuses modal-governed hits.
+ */
+const REBIND_MODAL = /(?:must|should|shall|ought\s+to|need\s+to|needs\s+to|have\s+to|has\s+to|должен|должна|должно|должны|надо|нужно|необходимо)\s+$/i
+export function hasExplicitRebindCue(t: string): boolean {
+  const re = new RegExp(REBIND_CUE.source, "gi")
+  let m: RegExpExecArray | null
+  while ((m = re.exec(t)) !== null) {
+    if (!REBIND_MODAL.test(t.slice(0, m.index))) return true
+  }
+  return false
+}
 
 /** The tools that CREATE or MODIFY a worktree file. A plan file among their arguments is one the
  *  session owns; the read-side tools are absent on purpose — see `sessionSignals`. */
@@ -1788,7 +1803,7 @@ const plans = input.planState?.plans ?? []
   let reboundNote: SessionOrder | undefined
   for (const note of laterNotes) {
     const t = orderTextOf(note)
-    if (!REBIND_CUE.test(t)) continue
+    if (!hasExplicitRebindCue(t)) continue
     const refs = [...new Set(t.match(PLAN_REF) ?? [])].filter((p) => mirrorFiles.has(p))
     if (refs.length === 0) continue
     const head = t.split("\n").find((l) => l.trim().length > 0)?.trim() ?? ""
@@ -1888,7 +1903,7 @@ const plans = input.planState?.plans ?? []
       if (displayOrder) {
         return `${quoteOrder(displayOrder)}${refineLine(displayOrder)}; no plan bound \u2014 the order above is the goal.`
       }
-      return "no goal found \u2014 no user order in this session; ask the delegator; do not invent a goal."
+      return "no goal found in this window — the session's first order is not in reach; recover it with dbread on the session's earliest user row, then sessionread and the earlier summaries; ask the delegator; do not invent a goal."
 })(),
     "",
     "## Plan",

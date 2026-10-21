@@ -8496,3 +8496,19 @@ CONFIRMED ✓ юниты: summary-own-goal.test.ts — NEW 9 pass / 0 fail (run 
 CONFIRMED ✓ стоимость capture на длиннейших сессиях (замер added work полного чтения истории на каждой capture, out/r2-cost.json): ses_f14ad6393… — 1776 сообщений / 8491 частей / 31.8 МБ; первая capture 25.8 мс / 1.2 МБ, последняя 178 мс / 31.6 МБ, сумма по 33 capture = 3.6 с за 29.2 ч = 0.0035% от span. ПЕР-CAPTURE это ШУМ против каденции (одна capture на 64k токенов) — но ФОРМА растёт: цена capture линейна по длине сессии (×6.9 за сессию), итого O(n²) на сессию; лимит 10_000 ограничивает СЧЁТ сообщений, а не байты, и MessageV2.page сортирует NEWEST-first ⇒ для сессии длиннее 10k первый заказ выпадает из окна МОЛЧА (warn срабатывает только при limit < 500). Сегодня максимум 1776 сообщений = 18% окна, поэтому дефект латентный, но направление роста — именно 3–10-дневные сессии роботов с сотней самокомпактов.
 
 Остаток владельцу: (1) точность REBIND_CUE — «move to / pick up / take over» ловят и упоминание, а не только приказ, а правило заявлено как «bare mention never rebinds»; (2) capture читает историю целиком на каждой capture и ограничивает её по счёту, а не по байтам, теряя первый заказ на длинных сессиях молча. Артефакты: experiments/2026-10-21_t132-verify/ (gitignored), out/r2-{base,new,new.pristine,report,report-mutant,rescored,cost}.json.
+## [2026-10-21] t130 review 3b — rebind cue is instruction-only, Goal points LOUD at dbread
+
+WHAT: minimal change on HEAD 64b3cd4c13 (no new fold state, per owner 3b): (1) `hasExplicitRebindCue` gate over the
+`REBIND_CUE` vocabulary in packages/opencode/src/session/compaction.ts — a cue governed by a modal (must/should/
+shall, RU должен/надо/нужно/необходимо) STATES work, it does not GIVE the order, so ckpt_15d0ee621 (t120 must move
+to another machine) must NOT rebind; imperatives (Switch to X now) still rebind. (2) The Goal no-order fallback is
+one loud pointer line: dbread on the session earliest user row, then sessionread and the earlier summaries; Next
+Steps unchanged. Review-3 fill-once store reverted before the change (stash t130-review3 fill-once + copies in
+experiments/2026-10-21_t130-review3-reverted/). Harness ran in the existing new/ tree (one staged file + backup
+out/compaction.head.bak, hash-verified HEAD); no tree was copied.
+
+THE ORACLE: units summary-own-goal 11/11 (run 20261021T151008Z_b72c365b exit 0, incl. 2 new 3b cases); typecheck
+exit 0 (run 20261021T164255Z_aeead7ce); census base-vs-new 344 compared, 0 outside Goal/Next Steps
+(out/r2-report-3b.json); fresh sample corrected 36/36 (HEAD 35/36), strict 24/36 (HEAD 23/36)
+(out/r2-rescored-3b.json); 15d0ee621 FAIL→PASS on all three checks; mutant range→rangE 344/344 Critical-Context
+offenders; _build.ps1 exit 0, smoke 10.0.1506 (run 20261021T164920Z_561e8a60).

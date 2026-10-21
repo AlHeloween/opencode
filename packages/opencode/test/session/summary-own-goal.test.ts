@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { MessageV2 } from "../../src/session/message-v2"
-import { mechanicalSummaryBody } from "../../src/session/compaction"
+import { hasExplicitRebindCue, mechanicalSummaryBody, REBIND_CUE } from "../../src/session/compaction"
 import type { PlanStatePayload } from "../../src/util/plan-status"
 
 /**
@@ -279,4 +279,60 @@ test("review2: an explicit later note rebinds the goal plan (capability pin, pas
   expect(goal).toContain(TUI)
   expect(goal).toContain("tui has no standards -> tui meets standards")
   expect(goal).not.toContain(OWN)
+})
+
+test("review3b: a descriptive must-move-to note never rebinds (ckpt_15d0ee621)", () => {
+  const KIT = "plans/2026-10-21_portable-delegation-kit.md"
+  const kitState: PlanStatePayload = {
+    plans: [
+      {
+        file: KIT,
+        lifecycle: "ACTIVE",
+        intention: { from_state: "procedure pinned", to_state: "kit tracked" },
+        goal_sv: ["kit"],
+        invariants: [],
+        tasks: [{ id: "K1", title: "inventory", sv: [], status: "PENDING", done_pct: null, attempts: 0 }],
+      },
+    ],
+  }
+  const t120 = [
+    "# t120 — the delegation procedure must move to another machine: plan the portable kit (plan only)",
+    "",
+    `See ${KIT} for the piece list.`,
+  ].join("\n")
+  const lineage: MessageV2.WithParts[] = [
+    msg("msg_1", "user", "Handshake the day: what is on the agenda?"),
+    msg("msg_2", "assistant", vector("handshaking", A, ZERO, ZERO)),
+    msg("msg_9", "assistant", vector("working", B, A, ZERO)),
+    msg("msg_10", "user", t120),
+  ]
+  const out = mechanicalSummaryBody({
+    messages: lineage.slice(2),
+    diffs: [],
+    planState: kitState,
+    sessionMessages: lineage,
+  })
+  const goal = section(out, "## Goal", "## Plan")
+  // The old vocabulary still sees its verb here — the gate, not the vocabulary, refuses it.
+  expect(REBIND_CUE.test(t120)).toBe(true)
+  expect(hasExplicitRebindCue(t120)).toBe(false)
+  expect(hasExplicitRebindCue(`Switch to ${KIT} now.`)).toBe(true)
+  expect(goal).toContain("Session order msg_1")
+  expect(goal).not.toContain(KIT)
+})
+
+test("review3b: a window without the first order points LOUD at dbread, never silent", () => {
+  const messages: MessageV2.WithParts[] = [
+    msg("msg_1", "assistant", vector("working with no order", C, ZERO, ZERO)),
+    msg("msg_2", "assistant", vector("still no order", B, C, ZERO)),
+  ]
+  const out = mechanicalSummaryBody({ messages, diffs: [], planState: planState() })
+  const goal = section(out, "## Goal", "## Plan")
+  expect(goal.toLowerCase()).toContain("no goal found")
+  expect(goal).toContain("dbread")
+  expect(goal).toContain("sessionread")
+  expect(goal).toContain("summaries")
+  expect(goal).toContain("ask the delegator; do not invent a goal")
+  expect(goal).not.toContain("no user order in this session")
+  expect(goal).not.toContain(TUI)
 })

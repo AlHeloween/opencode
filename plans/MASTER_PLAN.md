@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 299 |
-| plans active | 44 |
-| tasks passed / total | 1478 / 1812 |
-| open boxes | 192 |
+| plans completed | 298 |
+| plans active | 45 |
+| tasks passed / total | 1479 / 1815 |
+| open boxes | 194 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -505,7 +505,7 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-2 [PENDING] · sv [handshake-brief, triz-probe, predicate-list] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [dossier-gate, model-extracts-gate-decides] · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv [sv-correction-loop, probe-fail-attribution, bounded-reprobe] · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv [applicability-passport, configuration-key, stale-on-change] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv [applicability-passport, configuration-key, stale-refusal] · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv [idle-send, receipt-readback, layer-model-check] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [watch-to-boundary, executor-ledger, independent-verifier] · manifest: MISSING — nobody has written down what this box is
   - TASK-8 [PENDING] · sv [owner-boundary, named-decisions, no-canned-yes] · manifest: MISSING — nobody has written down what this box is
@@ -513,7 +513,7 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-10 [PENDING] · sv [assumptions-list, attribution-first, brief-gap-vs-prior] · manifest: MISSING — nobody has written down what this box is
   - TASK-11 [PENDING] · sv [analyst-separation, failure-inputs, passport-writeback] · manifest: MISSING — nobody has written down what this box is
   - TASK-12 [PENDING] · sv [ripeness-threshold, mechanism-first-proposal, routed-not-applied] · manifest: MISSING — nobody has written down what this box is
-  - TASK-13 [PENDING] · sv [handshake-record, outcome-join, sqlite-namespace] · manifest: MISSING — nobody has written down what this box is
+  - TASK-13 [PENDING] · sv [handshake-record, outcome-join, coverage-first] · manifest: MISSING — nobody has written down what this box is
   - TASK-14 [PENDING] · sv [predictive-measurement, predicate-outcome-link, hypothetical-until-n] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
@@ -546,8 +546,13 @@ note: hash values are generative tags — search them, never compute them.]
   - S8 [PENDING] · sv MISSING · manifest: The TRIZ-to-kernel correspondence lands as one commit that names the plan, carries the 21 new glossary entries and the report, and leaves the shared progress log with only its own hunk. · eta 1 · doing
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-21_fold-hooks-desktop-fork.md` — 2 open / 9 box(es) · lifecycle ACTIVE
+  sv: intention "whatever way the Claude desktop app rebuilds a window — fork with a new session id, compact or clear — opens with no owner messages and no semantic vectors -> the new window opens with the previous window's owner messages and full SV blocks, row-addressed, on all three routes, with every exit path logged" · keywords [fold-rebuild-routes, predecessor-pointer, live-transcript-build, replay-oracle]
+  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 47 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 48 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

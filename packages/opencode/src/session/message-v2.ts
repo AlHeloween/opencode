@@ -1190,6 +1190,23 @@ export function addressableLines(output: string): AddressedLine[] {
 }
 
 /**
+ * The LABELS a text shows — the 8-hex addresses `read` printed, read through the ONE row dialect (`READ_ROW`).
+ *
+ * `addressableLines` above answers «which lines may a caller address»; this answers «which labels does the model
+ * hold», and it reads the WHOLE text, because a `recall` answer carries its rows under a header of its own and a
+ * folded result carries a numbered head of the body. The dialect is the SAME constant, so there is one row shape
+ * in the project and not two.
+ */
+export function labelsIn(text: string): string[] {
+  const out: string[] = []
+  for (const line of resultLines(text)) {
+    const head = READ_ROW.exec(line)
+    if (head) out.push(head[2]!)
+  }
+  return out
+}
+
+/**
  * The ONE line selector: absolute-numbered rows for a stored result. Used by the replay rendering of
  * a `kept` selection AND by the `recall` tool. Two implementations of "which lines" would drift, and
  * the drift would be invisible — the tool would show one thing and the wire another.
@@ -1295,6 +1312,55 @@ export type ConversionOptions = {
   turn?: number
 }
 
+
+/**
+ * THE WINDOW'S ANSWER for one completed tool part: the text the WIRE carries for it.
+ *
+ * Extracted from the renderer so that the window-label computation asks the SAME question the wire answers. Two
+ * implementations of «is this result still in the window» would drift, and the drift would be invisible — the
+ * old→new map would name lines the model cannot see, or hide lines it can.
+ *
+ * The decision is a pure function of the PART plus the replay's own options: a cleared result, a released one, a
+ * narrowed `kept` one, a folded one (over the ONE bound pair of `@/tool/result-limit`) and a truncated one all
+ * leave the window, and each of them says so in the text it leaves behind.
+ */
+export function replayedToolOutput(
+  part: { id: string; tool: string; state: ToolStateCompleted },
+  options?: ConversionOptions,
+): { text: string; compacted: boolean; stripped: { text: string; dropped: number; bytes: number } } {
+  const compacted = Boolean(part.state.time.compacted)
+  const stripped = stripFloodReminderBlocks(part.state.output)
+  const rawOutput = compacted ? "" : stripped.text
+  // A kept selection REPLACES the whole result on the wire — that is what turns recall from
+  // a cost into an optimisation: one round trip paid once to stop paying for the rest. It
+  // must select at least one line, or the model would receive an EMPTY tool result carrying
+  // only its call id; an empty selection falls through to the normal path instead.
+  const keptRows = part.state.kept && rawOutput.length > 0 ? selectLines(rawOutput, part.state.kept).rows : undefined
+  // The state is narrowed HERE; a closure cannot see that narrowing, so the title is read
+  // once, next to the check, instead of being re-derived inside.
+  const storedTitle = part.state.title || undefined
+  const foldedPlaceholder = () =>
+    toolPlaceholder({ tool: part.tool, partID: part.id, title: storedTitle, output: rawOutput })
+  const text = compacted
+    ? REPLAY_CLEARED_MARKER
+    : part.state.released !== undefined
+      ? releasedPlaceholder(
+          {
+            tool: part.tool,
+            partID: part.id,
+            title: storedTitle,
+            output: rawOutput,
+            reason: part.state.released.reason,
+          },
+          foldedPlaceholder,
+        )
+      : keptRows !== undefined && keptRows.length > 0
+        ? truncateToolOutput(keptRows.join("\n"), options?.toolOutputMaxChars, part.id)
+        : overResultLimit(rawOutput)
+          ? foldedPlaceholder()
+          : truncateToolOutput(rawOutput, options?.toolOutputMaxChars, part.id)
+  return { text, compacted, stripped }
+}
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
@@ -1753,8 +1819,12 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             // by the id the placeholder prints; `recall` APPENDS to the tail, so re-acquiring costs
             // nothing structurally. Measured over 34 sessions: 34 recalls against 691 heavy results,
             // and `keep` never used once (0/35).
-            const compactedOutput = part.state.time.compacted
-            const stripped = stripFloodReminderBlocks(part.state.output)
+            // THE WINDOW'S ANSWER, IN ONE PLACE (see `replayedToolOutput`): the text the wire carries for this
+            // part, plus the two facts the conservation report below needs. The renderer and the window-label
+            // computation ask the SAME question — two implementations would drift, and the drift is invisible.
+            const replayed = replayedToolOutput({ id: part.id, tool: part.tool, state: part.state }, options)
+            const compactedOutput = replayed.compacted
+            const stripped = replayed.stripped
             // Every removal the replay performs is reported (conservation.ts): the body stays in
             // the DB, but a reader must be able to total what the wire did NOT carry.
             if (compactedOutput && part.state.output.length > 0)
@@ -1779,48 +1849,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                 messageID: msg.info.id,
                 detail: { tool: part.tool, partID: part.id },
               })
-            const rawOutput = compactedOutput ? "" : stripped.text
-            // A kept selection REPLACES the whole result on the wire — that is what turns recall from
-            // a cost into an optimisation: one round trip paid once to stop paying for the rest. It
-            // must select at least one line, or the model would receive an EMPTY tool result carrying
-            // only its call id; an empty selection falls through to the normal path instead.
-            const keptRows =
-              part.state.kept && rawOutput.length > 0
-                ? selectLines(rawOutput, part.state.kept).rows
-                : undefined
-            // A RELEASE is the caller's own decision about a result it no longer needs in the window:
-            // from here the wire carries the ID-addressed placeholder (so the address invariant holds —
-            // a release that could not be taken back would be a loss), while the stored text is
-            // untouched and `recall(id)` still returns it. The fold's marker keeps precedence, because
-            // it reports the window rather than a decision: a cleared result has no bytes to name.
-            // The state is narrowed HERE; a closure cannot see that narrowing, so the title is read
-            // once, next to the check, instead of being re-derived inside.
-            const storedTitle = part.state.title || undefined
-            const foldedPlaceholder = () =>
-              toolPlaceholder({
-                tool: part.tool,
-                partID: part.id,
-                title: storedTitle,
-                output: rawOutput,
-              })
-            const outputText = part.state.time.compacted
-              ? REPLAY_CLEARED_MARKER
-              : part.state.released !== undefined
-                ? releasedPlaceholder(
-                    {
-                      tool: part.tool,
-                      partID: part.id,
-                      title: storedTitle,
-                      output: rawOutput,
-                      reason: part.state.released.reason,
-                    },
-                    foldedPlaceholder,
-                  )
-                : keptRows !== undefined && keptRows.length > 0
-                  ? truncateToolOutput(keptRows.join("\n"), options?.toolOutputMaxChars, part.id)
-                  : overResultLimit(rawOutput)
-                    ? foldedPlaceholder()
-                    : truncateToolOutput(rawOutput, options?.toolOutputMaxChars, part.id)
+            const outputText = replayed.text
             // Deliver-once (2026-09-07): when the processor already delivered
             // this tool result's media as a real user message (metadata
             // mediaDelivered = <userMessageID>), the media lives in history —

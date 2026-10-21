@@ -12,6 +12,7 @@ import { Tool, canonicalName, TOOL_ALIASES } from "@/tool/tool"
 import type { TaskPromptOps } from "@/tool/task"
 import { Effect } from "effect"
 import { MessageV2 } from "./message-v2"
+import { windowLabelsFor } from "./window-labels"
 import * as Session from "./session"
 import { SessionProcessor } from "./processor"
 import { PartID } from "./schema"
@@ -20,6 +21,7 @@ import { EffectBridge } from "@/effect/bridge"
 import { ModelID } from "@/provider/schema"
 import { Wildcard } from "@/util/wildcard"
 import { Constitution } from "./constitution"
+import { Instance } from "@/project/instance"
 import { SessionID } from "./schema"
 
 const log = Log.create({ service: "session.tools" })
@@ -105,6 +107,12 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
    *  the per-call Tool.Context evaluates — so a tool executed in a LATER loop step
    *  observes that step's messages instead of the step that resolved the catalog. */
   messages: MessageV2.WithParts[] | (() => MessageV2.WithParts[])
+  /**
+   * The replay's own options — the SAME object the conversion uses. The window is read from the wire's decision,
+   * so a window computed with a different turn or a different replay cap would be a window that lies about what
+   * the model is shown.
+   */
+  replayOptions?: MessageV2.ConversionOptions
   promptOps: TaskPromptOps
   /** Canonical tool names disabled via user.tools[k] === false — runtime-deny
    *  only; the catalog on the wire stays complete (KV prefix stability). */
@@ -197,7 +205,19 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     abort: options.abortSignal!,
     messageID: input.processor.message.id,
     callID: options.toolCallId,
-    extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck, promptOps: input.promptOps },
+    extra: {
+      model: input.model,
+      bypassAgentCheck: input.bypassAgentCheck,
+      promptOps: input.promptOps,
+      // The labels of a file the model can still SEE — the runtime's OWN replay selection, read-only. A tool
+      // that does not ask for them is unaffected; the map they feed is complete rather than wrong.
+      windowLabels: (filePath: string) =>
+        windowLabelsFor(
+          typeof input.messages === "function" ? input.messages() : input.messages,
+          filePath,
+          { replay: input.replayOptions, base: Instance.currentMaybe?.directory },
+        ),
+    },
     agent: input.agent.name,
     agentInfo: input.agent,
     messages: typeof input.messages === "function" ? input.messages() : input.messages,

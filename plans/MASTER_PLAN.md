@@ -152,8 +152,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 305 |
 | plans active | 50 |
-| tasks passed / total | 1530 / 1898 |
-| open boxes | 227 |
+| tasks passed / total | 1532 / 1900 |
+| open boxes | 228 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -430,8 +430,9 @@ parent-goal-md5: 00000000000000000000000000000000]
   sv: intention "kernel states machinery without stating its method -> every kernel variant opens with the working method, its why, and the no-human-oracle line, and the Claude variant grounds search on Universal Search hybrid" · keywords []
   - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-19_codex-robot-event-handoff.md` — 4 open / 4 box(es) · lifecycle ACTIVE
+- `plans/2026-10-19_codex-robot-event-handoff.md` — 5 open / 5 box(es) · lifecycle ACTIVE
   sv: intention "внешний робот завершает работу, отчёт остаётся без реакции родителя -> событие OpenCode завершает ожидающий вызов инструмента Codex, родитель получает адресный отчёт и продолжает независимую приёмку без таймерного опроса" · keywords []
+  - TASK-1 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - E1 [PENDING] · sv [completion-predicate 0.60, primary-preservation 0.40] · manifest: MISSING — nobody has written down what this box is
   - E2 [PENDING] · sv [event-handoff 0.60, bounded-lifetime 0.40] · manifest: MISSING — nobody has written down what this box is
   - E3 [PENDING] · sv [parent-continuation 0.50, independent-oracle 0.50] · manifest: MISSING — nobody has written down what this box is

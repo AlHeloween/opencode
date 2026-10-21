@@ -18,6 +18,7 @@ import { Global } from "@opencode-ai/core/global"
 import * as TextCodec from "@/util/text-codec"
 import { execFile } from "child_process"
 import { Constitution } from "@/session/constitution"
+import type { WindowLabelsResolver } from "@/session/window-labels"
 import { filePathDescription } from "./path-hint"
 import * as Log from "@opencode-ai/core/util/log"
 
@@ -917,6 +918,11 @@ export const EditTool = Tool.define(
             if (block) {
               output += `\n\nLSP errors detected in ${path.relative(Instance.worktree, plan.filePath)}, please fix:\n${block}`
             }
+            // The labels of THIS file the model can still see — the runtime's OWN replay selection, read-only.
+            // `undefined` means the window is UNKNOWN (no session context reaches the tool): the map then stays
+            // COMPLETE, which may name a line the model cannot see — the safe direction, because a mapping
+            // missing for a label the model HOLDS is what leaves a stale hash in its working picture.
+            const inWindow = (ctx.extra?.["windowLabels"] as WindowLabelsResolver | undefined)?.(plan.filePath)
             const report = addressReport({
               path: path.relative(Instance.worktree, plan.filePath),
               oldText: plan.contentOld,
@@ -925,6 +931,7 @@ export const EditTool = Tool.define(
               origSpans: plan.origSpans ?? [],
               created: plan.status === "add",
               formatTouched: plan.contentFinal !== plan.contentNew,
+              windowLabels: inWindow,
             })
             if (report) output += `\n\n${report}`
           }

@@ -2102,6 +2102,9 @@ export const layer = Layer.effect(
             if (cachedTools && cachedToolsAgent === agent.name) {
               tools = cachedTools
             } else {
+              // The window is read from the wire's decision, so it is computed with the SAME options the
+              // conversion uses — one source for the turn and the replay cap.
+              const replayOptions = toolReplayOptions(yield* config.get(), session.id)
               tools = yield* SessionTools.resolve({
                 agent,
                 providerAgent: cacheAgent,
@@ -2110,6 +2113,7 @@ export const layer = Layer.effect(
                 processor: handle,
                 bypassAgentCheck,
                 messages: () => liveMessages,
+                replayOptions,
                 promptOps: yield* ops(),
                 userDisabled: new Set(
                   Object.entries(lastUser?.tools ?? {})

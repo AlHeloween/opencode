@@ -151,9 +151,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 298 |
-| plans active | 48 |
-| tasks passed / total | 1491 / 1837 |
-| open boxes | 204 |
+| plans active | 49 |
+| tasks passed / total | 1491 / 1843 |
+| open boxes | 210 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -575,8 +575,22 @@ note: hash values are generative tags — search them, never compute them.]
   sv: intention "Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher running, or has finished with a result Claude has not marked verified; the existing watch3.py is the watcher, so no new waiter is built" · keywords [robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle]
   - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-21_tui-standards-fixes.md` — 6 open / 6 box(es) · lifecycle ACTIVE
+  sv: intention "tui-commands-violate-surface-standards -> all-dialogs-bound-to-ui-standards-clauses-with-capture-evidence" · keywords [Keywords: tui-standards-fixes 0.30, poka-yoke-pickers 0.25, capture-oracle 0.20, confirm-destructive 0.15, discoverable-hints 0.10
+Semantic dominant: Turn the t121 audit FAILs into bound fixes — pickers over free text, confirmed destructives, discoverable hints — each proven by a live capture.
+md5: 7d1e9f2a4b5c48d6a0f3e5c7a9b1d4e2
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 9f2c5e8a1d7b36e04c9f2a5e8d1b7c43
+note: hash values are generative tags — search them, never compute them.]
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 51 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 52 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -152,8 +152,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 299 |
 | plans active | 49 |
-| tasks passed / total | 1490 / 1855 |
-| open boxes | 223 |
+| tasks passed / total | 1499 / 1864 |
+| open boxes | 224 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -562,6 +562,10 @@ note: hash values are generative tags — search them, never compute them.]
   - T9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T10 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-21_delegator-memory-style.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
+  sv: intention "the delegator's memory is a pile it greps instead of a linked, checkable structure -> every file carries its own @SV_FORMAT block computed from that file alone, every [[link]] resolves to an existing file's name under one naming convention, superseded handoffs carry a dated history section instead of contradicting a newer file, MEMORY.md is regenerated mechanically from the files (byte-identical on the second run, inside the app's own 200-line / 25 KB load limit), no owner quote, receipt or measured number is lost, and an audit script that can fail proves all of it" · keywords []
+  - T7 [PARTIAL] · sv MISSING · manifest: The second reader is one command for the owner, because the delegation dispatcher fails on this host. · eta 1 · doing
+
 - `plans/2026-10-21_fold-hooks-desktop-fork.md` — 2 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "whatever way the Claude desktop app rebuilds a window — fork with a new session id, compact or clear — opens with no owner messages and no semantic vectors -> the new window opens with the previous window's owner messages and full SV blocks, row-addressed, on all three routes, with every exit path logged" · keywords [fold-rebuild-routes, predecessor-pointer, live-transcript-build, replay-oracle]
   - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -582,7 +586,7 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-6 [PENDING] · sv [kernel-table, sha-compare, rehash-first] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [fresh-machine-oracle, replay-suites, no-host-strings] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-21_robot-pending-stop-hook.md` — 1 open / 9 box(es) · lifecycle ACTIVE
+- `plans/2026-10-21_robot-pending-stop-hook.md` — 1 open / 11 box(es) · lifecycle ACTIVE
   sv: intention "Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher running, or has finished with a result Claude has not marked verified; the existing watch3.py is the watcher, so no new waiter is built" · keywords [robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle]
   - T7 [PENDING] · sv MISSING · manifest: A real robot asks through the ask tool and the delegator's turn is blocked on that ask until the owner answers. · eta 1 · doing
 
@@ -602,6 +606,6 @@ note: hash values are generative tags — search them, never compute them.]
 
 ## The checks
 
-This body names all 52 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 53 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

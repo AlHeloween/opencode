@@ -7,7 +7,8 @@
 <!-- workflow: lifecycle ACTIVE -->
 
 - **plan_id:** 2026-10-21_delegator-memory-repair
-- **revision:** 1
+- **revision:** 2
+- **revision 2 (owner, 2026-10-21, verbatim):** «Супер, теперь ограничу память в нашем стиле чтобы больше проблем не было. SV, links и так далее. Потом займемся DAIS Desk иначе в твоем текущем состоянии мы просто получим грыжу не начав работать.» — **this changes T10: the robot DOES edit the memory folder.** T10's old rule («The robot does not edit the memory folder — it verifies each proposed replacement fact against its cited source and hands the list over; Claude applies it and re-runs T6's script») is SUPERSEDED: the robot applies the §7 repair list itself, verifying each fact against its cited source first. The list, the oracle and the receipts live in `plans/2026-10-21_delegator-memory-style.md` (t127) and `scripts/memory_audit.py`.
 - **state:** ACTIVE
 - **reported:** owner, 2026-10-21, verbatim: «давай отправлять робота на глубокое исследование - у тебя была память до сессии под другим аккаунтом, потом ты добрал данные, потом из за ошибки хуков потерял память при /clean… Ты сам не сможешь, большой риск что предохранитель все испортит.»
 - **class:** the delegator's continuity path is a mix of one proven mechanism (the fold capture/restore, five revisions in 24 h) and three rules that only survive if someone remembers them (the restore order, the watch3 procedure, the distribution map); the routing of the mechanism itself is keyed on a session source the desktop app never emits, so the one live /clear produced an empty window.

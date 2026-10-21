@@ -8530,3 +8530,22 @@ CONFIRMED ✓ стоимость capture не выросла (item 5): summary.t
 CONFIRMED ✓ юниты: summary-own-goal.test.ts на NEW — 11 pass / 0 fail (run 20261021T170755Z_1b05e346); на BASE — файл НЕ ЗАГРУЖАЕТСЯ («Export named 'hasExplicitRebindCue' not found», run 20261021T170827Z_02749672): это RED уровня загрузки, а НЕ провалы утверждений — 3b добавил новый экспорт, и база его не имеет.
 
 Остаток владельцу: (1) указатель dbread покрывает только окно БЕЗ заказа; окно с ПОЗДНИМ заказом связывает план позднего заказа молча — это всё ещё подмена цели на длинных сессиях, просто тише; (2) capture по-прежнему читает историю целиком на каждой capture и ограничивает её по счёту, а не по байтам.
+## [2026-10-21] t130 review 4 — Case B: a later order in the window is labelled, never bound
+
+WHAT: one uncovered shape from the 3b verify (Case B: first order out of reach, window holds a LATER order —
+Goal bound the later plan silently). Minimal change, no new fold state: (1) capture (summary.ts) probes
+10_001 rows — a full page proves the window was capped and passes transient orderTruncated (no store);
+(2) body (compaction.ts) input orderTruncated?: boolean — while set, Goal carries the dbread pointer plus
+latest order in window <id> (never binds; a later order becomes the goal only by explicit rebind), Next Steps
+mirrors it under the same single condition. Self-found defect in the same change: the first Next Steps edit
+guarded only the boundPlan===null branch, so a bound later plan leaked through (unit caught it); fixed by
+hoisting the guard above the whole expression; plus one bad-hash span that deleted the array tail — restored
+from the edit .bak and re-applied with read-back hashes (never from memory).
+
+THE ORACLE: units summary-own-goal 12/12 (run 20261021T172049Z_148898cf exit 0, incl. new Case B which binds TUI
+on ddf628a250 and points on the new code); typecheck exit 0 (run 20261021T172108Z_7f4851bf); census base-vs-new
+344 compared, 0 outside Goal/Next Steps (out/r2-report-4.json, replay 348/348 run 20261021T172355Z_498b9cd3);
+fresh sample corrected 35/36 — identical rows, identical single miss ckpt_15e9cb1aa on full-3b renderings
+(out/r2-rescored-4on3bfull.json), so no regression (the 34/36 interim was a missing-row artifact of the new
+row ckpt_15f750f3f, absent from r2-new-3b.json); mutant range→rangE 344/344 Critical-Context offenders;
+_build.ps1 exit 0, smoke 10.0.1508 (run 20261021T173135Z_e1367743).

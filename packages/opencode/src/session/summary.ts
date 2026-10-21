@@ -886,7 +886,7 @@ export const layer = Layer.effect(
       // range no longer holds. A failed read falls back to the lineage-derived
       // order inside the body; never an approximation.
       const fullHistory = yield* sessions
-        .messages({ sessionID: input.sessionID, limit: 10_000, visibleOnly: false })
+        .messages({ sessionID: input.sessionID, limit: 10_001, visibleOnly: false })
         .pipe(Effect.catch(() => Effect.succeed(undefined as MessageV2.WithParts[] | undefined)))
 const body = mechanicalSummaryBody({
         messages: input.messages,
@@ -897,7 +897,10 @@ const body = mechanicalSummaryBody({
         // (the brief lives at the session start, before this range).
         sessionMessages: [...(input.beforeMessages ?? []), ...input.messages],
         // First order rides the spread below (undefined falls back to lineage).
-...(fullHistory ? { sessionOrder: sessionOrderOf(fullHistory) } : {}),
+        ...(fullHistory ? { sessionOrder: sessionOrderOf(fullHistory) } : {}),
+        // t130-review4 (Case B): a full page proves the window was capped — the earliest
+        // order in reach may be a LATER one, so the body points instead of binding.
+        ...(fullHistory && fullHistory.length > 10_000 ? { orderTruncated: true } : {}),
       })
       const row = IncrementalCheckpoint.save({
         id: Identifier.ascending("checkpoint"),

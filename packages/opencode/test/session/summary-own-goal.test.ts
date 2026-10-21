@@ -336,3 +336,30 @@ test("review3b: a window without the first order points LOUD at dbread, never si
   expect(goal).not.toContain("no user order in this session")
   expect(goal).not.toContain(TUI)
 })
+
+test("review4: first order out of reach — later order labelled, never bound (Case B)", () => {
+  // The session's first order folded away: the lineage holds only a later note naming TUI.
+  const lineage: MessageV2.WithParts[] = [
+    msg("msg_8", "assistant", vector("working", B, A, BRIEF_MD5)),
+    msg("msg_9", "user", `Continue with ${TUI} per today's note.`),
+  ]
+  const out = mechanicalSummaryBody({
+    messages: lineage,
+    diffs: [],
+    planState: planState(),
+    sessionMessages: lineage,
+    orderTruncated: true,
+  })
+  const goal = section(out, "## Goal", "## Plan")
+  const next = section(out, "## Next Steps", "## Critical Context")
+  expect(goal).toContain("latest order in window msg_9")
+  expect(goal).toContain("dbread")
+  expect(goal).toContain("sessionread")
+  expect(goal.toLowerCase()).toContain("no goal found")
+  expect(goal).toContain("do not invent a goal")
+  // Labelled as later — never bound as the goal.
+  expect(goal).not.toContain("tui has no standards -> tui meets standards")
+  expect(goal).not.toContain("own plan")
+  expect(next).toContain("latest order in window msg_9 is not the goal")
+  expect(next).toContain("ask the delegator; do not invent a goal")
+})

@@ -1651,6 +1651,10 @@ export function mechanicalSummaryBody(input: {
    * order after a fold). Wins over the lineage-derived order; when omitted the
    * lineage's own first order is used. */
   sessionOrder?: SessionOrder
+  /** t130-review4: the capture's window was capped — the earliest order in reach
+   * may be a LATER order, never the session's first. While set, nothing binds:
+   * the Goal carries the pointer and labels the window's latest order as later. */
+  orderTruncated?: boolean
 }): string {
   const text = (m: MessageV2.WithParts) =>
     m.parts
@@ -1889,6 +1893,15 @@ const plans = input.planState?.plans ?? []
     // plan is in the mirror; otherwise the ORDER itself with its address — never
     // another plan. `no goal found` only when no user order exists at all.
 (() => {
+      // t130-review4 (Case B): the first order is out of reach — the window holds a
+      // later order at best. Never bind it: pointer plus the later-order label.
+      if (input.orderTruncated) {
+        const latest =
+          lineageOrder !== undefined
+            ? `latest order in window ${lineageOrder.id}: "${lineageOrder.head.slice(0, 300)}" (sessionread ${lineageOrder.id} for the full order) — a later order becomes the goal only by an explicit rebind instruction; `
+            : ""
+        return `no goal found in this window — the session's first order is not in reach; ${latest}recover it with dbread on the session's earliest user row, then sessionread and the earlier summaries; ask the delegator; do not invent a goal.`
+      }
       if (boundPlan && own?.intention) {
         return `${own.file} intention: ${own.intention.from_state} -> ${own.intention.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
       }
@@ -1915,13 +1928,15 @@ const plans = input.planState?.plans ?? []
     `${passed.length} tasks PASS · ${owed.length} open${plans.length ? ` across ${plans.length} plan(s)` : ""}. Window: ${rows.length} messages, ${input.diffs.length} files touched.`,
     "",
     "## Next Steps",
-boundPlan === null
-      ? displayOrder
-? `No owed task \u2014 no plan bound; continue the session order ${displayOrder.id}.`
-        : "No owed task \u2014 no goal found; ask the delegator; do not invent a goal."
-      : ownOwed.length === 0
-? `No owed task in ${boundPlan} at capture time.`
-        : ownOwed.slice(0, 5).map((o) => `${o.plan} \u2192 ${o.task.title ?? o.task.id}`).join("; "),
+      input.orderTruncated
+        ? `No owed task — first order out of reach (see Goal); ${lineageOrder !== undefined ? `latest order in window ${lineageOrder.id} is not the goal` : `no order in reach`}; ask the delegator; do not invent a goal.`
+        : boundPlan === null
+          ? displayOrder
+            ? `No owed task — no plan bound; continue the session order ${displayOrder.id}.`
+            : "No owed task — no goal found; ask the delegator; do not invent a goal."
+          : ownOwed.length === 0
+            ? `No owed task in ${boundPlan} at capture time.`
+            : ownOwed.slice(0, 5).map((o) => `${o.plan} → ${o.task.title ?? o.task.id}`).join("; "),
     "",
     "## Critical Context",
     `Read the range with sessionread(${rows[0]?.id ?? "<from>"}..${rows[rows.length - 1]?.id ?? "<to>"}); the worktree diff lives in the row's diffs column, the code graph in the impact column. Answers older than this row are in earlier rows, and each one names its own message ids.`,

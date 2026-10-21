@@ -301,6 +301,94 @@ candidate dist, без promotion. [Evidence archive](../experiments_history/2026
 
 ## CLEAN_NEXT_STATE
 
+### M0b: новый ограниченный dispatch 2026-10-19
+
+CONFIRMED ✓ исполнение Muse закончено: final msg_150980870001fPtnnpVd6h0EHY,
+stop/time.completed1792353513972. Новый user после него — служебная L1 panel,
+не новое owner задание. Событийный gap вынесен в
+2026-10-19_codex-robot-event-handoff.md, эта задача M0b остаётся открытой.
+Parent retained-evidence oracle:40 frozen source hashes и native binary hash
+совпали; independent exact sets code26/symbol_text26/filename1/absent0,
+изменённый expected set отвергнут. Receipt:
+experiments/2026-10-19_dais-m0b-baseline/parent-retained-evidence.json.
+Это проверка сохранённых данных, не новый backend replay. Read-only audit нашёл
+неполноту проверок harness (subset/empty могли пройти), перезапись report aliases
+при replay, SQL corpus query без path scope, неполные source dependency pins и
+слишком широкий wrong-revision error control. До repairs criteria3/5 не приняты
+как reusable oracle. Все четыре сохранённых CLI p95 превышают100ms; это CLI
+end-to-end, отдельную latency Zoekt engine не измеряли. Ускорение не заявляется.
+
+**Текущая модель после уточнения владельца:** opencode-go/muse-spark-1.3-contributor.
+Владелец: «Ой блин перезапусти на muse 1.3 contributor» и
+«GLM-5.3-Flash - палит деньги быстро никаких бюджетов не хватит».
+Предыдущий GLM turn остановлен штатным abort: result=true, status idle,
+unfinished tool calls0. Продолжение в той же session
+ses_eaf755836ffed3AybbFykAPUz2 сохраняет candidate artifacts и исходный budget.
+Первый новый assistant msg_15091b543001M7j7GtHfq02oYD реально использует
+opencode-go/muse-spark-1.3-contributor; новый user
+msg_15091b525001lFKTtxfXMMik3I содержит неизменный continuation brief.
+Квитанции: abort-glm-receipt.json, muse-dispatch.json, muse-observation.json
+в experiments/2026-10-19_dais-m0b-baseline/. Никакого fallback на GLM или другую
+модель без нового решения владельца. Историческое описание первого запуска
+ниже сохраняется как история; оно не задаёт текущую модель.
+
+Владелец: «Окей отправляй робота на дело». ALLOW READ / PLAN_WRITE /
+MODIFY_CANDIDATE для одного baseline среза; EXTERNAL_EFFECT только запрос к
+существующему OpenCode host с явно выбранной моделью. Корневой budget этого
+прохода:120steps/150calls/6returns/depth2/3600000ms; child резерв
+80steps/100calls/4returns/depth1/2700000ms, без дальнейшего делегирования.
+Binding: experiments/2026-10-19_dais-m0b-baseline/**; остальные project paths
+read-only. Production consumers/service install/kernel/bin/external не входят.
+Parent intention остаётся неизменным. Master strategy: повторяемый source-pinned
+baseline уменьшает ошибку решения о Z4/Z5 и не закрывает их преждевременно.
+
+CONFIRMED ✓ существующий codegraph-baseline.py прочитан; старый baseline — только
+structural SQLite reader, source .codegraph/codegraph.db. Current host/provider
+получены runtime API, не из старого порта. Muse Spark1.3 Free в выбранном Zen
+catalog не обнаружен; платную Muse Spark не выбираем. Используется ранее
+применявшийся разрешённый opencode-go/glm-5.3-flash с проверкой фактического
+provider/model в первом assistant message.
+
+До запуска product измерений предсказания: известный источник/контрольный запрос
+возвращает известные данные; wrong revision/content hash/filter и изменённый
+expected result дают EXPECTED_FAIL. Source mismatch между backend корпусами
+должен запрещать сравнительный verdict, а не выдавать ускорение. Native fixture
+qualification предшествует timed loop. Oracle: отдельный CLI replay сохранённого
+кандидатного инструмента на новых owned outputs; parent исполняет независимо.
+Index time/RSS/fulltext parity без наблюдения остаются unmeasured; весь M0b
+нельзя закрывать по частичному reader PASS. Runtime oracle ещё не выполнен.
+
+Task manifest: M0b, state=running, eta_turns=3, brief/reference
+experiments/2026-10-19_dais-m0b-baseline/brief.md; dispatch и первый message
+readback появятся в dispatch.json/observation.json того же каталога.
+Continuation: наблюдение receipt → полный final/errors → независимый replay;
+идентификатор исполнения не заменяется пометкой DONE. Связь с MASTER_PLAN
+сохраняется через существующий parent, новая независимая программа не создаётся.
+
+CONFIRMED ✓ dispatch readback: session ses_eaf755836ffed3AybbFykAPUz2,
+user msg_1508aa807001l12JhKpsKcVRR6; первый assistant
+msg_1508b2b530010sf75cQVAHbXvW: opencode-go/glm-5.3-flash, status busy.
+Host nonce-qualified URL http://127.0.0.1:4096/, pid33424; credentials не сохранены.
+Read-only explorer m0b_brief_review обнаружил недостаточный limit12 observation
+и отсутствие first-assistant/user-text digest binding. Observer теперь читает
+полный session API без limit, проверяет исходный user hash и фактическую первую
+модель; first-response-receipt.json сохраняет readback. При завершении получить
+полный collect-opencode report через scripts/codex-hooks/codex_hooks.py и
+show-report; parent acceptance отдельно. Краткая observation не считается DONE.
+Первый strict full-text hash check отказал: host добавляет UTC suffix и отдельные
+synthetic CodeGraph/role/compact parts. Первичный text содержит исходный brief
+неизменным префиксом; readback сохраняет raw digest, brief digest, наблюдённый
+UTC suffix и число отдельных synthetic parts. Не выдавать эти digest за равные.
+
+```yaml
+Keywords: corpus-baseline 0.45, comparable-measurement 0.35, source-provenance 0.20
+Semantic dominant: Проверить сопоставимость corpus/query и измерить baseline до замены потребителей.
+md5: d6a04b725c3e49f1a85790eb2146cd38
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: e8a16f092bce49a5b9f4130dd7c26e84
+note: hash values are generative tags — search them, never compute them.
+```
+
 План ACTIVE: Z1/Z2/Z3, M0a Windows/M1/M2 подтверждены своими receipts.
 Первый исполняемый graph/evidence slice вынесен в completed child plan.
 Native producer/capture child подтверждён archive replay 20261017T055638Z_6cfebbbf:
@@ -327,3 +415,39 @@ baseline без index_time/RSS/fulltext parity/5M verdict. Continuation receipt:
 Disk retirement и долговечная Fossil publication execution receipts — residual.
 В рамках этого среза production consumers и bin/ не менялись; чужие concurrent
 изменения в общем checkout сохранены. Whole-portfolio SUCCESS не установлен.
+
+### Новое поручение владельца 2026-10-20: продолжить базу знаний
+
+CONFIRMED ✓ новый direct request: «Продолжим доделывать нашу базу знаний. Отправь робота».
+Отдельный bounded continuation M0b, без смены цели и consumer cutover. Task SV
+3a9c52f6b41847d0a25e90c781fd6be3, полный блок и прямой приказ:
+experiments/2026-10-20_dais-resume/knowledge-{sv,order}.md.
+Root envelope двух независимых заданий: READ/PLAN_WRITE, существующий OpenCode
+host; candidate reader только experiments/2026-10-19_dais-m0b-baseline/**;
+hook source — отдельный event plan. Root 120steps/220calls/4returns/depth1/
+2400000ms с нового поручения; это новый внешний запрос, не reset старых runs.
+M0b child reserve 60steps/70calls/3returns/900000ms с direct order.
+Остальные old prohibitions сохраняются, model-only fallback запрещён.
+
+CONFIRMED ✓ SV decode прочитан из actual MiniMax msg_1592ef93e001K6hVjKQ6pDndyO,
+0tools; затем повторяющаяся init остановлена abort=true/status=null. Direct
+order отправлен отдельно: session ses_ea6d1578affeocd5D1Cmd5vC3i,
+anchor msg_b8575a06ca994db48fa84fbe0b14ca40. Receipt knowledge-order.json
+sha256 8f73362049a6db4039178260a524c9101020d64f991290313f3694ee39370541.
+Это квитанция отправки, не выполнения. Результат ожидается в knowledge-result.md/json;
+независимая проверка другой моделью после freeze, M0b/Z4/Z5 остаются открыты.
+Smoke prediction до ремонта: исторический воспроизводитель диагностический до
+fresh classification; текущие existing controls должны сохраниться, внесённый
+hash/revision/result mutant должен быть обнаружен. Нельзя закрывать недоступные
+index_time/RSS метрики prose-отчётом. Следующий шаг — событийный terminal receipt,
+затем raw artifacts/replay и независимый вердикт.
+
+CONFIRMED ✓ bounded M0b continuation retained fresh run20261020T120914Z_afb296a3,
+40files/40matched/0drifted/0missing; independent Muse report and full raw pytest
+export under experiments/2026-10-20_dais-resume/verify-knowledge/. Reader unchanged
+9021eb97...,15new testsRED/13oldPASS; implementation of5defect classes remains.
+Freeze/result pins in knowledge-freeze.json. Saved verifier log was HARNESS failure;
+parent recovered actual full ev_170d946a output with hash be550606d905ab587ab615f53285ee5c228a0c65d413e7dde3c1629526d6c2e5.
+Do not claim whole M0b/parity/speedup. Next: minimal reader repair + independent
+replay, source-pinned full logs and mandatory build. Callback experiment links to
+event parent plan; actual native next request is pending, see parent-readback.md.

@@ -103,7 +103,8 @@ Owner, 2026-10-15, verbatim: «у нас есть fossil каждого прое
   thrown. The dominant comes from the same `vectorSign` the commit already carries. Plan ref:
   RESIDUAL — the runtime has no session→plan binding to read cheaply; the dominant is the turn's
   focus and the plan lives in the session transcript.
-- **tickets** — PROPOSAL (owner decides, no build): local tickets live in snapshot.fsl's own ticket
+- **tickets** — DECIDED, owner 2026-10-15 verbatim: «Локальные тикеты через fossil ticket add, делегирование в org».
+  Write path still to build (queued: local-ticket-write). Original proposal: local tickets live in snapshot.fsl's own ticket
   table (default fields, `fossil ticket add/set -R`); cross-project delegation stays in org.fossil
   (its schema already carries root_task/parent_task/lease fields). No second delegation system.
 - **upkeep** — the card is create-if-missing at the first cell post of each process (self-healing

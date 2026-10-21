@@ -151,8 +151,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 299 |
-| plans active | 49 |
-| tasks passed / total | 1499 / 1864 |
+| plans active | 50 |
+| tasks passed / total | 1498 / 1864 |
 | open boxes | 224 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -564,7 +564,7 @@ note: hash values are generative tags — search them, never compute them.]
 
 - `plans/2026-10-21_delegator-memory-style.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
   sv: intention "the delegator's memory is a pile it greps instead of a linked, checkable structure -> every file carries its own @SV_FORMAT block computed from that file alone, every [[link]] resolves to an existing file's name under one naming convention, superseded handoffs carry a dated history section instead of contradicting a newer file, MEMORY.md is regenerated mechanically from the files (byte-identical on the second run, inside the app's own 200-line / 25 KB load limit), no owner quote, receipt or measured number is lost, and an audit script that can fail proves all of it" · keywords []
-  - T7 [PARTIAL] · sv MISSING · manifest: The second reader is one command for the owner, because the delegation dispatcher fails on this host. · eta 1 · doing
+  - T7 [PENDING] · sv MISSING · manifest: The second reader is one command for the owner, because the delegation dispatcher fails on this host. · eta 1 · doing
 
 - `plans/2026-10-21_fold-hooks-desktop-fork.md` — 2 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "whatever way the Claude desktop app rebuilds a window — fork with a new session id, compact or clear — opens with no owner messages and no semantic vectors -> the new window opens with the previous window's owner messages and full SV blocks, row-addressed, on all three routes, with every exit path logged" · keywords [fold-rebuild-routes, predecessor-pointer, live-transcript-build, replay-oracle]

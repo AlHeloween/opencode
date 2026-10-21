@@ -1,4 +1,4 @@
-# 2026-10-21 — Orca reuse: what the corporation takes from the owner's Orca fork (futures candidate)
+# 2026-10-21 — Orca reuse: what the corporation takes from the owner's Orca fork (futures candidate — ON HOLD)
 
 <!-- intention: orca-read-as-prior-art -> a-corporation-that-states-each-robot-liveness-with-a-reason,-refuses-a-second-dispatch-of-the-same-task,fences-the-superseded-lane,and-shows-the-owner-one-panel -->
 
@@ -11,15 +11,19 @@ parent-goal-md5: 4d9a2f7c1e6b38e05c4d9f2a7e1c6b84
 note: hash values are generative tags — search them, never compute them.
 ```
 
-## CONDITION (owner decides; this plan stays in `plans/futures/` until then)
+## STATE: ON HOLD (owner, 2026-10-21, verbatim)
 
-Activate (move to `plans/`) only when the owner approves **all three**:
+«С оркой повремени пока что - у меня есть решение покруче. Орка это не писк моды и не закрывает много вопросов.»
+
+**Resume condition:** the owner presents his own solution; this plan is then re-judged against it.
+
+**State:** ON HOLD. The plan stays in `plans/futures/`; no box is dispatched; the three decisions below are **suspended, not met**. The report and the reuse matrix stay as the evidence they are — the hold withdraws nothing that was measured, it only stops the work.
+
+**Suspended decisions** (re-read only after the resume, and only against the owner's own solution):
 
 1. **the source of liveness** — the robot's own server reports its state into the corporation bridge (Orca's model: the observer lives in the product, `external/orca/src/main/opencode/opencode-pty-launch.ts:4`) **vs** the delegator keeps polling from outside (today's `watch3.py`). Orca's structure makes the «watchers killed by a robot» failure impossible; ours makes it routine. The owner picks which side of that line we stand on.
 2. **the fence's transport** — a fence (`consumer_fenced`, `external/orca/src/main/runtime/rpc/methods/orchestration/messaging/dispatch-mailbox-fence.ts:9-14`) must reach a robot that is **busy**. Our only route (`send_note.py`) waits for idle, and a fence that arrives at idle is a fence too late. Either a new route is authorized, or the fence is scoped to the delegator's own lane and does not claim to stop the robot.
 3. **the panel's surface** — the corporation summary the owner reads (t125 §4: fossil's own web UI, an orgd page, or the TUI). Orca's answer is an Electron sidebar with a five-class attention ladder (`external/orca/src/shared/sidebar-list/smart-attention.ts:22-34`); ours must be one of our surfaces, and the ladder is only a candidate ordering for it.
-
-Without these three words this plan is not dispatchable.
 
 ## Source
 

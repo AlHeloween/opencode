@@ -128,3 +128,79 @@ def test_cleanup_never_follows_a_junction():
         assert target.exists(), "the junction TARGET must survive the deletion"
         assert (target / "keep.bin").exists(), "the target's CONTENT must survive"
         assert not (root / "sub").exists(), "the copied subtree must be gone"
+
+
+def test_copy_refuses_a_prediction_over_budget():
+    """A forecast must GATE the copy, not follow it.
+
+    Owner, 2026-10-22: «Короче схалтурил и выполнил действие без проверки и
+    прогноза ожидаемого результата.» -- the 72 GB copy was an action taken
+    without a predicted size. So the copy tool must PREDICT first and REFUSE
+    when the prediction is over budget, having written nothing.
+    """
+    copy = _load("copy_tree_safe")
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        src = base / "src"
+        dst = base / "dst"
+        _write(src / "big.bin", 3 * 1024 * 1024)
+
+        # 3 MB against a 1 MB ceiling: the forecast is over budget.
+        code = copy.main([str(src), str(dst), "--max-gb", str(1 / (1024 ** 2))])
+        assert code == 1, "a copy over the predicted budget must be REFUSED"
+        assert not dst.exists(), "the refused copy must not have written anything"
+
+        # The same tree under a ceiling it fits: the copy proceeds.
+        code = copy.main([str(src), str(dst), "--max-gb", "10"])
+        assert code == 0, "a copy within the predicted budget must proceed"
+        assert (dst / "big.bin").exists(), "the permitted copy must have written the file"
+
+
+def test_copy_dry_run_predicts_without_writing():
+    """The forecast is available BEFORE the action, and writes nothing."""
+    copy = _load("copy_tree_safe")
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        src = base / "src"
+        dst = base / "dst"
+        _write(src / "blob.bin", 2 * 1024 * 1024)
+        code = copy.main([str(src), str(dst), "--dry-run"])
+        assert code == 0
+        assert not dst.exists(), "a dry run must not write anything"
+
+
+def test_copy_does_not_copy_a_junction_target():
+    """The forecast must not count a junction's target: it is not ours to copy."""
+    if os.name != "nt":
+        return
+    copy = _load("copy_tree_safe")
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        target = base / "target"
+        _write(target / "huge.bin", 8 * 1024 * 1024)
+        src = base / "src"
+        (src / "sub").mkdir(parents=True)
+        _write(src / "sub" / "real.bin", 16)
+        proc = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(src / "sub" / "linked"), str(target)],
+            capture_output=True, text=True,
+        )
+        assert proc.returncode == 0, "the fixture needs a real junction: %s" % proc.stderr
+
+        dst = base / "dst"
+        code = copy.main([str(src), str(dst), "--max-gb", "0", "--mode", "skip"])
+        assert code == 0
+        assert (dst / "sub" / "real.bin").exists(), "the real file must be copied"
+        assert not (dst / "sub" / "linked").exists(), \
+            "the junction must not be materialized as a copy of its target"
+        assert target.exists(), "the junction target must survive the copy"
+
+        # In link mode the junction is RECREATED (the target is shared, not
+        # copied) -- so the target's file is reachable, but no target BYTES were
+        # copied: the projection must not count them.
+        dst2 = base / "dst2"
+        code = copy.main([str(src), str(dst2), "--max-gb", "0", "--mode", "link"])
+        assert code == 0
+        copied = sum(size for _rel, _path, size in tree.walk(str(dst2))[1])
+        assert copied < 1024 * 1024, \
+            "the copy wrote the junction target's bytes (%d) instead of linking it" % copied

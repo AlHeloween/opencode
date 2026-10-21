@@ -18,12 +18,16 @@ Two modes for a junction, chosen by what the copy is FOR:
               not copied) -- the shape a harness tree wants;
   ``skip``    leave the junction out entirely and report it.
 
-A ``--dry-run`` reports the projected size FIRST, so a copy that would write
-72 GB is visible before it is written.
+THE FORECAST GATES THE ACTION. The projected size is computed FIRST; if it is
+over the budget the copy is REFUSED and NOTHING is written. Owner, 2026-10-22:
+«Короче схалтурил и выполнил действие без проверки и прогноза ожидаемого
+результата.» -- the 72 GB copy was an action taken with no predicted size and no
+verdict, so the predicted size is now a gate, not a note.
 
 Usage:
     python scripts/copy_tree_safe.py SRC DST --mode link
     python scripts/copy_tree_safe.py SRC DST --mode link --dry-run
+    python scripts/copy_tree_safe.py SRC DST --max-gb 2      # refuse over 2 GB
 """
 
 from __future__ import annotations
@@ -37,7 +41,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from experiments_tree import is_reparse, walk  # noqa: E402
+from experiments_tree import walk  # noqa: E402
+
+DEFAULT_MAX_GB = 2.0
 
 
 def junction_target(entry) -> str:
@@ -59,8 +65,12 @@ def make_junction(link_path: str, target: str) -> bool:
     return proc.returncode == 0
 
 
-def copy_tree(src: str, dst: str, mode: str, dry_run: bool):
-    """Copy ``src`` to ``dst``; junctions are recreated or skipped, never followed."""
+def copy_tree(src: str, dst: str, mode: str, dry_run: bool, max_bytes: int):
+    """Copy ``src`` to ``dst``; junctions are recreated or skipped, never followed.
+
+    The projection is computed before a single byte is written; over the budget
+    the copy is REFUSED and the destination is not created.
+    """
     tree, files = walk(src)
     junctions = [entry for entry in tree.walk() if entry.reparse]
     projected = sum(size for _rel, _path, size in files)
@@ -77,6 +87,9 @@ def copy_tree(src: str, dst: str, mode: str, dry_run: bool):
         "errors": [],
     }
     if dry_run:
+        return report
+    if max_bytes and projected > max_bytes:
+        report["refused"] = "predicted %.2f MB > budget %.2f MB" % (projected / 1048576, max_bytes / 1048576)
         return report
 
     os.makedirs(dst, exist_ok=True)
@@ -102,11 +115,13 @@ def copy_tree(src: str, dst: str, mode: str, dry_run: bool):
 
 
 def main(argv) -> int:
-    parser = argparse.ArgumentParser(description="Junction-safe tree copy.")
+    parser = argparse.ArgumentParser(description="Junction-safe tree copy with a size forecast that gates the action.")
     parser.add_argument("src")
     parser.add_argument("dst")
     parser.add_argument("--mode", choices=["link", "skip"], default="link")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--max-gb", type=float, default=DEFAULT_MAX_GB,
+                        help="REFUSE the copy when the PREDICTED size exceeds this (0 = no limit; default = the 2 GB folder budget)")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -115,17 +130,24 @@ def main(argv) -> int:
         sys.stderr.write("copy_tree_safe: not a directory: %s\n" % args.src)
         return 2
 
-    report = copy_tree(src, os.path.abspath(args.dst), args.mode, args.dry_run)
+    max_bytes = int(args.max_gb * (1024 ** 3)) if args.max_gb else 0
+    report = copy_tree(src, os.path.abspath(args.dst), args.mode, args.dry_run, max_bytes)
+
     if args.json:
         print(json.dumps(report, indent=2))
     else:
         print("projected: %.2f MB in %d files" % (report["projected_bytes"] / 1048576, report["files"]))
-        print("junctions: %d seen, %d recreated, %d skipped" % (
-            len(report["junctions_seen"]), len(report["junctions_recreated"]), len(report["junctions_skipped"])))
-        for item in report["junctions_seen"]:
-            print("  %s -> %s" % (item["rel"], item["target"]))
-        for error in report["errors"]:
-            print("  ERROR %s: %s" % (error["rel"], error["error"]))
+        if report.get("refused"):
+            print("REFUSED: %s -- nothing was copied" % report["refused"])
+        else:
+            print("junctions: %d seen, %d recreated, %d skipped" % (
+                len(report["junctions_seen"]), len(report["junctions_recreated"]), len(report["junctions_skipped"])))
+            for item in report["junctions_seen"]:
+                print("  %s -> %s" % (item["rel"], item["target"]))
+            for error in report["errors"]:
+                print("  ERROR %s: %s" % (error["rel"], error["error"]))
+    if report.get("refused"):
+        return 1
     return 1 if report["errors"] else 0
 
 

@@ -211,6 +211,13 @@ export const PipelineTool = Tool.define(
               title: `${step.description} (@${stepAgent.name} subagent)`,
             })
 
+            // t87: ONE lookup of ONE key (L4 `globalRecents`) — the gate, not a parent walk.
+            // It is resolved BEFORE the thunk that reads it: `Effect.sync` runs its thunk at
+            // the `yield*`, so a `const` read from that thunk is still in its dead zone.
+            const pipeRecents = yield* Effect.tryPromise({
+              try: () => readGlobalRecents(),
+              catch: () => undefined,
+            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
             // Chain assignment (t68): the session layer's explicit chain wins over
             // the legacy resolution below; empty layer falls through to it.
             const chainResolved = yield* Effect.sync(() =>
@@ -221,11 +228,6 @@ export const PipelineTool = Tool.define(
             ).pipe(Effect.catch(() => Effect.succeed(undefined)))
             // Unified model resolution: session → workspace → global agent config → default
             const parentSession = yield* sessions.get(ctx.sessionID)
-            // t87: ONE lookup of ONE key (L4 `globalRecents`) — the gate, not a parent walk.
-            const pipeRecents = yield* Effect.tryPromise({
-              try: () => readGlobalRecents(),
-              catch: () => undefined,
-            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
             const resolved = yield* Effect.tryPromise({
               try: () =>
                 resolveAgentModel(stepAgent.name, {

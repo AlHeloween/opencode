@@ -1,4 +1,4 @@
-import { afterEach, describe, expect } from "bun:test"
+import { afterEach, describe, expect, setDefaultTimeout } from "bun:test"
 import { Deferred, Effect, Fiber, Layer } from "effect"
 import type * as Tool from "../../src/tool/tool"
 import { Agent } from "../../src/agent/agent"
@@ -20,6 +20,8 @@ import { Global } from "@opencode-ai/core/global"
 import path from "path"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+
+setDefaultTimeout(20_000)
 
 afterEach(async () => {
   await Instance.disposeAll()

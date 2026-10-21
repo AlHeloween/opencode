@@ -232,6 +232,13 @@ export const TaskTool = Tool.define(
       const msg = yield* Effect.sync(() => MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }))
       if (msg.info.role !== "assistant") return yield* Effect.fail(new Error("Not an assistant message"))
 
+      // t87: ONE lookup of ONE key (L4 `globalRecents`) — the gate, not a parent walk.
+      // It is resolved BEFORE the thunk that reads it: `Effect.sync` runs its thunk at
+      // the `yield*`, so a `const` read from that thunk is still in its dead zone.
+      const taskRecents = yield* Effect.tryPromise({
+        try: () => readGlobalRecents(),
+        catch: () => undefined,
+      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       // Chain assignment (t68): the session layer's explicit chain wins over
       // the legacy resolution below. Empty layer falls through silently here
       // (the `bug:` warn lives in `resolveChainAgentModel`); a taken chain
@@ -243,11 +250,6 @@ export const TaskTool = Tool.define(
         }),
       ).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const parentSession = yield* sessions.get(ctx.sessionID)
-      // t87: ONE lookup of ONE key (L4 `globalRecents`) — the gate, not a parent walk.
-      const taskRecents = yield* Effect.tryPromise({
-        try: () => readGlobalRecents(),
-        catch: () => undefined,
-      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const modelState = yield* Effect.tryPromise({
         try: () => readModelState(),
         catch: () => undefined,

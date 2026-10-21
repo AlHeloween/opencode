@@ -93,6 +93,21 @@ note: hash values are generative tags — search them, never compute them.
       - the slogan or brief text and when it entered;
       - the per-day P&L as the outcome leg, net of costs (r243: «per-trade predictions, baseline comparison, net costs
         and a held-out period»).
+    - **ClientSoft natural experiment (t138, robot on minimax-m3.1-flash-free, verified by re-run).** One session,
+      Muse 1.3 Spark (10-13..10-20, 1821 msgs) and then MiniMax m3.1 flash (10-20..10-21, 1042 msgs). Source:
+      `experiments/2026-10-22_robot-sv-evolution/clientsoft/REPORT.md`, predictions in `PREDICTIONS_clientsoft.md`.
+      My re-run (`verify_claude.json`) gave identical values, and my own `git log` recount gave Muse 2 commits and
+      MiniMax 8.
+      - ✗ C2 inverted: Muse emitted 3.46 SVs per 100 msgs, MiniMax 1.15 (Fisher p 0.0001).
+      - C3 alignment with the current order: UNKNOWN (p 0.30-0.60; the sign flips with the order-selection rule).
+        «After the 3rd fold» is untestable here: MiniMax only ever ran after 8 session folds.
+      - C4 turn-to-turn carry: equal (+0.049 vs +0.050, p 0.46; MiniMax n = 7).
+      - ✓ C5 outcome: 2 commits in 7 days against 8 in 2 days (p 0.0002). This is worktree-level attribution, by time
+        window, and all 8 MiniMax commits landed on one day.
+      - Fold rate: MiniMax 0.77 per 100 msgs against Muse 0.38, which matches «Muse neglected the fold».
+      - Reading: the owner's account holds on the OUTCOME leg and on the fold rate, not on the SV metrics. More SVs
+        is not more evolution (Muse wrote 3× more). A confound to name: MiniMax inherited the session's 8 folds of
+        accumulated memory from the Muse era.
     - Open for this box: the outcome leg (@MEDOID_SIMPLEX — the SV text is one source category); the channel test
       (post-fold SV vs the summary's SV); more sessions for convergence.
 - [ ] T7 — Generalise: the same method for any Claude lane or robot identity (input = era list + cut). Report-only

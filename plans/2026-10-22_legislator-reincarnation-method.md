@@ -56,6 +56,16 @@ note: hash values are generative tags — search them, never compute them.
   Design where full SV blocks and owner rows are kept durably (Storage Paradigm: a key namespace, not a new JSON file;
   candidates are the project fossil `sv:<md5>` comments and the robot DB). Owner decision before any write path.
   Standard: AGENTS.md § Storage Paradigm.
+- [ ] T8 — Research: robots evolve through their SVs. The owner, 2026-10-22, verbatim: «В этой сессии будем заниматься
+  исключительно этим вопросом потому что это сама по себе тема для исследования. Получается так что наши роботы
+  эволюционируют через свои SV.» Today this is testimony (memory `project_robots_deepen_across_folds.md`: «cite as
+  testimony until a metric exists»). The metric: read each robot session's own SV chain from the robot DB
+  (assistant parts; fold boundaries = `=== COMPACTED ===` parts). Per step, measure L1 between consecutive weight
+  vectors (`@L1_DISTANCE`), axis birth and death, and **axis persistence across a fold** compared with persistence
+  inside a segment. Hypothesis: the axes that serve the brief survive folds and gain weight (deepening); the rest decay.
+  Falsifier: cross-fold persistence no higher than a shuffled-order baseline. The same reader finds a wrong axis (the
+  1e712796:5108 shape) in robot chains. Standard: kernel @L1_DISTANCE, @MEDOID_SIMPLEX (a second, independent leg is
+  needed, e.g. diff/commit outcome per axis).
 - [ ] T7 — Generalise: the same method for any Claude lane or robot identity (input = era list + cut). Report-only
   first, kept in `plans/futures/` until T2-T4 pass.
 

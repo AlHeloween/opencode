@@ -292,6 +292,7 @@ Prose-only: 375 sentences, knee at cos ≈ 0.80 (p99.9 = 0.723), 10 pairs above 
       2026-10-08 fresh at `b65757638e`: pytest 145/0 (`20261008T002202Z_c95b83a1`); parity trio in F8 — registry
       11/0, kernel-alignment 5/0, manifest **RED** (`samply`); `bun typecheck` exit 0 (`20261008T002838Z_7951fe73`).
       Not closable here: `--install` is the owner's act and the manifest red needs the F8 fix (kernel row).
+      **t135 (2026-10-22): this box splits in two.** The measurable half is (b) and runs FIRST: pytest + the parity trio + `bun typecheck` + render-vs-caps + the diff to the owner — that receipt is exactly what the install needs. The `--install` half is (c) — an owner act, quoted from this plan: «Not closable here: `--install` is the owner's act and the manifest red needs the F8 fix (kernel row)». Resume: F8 lands (the `samply` row added to `prompt_kernel/identity_tools.json` + the regenerated manifest → the parity suite green) → the owner runs `--install` + repin → the claude/codex receivers refresh (no identity rows).
 - [x] docs: record the release (amend `docs/kernel-release-2026-09-28.md` or a sibling — one home per fact); update `docs/gate-addons.md` if budgets move.
       ✓ `docs/kernel-release-2026-09-29.md` and `docs/kernel-release-2026-10-01.md` exist and name this plan (lines 3 and 5).
 - [ ] Commits naming this plan; move to `plans_completed/` when boxes close; scan for stale refs.

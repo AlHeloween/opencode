@@ -511,6 +511,7 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     likely does not wait (Inferred); (g) README says «На целевой машине НЕ нужно ничего устанавливать» while
     `start_all` registers six Windows services under admin.
 - [ ] **I1 pristine baseline:** on a clean VMware Windows snapshot, record what is missing BEFORE any install (WebView2, VC++, Git, VT, paths). <!-- sv: pristine-vm, baseline, preflight -->
+  **t135 (2026-10-22): I1 is class (c) — it needs a pristine VMware snapshot, and the owner parked the VMware line:** «Вопросы с vmware пока отложим до лучших времен» (owner, 2026-10-01, quoted in the cua plan too). Resume: the owner provides the snapshot (or names a substitute host). The recording itself — what is missing BEFORE any install (WebView2, VC++, Git, VT, paths) — is one command once the host exists.
 
 ## Work
 
@@ -774,6 +775,7 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
 - [ ] **V2 virtual-display install/uninstall:** silent offline install + uninstall by recorded hardware ID; `HypervisorPresent` read before and after; resolution set for the robot's display. <!-- sv: virtual-monitor, silent-install, hypervisor-guard -->
 - [ ] **V3 robot on its own display:** the installed robot places its GUI targets on the virtual display (T3/T4 of the cua plan) and the A6 oracle passes. <!-- sv: virtual-monitor, robot-display, t3-oracle -->
 - [ ] **U1 Universal Search fit for colleagues:** not shippable as is — it fails both duties (memory `user-two-ethics-user-and-services`): to the user, services as LocalSystem with an unauthenticated CDP port (fix prepared: `experiments/2026-09-30_universal-search-hardening/harden_services.ps1`, then `--remote-debugging-pipe` in its code); to the services, a design meant to get past bot walls. Redesign for the bundle: official APIs first, paced polite fetching (one request per host at a time, backoff on 429/challenge, cache), stop at any CAPTCHA, no human impersonation; its egress manifest per the audit plan SF. <!-- sv: universal-search, two-ethics, redesign -->
+  **t135 (2026-10-22): U1 is class (c) — a legal/redistribution decision, quoted from the audit this plan names:** «Open for stage 2: … and the redistribution question (bot-wall bypass) — a legal decision, not a measurement» (audit plan SF stage 1). The decision named: may a redistributed bundle ship a bot-wall-bypass fetcher at all? Until it is answered, the implementable half is the redesign's own words — «official APIs first, paced polite fetching (one request per host at a time, backoff on 429/challenge, cache), stop at any CAPTCHA, no human impersonation» — and that half is (b): it does not wait.
 - [x] **B4 free-model config:** first-run config selects a free provider; no key prompt required. <!-- sv: free-models, first-run, no-keys -->
   ✓ 2026-10-07 (owner: «ключи в зашифрованное хранилище это мысль! Только проверь чтобы все работало»). Keyless
   default measured (C1: `opencode/nemotron-3-ultra-free`, second `space-bunny-free`). Optional keys go to the ROBOT,
@@ -893,3 +895,4 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   the pristine VM, a READY test ticket for `codex`/`claude` is claimed, reported and closed with no hand edit; a
   logged-out host gets no task registered. <!-- sv: org-worker, subscription-agents, per-user-scheduler -->
 - [ ] **B6 pristine-VM acceptance:** A0–A5 on a reverted snapshot, network disconnected for install. <!-- sv: acceptance, pristine-vm, offline -->
+  **t135 (2026-10-22): B6 is class (c) for the same reason as I1 — it runs on that pristine snapshot** (A0–A5, network disconnected, reverted). It is the acceptance of the whole installer and must not be faked on the build host; the A0–A5 checklist is already named above.

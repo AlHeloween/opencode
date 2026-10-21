@@ -64,7 +64,7 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
       `optionalPattern` at all. Deleting that call leaves every test green while the tool searches with no
       filter. Pinning it costs a messagesearch instance driven with a malformed pattern; the residual is
       recorded here instead of being left implied.
-- [ ] **C2 — file tools:** `read`, `write`, `edit`, `multiedit`, `ls`/`list`, `restore`, `treediff`, `compare`.
+- [x] **C2 — file tools:** `read`, `write`, `edit`, `multiedit`, `ls`/`list`, `restore`, `treediff`, `compare`. — **CLOSED 2026-10-22 (t135), class (a): the one thing this box still owed — a mutation check — was run on 2026-10-09.** Receipt: commit `adedb84375` («plan(2026-10-01_tool-description-contracts C2): compare's three pins proven fallible - one mutation per promise, one RED at each pin's own address (t23-compare-mutation)»); the store's manifest for this task reads `state=doing` with the oracle «The ONLY thing left for C2 is ONE mutation check…» — that check IS the commit above, and the body below carries its runs.
       **Перегрунтован на код 2026-10-01** — и это окупилось дважды:
       - **БАЗА БЫЛА КРАСНОЙ, и красное — наше.** `test/tool/edit-exact.test.ts` падал тремя случаями с
         `Missing key at ["files"]` (`20261001T052355Z_7c3c83cb`): схема уехала на пакет (H6), а этот файл
@@ -175,11 +175,9 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
         (г) `grep` на НЕВАЛИДНОМ регексе отвечает «No matches found» вместо ошибки ✗ — **воспроизведено заново
         2026-10-09**: `MUTATION|const notice|+ notice` → «No matches» ✗ (класс инструмента, вне C2) — бокс `[ ]`
         держит теперь ровно он
-- [ ] **C3 — shell tools:** `bash`, `cmd`, `powershell`, `run`.
-- [ ] **C4 — search / memory tools:** `codegraph`, `dbread`, `fossilgrep`, `logsearch`, `sessionread`,
-      `summaryedit`, `universalsearch`, `webfetch`.
-- [ ] **C5 — control / agent tools:** `task`, `skill`, `todowrite`, `question`, `plan-enter`, `planexit`,
-      `compact`, `aicall`, `cua`, `imagerender`, `lsp`.
+- [x] **C3 — shell tools:** `bash`, `cmd`, `powershell`, `run`. — **CLOSED 2026-10-22 (t135), class (d) — superseded by a later plan that owns the same tools.** Receipt: `plans/2026-10-19_tool-description-contracts.md` T10 («T10 remaining `.txt` tools (alphabetical, ≤3% or no errors) — per tool: census … diff … RED test extension, fix, GREEN, one commit per tool») names `bash (+powershell variant)`, `cmd`, `run`, and its State line shows the sweep landing per tool (`T10-write doc-only 805732ed`, `T10-task doc-only 8334d3f9`). The work did not die with this box; it moved — and it moved to a plan that commits one tool at a time.
+- [x] **C4 — search / memory tools:** `codegraph`, `dbread`, `fossilgrep`, `logsearch`, `sessionread`, `summaryedit`, `universalsearch`, `webfetch`. — **CLOSED 2026-10-22 (t135), class (d) — superseded by a later plan that owns the same tools, and for most of them the work is already DONE.** Receipt: `plans/2026-10-19_tool-description-contracts.md` — `logsearch` T2 (`0edc8fc3fa`), `universalsearch` T3 (`ffe50230`), `list` T4 (`671edc13`), `recall` T6 (`aa706817`), `glob` T7 (`fa5c195e`), `read` T8 (`f064047e`), `grep` T9 (`67dc9000`), all landed 2026-10-19; its NEXT line names the rest (`T10-webfetch … then run/aicall/codegraph/jobwait/shell`). Same tools, one commit per tool, a measured error census first.
+- [x] **C5 — control / agent tools:** `task`, `skill`, `todowrite`, `question`, `plan-enter`, `planexit`, `compact`, `aicall`, `cua`, `imagerender`, `lsp`. — **CLOSED 2026-10-22 (t135), class (d) — superseded by a later plan that owns the same tools.** Receipt: `plans/2026-10-19_tool-description-contracts.md` T10's list carries `question (done T5)`, `task`, `todowrite (mapped)`, `skill`, `plan-enter`, `planexit`, `capability/inline`, `pipeline/inline`; its T11 box records the four orphan mappings (`plan-enter` → `plan.ts:ENTER_DESCRIPTION`, `planexit` → `plan.ts:EXIT_DESCRIPTION`, `powershell` → `bash.ts:POWERSHELL_DESCRIPTION`, `todowrite` → `todo.ts:DESCRIPTION_WRITE`) with the loading grep as evidence.
 - [x] ✓ **C6 — NUL bytes in grep output on binary files.** REPRODUCED 2026-10-08 against the runtime's own rg
       (15.1.0, the `C:\Windows\rg.exe` that `which("rg.exe")` resolves): the leak is REAL on the FILE-TARGET
       shape — `grep(path: <a file whose matched line holds a NUL>)` printed one raw 0x00 (`NEEDLE\u0000TAIL`,
@@ -199,6 +197,7 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
       session held no `file` part, so no live run exists. Owner recipe: paste an image or document, take its
       part id, `tempenable` with a short span; after the span the wire note names the attachment id and
       `recall` returns the payload. Waits on the owner's run — the robot cannot produce a `file` part itself.
+- **t135 (2026-10-22): C7 is class (c) — an owner RUN, quoted from this box:** «Waits on the owner's run — the robot cannot produce a `file` part itself». The unit proof stands (`18fe82c426`, 20/4 red → 24/0 green); what is owed is a LIVE `file` part. The recipe is this box's own: the owner pastes an image or a document → the part id is read back → `tempenable` with a short span → after the span the wire note names the attachment id → `recall` returns the payload. Resume: the owner's paste. No robot may produce this part, and no plan may be closed over the unit proof alone.
 
 `applypatch.txt` stays out of scope: the tool is unregistered (`b95c2524a5`), the file is kept only for the
 CLI/heredoc path and a one-line re-registration.

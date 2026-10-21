@@ -78,6 +78,7 @@ which beta it needs (probe 11), that today's payload 400s (probe 12).
 ## Tasks
 
 ### T1 — `variants()` derives from the catalog, not from substrings
+- [ ] **T1 — `variants()` derives from the catalog, not from substrings.** Binding: `packages/opencode/src/provider/transform.ts:491-499,626-644` (the substring match and `budgetTokens`) and `packages/opencode/src/provider/provider.ts` (the model assembly that drops `reasoning_options`). Oracle: `03_variants_matrix.mts` exits 0 with zero flagged models; probe 12 returns `200 OK` on the `proposed` arm (Opus 5 / 4.8 / Fable); unit cases 3–4 table-driven over the real catalog in `packages/opencode/test/provider/transform.test.ts` (today: 170 pass / 0 fail, run `20261009T013046Z_ca44e58e` — the new cases are RED before the change).
 
 Claim: for every model in `provider/models/anthropic.json`, the emitted
 thinking payload is accepted by the API.
@@ -99,6 +100,7 @@ Oracle: `03_variants_matrix.mts` exits 0 with zero flagged models; probe 12
 returns `200 OK` on the `proposed` arm for Opus 5 / 4.8 / Fable.
 
 ### T2 — breakpoint placement: anchor the deep end of the static prefix
+- [ ] **T2 — breakpoint placement: anchor the deep end of the static prefix.** Binding: `packages/opencode/src/provider/transform.ts:308` (`slice(0, 2)` → `slice(-2)`) plus the ≤4-mark hard guard in `applyCaching`. Oracle: `01_wire_shape.mts` reports `left OUTSIDE any static breakpoint: 0`; `04_sdk_contract.mts` still 5/5 PASS; unit cases 1–2 in `packages/opencode/test/provider/transform.test.ts`. Smallest first: one line plus a guard.
 
 Claim: after the change, 100% of the static prefix sits behind a breakpoint
 that survives a tail reset, with the same 4-breakpoint budget.
@@ -115,6 +117,7 @@ Oracle: `01_wire_shape.mts` reports `left OUTSIDE any static breakpoint: 0`;
 `04_sdk_contract.mts` still PASS; unit test below.
 
 ### T3 — make the diagnostic tell the truth
+- [ ] **T3 — make the diagnostic tell the truth.** Binding: `packages/opencode/src/session/llm.ts:964-974` (read `providerOptions.anthropic.cacheControl`; drop the removed `openaiCompatible` lookup) and surface the SDK's breakpoint warning as `log.warn("bug: …")`. Oracle: a live session against any anthropic-dialect model — the log line reports 4 marked messages, not `hasCacheControl: false`.
 
 Claim: the `cache marker check` log reflects what is actually on the wire.
 
@@ -128,6 +131,7 @@ Oracle: run a session against any anthropic-dialect model and read the log line;
 it must report 4 marked messages, not `hasCacheControl: false`.
 
 ### T4 — 1h TTL as an opt-in (blocked on probe 11)
+- [ ] **T4 — 1h TTL as an opt-in (blocked on probe 11).** Binding: `provider.anthropic.options.cacheTtl: "5m" | "1h"` (default `"5m"`) → `providerOptions.anthropic.cacheControl`; the beta header NAME is not established and probe 11 prints it. Oracle: probe 11 `--phase=read` shows `cacheRead > 0` for the 1h arm and `0` for the 5m arm after a >5 min gap. The probe IS the first step — run it, then ship the knob; never default to `1h` before the number.
 
 Claim: for sessions with >5 min gaps, `ttl:"1h"` lowers total cost.
 
@@ -142,6 +146,7 @@ Oracle: probe 11 `--phase=read` shows `cacheRead > 0` for the 1h arm and `0`
 for the 5m arm after a >5 min gap.
 
 ### T5 — decide the tail-marker count (blocked on probe 10)
+- [ ] **T5 — decide the tail-marker count (blocked on probe 10).** Binding: `packages/opencode/src/provider/transform.ts:308-333` (the two tail markers). Oracle: probe 10's output pasted into `REPORT.md` — if arm B (1 tail marker) matches arm C on warm-turn `cacheRead`, drop to one and keep a breakpoint spare; if not, keep two and record why in this plan.
 
 Claim: R3 means the second tail marker buys nothing, so it can be freed.
 
@@ -150,6 +155,7 @@ Claim: R3 means the second tail marker buys nothing, so it can be freed.
 - If it does not match, keep two and record why in this plan.
 
 Oracle: probe 10 output pasted into `REPORT.md`.
+- **t135 (2026-10-22): T1–T5 were HEADINGS, not checkboxes — the plan was invisible to the status surface.** `planstatus` counts `- [ ]` only, so this file read as «no checklist» and its five tasks appeared nowhere in the owed-counter that names the debt (the plan was measured as DRAFT with zero boxes while carrying five tasks with oracles). Boxes added above (class (b): each has a binding and an oracle that could fail). The order the plan itself names stands: T2 and T3 first (one line + a guard; one log line), then T1, then the two probe-gated leaves.
 
 ## Smoke Tests
 

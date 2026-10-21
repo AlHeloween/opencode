@@ -66,6 +66,7 @@
 - [ ] **S9 — kernel `--install` (production, claude, codex, cursor) + receiver refreshes — GATED** on Claude's review verdict
   on the kernel diff (the declared stop of S6; the task: «STOP before --install»). Lift: the verdict arrives; then re-run
   `pytest prompt_kernel/tests/` — expect fully green — and re-stamp/install the four receivers.
+- **t135 (2026-10-22): S9 is class (c) — an owner decision, quoted from this box:** «GATED on Claude's review verdict on the kernel diff (the declared stop of S6; the task: «STOP before --install»)». The lift, in order: the verdict arrives → re-run `pytest prompt_kernel/tests/` (expect fully green) → re-stamp and install the four receivers (production, claude, codex, cursor). The install is the owner's act under the kernel's `--install` rule; no robot substitutes for it. Nothing else in this plan waits on it — S1–S8 are closed.
 
 ## Smoke Tests
 

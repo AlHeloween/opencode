@@ -162,7 +162,7 @@ its **application to this stream**, which is §2's oracle.
   symptom — and the instrument that closed it is what saved the wasted fix.
   NOT OBSERVED, named so it is not read as covered: «a single layout per commit», the second half of the
   original acceptance. No instrument measures layout count yet, and no consumer has asked for it.
-- [ ] **T4 — pixel oracle for exactly this flow (the missing instrument).** **SUPERSEDED (2026-09-24), not done:**
+- [x] **T4 — pixel oracle for exactly this flow (the missing instrument).** **CLOSED 2026-10-22 (t135), class (d) — SUPERSEDED (2026-09-24), and the replacement is named:** its live-burst method was dropped on the owner's own finding below («ты не сможешь поймать этот дефект так»); the flicker oracle is now the isolated replay (T11a) plus the live render trace (T13a). Receipt: this plan's own STATUS line (2026-09-24) + the replacing boxes T11a/T13a below — a supersession record, not a run; the frame capture this box asked for is T13a's job, and T13a is the box that carries it.
   its live-burst method was dropped on the owner's own finding below («ты не сможешь поймать этот дефект так»);
   the flicker oracle is now the isolated replay (T11a) plus the live render trace (T13a). Its acceptance lines and
   falsifier were never rewritten, so this box stays open until T13a's live trace closes the question. `cmd_runner start --
@@ -399,7 +399,7 @@ its **application to this stream**, which is §2's oracle.
   that also settles: the ```yaml fence is NOT the defect (owner: «tree sitter должен рендерить yaml
   так») — the defect was repainting the unstyled text over the computed colour, and `@SV_FORMAT`'s
   fenced shape is CORRECT and stays. The frame-based verification of the flicker itself remains owed.
-- [ ] **T7 — SUPERSEDED by T13b (2026-09-24), not done.** Owner: «А top level вообще нах»; closed runs (T11b step 2)
+- [x] **T7 — SUPERSEDED by T13b (2026-09-24), not done.** **CLOSED 2026-10-22 (t135), class (d).** Owner: «А top level вообще нах»; closed runs (T11b step 2) give finished blocks their stability without `top-level`, and the formatting complaint this task carried is now T13b's (prose styled by marked only). Receipt: this box's own supersession line (2026-09-24) + the replacing box T13b below — a supersession record, not a run. The original title and the owner's complaint are kept below as the record of WHAT was carried.
   give finished blocks their stability without `top-level`, and the formatting complaint this task carried is now
   T13b's (prose styled by marked only). The box stays open as a record, never to be ticked on its own wording.
   Original title: **prose is rendered through the engine's `coalesced` mode; inline structure is destroyed before it
@@ -613,11 +613,12 @@ native change is confined to the sixel emission path. Rust would be a second nat
   the JS side. And «no re-encode on remount» is NOT met: a remount now skips WASM → SVG → RGBA (the frame is
   the stored object), but the ref callback still builds a NEW `NativeImage` from it, so the sixel cache key
   (which carries the handle) misses once per remount.
-- [ ] **T10b — reuse the native handle across a remount — ONLY if the encode is shown to cost.** One
+- [ ] **T10b-1 — MEASURE the sixel-encode cost of a remount (the leaf that was missing).** The gate this box named — T9's residual (1), the CPU cost of a sixel encode — must be a NUMBER before any disposal protocol is built (DISAS). Oracle: a sampled CPU profile of the remount path (`samply`) reporting the encode cost per remount; the number is written into this plan. One measurement, no product code.
   `NativeImage` per stored frame (a `WeakMap<frame, NativeImage>` with a `FinalizationRegistry` disposing the
   native side when the frame is collected), handed over as `source` instead of `setImage`. Gate: T9's
   residual (1) — the CPU cost of a sixel encode — must be measured first; one encode per remount is not worth
   a disposal protocol until a number says so (DISAS).
+- [ ] **T10b-2 — reuse the native handle across a remount — ONLY if T10b-1's number says so.** One `NativeImage` per stored frame (a `WeakMap<frame, NativeImage>` with a `FinalizationRegistry` disposing the native side when the frame is collected), handed over as `source` instead of `setImage`. Oracle: T10b-1's number against a threshold this plan names + the remount path's profile unchanged. Until the number exists, this leaf does not start.
 - [x] **T11 — content-keyed text products; one style source per finished block.** Key `(block raw, width,
   theme, conceal)` → styled lines, produced ONCE by our rules (marked for prose, tree-sitter for code); a
   finished block is a lookup. Then re-measure `top-level` vs `coalesced` on the replay with the cache ON.
@@ -892,11 +893,12 @@ native change is confined to the sixel emission path. Rust would be a second nat
   run remounts per delta. Fix: write into `nextControls`. Oracle first: the route is mounted by no test, so extract
   `displayItems`' construction into a pure function and pin the control object's identity across two calls.
 
-- [ ] **T12 — move pixels with the terminal, not with a repaint (Hypothetical).** Probe on Windows Terminal:
+- [ ] **T12-1 — PROBE the terminal, do not guess it.** Does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a bounded scroll region (`renderer.zig:1726`, split-footer). Oracle: one scripted probe on Windows Terminal with the terminal's own reply recorded (yes/no) — a measurement, not an inference.
   does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a
   bounded scroll region (`renderer.zig:1726`, split-footer). If yes: a sticky-bottom append becomes a
   terminal scroll plus the new rows, and case (B) drops to ~0 image bytes. If no: the fallback is to show a
   placeholder, not pixels, for a clipped image while the view is moving. Oracle: T9's bytes per frame.
+- [ ] **T12-2 — act on T12-1's answer.** If YES: a sticky-bottom append becomes a terminal scroll plus the new rows, and case (B) drops to ~0 image bytes (oracle: T9's bytes per frame). If NO: the fallback is to show a placeholder, not pixels, for a clipped image while the view is moving.
 
 ## 3. Smoke Tests (PRE_FLIGHT — before any edit)
 

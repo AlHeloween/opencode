@@ -90,6 +90,7 @@ Invariant for every status built here (AGENTS.md): a value or `unknown`, never b
 - [x] W4 agent/model dialog with scopes (slice: session + global; worktree per-agent selection needs a model-state server route — TUI writes model.json by fs, never faked here)
 <!-- sv: Keywords: scoped-dialog 0.5, same-write-path 0.5; dominant: web writes go through the TUI's own routes; md5: e85bc25204f7d930606082123e0af9385 -->
 - [ ] W5 proof (idle DOM+probe banked; busy frame BLOCKED keyless: 4 models × 5 turns → 401 Invalid credential, isRetryable:false — the 10-07 public-key path regressed upstream; STAND: .temp/t59-stand/opencode.exe @ 10.0.1374 (with W4, build 20261016T044744Z_411d4819 exit 0 smoke 10.0.1374), dist/bin free, no oracle server running)
+- **t135 (2026-10-22): W5 is class (c) — an external credential wall, quoted from this box:** «busy frame BLOCKED keyless: 4 models × 5 turns → 401 Invalid credential, isRetryable:false — the 10-07 public-key path regressed upstream». The idle DOM + probe half is already banked; only the BUSY frame needs a working credential, and a credential is the owner's to supply. Resume: the owner supplies a key for ONE model → one busy turn → the frame capture on the stand (`.temp/t59-stand/opencode.exe @ 10.0.1374`, build `20261016T044744Z_411d4819`). No SUCCESS is claimed over the idle half.
 <!-- sv: Keywords: visual-oracle 0.4, build-receipt 0.3, commit-by-path 0.3; dominant: each closed gap carries a receipt; md5: f96cd36315f8e041717193234f1be0496 -->
 
 ## Smoke Tests

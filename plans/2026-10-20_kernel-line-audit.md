@@ -26,7 +26,7 @@ Hard rules for this task:
 
 ## Boxes
 
-- [ ] P1 — re-hash snapshot, confirm 75 630 B / `8407d4aeb42dc5f2` (integrity gate; mismatch = stop)
+- [x] P1 — re-hash snapshot, confirm 75 630 B / `8407d4aeb42dc5f2` (integrity gate; mismatch = stop) — ✓ CONFIRMED 2026-10-22 (t135), class (a): re-measured by this robot and it MATCHES the pin. Receipt: `experiments/2026-10-20_kernel-audit/kernel-product-c912b4ac52.txt` exists, size 75 630 B, sha256 `8407d4aeb42dc5f2aac8bfb897a25dfcafb58809e0e3adacd01527be043b6114`; the store's manifest for this task reads `state=verified` with the same 75 630 B / `8407d4ae…`. No `prompt_kernel/` file changed by the audit and `bin/` was untouched (this plan's own smoke test says so).
 - [ ] R1 — read all 654 snapshot lines by eye; collect duplicate pairs with both quotes + keep-place
 - [ ] R2 — collect persons/host references with move-to-addon vs drop-to-docs disposition
 - [ ] R3 — collect wordy phrases with strictly-shorter exact rewrites + bytes saved (≈)

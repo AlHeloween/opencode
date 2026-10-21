@@ -1,0 +1,2902 @@
+{
+  "totals": {
+    "plans": 51,
+    "open": 218,
+    "done": 284,
+    "partial": 14,
+    "no_box_at_all": 0,
+    "no_smoke_section": 9,
+    "no_prior_art": 47,
+    "untracked": 4,
+    "lifecycle_unknown": 25,
+    "boxes_without_sv_tag": 134
+  },
+  "plans": [
+    {
+      "file": "plans/2026-09-12_anthropic-cache-breakpoints.md",
+      "tracked": true,
+      "bytes": 16370,
+      "lines": 227,
+      "lifecycle": "DRAFT",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": true,
+      "has_stop_claim": false,
+      "open": 5,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 81,
+          "state": "open",
+          "text": "**T1 — `variants()` derives from the catalog, not from substrings.** Binding: `packages/opencode/src/provider/transform.ts:491-499,626-644` (the substring match and `budgetTokens`) and `packages/opencode/src/provider/provider.ts` (the model assembly that drops `reasoning_options`). Oracle: `03_variants_matrix.mts` exits 0 with zero flagged models; probe 12 returns `200 OK` on the `proposed` arm (Opus 5 / 4.8 / Fable); unit cases 3–4 table-driven over the real catalog in `packages/opencode/test/provider/transform.test.ts` (today: 170 pass / 0 fail, run `20261009T013046Z_ca44e58e` — the new cases are RED before the change).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 103,
+          "state": "open",
+          "text": "**T2 — breakpoint placement: anchor the deep end of the static prefix.** Binding: `packages/opencode/src/provider/transform.ts:308` (`slice(0, 2)` → `slice(-2)`) plus the ≤4-mark hard guard in `applyCaching`. Oracle: `01_wire_shape.mts` reports `left OUTSIDE any static breakpoint: 0`; `04_sdk_contract.mts` still 5/5 PASS; unit cases 1–2 in `packages/opencode/test/provider/transform.test.ts`. Smallest first: one line plus a guard.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 120,
+          "state": "open",
+          "text": "**T3 — make the diagnostic tell the truth.** Binding: `packages/opencode/src/session/llm.ts:964-974` (read `providerOptions.anthropic.cacheControl`; drop the removed `openaiCompatible` lookup) and surface the SDK's breakpoint warning as `log.warn(\"bug: …\")`. Oracle: a live session against any anthropic-dialect model — the log line reports 4 marked messages, not `hasCacheControl: false`.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 134,
+          "state": "open",
+          "text": "**T4 — 1h TTL as an opt-in (blocked on probe 11).** Binding: `provider.anthropic.options.cacheTtl: \"5m\" | \"1h\"` (default `\"5m\"`) → `providerOptions.anthropic.cacheControl`; the beta header NAME is not established and probe 11 prints it. Oracle: probe 11 `--phase=read` shows `cacheRead > 0` for the 1h arm and `0` for the 5m arm after a >5 min gap. The probe IS the first step — run it, then ship the knob; never default to `1h` before the number.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 149,
+          "state": "open",
+          "text": "**T5 — decide the tail-marker count (blocked on probe 10).** Binding: `packages/opencode/src/provider/transform.ts:308-333` (the two tail markers). Oracle: probe 10's output pasted into `REPORT.md` — if arm B (1 tail marker) matches arm C on warm-turn `cacheRead`, drop to one and keep a breakpoint spare; if not, keep two and record why in this plan.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "a99fde52cd|2026-10-12|plans: both live plans re-verified against the CODE and the live DB (two explorers, all 7 claims confirmed) - numbers refreshed; session_entry's only writer is a test fixture",
+        "8c94b071b4|2026-10-12|plans: database-truth + anthropic-cache-breakpoints get boxes - both were live plans (shelf triage 2026-10-09 said RETURN) invisible to the status surface",
+        "262125c75b|2026-10-09|plans: shelf triage slice 1 (t25-shelf-triage)",
+        "536ba18977|2026-09-24|plans: hold audited backlog for confirmation"
+      ],
+      "name_mentions": [],
+      "hash_count": 0
+    },
+    {
+      "file": "plans/2026-09-19_database-truth.md",
+      "tracked": true,
+      "bytes": 6215,
+      "lines": 78,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 4,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 58,
+          "state": "open",
+          "text": "**T1 — no table without a named writer.** For every zero-row table: find the writer in code, or state",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 61,
+          "state": "open",
+          "text": "**T2 — `event`, 87 548 rows, the largest object in the database.** Name its writer, its reader, and its",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 63,
+          "state": "open",
+          "text": "**T3 — `balance_snapshot`, 1 757 rows.** Either it is a snapshot (bounded: one row per provider) or it is",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 65,
+          "state": "open",
+          "text": "**T4 — the fixture rule, made checkable.** A fixture must write what PRODUCTION writes. The counter defect",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "a99fde52cd|2026-10-12|plans: both live plans re-verified against the CODE and the live DB (two explorers, all 7 claims confirmed) - numbers refreshed; session_entry's only writer is a test fixture",
+        "8c94b071b4|2026-10-12|plans: database-truth + anthropic-cache-breakpoints get boxes - both were live plans (shelf triage 2026-10-09 said RETURN) invisible to the status surface",
+        "262125c75b|2026-10-09|plans: shelf triage slice 1 (t25-shelf-triage)",
+        "536ba18977|2026-09-24|plans: hold audited backlog for confirmation"
+      ],
+      "name_mentions": [],
+      "hash_count": 1
+    },
+    {
+      "file": "plans/2026-09-21_mstar-order-and-summary-restore.md",
+      "tracked": true,
+      "bytes": 43373,
+      "lines": 268,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 5,
+      "done": 19,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 15,
+          "state": "open",
+          "text": "`mStarRow` в манифесте: строка памяти переживает undo (попытка откачена; первый шаг — прочитать T-real целиком и назвать публикатора удаления). Имя выбрано владельцем 2026-09-22 вместо `summaryRow`",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 25,
+          "state": "open",
+          "text": "Инвалидация боковых сводок, попавших в откатанный диапазон",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 27,
+          "state": "open",
+          "text": "Снимок `memory/reasoning.md` и `planState` при фолде, чтобы откат мог их вернуть",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 30,
+          "state": "open",
+          "text": "Приёмка отката: репетиция «фолд → undo через границу → окно `m*` + хвост, `unrevert` возвращает кадр» — **binding §9.3 выполнен на две трети:** (1) T-real прочитан целиком (`revert-crossing.test.ts:243-374`), (2) публикатор удаления назван точно: `cleanup` → `revert.ts:383` `SyncEvent.run(MessageV2.Event.Removed, …)`, и сам тест гибель звезды подтверждает (`:350-353`). (3) Осталось — маркер строки памяти от её СОЗДАТЕЛЯ (фолда), `cleanup` её не трогает, `unrevert` не трогать вовсе (инверсия манифеста уже возвращает видимость). Опора починена: `f884ce22f5`",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 32,
+          "state": "open",
+          "text": "Гигиена планов §8: рекурсивный скан, завершение по явному `Status` со ссылкой на оракул, ключ цели («ревизия, не сосед»), перенос на шаге G9 обычной сессии. ЧАСТЬ СДЕЛАНА 2026-09-22 (`2a4c355c0d` — инструмент, `a521c1aee2` — перенос): завершение теперь требует СТАТУСА — `hasChecklist` (любая из форм `- [ ]`/`- [x]`/`- [~]`) и `isFinished`; файл без чек-листа уходит в отдельный класс `noChecklist` и не переносится НИКОГДА, потому что состояние снаружи НЕИЗВЕСТНО (было: 18 из 20 «misplaced» не имели ни одного бокса, и перенос объявил бы их сделанными). Отчёт печатает три факта раздельно (Misplaced / No checklist / Backlog); по репозиторию `misplaced: none`; два действительно закрытых плана перенесены, у каждого перед переносом проверен свой оракул. ОСТАЛОСЬ: **рекурсивный скан — СПОРЕН и владельцу записан открытым:** канон пяти терминалов держит вложенные полки (`futures/`, `postponed/`, `plans_deferred/`) невидимыми НАМЕРЕННО, а §8 просит рекурсию — противоречие не решено, инструмент трогает только верхний уровень; ключ «ревизия, не сосед». **ЧАСТЬ СДЕЛАНА 2026-09-22 (`caf66e1e19`): читатель жизненного цикла читает ЧЕТЫРЕ формы** — `workflow:`-комментарий, `**Status:** ACTIVE`, русское `Статус: **DRAFT**` (в середине строки, после даты) и машинную `state:`/`status:`. Три правила, каждое куплено прогоном: двоеточие ОБЯЗАТЕЛЬНО (оно и отсекает прозу), чтение ограничено ГОЛОВОЙ документа (цитата `**Status:**` в теле — чужое состояние), машинная форма привязана к началу строки (она всегда своя строка). Отчёт `planstatus` теперь РАЗДЕЛЯЕТ два разных факта — «N write their own state» и «K state nothing»: один счётчик `UNKNOWN` на оба скрывал дефект самого инструмента за правдоподобным числом. Первый заход упал ДВАЖДЫ и оба раза по делу: тайпчек TS2741 (литерал `PlanStatus` в `agi-mode.tsx:184` — литерал типа тоже потребитель) и пин на русскую форму (комментарий обещал «anywhere in its line», а регэксп был привязан к началу строки — комментарий, обещающий больше кода, врёт). Оракулы: `bun typecheck` exit 0, `test/util/plan-status` + `test/tool/plan-status` — 12 pass / 0 fail. Живое подтверждение — ПОСЛЕ пересборки (тул исполняет живой бинарь; сейчас отчёт печатает старый текст). **ПРЕДУПРЕЖДЕНИЕ СНЯТО: старый предикат больше не в бинаре** — пересборка владельца его доставила, и живой отчёт печатает `misplaced: none` при `noChecklist: 12` (13 → 12 после переноса `2026-09-18_transactional-store-vs-events.md` в `plans/postponed/`, `0fdceaf649`). Второй источник правды найден и снят там же: `plans/README.md` держал РУКОПИСНЫЙ «## Active Plans», из четырёх записей которого три уже уехали — индекс заменён указанием на `planstatus` (канон §8(д): «индекс активных генерируется из файлов»)",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "dfb81504f4|2026-10-09|plans: shelf triage slice 2 correction — R2 re-characterised as intermittent (t27-shelf-triage-slice2)",
+        "b3bb7449ea|2026-10-09|plans: shelf triage slice 2 (t27-shelf-triage-slice2)",
+        "536ba18977|2026-09-24|plans: hold audited backlog for confirmation",
+        "0df90ed033|2026-09-23|fix(memory): the coupling watcher read its own map wrong - an anchored label regex that matched nothing. parsePlanMap looked for the label as ^md5:, but the map in memory is a markdown LIST whose label lines are indented (two spaces), so the anchor matched NOT ONE label of the live memory - measured: ^md5: -> 0 matches, ^[ \\t]+md5: -> 3. With labels empty, couplingFindings reported EVERY non-zero parent-goal-md5 as off-plan: the watcher's first live finding (msg_0ca2134e8001Z7T4lvSDT7DCYu -> 7c1f9b23e5a804d61b7f3c9082ad4e51, the flicker plan's own md5, which IS in the map) was its own bug read as a vector's. Anchored now as ^[ \\t]*md5:, and the pin's fixture was rewritten: it wrote the map FLUSH LEFT - a shape production never uses - which is exactly why the defect passed. The rewritten pin carries the live form AND a control for the unindented one, because a reader must accept both. Second defect of the same class in the same function: the first (label form 8x4 vs 16+16 vs solid) was found when the watcher was wired. Class conclusion written into the plan: a watcher whose READING layer is not reconciled with the form its WRITER writes is a finding generator, so its first live finding must be checked for its own bug before anyone else's. Oracles: vector-coupling.test.ts 7 pass / 0 fail, 21 expect (run 20260922T173409Z_d607f120); bun typecheck exit 0 (run 20260922T173409Z_c029ea9c)."
+      ],
+      "name_mentions": [
+        "dfb81504f4|2026-10-09|plans: shelf triage slice 2 correction — R2 re-characterised as intermittent (t27-shelf-triage-slice2)",
+        "515f2f4d6b|2026-09-22|docs: the emergency plan, the two closure rules, and the progress record"
+      ],
+      "hash_count": 35
+    },
+    {
+      "file": "plans/2026-09-22_reasoning-stream-render-stability.md",
+      "tracked": true,
+      "bytes": 89782,
+      "lines": 953,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 10,
+      "done": 14,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 377,
+          "state": "open",
+          "text": "**T5 — ScrollBox (P3), only if T1–T3 leave a residual.** STILL LIVE (2026-09-24): T9 MEASURED the residual —",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 451,
+          "state": "open",
+          "text": "**T8 — colour must have ONE source per frame; the quiet window must not flip the palette (P1).**",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 616,
+          "state": "open",
+          "text": "**T10b-1 — MEASURE the sixel-encode cost of a remount (the leaf that was missing).** The gate this box named — T9's residual (1), the CPU cost of a sixel encode — must be a NUMBER before any disposal protocol is built (DISAS). Oracle: a sampled CPU profile of the remount path (`samply`) reporting the encode cost per remount; the number is written into this plan. One measurement, no product code.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 621,
+          "state": "open",
+          "text": "**T10b-2 — reuse the native handle across a remount — ONLY if T10b-1's number says so.** One `NativeImage` per stored frame (a `WeakMap<frame, NativeImage>` with a `FinalizationRegistry` disposing the native side when the frame is collected), handed over as `source` instead of `setImage`. Oracle: T10b-1's number against a threshold this plan names + the remount path's profile unchanged. Until the number exists, this leaf does not start.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 812,
+          "state": "open",
+          "text": "**T13 — prose is styled by marked ONLY; tree-sitter only for fenced code (owner, 2026-09-24: «Блин, ну",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 839,
+          "state": "open",
+          "text": "**T13a — the seam.** Every paint of a text block goes through ONE function that keeps, per block, the",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 887,
+          "state": "open",
+          "text": "**T13b — the cure above**, sized by what the trace shows, and confirmed by the same seam reading",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 890,
+          "state": "open",
+          "text": "**T14 — the memory-run collapse control is recreated on every delta (small, real, found by the 2026-09-23",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 896,
+          "state": "open",
+          "text": "**T12-1 — PROBE the terminal, do not guess it.** Does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a bounded scroll region (`renderer.zig:1726`, split-footer). Oracle: one scripted probe on Windows Terminal with the terminal's own reply recorded (yes/no) — a measurement, not an inference.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 901,
+          "state": "open",
+          "text": "**T12-2 — act on T12-1's answer.** If YES: a sticky-bottom append becomes a terminal scroll plus the new rows, and case (B) drops to ~0 image bytes (oracle: T9's bytes per frame). If NO: the fallback is to show a placeholder, not pixels, for a clipped image while the view is moving.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "19a5cbd734|2026-10-09|plans: shelf triage slice 3 (t28-shelf-triage-slice3)",
+        "536ba18977|2026-09-24|plans: hold audited backlog for confirmation",
+        "851cb0c333|2026-09-24|flicker plan: reconcile with the code after an explore pass",
+        "ec09e63716|2026-09-24|render load T11b: archive the finished instruments into experiments_history"
+      ],
+      "name_mentions": [
+        "851cb0c333|2026-09-24|flicker plan: reconcile with the code after an explore pass",
+        "ec09e63716|2026-09-24|render load T11b: archive the finished instruments into experiments_history",
+        "a5d306c902|2026-09-24|render trace T13a: one seam for every text paint, verdicts over drawn frames",
+        "cd5690e3c1|2026-09-24|flicker T8: record the 10.0.1101 rebuild (T11b step 4), wiring verified by shape in the artifact",
+        "4618526e43|2026-09-24|render load T11b: all four steps closed on measurements; live check stays with T8",
+        "b4fa965eec|2026-09-24|render load T11b step 4: enter a session bottom-up - newest now, history in slices"
+      ],
+      "hash_count": 10
+    },
+    {
+      "file": "plans/2026-09-24_to-be-confirmed-shelf-triage.md",
+      "tracked": true,
+      "bytes": 9388,
+      "lines": 85,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": true,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 1,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 51,
+          "state": "open",
+          "text": "**T2 — close the TUI gateway-row plan (BLOCKED on instrument, 2026-09-24).** Isolated candidate ran (version 10.0.1117, `dist/bin/opencode.exe`, cwd `experiments/2026-09-24_tui-protocol-smoke/wc/`, config `bin/` via `OPENCODE_TEST_CONFIG`; live `bin/` untouched, four runs, screenshots kept). The gateway fact was published and matches the expectation (`using:\"h3\"`, then `using:\"h2\"` on fallback — candidate log), but the sidebar ROW could not be captured: `cmd_runner screenshot` cuts the window's right edge at 110/160/200 cols, and HF has no credits for a successful turn. The plan stays on the shelf; the attempt is recorded in its A2 row and in `_progress_log`. Next instrument: a capture path that keeps the full window (cua window capture, or the owner's own sidebar) plus a provider with credits.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 52,
+          "state": "open",
+          "text": "**T3 — re-verify and route the remaining 14.** One file at a time: re-run its acceptance criteria against current code, drop stale items, name the remaining criterion. Deliverable per file: verdict + terminal + `git mv` recorded in `_progress_log.md`.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 53,
+          "state": "open",
+          "text": "**T4 — settle the shelf readme and the top level.** Update `readme.md` to the final disposition; run `planstatus`; confirm top-level consistency (no misplaced; debt = only the plans lawfully returned to `plans/`).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "59a65a8257|2026-09-25|plans: TUI gateway-row live attempt recorded (T2 of the shelf triage)",
+        "05f1fd1c84|2026-09-25|plans: close the four owner-confirmed shelf plans (T1 of the shelf triage)"
+      ],
+      "name_mentions": [],
+      "hash_count": 0
+    },
+    {
+      "file": "plans/2026-09-28_kernel-candidate-incorporation.md",
+      "tracked": true,
+      "bytes": 34032,
+      "lines": 323,
+      "lifecycle": "ACTIVE",
+      "intention": "incorporate the candidate kernel's stronger mechanisms (complete edge graph, real budgets, digest/rights formulas, knowledge statuses) into prompt_kernel/source.py via L2 cycles; never replace the file",
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 47,
+      "partial": 9,
+      "open_boxes": [
+        {
+          "line": 228,
+          "state": "open",
+          "text": "NOT RUN this cycle, stays open under F5: the TS parity suite (`kernel-identity-tools`, `registry`,",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 290,
+          "state": "open",
+          "text": "Final pytest + parity suite + typecheck; render vs caps; **diff to the owner**; `--install` + repin; claude/codex receivers refreshed (no identity rows).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 298,
+          "state": "open",
+          "text": "Commits naming this plan; move to `plans_completed/` when boxes close; scan for stale refs.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "f600332e43|2026-10-08|plan(kernel-candidate-incorporation): samply red classified (implementation) - fix = manifest regen + RESEARCHER_AGENT row, owner's kernel call; plan stays in plans/",
+        "b65757638e|2026-10-08|plan(kernel-candidate-incorporation): triage verdicts written; parity suite RED (samply), plan stays open",
+        "c7f32d4195|2026-10-01|release(kernel): 2026-10-01 - one executor contract, verbatim decisions, recursive re-verification (K1-K5)",
+        "ed7d9dda67|2026-09-29|release(kernel): 2026-09-29 — install production, codex and the Claude copy; baseline repinned"
+      ],
+      "name_mentions": [
+        "c7f32d4195|2026-10-01|release(kernel): 2026-10-01 - one executor contract, verbatim decisions, recursive re-verification (K1-K5)",
+        "ed7d9dda67|2026-09-29|release(kernel): 2026-09-29 — install production, codex and the Claude copy; baseline repinned",
+        "d01fc7d5a9|2026-09-29|kernel(source+docs): LEAN reach, SVM as the digital intention, the trader's rule, full re-grounding",
+        "39e04ddbe7|2026-09-29|kernel: procedure layer, tool readiness and KAIZEN; BGE dedup/order; aicall --timeout/--out",
+        "ad6641e608|2026-09-29|kernel: water hunt — 49 498 -> 49 032 B with +600 B of new schema; aicall findings recorded",
+        "1d5b9d7150|2026-09-29|kernel: F2 pass 3 — four autonomy procedures ported (digest inputs, computable R, effective_rights, wording!=proposition)"
+      ],
+      "hash_count": 39
+    },
+    {
+      "file": "plans/2026-09-29_codegraph-impact-decoupling.md",
+      "tracked": true,
+      "bytes": 13428,
+      "lines": 68,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 5,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 39,
+          "state": "open",
+          "text": "**C2 — the sync keeps happening; the turn stops waiting for it.** It is NOT to be deleted (it is what makes the times fresh), NOT gated, NOT verified, and NOT made precise — it only has to run somewhere off the turn's critical path: forked (like `Balance.getModelStatus`, `processor.ts:589-601`) or on the summary cadence. Acceptance: the commit path no longer waits on MCP, and a file edited this turn is still FRESH a few seconds later. Measured today: the index stamps itself **0–6 s** after a file's mtime, so a self-update of that order is the whole requirement — «если он сам обновляется 2-3 секунды то вообще не надо дергаться» (owner, 2026-09-29).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "2c0835cf30|2026-10-08|fold carrier + codegraph impact: goal gated on coupling, window-wide sv count, addressed ranges, attributed impact, lastImpact off the sym tag",
+        "aeebfbb4d3|2026-10-02|fix: decouple per-step impact wait (2026-10-02_render-artifacts-and-post-tool-pause)",
+        "7980fd65a1|2026-09-30|fix(tui): the footer reads the brief and the impact, not a dead tag (C5)",
+        "c2de18e285|2026-09-30|feat(snapshot): codegraph off the turn path -- fossil keeps the brief (C1)"
+      ],
+      "name_mentions": [
+        "9638bb24b6|2026-10-08|verify+land 9b2827e9fc as 2c0835cf30: oracle re-run green on Local_Development, master plan regenerated",
+        "2c0835cf30|2026-10-08|fold carrier + codegraph impact: goal gated on coupling, window-wide sv count, addressed ranges, attributed impact, lastImpact off the sym tag",
+        "7980fd65a1|2026-09-30|fix(tui): the footer reads the brief and the impact, not a dead tag (C5)"
+      ],
+      "hash_count": 2
+    },
+    {
+      "file": "plans/2026-09-29_cua-windows-debug-input.md",
+      "tracked": true,
+      "bytes": 39345,
+      "lines": 175,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "cua, background-isolation, capture-binding, vmware-guest, virtual-monitor, cdp-web",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": true,
+      "has_stop_claim": false,
+      "open": 15,
+      "done": 13,
+      "partial": 1,
+      "open_boxes": [
+        {
+          "line": 101,
+          "state": "open",
+          "text": "**B1 page read path:** Drive `page get_text`/`query_dom` on an isolated source-built driver/WebView2 fixture in standard mode, verify target app text, and confirm `page execute_javascript` remains refused. No policy override. <!-- sv: page-read, webview2, js-policy-refusal -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 106,
+          "state": "open",
+          "text": "**S2 four-state capture baseline:** Four-state capture baseline on the MAIN monitor (minimized / shown-no-activate / occluded) with WinUI3 Calculator, predicted: minimized → `window_minimized` refusal, shown-no-activate unoccluded → own pixels, occluded → obscured signal or foreign pixels. <!-- sv: capture-baseline, directcomposition, minimized-refusal -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 107,
+          "state": "open",
+          "text": "**S3 hypervisor guard:** Host hypervisor baseline recorded: `HypervisorPresent=False` (✓ 2026-09-30), re-read after every host-level install. <!-- sv: hypervisor-guard, vmware-compat -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 111,
+          "state": "open",
+          "text": "**P1 Rust drag tests green:** Focused Rust core and Windows adapter tests cover both endpoints, one-shot consumption, wrong session/window and changed frame; unaffected Linux/macOS builds or explicit unverified platform limitation. <!-- sv: capture-bound-drag, rust-tests, cross-platform-contract -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 113,
+          "state": "open",
+          "text": "**P2 live GUI chain:** Source-built driver and disposable GUI confirm screenshot→capture-bound drag→fresh screenshot/state change, plus `get_text` without unrestricted; record command, endpoint, PID, image hashes and stop/cleanup state. Runs in the tier the case needs (T3 or T6). <!-- sv: live-smoke, capture-binding, fixture-cleanup --> Partial 2026-09-30 (W3 run `20260930T024021Z`): screenshot → capture-bound CLICK → fresh screenshot with state change ✓; capture-bound DRAG does not exist yet (W2), so this box stays open until it reruns after the fix.",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 114,
+          "state": "open",
+          "text": "**P3 mode A game checks:** Game-specific relative pointer, hold and victory/defeat checks remain open until game URL, control scheme and signal are available. <!-- sv: mode-a, game-input, outcome-signal -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 119,
+          "state": "open",
+          "text": "**W1 baseline error cases:** Establish the exact baseline/error cases including the 2026-09-12 Go control; keep `execute_javascript` policy refusal as a negative control, not a defect to erase. <!-- sv: baseline, go-control, negative-control -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 121,
+          "state": "open",
+          "text": "**W2 Rust input path (conditional):** THEN, only if the Windows fixture/game oracle demonstrates missing capability after restoring the old short workflow: implement the smallest safe Rust input path and tests, with shared capture admission where needed; build a candidate outside root `bin/`. Do not add a second cursor authority on a guess. <!-- sv: rust-input, capture-admission, conditional -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 125,
+          "state": "open",
+          "text": "**W4 game revisit:** Revisit the game criterion when its target and outcome signal exist. If unavailable, move only proven scoped work to completed and park the remaining criterion with an explicit resumption signal; no SUCCESS over an unplayed game. <!-- sv: mode-a, game-input, relative-pointer -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 136,
+          "state": "open",
+          "text": "**T1b B-web route for the agent:** decide the model-callable route for the proven tier — reuse the cua driver's own CDP binding (`BROWSER.md`) or a thin isolated-Chromium tool — ground both before choosing, and cover headed/full Chrome for apps the headless shell cannot render. <!-- sv: cdp-web, agent-route, headed-chrome -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 140,
+          "state": "open",
+          "text": "**T3b screen-region targets on the virtual monitor:** the windows whose PrintWindow comes back black and fall back to the screen-region BitBlt (`capture.rs:14-19,445-481`): JView's OpenGL view and a WebView2/Wails window. Predict per target: occluded on the main monitor → foreign pixels or the occlusion flag; on the virtual monitor → own pixels and no flag. WinUI3 Calculator, named in the acceptance frame, is absent on this LTSC host (`Get-AppxPackage` ✓) — the real targets replace it. <!-- sv: virtual-monitor, opengl-capture, screen-region-fallback -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 143,
+          "state": "open",
+          "text": "**T9 background modifiers (Alt):** owner, 2026-10-02: «он alt не удерживает … чистое использование апстрима отпадает». Read in code, not yet run: background `post_key` (`platform-windows/src/input/keyboard.rs:334-406`) posts `WM_SYSKEYDOWN` without lParam bit 29 (context code = Alt down) and never touches the thread key state, so `GetKeyState(VK_MENU)` stays up; background clicks carry no keyboard state at all — upstream says a `modifier` there «is necessarily ignored» (`input/mouse.rs:436-442`), only the foreground `SendInput` path holds it. Candidate fix (Guess until a fixture proves it): bit 29 on Alt chords + the target thread's key state set via `AttachThreadInput`/`SetKeyboardState` around the posted sequence, restored after; `GetAsyncKeyState` readers stay out of reach without foreground and must be refused by name, not faked. Order: fixture logging `lParam` bit 29, `GetKeyState` and `GetAsyncKeyState` per message (qualified by a real keyboard) → red driver test → patch in `local_development` → VCL check on JView. <!-- sv: background-modifiers, alt-key-state, vcl-shiftstate -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 146,
+          "state": "open",
+          "text": "**T5 B-native-input transport (needs O2):** remote mode in `cua.ts` (MCP HTTP URL + token from env, never from Git), failing tool test first; qualify with `tools/list` over the SSH tunnel before any GUI action. <!-- sv: remote-driver, ssh-tunnel, loopback-only -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 147,
+          "state": "open",
+          "text": "**T6 B-native-input oracle (needs O2):** capture-bound click then drag in the guest; guest-side state readback cross-checked against `vmrun captureScreen` (C6 decides whether that instrument exists). Only if the drag cannot be bound, the Rust `drag` + `capture_id` work above starts. <!-- sv: vmware-guest, capture-bound-drag, hypervisor-frame -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 149,
+          "state": "open",
+          "text": "**T7 docs:** `docs/tools-and-sidecars.md` §7.1 gets the mode/tier table and the hypervisor exclusion once T1/T3/T5 each have a run id. <!-- sv: docs, tier-table -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "700c373988|2026-10-08|cua wrapper: per-tier launch placement + capture_id guard (plan 2026-09-29_cua-windows-debug-input T4/T8)",
+        "fa65f27ee4|2026-10-02|plan(cua): T3 done - fixture on the virtual monitor 7/7 PASS (run 20261002T070413Z); T3b added for screen-region targets",
+        "2f6b906771|2026-10-02|plan(cua): O1 done - Virtual Display Driver installed by the owner, third screen DISPLAY4 read back, hypervisor still off",
+        "b711107c13|2026-10-02|plan(cua): T9 background Alt not held - code reading recorded; O1 bundle delivered to external/virtual, not installed"
+      ],
+      "name_mentions": [
+        "700c373988|2026-10-08|cua wrapper: per-tier launch placement + capture_id guard (plan 2026-09-29_cua-windows-debug-input T4/T8)",
+        "1250937fb0|2026-09-30|plan(cua): split into mode A and three mode-B isolation tiers; Hyper-V excluded",
+        "1b12b08e12|2026-09-29|feat(cua): the wrapper supplies the observation and binds the click — no path copying, no unbound pixels"
+      ],
+      "hash_count": 10
+    },
+    {
+      "file": "plans/2026-09-29_h2-session-pool-and-connection-badge.md",
+      "tracked": true,
+      "bytes": 9380,
+      "lines": 34,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 6,
+      "partial": 1,
+      "open_boxes": [
+        {
+          "line": 26,
+          "state": "open",
+          "text": "**(a) agent glyph and (b) protocol glyph — text oracle GREEN, visual residual OPEN** (boxes stay unticked until the glyphs are SEEN: a render claim needs a rebuilt candidate — owner's step; `typecheck` is not an instrument for it). Shipped: (a) `← active` words → glyph `◉` — new pure `agentRowTitle` (`component/agent-model-cell.ts`), consumed by `dialog-agent.tsx` (source `local.agent.current()`); (b) protocol CELL leads with glyph `⇅` (`protocolLabel`, `protocol-row.ts`) — rung text verbatim behind it, never blank. Run ids: sidebar-protocol RED 6/4 `20261009T043016Z_0302bbea` → **10 pass / 0 fail** `20261009T043107Z_a8ecc687`; agent-model-cell RED `20261009T043025Z_7ea981b4` (missing export) → **24 pass / 0 fail** `20261009T043107Z_6444182c`; `bun typecheck` exit 0 `20261009T043117Z_0ba2fe5c`.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "9684d1d843|2026-10-09|feat(tui): h2 pool T4a/b glyphs (h2-glyphs-t4ab)",
+        "7187f2c0e2|2026-10-09|test(gateway): h2 pool T5 — load-based pick, ceil cap, no-evict, goaway removal, model limits (t24-h2-pool-tests)",
+        "481199ce07|2026-09-30|feat(sidebar): the living-connection badge -- a keep-alive H2 session reads a glyph",
+        "0440a99f0a|2026-09-29|feat(gateway/tui): a pinned rung IS the setting -- the sidebar stops saying auto(h2)"
+      ],
+      "name_mentions": [
+        "7187f2c0e2|2026-10-09|test(gateway): h2 pool T5 — load-based pick, ceil cap, no-evict, goaway removal, model limits (t24-h2-pool-tests)",
+        "998b563288|2026-09-29|feat(gateway): h2 session pool + per-model concurrency ceilings"
+      ],
+      "hash_count": 0
+    },
+    {
+      "file": "plans/2026-09-30_cua-supply-chain-audit.md",
+      "tracked": true,
+      "bytes": 18489,
+      "lines": 82,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "supply-chain-audit, egress-manifest, telemetry, provenance, reliability",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 2,
+      "done": 8,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 66,
+          "state": "open",
+          "text": "**SE reliability classes:** collect from `plans/2026-09-29_cua-windows-debug-input.md` W3 (unobserved drag dispatches; advertised input schema not enforced — `capture_id` silently ignored; result labels inconsistent) plus anything SB/SC find. Found by SD: 6 tests red on clean HEAD `7ee9b37` (inherited, still ours): `extension_manager::tests::{active_perception_extension_resolves_owned_worker_arguments, fresh_and_idempotent_fixture_install, malformed_manifest_version_cleans_staging, rejects_corrupt_target_and_protocol_mismatches, rejects_traversal_and_link_entries_and_cleans_staging}`, `skills::tests::detected_client_links_once_and_rerun_reports_existing_link` (`skills.rs:1000`, symlink) — cause Unknown (environment/privilege suspected, unproven); reproducer = run `20260930T043330Z_8d0347cc`. Also: `check-update --no-cache` answered `cache_hit:true` when the lookup failed (upstream fallback semantics). Lesson (E6): a static pass over ONE HTTP client misses egress through spawned processes — grep `Command::new` for package managers and shells too. <!-- sv: reliability, defect-classes, evidence -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 67,
+          "state": "open",
+          "text": "**SF Universal Search:** the same A–E for `D:\\zPython\\universal-search` (bundled Chromium with CDP on 127.0.0.1:9222 without auth, SearXNG, crw-server; built to pass bot walls — legal/ToS review for redistribution). <!-- sv: universal-search, cdp-port, redistribution -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "f5b6311ac1|2026-09-30|plan(audit): Universal Search hardening script prepared (dry-run verified, not applied)",
+        "ba668e3315|2026-09-30|plan(audit): Universal Search stage 1 - SYSTEM-privileged unauthenticated CDP browser, standing Google push channel",
+        "3514e2ff26|2026-09-30|plan(audit): SD done - offline cua driver (external/cua f56a57e) measured at zero egress",
+        "ca47088b34|2026-09-30|plan(audit): cua provenance and hidden-behaviour review - nothing hidden beyond the five egress sites"
+      ],
+      "name_mentions": [],
+      "hash_count": 5
+    },
+    {
+      "file": "plans/2026-09-30_robot-installer.md",
+      "tracked": true,
+      "bytes": 98945,
+      "lines": 899,
+      "lifecycle": "DRAFT",
+      "intention": null,
+      "goal_sv": "installer, offline-bundle, preflight, hello-smoke, free-models",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 18,
+      "done": 15,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 180,
+          "state": "open",
+          "text": "**Q2b selector fixtures:** run each engine's extract JS against SAVED SERP pages (the `*_serp/*.html` of run",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 212,
+          "state": "open",
+          "text": "**Q6 services:** chromium, searxng, universal-search, crw — user-level, loopback, never LocalSystem; start/stop",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 235,
+          "state": "open",
+          "text": "**C1 model choice is explicit in the configurator** (owner, 2026-10-06: «в настройках нашего конфигуратора",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 270,
+          "state": "open",
+          "text": "**P1 install target: path + portable (flash drive)** (owner, 2026-10-07: «выбора пути нету, и надо бы сделать",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 513,
+          "state": "open",
+          "text": "**I1 pristine baseline:** on a clean VMware Windows snapshot, record what is missing BEFORE any install (WebView2, VC++, Git, VT, paths). <!-- sv: pristine-vm, baseline, preflight -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 518,
+          "state": "open",
+          "text": "**B1 builder:** one reproducible build script that assembles the bundle from pinned sources into `dist/installer/` (never `bin/`), with a hash manifest. <!-- sv: builder, reproducible, hash-manifest -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 565,
+          "state": "open",
+          "text": "**B1c components**: a pinned list (component, source = its own builder's output, include/exclude, license);",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 658,
+          "state": "open",
+          "text": "**B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 680,
+          "state": "open",
+          "text": "**B1f organization component** (scope 2026-10-08): `scripts/org-genesis/**` staged as component `org`; the",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 771,
+          "state": "open",
+          "text": "**B2 installer shell:** Go + Fyne 2.8.1 app (decided 2026-10-07, see above; no WebView2 needed, so no pre-stage), grown from `experiments/2026-10-07_installer-fyne/app`; its `model_form_test.go` runs green first. <!-- sv: fyne-installer, no-webview2, model-form-test -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 773,
+          "state": "open",
+          "text": "**B3 preflight + fix:** each candidate above as check → fix/remedy, shown to the user before apply. <!-- sv: preflight, fixes, opt-in -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 774,
+          "state": "open",
+          "text": "**V1 virtual-display selection:** read each candidate's signature, driver model, license and install method; pick one with evidence; its egress goes through the audit plan. <!-- sv: virtual-monitor, driver-selection, signature -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 775,
+          "state": "open",
+          "text": "**V2 virtual-display install/uninstall:** silent offline install + uninstall by recorded hardware ID; `HypervisorPresent` read before and after; resolution set for the robot's display. <!-- sv: virtual-monitor, silent-install, hypervisor-guard -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 776,
+          "state": "open",
+          "text": "**V3 robot on its own display:** the installed robot places its GUI targets on the virtual display (T3/T4 of the cua plan) and the A6 oracle passes. <!-- sv: virtual-monitor, robot-display, t3-oracle -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 777,
+          "state": "open",
+          "text": "**U1 Universal Search fit for colleagues:** not shippable as is — it fails both duties (memory `user-two-ethics-user-and-services`): to the user, services as LocalSystem with an unauthenticated CDP port (fix prepared: `experiments/2026-09-30_universal-search-hardening/harden_services.ps1`, then `--remote-debugging-pipe` in its code); to the services, a design meant to get past bot walls. Redesign for the bundle: official APIs first, paced polite fetching (one request per host at a time, backoff on 429/challenge, cache), stop at any CAPTCHA, no human impersonation; its egress manifest per the audit plan SF. <!-- sv: universal-search, two-ethics, redesign -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 830,
+          "state": "open",
+          "text": "**B5 hello smoke:** final step starts the robot, sends «привет», shows the answer or a classified failure. <!-- sv: hello-smoke, failure-classes, final-check -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 831,
+          "state": "open",
+          "text": "**B7 subscription agents join the organization** (owner requirement 2026-10-08, relayed by the ADID_Python",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 897,
+          "state": "open",
+          "text": "**B6 pristine-VM acceptance:** A0–A5 on a reverted snapshot, network disconnected for install. <!-- sv: acceptance, pristine-vm, offline -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "f19c2eaac3|2026-10-13|plan(robot-installer): B1g pass 2 addendum - dist churn recorded, held-tree copy-verify workaround, final bundle-3 rebuilt (plan 2026-09-30_robot-installer)",
+        "2a076954dc|2026-10-13|fix(installer): B1g re-pin adid-tools to ADID release 204851Z - components.json repointed, full oracle re-run (plan 2026-09-30_robot-installer)",
+        "be65d48f85|2026-10-13|plan(robot-installer): B1g - repoint to ADID release 204851Z (supersedes 195928Z), repair-over-a-live-tool requirement",
+        "c35d69542b|2026-10-13|plan(robot-installer): B1g tools-package component - adid-tools lands in bin/tools, robot narrowed, package MANIFEST.sha256 re-verified before staging (test-first)"
+      ],
+      "name_mentions": [
+        "f19c2eaac3|2026-10-13|plan(robot-installer): B1g pass 2 addendum - dist churn recorded, held-tree copy-verify workaround, final bundle-3 rebuilt (plan 2026-09-30_robot-installer)",
+        "2a076954dc|2026-10-13|fix(installer): B1g re-pin adid-tools to ADID release 204851Z - components.json repointed, full oracle re-run (plan 2026-09-30_robot-installer)",
+        "634065ef57|2026-10-08|robot-installer B1e end-to-end: gate PASS, 23349 files, manifest reproducible (plan 2026-09-30_robot-installer)"
+      ],
+      "hash_count": 32
+    },
+    {
+      "file": "plans/2026-10-01_tool-description-contracts.md",
+      "tracked": true,
+      "bytes": 22308,
+      "lines": 225,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 8,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 196,
+          "state": "open",
+          "text": "**C7 — recall of an attachment, live.** Unit-proven (`18fe82c426`, 20/4 red → 24/0 green); the robot's",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "adedb84375|2026-10-09|plan(2026-10-01_tool-description-contracts C2): compare's three pins proven fallible - one mutation per promise, one RED at each pin's own address (t23-compare-mutation)",
+        "eb24aa1977|2026-10-08|fix(grep): a NUL byte in a matched line no longer reaches `output` raw",
+        "67fa834f18|2026-10-01|tools(C2): the three flag promises are pinned - compare gets its FIRST test",
+        "01f93daad0|2026-10-01|plans(hash-addressed-edits): H8 removes the dead cascade; the plan and edit-precision close"
+      ],
+      "name_mentions": [
+        "adedb84375|2026-10-09|plan(2026-10-01_tool-description-contracts C2): compare's three pins proven fallible - one mutation per promise, one RED at each pin's own address (t23-compare-mutation)",
+        "eb24aa1977|2026-10-08|fix(grep): a NUL byte in a matched line no longer reaches `output` raw",
+        "364aa40a7b|2026-10-01|plans: regenerate MASTER_PLAN.md — the two unmapped plans are in the map now (hand-off completion)",
+        "bbf0fbe415|2026-10-01|docs(edit): the tool's own text states `exact` and the address, not only the parameter schema",
+        "d9ca720d5d|2026-10-01|feat(spine): planHeaderLabel — a plan's label comes from its own header (L1)"
+      ],
+      "hash_count": 22
+    },
+    {
+      "file": "plans/2026-10-04_files-api-and-tariff.md",
+      "tracked": true,
+      "bytes": 13157,
+      "lines": 234,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 2,
+      "done": 3,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 142,
+          "state": "open",
+          "text": "T3 · Вложение адресуется, а не вкладывается",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 143,
+          "state": "open",
+          "text": "T4 · Кеш не меняется",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "0db2c26b0c|2026-10-20|t103 images always-webp + upload-once cache (T3 wire open)",
+        "c5c6ad7d14|2026-10-12|plans: 2026-10-04_files-api-and-tariff - status line was stale (T5 had shipped) and the plan carried no boxes; give it boxes so the status surface can see it",
+        "0eeba2f6d4|2026-10-09|files-api T5 (t26-files-api-t5-base64-detector)",
+        "6e9c137cf7|2026-10-05|docs: what a request costs, and why the bill is for thinking"
+      ],
+      "name_mentions": [
+        "c5c6ad7d14|2026-10-12|plans: 2026-10-04_files-api-and-tariff - status line was stale (T5 had shipped) and the plan carried no boxes; give it boxes so the status surface can see it",
+        "0eeba2f6d4|2026-10-09|files-api T5 (t26-files-api-t5-base64-detector)"
+      ],
+      "hash_count": 0
+    },
+    {
+      "file": "plans/2026-10-07_supersede-between-steps-loses-reply.md",
+      "tracked": true,
+      "bytes": 3450,
+      "lines": 52,
+      "lifecycle": "OPEN",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 39,
+          "state": "open",
+          "text": "A deterministic reproducer: prompt B lands while turn A is BETWEEN steps (not inside a held request), and the",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 41,
+          "state": "open",
+          "text": "The cause is named by instrument (which fiber ends B's run, and how), not by this plan's inference.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 42,
+          "state": "open",
+          "text": "Fixed in the runner or the loop so that B always gets its own reply (or a visible, named error) — and the",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "3aeacd1b77|2026-10-08|WIP (unverified, owner: commit what exists): stale-gitbash + replacement-empty-assistant-row tests, plans moved"
+      ],
+      "name_mentions": [
+        "9b80870b83|2026-10-08|verify+land: 2026-09-30_stale-gitbash-tests + 2026-09-30_replacement-empty-assistant-row stay in plans_completed (mutation check earned, landing evidence recorded)"
+      ],
+      "hash_count": 3
+    },
+    {
+      "file": "plans/2026-10-08_mcps-connector-manager.md",
+      "tracked": true,
+      "bytes": 10254,
+      "lines": 58,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 4,
+      "done": 3,
+      "partial": 1,
+      "open_boxes": [
+        {
+          "line": 24,
+          "state": "open",
+          "text": "**S3 — OAuth flow in the TUI.** On Authenticate: call auth/authenticate, show `⋯ waiting for browser`; subscribe `mcp.browser.open.failed` (event exists) and render the URL as selectable text when the browser did not open; refresh status via `sdk.client.mcp.status()` when done. `needs_client_registration` → sub-form for clientId/clientSecret → saved to config `mcp.<name>.oauth` (the first source `McpOAuthProvider.clientInformation()` reads), then retry.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 29,
+          "state": "open",
+          "text": "**S5 — Remove + persistent toggle.** Remove = config delete + disconnect + logout (confirm dialog, `dialog-confirm.tsx`). SPACE-toggle becomes persistent: write `enabled` into the config (merge-patch) instead of the current runtime-only connect/disconnect — the defect `dialog-feature-toggle.tsx` names in its own header comment.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 31,
+          "state": "open",
+          "text": "**S7 — Connector catalog (presets), Canva first.** A small preset table (name, url, auth kind, docs link) + \"Add from catalog\" entry in the wizard: pick Canva → remote `https://api.canva.com/connect/v1/mcp` → OAuth form (clientId/clientSecret from the owner's Developer-Portal app) → Authenticate. Presets live in code next to the dialog (or config), not invented at runtime.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 32,
+          "state": "open",
+          "text": "**S8 — Run + record.** Baseline (pre-change) → change → focused greens; live smoke: add a local echo server (`test/server/httpapi-mcp.test.ts` already uses `[\"echo\",\"demo\"]` as a disabled fixture) and one real OAuth connector when credentials exist; `_build.ps1` exit 0; findings into `_progress_log.md`.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "21c9e9e2f3|2026-10-08|docs(mcps): S6 — (c) is covered by the new config-file writer test",
+        "350c93f6e7|2026-10-08|feat(tui): /mcps add-connector wizard (ctrl+n) on one shared MCP config writer",
+        "d7dab4de12|2026-10-08|feat(tui): /mcps gets row actions — authenticate / reconnect / logout",
+        "b4bdd4a3d5|2026-10-08|test(mcp): stabilize httpapi-mcp on win32 + plan the /mcps connector manager"
+      ],
+      "name_mentions": [],
+      "hash_count": 1
+    },
+    {
+      "file": "plans/2026-10-08_org-portable-home.md",
+      "tracked": true,
+      "bytes": 11049,
+      "lines": 121,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 8,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 66,
+          "state": "open",
+          "text": "**S9 — kernel `--install` (production, claude, codex, cursor) + receiver refreshes — GATED** on Claude's review verdict",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "66db455ad3|2026-10-08|org-portable-home: ORG_HOME/ORG_PORT via orgcfg, born-empty org end-to-end, org.py read verbs, Protocol + kernel VCS_ROLES staged (plan 2026-10-08_org-portable-home)"
+      ],
+      "name_mentions": [
+        "b3bb7449ea|2026-10-09|plans: shelf triage slice 2 (t27-shelf-triage-slice2)",
+        "8467f4def6|2026-10-08|experiments_history: archive org-portable-home smoke (B1f evidence) - HEAD 4/12, post-change 12/12, cap measurements (plan 2026-10-08_org-portable-home)",
+        "66db455ad3|2026-10-08|org-portable-home: ORG_HOME/ORG_PORT via orgcfg, born-empty org end-to-end, org.py read verbs, Protocol + kernel VCS_ROLES staged (plan 2026-10-08_org-portable-home)"
+      ],
+      "hash_count": 0
+    },
+    {
+      "file": "plans/2026-10-10_plan-hygiene-in-build-mode.md",
+      "tracked": true,
+      "bytes": 7136,
+      "lines": 48,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 2,
+      "done": 1,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 35,
+          "state": "open",
+          "text": "**M2 — the TUI half.** The plan panel must reflect the same pass rather than only AGI activation (`agi-mode.tsx:718`). Oracle: the status surface shows the post-pass state; absence renders FALSE (AGENTS invariant).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 36,
+          "state": "open",
+          "text": "**SW — the sweep of the accumulated plans.** Owner, 2026-10-10: «большая часть этих планов выполнена… если все оракулы окей, план взяли и поместили в завершенные, обновили доки. Если потом чего вылезло - делаем новый план.» For each plan in `plans/`, ONE plan at a time: read its boxes → for each box whose work appears done, find the oracle **named in that plan** → run it TODAY, one file per invocation → tick with the run id → when no open box remains, `git mv` to `plans_completed/` in a commit naming the plan → update docs if the plan changed them. A box with no runnable oracle today is LEFT ALONE and reported (`R3`); anything genuinely undone becomes a **new** plan, never a reopened one.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "e4afa3619a|2026-10-11|docs(plan): track plan-hygiene as boxes - M1 confirmed with its oracle, M2 and the sweep open",
+        "9d4174ee41|2026-10-11|fix(session): run plan hygiene on the turn path, not only in AGI mode (plans/2026-10-10_plan-hygiene-in-build-mode.md)"
+      ],
+      "name_mentions": [
+        "1bcbc1bee3|2026-10-11|docs(plan): render MASTER_PLAN.md - map the CUA runtime-context plan (2026-10-10_plan-hygiene-in-build-mode)",
+        "9d4174ee41|2026-10-11|fix(session): run plan hygiene on the turn path, not only in AGI mode (plans/2026-10-10_plan-hygiene-in-build-mode.md)"
+      ],
+      "hash_count": 1
+    },
+    {
+      "file": "plans/2026-10-11_memory-orphan-parts.md",
+      "tracked": true,
+      "bytes": 4500,
+      "lines": 80,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 4,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 50,
+          "state": "open",
+          "text": "**S1 — liveness filter.** `memory.ts`: a part is indexed only if its `session` exists in the",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 52,
+          "state": "open",
+          "text": "**S2 — the index forgets.** remove from `part_index` (+ `part_fts`) rows whose session is",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 54,
+          "state": "open",
+          "text": "**S3 — RED test.** `test/memory/search.test.ts`: extend `indexFixture` so a part can be",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 57,
+          "state": "open",
+          "text": "**S4 — gates.** `test/memory/*.test.ts` green, one file per run; `bun typecheck` from",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "1aa9e3543f|2026-10-12|docs(plans): record the memory-index deletion gap (plans/2026-10-11_memory-orphan-parts.md)"
+      ],
+      "name_mentions": [
+        "1aa9e3543f|2026-10-12|docs(plans): record the memory-index deletion gap (plans/2026-10-11_memory-orphan-parts.md)"
+      ],
+      "hash_count": 0
+    },
+    {
+      "file": "plans/2026-10-12_specs-inventory-truth.md",
+      "tracked": true,
+      "bytes": 7663,
+      "lines": 70,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 3,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 52,
+          "state": "open",
+          "text": "**S2 — generate what must be visible.** Where a reader needs the current state at a glance (facade hotspots, instance-context callers, httpapi bridge coverage), add a `<!-- generated below -->` marker and a renderer that fills it, modelled on the existing pair: `util/plan-status.ts` + `svm render`. The renderer prints counts it computes from the tree and prints `MISSING` where it cannot compute — never a guess.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "4cd1aa2829|2026-10-12|specs S3: the inventory guard is live - it caught effect/migration.md:259, a frozen count the S1 pass had missed (plans/2026-10-12_specs-inventory-truth.md S3)",
+        "1d36d060e7|2026-10-12|specs S4: keymappings.md marked a design note, tui-plugins.md proven behaviour-not-inventory - neither needs re-auditing (plans/2026-10-12_specs-inventory-truth.md)",
+        "d2faf70162|2026-10-12|docs(specs): replace frozen inventory with the command that recomputes it (plans/2026-10-12_specs-inventory-truth.md S1)"
+      ],
+      "name_mentions": [
+        "4cd1aa2829|2026-10-12|specs S3: the inventory guard is live - it caught effect/migration.md:259, a frozen count the S1 pass had missed (plans/2026-10-12_specs-inventory-truth.md S3)",
+        "1d36d060e7|2026-10-12|specs S4: keymappings.md marked a design note, tui-plugins.md proven behaviour-not-inventory - neither needs re-auditing (plans/2026-10-12_specs-inventory-truth.md)",
+        "d2faf70162|2026-10-12|docs(specs): replace frozen inventory with the command that recomputes it (plans/2026-10-12_specs-inventory-truth.md S1)"
+      ],
+      "hash_count": 0
+    },
+    {
+      "file": "plans/2026-10-13_recall-read-address-space.md",
+      "tracked": true,
+      "bytes": 20420,
+      "lines": 76,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "recall-address-space, read-window-cost, release-gate-removal, long-line-offset, recall-of-recall",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 10,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 51,
+          "state": "open",
+          "text": "**R3 — S5 live model run through `_run.cmd` not done** (a model calling `read` whole, editing, then `recall … release`). Delegator probes cover the stored-part layer, not the model-to-tool plumbing.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 52,
+          "state": "open",
+          "text": "**R4 — `test/tool/read.test.ts` gives no verdict** (robot: `bytes_written: 0`, killed by hand) — an unqualified instrument; its claim is not covered by anything else.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 53,
+          "state": "open",
+          "text": "**R5 — a `kept` selection carries no ADDRESS SPACE (measured; owner's decision).** `ToolKeptSelection` is `{from, to, pattern?, ignoreCase?, reason?}` — a number pair with nothing saying WHICH space it was written in. Before this plan that space was the stored-line index (header included); it is now the FILE's numbers for a `read` window, so an old pair re-points. Measured read-only (run-31 `20261013T105400Z_c2e0eae2`): **2 of 72** parts carrying a `kept` are legacy reads — `prt_0e5b2a33c001UY2CmoAft2Fo1V` ({74,149}: 76 rows before and after, shifted by the header) and `prt_0e90269d2001k3Tym4RneZq81T` ({235,400}: 166 rows before, 159 now). Nothing is lost — the stored text is intact, the consumer's guard falls back to the whole result when a selection matches nothing, and the rendering stays a pure function of the part — but the slice those two replay is not the slice they recorded. The structural fix (stamp the space on the record — `space: \"file\" | \"body\"` — so a later change cannot re-point an old decision) touches a persisted schema field and the rendering of 72 parts: the owner's call, not a robot's.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "b2f4788aa6|2026-10-13|plans/2026-10-13_recall-read-address-space R2: the replay cap IS the read limit",
+        "28fe9b84c6|2026-10-13|plans/2026-10-13_recall-read-address-space: R1 legacy-row diff landed in bdedc9f5, commit names the plan",
+        "bdedc9f505|2026-10-13|robot-protocol-log: the orchestrator's false all-clear over an idle fleet with dispatchable work",
+        "b5426d4a83|2026-10-13|recall+read: one line-address space, the owner's 16384-line/256 KB limit, whole-result release (plan 2026-10-13_recall-read-address-space)"
+      ],
+      "name_mentions": [
+        "b2f4788aa6|2026-10-13|plans/2026-10-13_recall-read-address-space R2: the replay cap IS the read limit",
+        "28fe9b84c6|2026-10-13|plans/2026-10-13_recall-read-address-space: R1 legacy-row diff landed in bdedc9f5, commit names the plan",
+        "b5426d4a83|2026-10-13|recall+read: one line-address space, the owner's 16384-line/256 KB limit, whole-result release (plan 2026-10-13_recall-read-address-space)"
+      ],
+      "hash_count": 4
+    },
+    {
+      "file": "plans/2026-10-14_kernel-stop-claim-release.md",
+      "tracked": true,
+      "bytes": 8567,
+      "lines": 52,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": true,
+      "open": 4,
+      "done": 5,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 38,
+          "state": "open",
+          "text": "A1 ADID_Python resident: canonical bundle takes the K3 renders (two-canon parity, docs/two-canon-protocol.md); release gate fixed (LC_ALL=C); new adid_dist_* released; manifest re-verified. <!-- sv: adid-release 1.0 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 39,
+          "state": "open",
+          "text": "A2 install to every consumer with readback: the resident names the consumer list from its installer config; per consumer the installed kernel digest == the release manifest; failures listed by name. <!-- sv: consumer-readback 1.0 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 40,
+          "state": "open",
+          "text": "A4 Codex compact principle: the owner's «Compact Instructions» text (root CLAUDE.md, 2026-10-14) delivered to Codex through the ADID bundle — first VERIFY Codex 0.159.3's documented lever for compaction instructions (its config.toml is ADID_MANAGED; no compact key there today); readback on the installed Codex host. <!-- sv: codex-compact 1.0 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 41,
+          "state": "open",
+          "text": "A3 Claude verifies A1/A2 independently (hash readback on a sample of consumer roots + this repo's hosts) and closes efbfea7c / 28db8d0ace accordingly. <!-- sv: independent-verify 1.0 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "12d8f25c64|2026-10-14|plan 2026-10-14_kernel-stop-claim-release: K2 review PASS with receipts",
+        "998d8611fc|2026-10-14|kernel stop-claim release K3+B1: caps raised (utf8 65000 == validate hard ceiling; word caps 8700/8700/8700/8800; dated comments; nothing cut); install x4 (prod ee09f586, claude 093c58d8, cursor body 8b6f8ca7/receiver 6c80e175 (gitignored receiver, sha in plan), codex a57b289a); baseline repinned; pytest 217 passed run 20261014T120425Z_42202fb3; build run 20261014T120445Z_71b83365 smoke 10.0.1337 embedded",
+        "b262868ef9|2026-10-14|CLAUDE.md: Compact Instructions — the owner's compact principle for Claude Code's built-in compaction; plan A4 carries it to Codex via ADID",
+        "067d9cad2d|2026-10-14|kernel stop-claim release K2-fix: A1-A5 restorations (R via evidence measure, primitives, qualified-executor, check-beats-caution, from-disk/isolated, reader-filter-array), B1-B7 stop-claim precision (out-of-reach why, G1 receipts, STATUS_CLAIM covers WAITING/OUT_OF_SCOPE, INTENTION_CLARITY on ASK, STALL receipts, central defined, OUT_OF_SCOPE falsifier), C compaction preamble (owner verbatim EN); pytest 8F/209P run 20261014T113235Z (4 stale-receiver + 4 cap overflow reported, no cuts taken)"
+      ],
+      "name_mentions": [
+        "12d8f25c64|2026-10-14|plan 2026-10-14_kernel-stop-claim-release: K2 review PASS with receipts",
+        "ff4e679fa3|2026-10-14|kernel stop-claim release K1: @STATUS_CLAIM (first shared rule), every terminal edge a stop claim (scope/receipts/falsifier), JIDOKA/KAIZEN split, REWARD_FUNCTION 89->22 — tests first (RED 20261014T102728Z, GREEN 3F/213P 20261014T104416Z), all four variants inside caps; plan 2026-10-14_kernel-stop-claim-release K1"
+      ],
+      "hash_count": 10
+    },
+    {
+      "file": "plans/2026-10-14_return-channel-binding.md",
+      "tracked": false,
+      "bytes": 10560,
+      "lines": 74,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "return-channel, done-report-gate, stop-claim-gate, delegator-wake, heartbeat-activity",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 5,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 36,
+          "state": "open",
+          "text": "**T1 — the retraction leaves the tree.** `org.py`: remove `FLEET_MODEL` + `deliver_into_new_session`, restore the hint-only live-host message. `orgd.py`: remove `import org` + the delivery else-branch (pure `log_once` again). `Protocol.md` rule 1: restore the hint paragraph. `test_cross_handoff.py`: remove FakeHost/`write_host_record`/LIVE/LATE fixtures/S9/S10 (keep S11 + NOWAKE fixtures + the `backdate_mtime` minutes form + the S5 wake-target pin). Binding: the four files above. Oracle: the delivery tests are gone; S1-S8 + S11 stay green.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 37,
+          "state": "open",
+          "text": "**T2 — `done`/`escalate` refuse without their reports.** `done` requires `--report NAME`: the technote (exact name, else `NAME [<short>]`) must carry four non-empty `##` sections (case-insensitive): Completed (with receipts — run ids/hashes/commits), Risks, Residual, Route. `escalate` gains required `--report NAME`: the technote must carry a valid `## Stop claim` — routes table (route|receipt|failing component, non-empty rows), untried routes, reopen_when — the ported predicate, citing `stop-claim.ts`. Refusals name the missing piece. `done` records `result_ref=<actual technote name>`; `escalate` records `knowledge_ref=<actual technote name>` (failure findings) and keeps `--code`/`failure_code`. Binding: `scripts/org-genesis/org.py`. Oracle: R1 (fail-first).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 38,
+          "state": "open",
+          "text": "**T3 — the delegator receives the report, not the fields.** orgd DONE/BLOCKED wake text carries `report=<ref>` (DONE) / `stop-claim=<ref>` (BLOCKED) plus the technote's first lines (bounded: first 5 non-empty lines, ≤600 chars). `inbox --json` gains `verdicts`: tickets with `delegated_by = user` in DONE/BLOCKED (latest 20 by `tkt_mtime`), each with the report ref and the same excerpt. Binding: `org.py`, `orgd.py`. Oracle: R1.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 39,
+          "state": "open",
+          "text": "**T4 — the heartbeat follows the work.** orgd tick, WORKING branch, before the stall verdict: if the ticket has `wake_session` + `wake_worktree`, read `MAX(time_updated)` for that session in the target worktree's DB; when newer than `heartbeat_at`, set `heartbeat_at=<activity s>`, `lease_until=<tick now>+LEASE_S`, `woken_state=CLEARED` (a resumed worker may stall-again later). An unreadable DB is a `log_once`, never a failure. A quiet session changes nothing — silence means silence. Binding: `orgd.py`. Oracle: R2 (fail-first).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 40,
+          "state": "open",
+          "text": "**T5 — publish, install, close.** `Protocol.md` DONE/ESCALATE + HEARTBEAT bullets state the gates (note: the Protocol page is published by `init.py`, not `wiki-put` — `wiki-put` refuses it by design; the mechanism stays `init.py`). Copy the changed runtime files into `$ORG_HOME/genesis` (byte-compared first), run `init.py`; re-verify the stray login is gone (user list read-back); commit the plan's paths only. Binding: `$ORG_HOME/genesis`, git. Oracle: S5/S6 + demo.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [],
+      "name_mentions": [],
+      "hash_count": 5
+    },
+    {
+      "file": "plans/2026-10-15_dais-peer-trust-reward.md",
+      "tracked": true,
+      "bytes": 5852,
+      "lines": 73,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "peer-trust-ledger 0.40, verification-not-votes 0.30, reward-integration 0.20, delegation-routing 0.10",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 4,
+      "done": 1,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 48,
+          "state": "open",
+          "text": "M1 Mint rule in org.py: `verify` requires the verifier's receipt (run id / digest) and records it; a",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 51,
+          "state": "open",
+          "text": "M2 Clear the verdict backlog by delegators with receipts (until M1 lands, the receipt lives here, since",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 57,
+          "state": "open",
+          "text": "D2 Falsify the design on that data (who would game it, how: collusion pairs, self-verify, rubber-stamp",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 59,
+          "state": "open",
+          "text": "D3 Owner decision: weight of T in R; then kernel text through the pipeline (STOP before install, review).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "4d6a1aeabe|2026-10-16|DAIS trust plan: owner's four-layer framing (act, world, peer, memory) + attribution precondition measured on 5ae331f221 (plan plans/2026-10-15_dais-peer-trust-reward.md)",
+        "148f0d4435|2026-10-15|robot-protocol-log: t45 closed its plan after its compaction dropped the graph pre-build correction; plan 2026-10-15_dais-peer-trust-reward (D1 measured: zero VERIFIED, verify takes no receipt)"
+      ],
+      "name_mentions": [
+        "4d6a1aeabe|2026-10-16|DAIS trust plan: owner's four-layer framing (act, world, peer, memory) + attribution precondition measured on 5ae331f221 (plan plans/2026-10-15_dais-peer-trust-reward.md)",
+        "148f0d4435|2026-10-15|robot-protocol-log: t45 closed its plan after its compaction dropped the graph pre-build correction; plan 2026-10-15_dais-peer-trust-reward (D1 measured: zero VERIFIED, verify takes no receipt)"
+      ],
+      "hash_count": 9
+    },
+    {
+      "file": "plans/2026-10-15_kernel-undefined-contract-audit.md",
+      "tracked": false,
+      "bytes": 2478,
+      "lines": 34,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 1,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 17,
+          "state": "open",
+          "text": "A2 Parent source/readback+native independent reviewer:9/9snapshotSHA verified;8confirmed norm rows=4lexemes,7rejected originalcandidates,1Unknowntitle reference. Report parent-review.md distinguishes counters and scope; archive/docs/master/progress+commit pending. <!-- sv: independent-verification 0.6,evidence 0.4 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [],
+      "name_mentions": [],
+      "hash_count": 3
+    },
+    {
+      "file": "plans/2026-10-15_project-fossil-cell.md",
+      "tracked": true,
+      "bytes": 11964,
+      "lines": 166,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "Keywords: fossilgrep-comments 0.30, project-cell 0.25, semantic-timeline 0.20, federation 0.15, read-only 0.10\nSemantic dominant: The snapshot timeline becomes searchable by MEANING through its check-in comments, and each project's fossil becomes a local cell (wiki + chat) readable across the syndicate.\nmd5: 7a2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 00000000000000000000000000000000",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": true,
+      "has_stop_claim": false,
+      "open": 5,
+      "done": 12,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 62,
+          "state": "open",
+          "text": "B1 grounding: does wiki/ticket/chat data in snapshot.fsl survive the snapshot lifecycle (revertTo,",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 158,
+          "state": "open",
+          "text": "Smoke requirements written",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 159,
+          "state": "open",
+          "text": "Baseline recorded [Exact]",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 160,
+          "state": "open",
+          "text": "Implementation only after baseline",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 161,
+          "state": "open",
+          "text": "Post-impl smoke passed before [x]",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "44f06b192c|2026-10-15|t53 Phase C: the federation — fossilgrep allProjects searches check-in comments across EVERY registered snapshot repo (fossil all list, 63 repos measured: 54 snapshot.fsl), failed repos NAMED; new tool fossilcell reads any project's cell (list/wiki/chat/tickets, read-only, registry+builtin+dsml-normalizer wired); federation tests 5/5, all fossil suites 15/15, description-integrity 5/5, typecheck exit 0",
+        "312b650d30|2026-10-15|t53 Phase B: the project cell lives IN snapshot.fsl — cell.ts writes the wiki card (pointers-only, create-if-missing) and one chat technote per turn (tag chat, comment carries agent+sv-md5+dominant+session); processor fires cellPost at the turn-end boundary forked background; Interface + state wrapper under the per-repo semaphore; B1 verdict recorded in plan (lifecycle never touches wiki/ticket events, corruption-reinit keeps .bak); tests 4/4, processor-effect 20/20, typecheck exit 0",
+        "cb89516ada|2026-10-15|t53 Phase A: fossilgrep searches check-in COMMENTS (semantic timeline) — searchComments reads event.comment via fossil sql -R (read-only), returns checkin/date/dominant/sv/changed-files; description states the vector contract with measured share (203/418); tests-first RED->green (6/6), plan 2026-10-15_project-fossil-cell"
+      ],
+      "name_mentions": [
+        "cb89516ada|2026-10-15|t53 Phase A: fossilgrep searches check-in COMMENTS (semantic timeline) — searchComments reads event.comment via fossil sql -R (read-only), returns checkin/date/dominant/sv/changed-files; description states the vector contract with measured share (203/418); tests-first RED->green (6/6), plan 2026-10-15_project-fossil-cell"
+      ],
+      "hash_count": 4
+    },
+    {
+      "file": "plans/2026-10-15_tui-active-sessions-panel.md",
+      "tracked": true,
+      "bytes": 6489,
+      "lines": 68,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "Keywords: sidebar-active-sessions 0.35, event-synced-store 0.25, elapsed-tick 0.20, none-active-invariant 0.20\nSemantic dominant: The owner sees at a glance which sessions of this server are running — robots included — read from the store the TUI already event-syncs, with the 1 s tick spent only on elapsed time and an explicit «none active» when idle.\nmd5: b7e2c41d90a85f3671d4c0e2f8a6b593\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: e31df24e5415d6a594172176f48af8e0",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 6,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 57,
+          "state": "open",
+          "text": "S5 `bun typecheck` PASS from packages/opencode — OPEN: package red exit 2, 10/10 errors in `src/session/llm.ts` (peer's in-flight `M`, in tree since t52b start; 0 reference t52b paths). Next: re-run after the peer lands llm.ts.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "1627990465|2026-10-16|t52b S1 RED replay: 0/7 FAIL on stub helper (plans/2026-10-15_tui-active-sessions-panel.md S1 ticked; only S5 open)",
+        "9e324c7b83|2026-10-16|t52b: close TUI active-sessions panel (plans/2026-10-15_tui-active-sessions-panel.md S2,S3,S4,S6,S7; S1,S5 open with next actions)"
+      ],
+      "name_mentions": [
+        "1627990465|2026-10-16|t52b S1 RED replay: 0/7 FAIL on stub helper (plans/2026-10-15_tui-active-sessions-panel.md S1 ticked; only S5 open)",
+        "9e324c7b83|2026-10-16|t52b: close TUI active-sessions panel (plans/2026-10-15_tui-active-sessions-panel.md S2,S3,S4,S6,S7; S1,S5 open with next actions)"
+      ],
+      "hash_count": 4
+    },
+    {
+      "file": "plans/2026-10-15_web-tui-parity.md",
+      "tracked": true,
+      "bytes": 13714,
+      "lines": 109,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "Keywords: web-tui-parity 0.35, same-server-source 0.25, active-sessions-web 0.20, status-or-unknown 0.20\nSemantic dominant: The browser form shows everything the TUI shows by reading the same server data, starting with the active-sessions block the owner needs to not kill a running session.\nmd5: 9f3a7c2d1e4b4f6a8d2c5e7f1a3b4c5d\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 00000000000000000000000000000000",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 5,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 92,
+          "state": "open",
+          "text": "W5 proof (idle DOM+probe banked; busy frame BLOCKED keyless: 4 models × 5 turns → 401 Invalid credential, isRetryable:false — the 10-07 public-key path regressed upstream; STAND: .temp/t59-stand/opencode.exe @ 10.0.1374 (with W4, build 20261016T044744Z_411d4819 exit 0 smoke 10.0.1374), dist/bin free, no oracle server running)",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "e0bc4b2413|2026-10-16|t59 web-tui-parity: stand 10.0.1374 + build receipt (plan 2026-10-15_web-tui-parity.md)",
+        "551bb9501d|2026-10-16|t59 web-tui-parity W4: scoped model dialog session+global (plan 2026-10-15_web-tui-parity.md)",
+        "31c72690f5|2026-10-16|t59 web-tui-parity W3: model-cell + vcs-cell in header/sidebar (plan 2026-10-15_web-tui-parity.md)",
+        "d4b0a34caa|2026-10-16|t59 web-tui-parity W3 protocol: ProtocolCell in session header (plan 2026-10-15_web-tui-parity.md)"
+      ],
+      "name_mentions": [
+        "e0bc4b2413|2026-10-16|t59 web-tui-parity: stand 10.0.1374 + build receipt (plan 2026-10-15_web-tui-parity.md)",
+        "ea0edbcf3c|2026-10-16|t59 web-tui-parity: index-race record, content safe (plan 2026-10-15_web-tui-parity.md)",
+        "551bb9501d|2026-10-16|t59 web-tui-parity W4: scoped model dialog session+global (plan 2026-10-15_web-tui-parity.md)",
+        "31c72690f5|2026-10-16|t59 web-tui-parity W3: model-cell + vcs-cell in header/sidebar (plan 2026-10-15_web-tui-parity.md)",
+        "5ae331f221|2026-10-16|t59 web-tui-parity: post-change build receipt 10.0.1366 (plan 2026-10-15_web-tui-parity.md)",
+        "d4b0a34caa|2026-10-16|t59 web-tui-parity W3 protocol: ProtocolCell in session header (plan 2026-10-15_web-tui-parity.md)"
+      ],
+      "hash_count": 9
+    },
+    {
+      "file": "plans/2026-10-16_haiku-omp-controlled-latency.md",
+      "tracked": true,
+      "bytes": 16058,
+      "lines": 119,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "controlled-latency,wire-equivalence,protocol-grounding,causal-boundaries",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 2,
+      "done": 3,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 67,
+          "state": "open",
+          "text": "**P2** — Частично: ✓ actual installed CLI pre-send hook qualified `20261016T004545Z_546f6c6f`, capture-only `20261016T004631Z_42dab6b9`; matrix outgoing raw hashes8/8 совпали. Остаток: точный transmitted owner omp wire и auth/extension/MCP parity. Source builder не назван runtime proof. <!-- sv: actual-wire,payload-diff,source-provenance -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 70,
+          "state": "open",
+          "text": "**P5** — Частично: ✓ public-safe REPORT/metrics/receipts сохранены, map отрендерен `20261016T005145Z_0de9d608`; routing/index/progress подготовлены к scoped commit. План ACTIVE: конкретный компонент latency и continuation причина не установлены; следующий oracle ниже. <!-- sv: measured-outcome,continuation-receipt,research-closure -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "b4f945290c|2026-10-16|plan: 2026-10-16 reasoning-lossless-replay and Anthropic HTTP3 qualification",
+        "dfa07e1fd5|2026-10-16|docs: map default reasoning flow and replay loss boundaries",
+        "63d065b406|2026-10-16|docs: audit Haiku migration contract against captured requests",
+        "e50f09495a|2026-10-16|research: record 2026-10-16 Haiku omp controlled latency round"
+      ],
+      "name_mentions": [],
+      "hash_count": 6
+    },
+    {
+      "file": "plans/2026-10-16_message-cleaner.md",
+      "tracked": true,
+      "bytes": 19335,
+      "lines": 228,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "message-cleaner-experiment 0.40, free-model-fixer 0.25, deterministic-validator 0.20, detector-precision-recall 0.15",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 6,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 102,
+          "state": "open",
+          "text": "**E3** — Fixer runs: researcher verifies the `:free` model live ($0, active) first; one zero-tool call per",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 113,
+          "state": "open",
+          "text": "**E6** — Close: `_progress_log.md` entry (shared file — own hunks only), `svm render`, plan stays in `plans/`",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 223,
+          "state": "open",
+          "text": "**E8** — v2 campaign on the allowlisted free id: probe with prompt v2 (31b: 3×429 PROBE REFUSAL), then `--all` over the",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "2ea9c10af5|2026-10-16|t69 Revision R2: translate-dont-delete implemented+tested, S2, pool still 429",
+        "0940b4e2b9|2026-10-16|t69 Supplement S1: owner-authorized 31b probe, same-pool 429, renewed NO-GO",
+        "b860045630|2026-10-16|t69 Phase E: REPORT with conditional NO-GO, archive, plan boxes, MASTER_PLAN render",
+        "934e205c04|2026-10-16|t69 Phase E: plan, corpus, detector, validator, fixer running"
+      ],
+      "name_mentions": [],
+      "hash_count": 4
+    },
+    {
+      "file": "plans/2026-10-16_model-chain-failover.md",
+      "tracked": true,
+      "bytes": 20442,
+      "lines": 105,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "model-chain,failover-classification,health-probe,assignment",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 8,
+      "done": 1,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 50,
+          "state": "open",
+          "text": "**C3b** — In-request failover (ЯДРО ПРИЗЕМЛЕНО, лист открыт до live-stand подтверждения): обрыв по first-token порогу, повтор на следующем UP, видимая synthetic-заметка, частичный текст зафиксирован с причиной. Осталось: live-стенд с висящим мембером, p50-адаптация порога, variant-подмена, in-session баннер — C6. state=PENDING;eta_turns=1;oracle=A3/live-stand. <!-- sv: inrequest-failover 0.50, visible-note 0.30, partial-kept 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 66,
+          "state": "open",
+          "text": "**C1** — Chain store (LANDED slice 2, box stays open until A1 full): `model_chain(scope, agent, data)` in `storage/db.ts` CORE_SCHEMA_SQL + `chain.sql.ts` drizzle table + `store.ts` (`loadChain` one key / `saveChain` / `ensureChainFilled` once, epistemic fallback contract). Server route for TUI dialog + web form (t59) and `model.json` behind-back case still owed. Binding: `packages/opencode/src/provider/model-chain/{chain.sql.ts,store.ts}`, `packages/opencode/src/storage/db.ts`, `packages/opencode/test/provider/model-chain-store.test.ts`. state=PENDING;eta_turns=1;oracle=A1. <!-- sv: chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 67,
+          "state": "open",
+          "text": "**C2** — Error classifier: `classifyChainError(parsed, message)` → `terminal | transient`, reusing `parseAPICallError` + `retryable`; terminal list: auth/401/403, privacy/consent-gate regex, 402/insufficient-balance, ModelNotFound, unknown_parameter; transient: 429/5xx/timeout/HeaderTimeout/no-first-token. TTFT threshold from `HealthWindow` p50 (`max(floorMs, k×p50)` with named constants). Binding: `packages/opencode/src/provider/error.ts`, `packages/opencode/src/session/retry.ts`, `packages/opencode/src/provider/gateway/health-window.ts`, new `packages/opencode/src/provider/model-chain/*` + focused test. state=PENDING;eta_turns=1;oracle=A2/A3-classify. <!-- sv: error-classification 0.50, reuse-existing 0.30, measured-threshold 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 68,
+          "state": "open",
+          "text": "**C3** — Failover executor: first-UP selection, terminal→DOWN-at-once, transient→bounded retry→DOWN, continue session on next healthy + visible note (member, reason) via SessionRetry surface, never silent. No invention: exhausted chain = visible error. Binding: `packages/opencode/src/session/prompt.ts` (`createUserMessage`/`getModel`/`runLoop`), `packages/opencode/src/session/message-v2.ts`, `packages/ui/src/components/session-retry.tsx`, `packages/opencode/src/provider/gateway/store.ts` (reuse breaker/health). state=PENDING;eta_turns=2;oracle=A3/A6. <!-- sv: failover-execution 0.45, visible-note 0.30, no-invention 0.25 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 69,
+          "state": "open",
+          "text": "**C4** — 10-min health checker: timer off request path, one cheap direct provider probe per DOWN member, UP on answer, order restored; zero tools, zero sessions; fake-clock tests. Reuses breaker `cooldownMs` concept with chain cadence 10 min (named constant, not breaker default 30 s). Binding: new `packages/opencode/src/provider/model-chain/health-check.ts`, `provider/gateway/adaptive-client.ts` (direct-call path), focused test with fake clock + probe-call recorder. state=PENDING;eta_turns=1;oracle=A4. <!-- sv: health-probe 0.50, no-session-probe 0.30, fake-clock 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 70,
+          "state": "open",
+          "text": "**C5** — Assignment uses chain (CORE LANDED slice 2): `resolveChainAgentModel` in `session-settings.ts` reads ONLY the session layer key + first UP; empty layer warns `bug:` and falls through to legacy `resolveAgentModel`. `prompt_async`/task wiring to call it with the session chain + `dispatch.py` unpin still owed. Binding: `packages/opencode/src/session/session-settings.ts:resolveChainAgentModel`, `packages/opencode/src/tool/{task,pipeline,reasoning}.ts`, `packages/opencode/src/session/prompt.ts`, `experiments/2026-10-08_robot-wave/dispatch.py`. state=PENDING;eta_turns=1;oracle=A5. <!-- sv: chain-assignment 0.50, dispatcher-unpinned 0.30, prompt-async 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 71,
+          "state": "open",
+          "text": "**C6** — TUI chain editor + close: DialogModel/DialogManageModels gains primary+backups editing through the C1 route; web lane (t59) parity noted not built twice; live free→Go receipt via researcher_agent; regressions + typecheck + `_build.ps1`; docs + `_progress_log.md` + `svm render`. Binding: `packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx`, `dialog-manage-models.*`, `docs/agent-model-resolution.md` (appendix, not rewrite), this plan, `_progress_log.md`. state=PENDING;eta_turns=2;oracle=A6/A7. <!-- sv: tui-chain-editor 0.40, live-receipt 0.35, docs-close 0.25 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 73,
+          "state": "open",
+          "text": "**C8** — favorites→chain (ЧАСТИЧНО 2026-10-16: helper+тест): `favoritesToChain(picked, favorites)` в `chain.ts` — явный выбор = голова, остальные favorites = бэкапы по порядку списка, без алиасинга; 3 юнита в `model-chain-failover.test.ts` (32/32 зелёные). Связь доказана ОТСУТСТВУЮЩЕЙ: favorites живут в TUI-сторе (`local.model.favorite()/recent()`), chain — в `model_chain` через `saveChain`/PUT-роут, общих вызывающих нет. Остаток: проводка `DialogModel.onSelect` → `PUT /chain/:scope/:agent`; честная преграда — chain-клиента нет в SDK v2 (grep `chain` по `sdk.gen.ts` → no matches, 2026-10-16), нужен новый метод клиента. state=PENDING;eta_turns=2;oracle=dialog-pick пишет chain через серверный путь + readback. <!-- sv: favorites-chain 0.50, explicit-head 0.30, sdk-gap 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "0153cad221|2026-10-17|t68 session-retry consults chain + switch visibility (C7) + favoritesToChain (C8 partial) (plan 2026-10-16_model-chain-failover.md)",
+        "2125d625df|2026-10-16|t68 C3b: in-request failover core (watcher/decide/note) + llm runChain + chain-switch note; KV: switch changes replay bytes (new synthetic part + next-member text + rebuilt prefix), no-switch identical to legacy",
+        "3638434f76|2026-10-16|t68 slice 3-live: canonical agent key, FreeUsageLimitError live pin, stand evidence in plan",
+        "f9944064e7|2026-10-16|t68 slice 3: GET/PUT /chain route + promptAsync/task/pipeline wiring with switch notes"
+      ],
+      "name_mentions": [
+        "0153cad221|2026-10-17|t68 session-retry consults chain + switch visibility (C7) + favoritesToChain (C8 partial) (plan 2026-10-16_model-chain-failover.md)",
+        "d41d302191|2026-10-16|t68 defect-channel failover: provider-shaped dies enter decideStreamError via isProviderShaped gate (live t74: 429 reached retry with no mark/switch, which a failure cannot do); interrupts and own bugs still rethrow. RED->GREEN stream 17/17, typecheck 0 (plan 2026-10-16_model-chain-failover.md, boxes untouched)",
+        "5a58cb4644|2026-10-16|t68 stream-phase failover: retry-after beyond measured floor is terminal, runChainStream routes every phase through decideStreamError (live t73: 429 + retry-after 49715s hung ~14h in retry policy); RED->GREEN failover 29/29 + stream 15/15, llm 34/34, typecheck 0 (plan 2026-10-16_model-chain-failover.md, boxes untouched)",
+        "40f0fa39c9|2026-10-16|t68 C1/C5 fill-once at creation: loadScopeChains + planSessionFill + fillSessionChains in Session.createNext; 4 pure tests (plan 2026-10-16_model-chain-failover.md, boxes untouched)"
+      ],
+      "hash_count": 2
+    },
+    {
+      "file": "plans/2026-10-16_reasoning-lossless-replay.md",
+      "tracked": true,
+      "bytes": 22354,
+      "lines": 109,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "reasoning-preservation,wire-proof,provider-contracts,continuity,transport-qualification",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 6,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 72,
+          "state": "open",
+          "text": "**T4** — Квалифицировать downstream SDK/adapters по provider matrix: не оставлять silent drop ниже исправленного transform. Отличать текстовую dialect conversion от opaque replay; сохранять provenance original model/account/namespace. Проверить unsupported cases и настоящие warnings/errors. Не писать в node_modules/external, не менять SDK version незаметно; если старый SDK несовместим — отдельный prerequisite со своим oracle/authority. state=DOING;eta_turns=2;oracle=A2–A3/SDK outgoing capture. Receipt: t4-grounding.md + D-S1 fix fdc19d045a; OPEN: F2/F3 transform-time reports. <!-- sv: adapter-contracts 0.45, actual-wire 0.35, unsupported-observability 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 76,
+          "state": "open",
+          "text": "**T8** — Independent verifier перечитывает artifacts/pins и сам исполняет decisive oracle; scoped regressions/typecheck/обязательный build, diff direction и чужая dirty work проверены. Обновить граф на final revision, requirements/tests/docs и progress; scoped commit с именем плана делает уполномоченный executor. Только после покрытия всех acceptance: планы по фактическому outcome, `svm render`, scan stale refs. При остатке — ACTIVE с next action и настоящим run/ticket receipt, без DONE. state=PENDING;eta_turns=1;oracle=A6/independent receipt+commit. <!-- sv: independent-oracle 0.40, clean-state 0.35, documentation 0.25 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 77,
+          "state": "open",
+          "text": "**T9** — Квалифицировать HTTP/3/QUIC для `api.anthropic.com` с этой машины и проверить текущий OpenCode transport/fallback по отдельному contract ниже. T9 research-only; изменение product transport требует отдельного classified reproducer/binding/authorisation и не прячется в reasoning patch. Можно исследовать независимо от T3–T7, но результат не закрывает их. Финальная проверка T8 учитывает A7. state=DOING;eta_turns=1;oracle=A7/qualified direct-network receipts. Receipt: aioquic 7/12 проб, runtime pins, S5 chain; OPEN: authenticated SSE. <!-- sv: http3-quic 0.45, client-network-qualification 0.35, fallback-evidence 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "71dc0d1a3c|2026-10-16|t65 T7 live + T8 package (plans/2026-10-16_reasoning-lossless-replay.md): 2-turn fleet-model preservation proven (wire 5/5, EXPECTED_FAIL control), plan boxes ticked with receipts. Anthropic live 0 (open). 2 authorized fleet inferences.",
+        "0640eb61dd|2026-10-16|t65 slice1 transform signed-empty preservation (plans/2026-10-16_reasoning-lossless-replay.md): keep empty-text reasoning with signature/redactedData/redactedContent on anthropic+bedrock; RED 4pass/6fail to GREEN 10pass, transform.test.ts 170pass, typecheck exit0; _build.ps1 blocked by lock (residual). KV-cache: wire bytes change only for signed/redacted-empty turns now carried; other replays byte-identical.",
+        "b4f945290c|2026-10-16|plan: 2026-10-16 reasoning-lossless-replay and Anthropic HTTP3 qualification"
+      ],
+      "name_mentions": [
+        "71dc0d1a3c|2026-10-16|t65 T7 live + T8 package (plans/2026-10-16_reasoning-lossless-replay.md): 2-turn fleet-model preservation proven (wire 5/5, EXPECTED_FAIL control), plan boxes ticked with receipts. Anthropic live 0 (open). 2 authorized fleet inferences.",
+        "7607eedd9f|2026-10-16|t65 T5T6 build receipt (plans/2026-10-16_reasoning-lossless-replay.md): _build.ps1 20261016T060329Z_231aed2c exit 0, smoke 10.0.1384 + prompt embedded PASS, all copies OK, lock released. 0 paid.",
+        "9bd5ecac74|2026-10-16|t65 T5 pins + T6 expand (plans/2026-10-16_reasoning-lossless-replay.md): checkpoint continuity pins 6/6, ReasoningPart expand/collapse toggle + render test 2/2, reasoning-window 7/7, checkpoint 26/26, typecheck 0. Log hunk rides in cdbea9c27c (t70 whole-file sweep, content intact). Build residual: чужой lock. 0 paid.",
+        "fdc19d045a|2026-10-16|t65 D-S1 fix + A7 S5 chain (plans/2026-10-16_reasoning-lossless-replay.md): copilot-chat serializer reports empty reasoning via reportCut (RED 3/1 to GREEN 4/4, converter suite 19/19, typecheck 0); gateway h3-h2-h1.1 chain fixture S5 GREEN; build 10.0.1376 smoke PASS. KV-cache: wire unchanged except added cut log. 0 paid.",
+        "96d7bfccb8|2026-10-16|t65 T4 grounding + A7 fallback-gap (plans/2026-10-16_reasoning-lossless-replay.md): 9 downstream bounds mapped, D-S1/D-S7 silent drops named, fallback units 8/8, injection-seam gap recorded; no product change, 0 paid.",
+        "35b17bee48|2026-10-16|t65 slice2 T9 update (plans/2026-10-16_reasoning-lossless-replay.md): runtime transport pins + probe 7/12 in progress log; experiments log extended."
+      ],
+      "hash_count": 7
+    },
+    {
+      "file": "plans/2026-10-16_self-edit-directive.md",
+      "tracked": true,
+      "bytes": 21457,
+      "lines": 117,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "self-edit-directive,reasoning-hygiene,error-recurrence,fault-tolerance,keep-machinery",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 2,
+      "done": 10,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 90,
+          "state": "open",
+          "text": "**P2a** — Opt-in per model in the t68 chain, real robot runs: along/across/adversarial/effect cells incl. ERROR RECURRENCE A/B. Oracle: the A/B run pair this plan already records (ERROR RECURRENCE A=2/10, B=0/10 — commit `f11d74cef8`) extended to the four cells; every run logs model, prompt hash and output hash; free models only (no paid calls without the owner's yes).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 91,
+          "state": "open",
+          "text": "**P2b** — OWNER DECISION — the DEFAULT. The plan's own words: «Owner decides default last». Quote carried verbatim; the switch stays opt-in per model until the owner names the default. Resume: the owner names it — no robot may pick a default on the owner's behalf. <!-- sv: robot-runs 0.45, error-recurrence 0.35, owner-decision 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "9a02abed93|2026-10-16|t70 P1c: visible refusals + rollback proof, 11/11 GREEN, build exit 0",
+        "1f55da7913|2026-10-16|t70 P1b: replay hook behind OFF switch + released negative line, 8/8 GREEN (build residual: foreign exe lock)",
+        "0f9fe1a296|2026-10-16|t70 P1a: self-edit directive module + 21 tests GREEN (RED receipt, inherited typecheck proof, build exit 0)",
+        "f11d74cef8|2026-10-16|t70 A/B chunk 1: ERROR RECURRENCE A=2/10 B=0/10, explicit deepseek-v4-flash free; plan AB[x] + P1a/b/c; shared log hunk"
+      ],
+      "name_mentions": [],
+      "hash_count": 6
+    },
+    {
+      "file": "plans/2026-10-16_zoekt-scip-fossil-sv.md",
+      "tracked": true,
+      "bytes": 29613,
+      "lines": 454,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "Keywords: fossil-diff 0.30, zoekt-search 0.25, scip-navigation 0.20, sv-provenance 0.15, codegraph-migration 0.10\nSemantic dominant: Поиск и навигация получают проверяемые адреса версий Fossil и SV до замены потребителей CodeGraph.\nmd5: e8a16f092bce49a5b9f4130dd7c26e84\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 00000000000000000000000000000000",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 6,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 96,
+          "state": "open",
+          "text": "**M0b** — corpus и current CodeGraph baseline, воспроизводимый reader. <!-- sv: baseline, corpus, measurement -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 251,
+          "state": "open",
+          "text": "Z4 — реализовать локальный adapter/service и сравнительный oracle на реальном корпусе.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 254,
+          "state": "open",
+          "text": "Z5 — заменить CodeGraph consumers после проверенной parity; убрать обязательную зависимость,",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "4780918317|2026-10-18|feat(dais): close 2026-10-18_dais-fossil-reference-impact with native range evidence",
+        "fadd644c86|2026-10-18|test(dais): close 2026-10-17_dais-navigation-mcp-corpus with native wire evidence",
+        "cd72b12fe6|2026-10-17|feat(dais): deliver 2026-10-17_dais-repeated-capture",
+        "e02093cfbb|2026-10-17|feat(dais): deliver 2026-10-17_dais-native-producer-capture"
+      ],
+      "name_mentions": [],
+      "hash_count": 11
+    },
+    {
+      "file": "plans/2026-10-17_portable-binary-hermetic.md",
+      "tracked": true,
+      "bytes": 14793,
+      "lines": 144,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 6,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 74,
+          "state": "open",
+          "text": "S1 — Clamp TUI + shared discovery to `directory..worktree` (no unbounded `up`).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 83,
+          "state": "open",
+          "text": "S2 — Fixture tests first (RED today, GREEN after S1).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 89,
+          "state": "open",
+          "text": "S3 — Fill `model.json` layer instead of ENOENT-warn.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 95,
+          "state": "open",
+          "text": "S4 — Print error content, never `[object Object]`.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 99,
+          "state": "open",
+          "text": "S5 — Visibility: one log line per loaded source + `/config` list.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 104,
+          "state": "open",
+          "text": "S6 — Real check after `_build.ps1`: copy `dist/bin` → `.temp/t78-install/a/b/bin`, decoy `.opencode/`",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "854457e568|2026-10-17|t78 true warn sites: local.tsx ENOENT fill + errorMessage",
+        "30110e253f|2026-10-17|t78 portable hermetic: clamp TUI discovery, fill model.json, printable seed errors"
+      ],
+      "name_mentions": [],
+      "hash_count": 2
+    },
+    {
+      "file": "plans/2026-10-18_codex-oauth-empty-error.md",
+      "tracked": true,
+      "bytes": 4772,
+      "lines": 37,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 4,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 11,
+          "state": "open",
+          "text": "S1 Пробросить реальную ошибку через `authorize`/`callback` (лог + тело `BadRequest` с `message`), контракт дыма: повтор `EADDRINUSE` даёт не `{}`, а текст с `EADDRINUSE`/`1455`",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 12,
+          "state": "open",
+          "text": "S2 Сделать Codex OAuth-сервер как в Anthropic: `listen`-хелпер, fallback на эфемерный порт при `EADDRINUSE`, очистка `oauthServer`/`oauthPort` при ошибке, `exchangeCodeForTokens` по фактическому `redirectUri`",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 13,
+          "state": "open",
+          "text": "S3 Дым и регресс: `test/server/httpapi-provider.test.ts` зелёный, ручной дым `POST /provider/openai/oauth/authorize` при занятом `1455` возвращает понятную ошибку, а не `{}`",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 14,
+          "state": "open",
+          "text": "S4 Протокол по эталонам (`oh-my-pi`, `external/opencode-1.19.0`): scope `api.connectors.read/invoke`, residency `data_residency`+header, refresh single-flight, device polling MAX_POLLS=120, валидация exchange, allowlist 1.19.0. НЕ делать: смена endpoint на `api.openai.com/v1/responses`, смена originator (оба эталона шлют в `chatgpt.com backend-api`; originator `opencode` как в 1.19.0)",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "aee8815eff|2026-10-19|codex oauth: surface authorize errors, resilient callback port 54546, protocol sync with oh-my-pi/1.19.0 (plan 2026-10-18_codex-oauth-empty-error)"
+      ],
+      "name_mentions": [
+        "aee8815eff|2026-10-19|codex oauth: surface authorize errors, resilient callback port 54546, protocol sync with oh-my-pi/1.19.0 (plan 2026-10-18_codex-oauth-empty-error)"
+      ],
+      "hash_count": 0
+    },
+    {
+      "file": "plans/2026-10-18_global-recents-constraint.md",
+      "tracked": true,
+      "bytes": 14336,
+      "lines": 153,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 5,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 20,
+          "state": "open",
+          "text": "OWNER BOX (do not close the plan): owner enters `globalRecents` in the TUI (Global recents action, ctrl+alt+r) — proposed seed: free zen → contributor via Go (owner order 2026-10-16). The plan stays ACTIVE until this box is ticked by the owner's own edit.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "8e71952aff|2026-10-18|fix: restore the 49 robot files my 7158cd1828 reverted from a stale shared index; keep only the futures note",
+        "7158cd1828|2026-10-18|futures: port legitimacy analyzer — listeners checked against expected owner by known service signatures (owner 2026-10-18)",
+        "06296ddcca|2026-10-18|t87 implement: global recents gate in every consumer (Legislator PASS, owner box open)",
+        "97af50e9e8|2026-10-18|t87 plan + RED tests: global recents constraint (Legislator review pending)"
+      ],
+      "name_mentions": [],
+      "hash_count": 4
+    },
+    {
+      "file": "plans/2026-10-18_kernel-method-preamble.md",
+      "tracked": true,
+      "bytes": 10357,
+      "lines": 79,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": false,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 14,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 30,
+          "state": "open",
+          "text": "Oracle + build + commit for review 2; STOP before --install — then ready for the owner",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "4ddce9c6d6|2026-10-19|t90 review 2: slot Unknown agreement + registry rank + glossary path + spans + rung (STOP before --install)",
+        "53877ef2c4|2026-10-18|t90 review 1: layer-only instrument rule + domain bounds + doc tails (STOP before --install)",
+        "7421093607|2026-10-18|t90 addenda: instrument by layer + patents/DOMAIN_TERMS (STOP before --install)",
+        "8e71952aff|2026-10-18|fix: restore the 49 robot files my 7158cd1828 reverted from a stale shared index; keep only the futures note"
+      ],
+      "name_mentions": [],
+      "hash_count": 6
+    },
+    {
+      "file": "plans/2026-10-19_codex-robot-event-handoff.md",
+      "tracked": false,
+      "bytes": 34305,
+      "lines": 465,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 4,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 109,
+          "state": "open",
+          "text": "**E1 — completion predicate: квалифицированная L1 panel против реального user.** <!-- sv: completion-predicate 0.60, primary-preservation 0.40 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 110,
+          "state": "open",
+          "text": "**E2 — event wait/dispatch CLI и настоящие SSE fixture controls.** <!-- sv: event-handoff 0.60, bounded-lifetime 0.40 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 111,
+          "state": "open",
+          "text": "**E3 — реальная передача управления родителю, независимая приёмка/build/archive.** <!-- sv: parent-continuation 0.50, independent-oracle 0.50 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 112,
+          "state": "open",
+          "text": "**E4 — штатный Stop hook: parent-child registration, SSE wait и automatic next request.** <!-- sv: native-stop 0.50, watch-binding 0.30, delivery-oracle 0.20 -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [],
+      "name_mentions": [],
+      "hash_count": 10
+    },
+    {
+      "file": "plans/2026-10-19_edit-description-contract.md",
+      "tracked": true,
+      "bytes": 9635,
+      "lines": 120,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "```yaml\nKeywords: edit-description-contract 0.35, refusal-catalogue 0.25, contradiction-same-file 0.20, stringified-files-schema 0.12, contract-test 0.08\nSemantic dominant: Rewrite the edit tool description from the code's own refusals and pin it with a test so the txt cannot drift from the ts.\nmd5: 84719f6efd224ad99c3f617cb2c92570\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 00000000000000000000000000000000\nnote: hash values are generative tags — search them, never compute them.\n```",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 6,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 87,
+          "state": "open",
+          "text": "S7 Acceptance — caller-avoidable `edit` errors ≤ 2% of calls over 7 days after promotion (owner 2026-10-19: «1-2 ошибки на 100 редактирований норм, 1:8 много»). Target: schema/refusal-key errors the caller could have avoided ≤ 2%. Baseline (Legislator, measured): 10-17..19: 56 errors / 466 calls = 12%; week 1317 / 2868, of which 877 are one GLM repetition loop (`ses_ec2961e15ffefWEjqE2WOQOj10`, t46, 10-15) → 22% without it. Exclusions: repetition-loop session `ses_ec2961e15ffefWEjqE2WOQOj10` and external failures listed by id at measure time are counted separately, never silently. Query (7-day, rerun against current schema): `edit` errors that the caller could have avoided / `edit` calls over trailing 7 days on the promoted build. <!-- sv:",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "e739fd0b20|2026-10-19|t93 addendum: 2% acceptance box S7 (Legislator baseline 12%, week 22% excl loop ses_ec2961e15ffefWEjqE2WOQOj10)"
+      ],
+      "name_mentions": [],
+      "hash_count": 9
+    },
+    {
+      "file": "plans/2026-10-19_tool-description-contracts.md",
+      "tracked": true,
+      "bytes": 20356,
+      "lines": 258,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": "```yaml\nKeywords: tool-description-audit 0.35, refusal-key-contract 0.25, error-census-priority 0.20, orphan-descriptions 0.12, contract-tests 0.08\nSemantic dominant: The edit lesson is applied to every tool: each description is checked against its code by refusal keys, schema and examples, in order of measured failure rate, so that no model fails a tool because its manual promised something the code refuses.\nmd5: a3eb5a7edb7d42fabae35e82e1c60284\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 00000000000000000000000000000000\nnote: hash values are generative tags — search them, never compute them.\n```",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 10,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 168,
+          "state": "open",
+          "text": "T10 remaining `.txt` tools (alphabetical, ≤3% or no errors) — per tool: census (counts + 1–2 examples",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 186,
+          "state": "open",
+          "text": "T11 orphans + inline inventory — record the four mappings (plan-enter, planexit, powershell,",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 199,
+          "state": "open",
+          "text": "T12 acceptance + post-promotion measure — per-tool ≤2% caller-avoidable errors (schema, refusal key)",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "a6b6a983ee|2026-10-19|t94 closing: oracle GREEN (build 10.0.1462), next T10-webfetch",
+        "8334d3f941|2026-10-19|t94 T10-task: sample TDZ errors + aborted/host note",
+        "4d3430bef6|2026-10-19|t94 post-restart: oracle GREEN, next T10-task",
+        "805732ed9c|2026-10-19|t94 T10-write: permission-refusal note"
+      ],
+      "name_mentions": [],
+      "hash_count": 33
+    },
+    {
+      "file": "plans/2026-10-20_hr-delegator-driver.md",
+      "tracked": true,
+      "bytes": 28601,
+      "lines": 145,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "Keywords: hr-delegator-driver 0.30, dossier-gate 0.25, independent-verifier 0.20, delivery-guarantee 0.15, owner-boundary 0.10\nSemantic dominant: An automatic HR-delegator driver that gates every order on a deterministic handshake dossier and guarantees delivery, independent verification and the owner-authority boundary.\nmd5: 9b4d1f2a6c7e48b3a0d5c8e71f2a3b4c\nprev-md5: 7f3c2a91b8e44d05a6c7f1e29d3b5a77\nparent-goal-md5: e27b5c90a4d13f68b0c9e2a71d4f8b53\nnote: hash values are generative tags — search them, never compute them.",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 15,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 97,
+          "state": "open",
+          "text": "I1 — internship (admission, once per configuration + on STALE): FIXED calibrated set — SV decode (futures benchmark track 1: recall, invention, honesty, drift over hops; calibration `experiments_history/2026-10-19_kernel-portability-chat/` and `experiments/2026-10-20_sv-axis-falsifier/` arms A 0/4 / C 2/4 / B 4/4, glossary load-bearing — state whether the internship gives the glossary, it is part of the configuration) + trivial TRIZ closed-book (track 4: standard textbook problems, canonical answers with `content_hash`, recall counts, transposed twin scored separately); PASS/FAIL from the gate's deterministic scoring, the model only answers and never grades itself; thresholds Hypothetical until D3 N; every result enters the passport with its receipts. <!-- sv: internship-admission, sv-decode-exam, trivial-triz-exam -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 98,
+          "state": "open",
+          "text": "H1 — handshake brief: task SV with «decode it» + one domain TRIZ probe; predicate list (SV fields, handshake tool calls = 0, required refusals named, probe property). <!-- sv: handshake-brief, triz-probe, predicate-list -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 99,
+          "state": "open",
+          "text": "H2 — deterministic dossier gate: model extracts predicates, gate computes PASS/FAIL; only PASS releases the direct order. <!-- sv: dossier-gate, model-extracts-gate-decides -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 100,
+          "state": "open",
+          "text": "C1 — SV correction loop between H2 and the direct order: input = H2 dossier with failed predicates; attribution first (M1 classes); correction changes the order's SV (keywords, weights, dominant) and the brief lines each failed predicate points to, each change naming its predicate, to_state never moves (per `@INTENTION_INVARIANCE`); corrected SV = new vector (new md5, prev-md5 = old, same parent-goal-md5); re-probe through H1/H2; bound = finite round count debited from the loop budget (per `@LOOP_PROGRESS`), number = owner decision 6; exits: PASS → order goes out, exhausted → another passport configuration (P1) or the owner, never an order on FAIL; every round recorded in D2; «guaranteed result» = D3's measured claim (PASS-after-correction vs first-try PASS), Hypothetical until N. <!-- sv: sv-correction-loop, probe-fail-attribution, bounded-reprobe -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 101,
+          "state": "open",
+          "text": "P1 — applicability passport keyed by CONFIGURATION (model id + variant/quantization, sampling settings, kernel receiver sha256, binary version + tool set, context class): qualified task classes with the dossiers/outcomes that earned each, conditions, observed failures with attribution class + receipts, acceptance checks for its results; STALE on any key-component change until re-checked on a fixture (per `@TOOLCHAIN_QUALIFICATION`); refusing mechanism = a pre-dispatch key check that withholds the order from a configuration whose key changed (no quiet reuse — routed to I1 re-internship or the owner); a class with no evidence is «not qualified», never «probably fine». Sources: `opencode.db` + `docs/robot-protocol-log.md` + dossiers t104/t105; kernel sha256 / tool set / context class / decode+probe answers have no source yet — D2 records them from the next order. <!-- sv: applicability-passport, configuration-key, stale-refusal -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 102,
+          "state": "open",
+          "text": "D1 — delivery guarantee: idle-only send, message-id receipt, first-row model == layer model, fleet cap 3, silence/dead host = failed execution. <!-- sv: idle-send, receipt-readback, layer-model-check -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 103,
+          "state": "open",
+          "text": "E1 — execution guarantee: watch to boundary, read final message + diff + DB rows, executor ledger per task, every check routed to a robot that took no part. <!-- sv: watch-to-boundary, executor-ledger, independent-verifier -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 104,
+          "state": "open",
+          "text": "U1 — cross-decode before verification, in E1's flow: before checking a result, the verifier (a different member, preferably another model) reads ONLY the executor's final SV and report, never the brief, and writes down the executor's goal, what it did, and what proves it; the driver compares that reconstruction with the brief and the diff under a pre-written deterministic scoring rule (not the verifier's opinion); a reconstruction that misses the goal or the proof sends the work back with ONE request — «give the goal and the proof» — not a defect, no protocol-log row; padding, a fake report or an operator runaround stay defects; every cross-decode goes into D2 (executor configuration, verifier configuration, score) as D3 data. <!-- sv: cross-decode-teach-back, verifier-decodes-first, understanding-record -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 105,
+          "state": "open",
+          "text": "A1 — authority boundary: driver never answers a robot's question in the owner's name; owner decisions named (install words, money/paid models, ceilings, kernel cuts); t100 canned-«Да.» as the regression case. <!-- sv: owner-boundary, named-decisions, no-canned-yes -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 106,
+          "state": "open",
+          "text": "S1 — driver state namespaces + no-new-JSON invariant; `sessions.json` read-only legacy. <!-- sv: state-namespace, no-new-json, legacy-readonly -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 107,
+          "state": "open",
+          "text": "M1 — assumptions list + attribution: ASSUMPTIONS in briefs/decodes/reports, gate extraction, brief-gap | model-assumption | defect verdict; t100 «receivers lag → reinstall» as the reference attribution. <!-- sv: assumptions-list, attribution-first, brief-gap-vs-prior -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 108,
+          "state": "open",
+          "text": "F1 — analyst separation + inputs: separate session, neither driver nor executor; owns reading protocol log, dossiers, ledger, passports, DB history; writes back only passport entries + receipts. <!-- sv: analyst-separation, failure-inputs, passport-writeback -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 109,
+          "state": "open",
+          "text": "F2 — analyst threshold + proposals: declared ripeness threshold, mechanism-first proposals with reproducer/predicted effect/oracle, routed to Legislator/owner; smoke on three recorded failures. <!-- sv: ripeness-threshold, mechanism-first-proposal, routed-not-applied -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 110,
+          "state": "open",
+          "text": "D2 — handshake record + outcome join, FIRST to build: every order from now on records the full configuration key (incl. kernel sha256 and binary version) plus the decode answer and the probe; the outcome is joined when the task closes; oracle = coverage metric (outcome on record / handshakes), target ≥80% over the next 20 handshakes; a handshake with no outcome is an open item with an owner, never an exclusion. SQLite namespace; kept forever. <!-- sv: handshake-record, outcome-join, coverage-first -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 111,
+          "state": "open",
+          "text": "D3 — predictive measurement: over N orders, which handshake predicates precede which failure class; Hypothetical until N; feeds driver, analyst and the SV benchmark tracks. <!-- sv: predictive-measurement, predicate-outcome-link, hypothetical-until-n -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "454ef1a35b|2026-10-21|t105 addendum 8: cross-decode U1 before verification (plan only)",
+        "593ccf427f|2026-10-21|t105 addendum 7: backtest recorded, D2 first, STALE refusal, measured N (plan only)",
+        "54b79d16b5|2026-10-21|t105 addendum 6: SV correction loop C1 + parseable plan SV (plan only)",
+        "f725f7aa4f|2026-10-20|t105 addendum 5: internship I1 as admission criterion (plan only)"
+      ],
+      "name_mentions": [],
+      "hash_count": 4
+    },
+    {
+      "file": "plans/2026-10-20_kernel-line-audit.md",
+      "tracked": true,
+      "bytes": 3278,
+      "lines": 51,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 9,
+      "done": 1,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 30,
+          "state": "open",
+          "text": "R1 — read all 654 snapshot lines by eye; collect duplicate pairs with both quotes + keep-place",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 31,
+          "state": "open",
+          "text": "R2 — collect persons/host references with move-to-addon vs drop-to-docs disposition",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 32,
+          "state": "open",
+          "text": "R3 — collect wordy phrases with strictly-shorter exact rewrites + bytes saved (≈)",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 33,
+          "state": "open",
+          "text": "R4 — write `experiments/2026-10-20_kernel-audit/REPORT.md` (table + totals + rejected list)",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 34,
+          "state": "open",
+          "text": "R5 — verify every row quotes text present verbatim in the snapshot",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 35,
+          "state": "open",
+          "text": "R6 — append `_progress_log.md` line; commit plan + report via `scripts/commit_own.py`",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 36,
+          "state": "open",
+          "text": "R7 — collect recurring formulas (3+ occurrences, one meaning) as dictionary candidates",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 37,
+          "state": "open",
+          "text": "R8 — write category 4 with occurrences, sameness verdict, term + definition, refs, math",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 38,
+          "state": "open",
+          "text": "R9 — verify every occurrence quoted verbatim from the snapshot; commit plan + log",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "de32207471|2026-10-20|t99 addendum - category 4 dictionary candidates; plan plus log hunk",
+        "25f01bff2e|2026-10-20|t99 kernel line audit - plan plus log hunk; report on disk under experiments (ignored), nothing cut"
+      ],
+      "name_mentions": [
+        "303d4d91f3|2026-10-20|svm render: map 46 active plans; carry the 3x3 receipt re-run and the t99 integrity-gate manifests"
+      ],
+      "hash_count": 6
+    },
+    {
+      "file": "plans/2026-10-20_robot-personnel-delegator.md",
+      "tracked": false,
+      "bytes": 18156,
+      "lines": 157,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "Keywords: robot-personnel 0.30, sv-handshake 0.25, independent-verification 0.25, evidence-dossier 0.20\nSemantic dominant: Автоматизировать назначение внешних роботов и независимых проверок без подмены доказательств кадровым мнением.\nmd5: 25f8c07b61a94d3e8b204af59c716de2\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 00000000000000000000000000000000\nnote: hash values are generative tags — search them, never compute them.",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 3,
+      "done": 0,
+      "partial": 1,
+      "open_boxes": [
+        {
+          "line": 30,
+          "state": "open",
+          "text": "H2 — реализовать минимальный автоматический цикл на существующих организационных/host инструментах с долговечной адресацией. <!-- sv: delegation-cycle, event-handoff, evidence-dossier -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 31,
+          "state": "open",
+          "text": "H3 — отдельный робот другой модели исполняет оракулы, отрицательные контроли, проверяет ограничения и возвращает пакет доказательств. <!-- sv: independent-verification, refusal-controls, receipts -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 32,
+          "state": "open",
+          "text": "H4 — провести один разрешённый пилот на конкретном остатке DAIS; обновить досье по фактам и завершить цикл с подтверждённой приёмкой либо точным остатком. <!-- sv: dais-pilot, dossier-feedback, whole-goal -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [],
+      "name_mentions": [],
+      "hash_count": 10
+    },
+    {
+      "file": "plans/2026-10-21_corporation-observability-bridge.md",
+      "tracked": true,
+      "bytes": 8833,
+      "lines": 51,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "Keywords: fossil-bridge-per-tree 0.25, corporation-summary-panel 0.25, robot-server-autoconnect 0.20, observable-processes 0.15, scheduler-on-fossil 0.15\nSemantic dominant: Ground what exists of the fossil bridges, then design one observable process with a panel that both the owner and agents use, where every robot server reports its state into it.\nmd5: 7c2e9a4b5d6f48e0a1b2c3d4e5f6a7b8\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 6b1e8d4a2f9c37e05b6e1a8d4f2c9e73\nnote: hash values are generative tags — search them, never compute them.",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 7,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 25,
+          "state": "open",
+          "text": "B1 — bridge census: for org.fossil AND each real tree's cell record server/port, writers, readers, what is visible today, what is missing. `std: none found — no OTel convention for agent session state (OTel system/process-metrics covers process.cpu/memory/uptime only, Development status; fetched content_hash fa816e7b…/121df34a…); ISO 25010 snippets only (Guess, no fetched primary) — receipts in REPORT §7.` <!-- sv: bridge-census, writers-readers, visible-today -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 26,
+          "state": "open",
+          "text": "B2 — state schema + route map: session/task-md5/model/busy/last-SV/error/host-heartbeat each mapped to its host source (path:line) and its cheapest fossil route (chat line / ticket field / technote / wiki card); storage-paradigm note (no new JSON). `std: none found — OTel has no heartbeat/state convention for sessions (same receipts); lease/heartbeat reuse instead of a new metric.` <!-- sv: state-schema, cheapest-route, no-new-table -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 27,
+          "state": "open",
+          "text": "B3 — auto-connect design: well-known path primary + env overrides + registry-for-reads-only; push seams (turn-end cellPost fork, claim/inbox, escalate, HOST-DOWN record); visible-failure contract (NAMED zero + log_once + STALLED); code surfaces with path:line; KV-cache: none. `std: none found — discovery by well-known path + env follows orgcfg.py ORG_HOME/ORG_PORT/FOSSIL (project convention, not an external standard).` <!-- sv: autoconnect, well-known-path, visible-failure -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 28,
+          "state": "open",
+          "text": "B4 — panel design: A/B/C compared with cost, oracle (capture predicting known-state rows), and robot-read route (same verbs or not); B chosen as summary, A as drill-down, C deferred. `std: none found — ISO 25010 observability qualities by snippet only (no primary fetched); panel contract is project verbs (org.py inbox --json, fossilcell), not a standard widget.` <!-- sv: panel-compare, same-verbs, oracle-per-option -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 30,
+          "state": "open",
+          "text": "B5 — scheduler plug: t122-A fires write START + lock-guarded dispatch + VERIFIED receipts so the panel shows scheduled→verified; MISSED rows close the R7 gap; t122-C run_spec as named follow-up with its presence-gating limit. `std: none found — catch-up/overlap semantics follow the t122 prior-art receipts (Task Scheduler IGNORE_NEW, Temporal Overlap Skip), not a new standard.` <!-- sv: scheduler-plug, scheduled-to-verified, missed-rows -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 31,
+          "state": "open",
+          "text": "B6 — failure-visibility check: double dispatch, watcher-blindness, ADID-no-host, host-restart-abort classes each named with the panel row that would have shown them (13:53 instance recorded Unknown with its search receipt). `std: none found — failure rows are project verdicts (watching() STALLED, STALE host, Skip row), not standard codes.` <!-- sv: failure-visibility, stalled-not-silent, unknown-recorded -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 32,
+          "state": "open",
+          "text": "B7 — fresh-panel oracle design (no build in this plan): fixture org + two fixture cells with known READY/WORKING/STALLED tickets → predicted panel rows before the run; mismatch = FAIL. `std: none found — oracle is a project capture with a prediction (@SMOKE_BEFORE), not a standard conformance test.` <!-- sv: panel-oracle, prediction-first, fixture-corporation -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "5fd4d643bd|2026-10-21|t125 corporation observability bridge (research + plan, no code)"
+      ],
+      "name_mentions": [],
+      "hash_count": 5
+    },
+    {
+      "file": "plans/2026-10-21_delegation-tool-tdz.md",
+      "tracked": true,
+      "bytes": 16274,
+      "lines": 73,
+      "lifecycle": null,
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 4,
+      "partial": 1,
+      "open_boxes": [
+        {
+          "line": 44,
+          "state": "open",
+          "text": "**T6 — CLOSURE.** `std:` none found (`<instrument> «query»`) — the contract is `AGENTS.md` § Plan Maintenance (a plan moves with its evidence; a commit names its plan; the map is generated). **Oracle:** the plan moves to `plans_completed/` in the same commit that names it, `svm render` re-maps the tree, `_progress_log.md` carries the row, and t127's T7 is closed by the second reader's receipt.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "9de289405d|2026-10-21|t128 T5: the stand route is measured (a provider with its own model list resolves) and the credential wall is named - t127 T7 is closed, no credential was copied and none is asked for",
+        "f295165ac4|2026-10-21|t128: the delegation lane read the global-recents list before its declaration (temporal dead zone) - task and pipeline fixed, the pipeline lane gets its first behaviour test"
+      ],
+      "name_mentions": [],
+      "hash_count": 8
+    },
+    {
+      "file": "plans/2026-10-21_delegator-memory-repair.md",
+      "tracked": true,
+      "bytes": 21076,
+      "lines": 100,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "fold-restore-routing, dead-route-removal, measurable-cut, memory-provenance-check, generated-index",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 10,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 52,
+          "state": "open",
+          "text": "**T1 — the fold-restore replay harness (the oracle first).** `experiments/2026-10-21_delegator-memory-research/replay_restore.py`: four fixtures built from the payloads the app actually emits (`fork`, `compact`, `startup`, `resume`) plus one `clear`, each fed to `fold_restore.py` as a stdin payload with an injected `FOLD_DIR` (fixture map, fixture `last_fold.json`, fixture transcript) so the real `~/.claude/fold` is never touched; it asserts that the injected `additionalContext` is non-empty and names the source it used. A second case feeds a 200 000-row transcript and asserts the cut is MEASURED (a count in the outcome row), not only announced. Predictions are written in the file's header BEFORE the run. `std:` none found — no GOST/ISO/IEC governs a Claude Code hook; the contract is the official hooks reference (`hookSpecificOutput.additionalContext`, the 10 000-char per-hook cap that `fold_restore.py:5-9` cites) plus the project's own replay convention (`plans/2026-10-21_robot-pending-stop-hook.md` T4, same shape). Oracle: the harness fails on today's code for the `fork`/`startup`/`resume` payloads and for the unmeasured cut.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 53,
+          "state": "open",
+          "text": "**T2 — route the restore on the sources the app emits (no source filter).** `~/.claude/settings.json` § `SessionStart`: register the eight `fold_restore.py` part-hooks **once, without a `matcher`**, so every session start — whatever source the app reports — reaches the restore; the restore's own fallback chain decides which map applies. Keep the existing `compact`/`clear`/`fork` registrations OUT (a second registration would inject the same map twice). `std:` none found — the contract is the official hooks reference (SessionStart hook fields `matcher`/`command`/`args`/`timeout`) and the measured payload sources in `hook_calls.log` rows 8-9, 21, 25, 39, 94. Oracle: the T1 replay — **4/4 observed payloads** yield a map, the pre-fix baseline 1/4 (only `compact`).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 54,
+          "state": "open",
+          "text": "**T3 — remove the dead route.** `~/.claude/hooks/fold_capture.py:153-155` (the `last_clear.json` write) and `~/.claude/hooks/fold_restore.py:69` (the read). A route that can never fire, with a reader waiting for it, is a compensation on top of a hole. `std:` none found — the contract is the capture's own pointer design (`last_fold.json` written on every capture, `fold_capture.py:152`); `last_clear.json` does not exist on disk and no hook row in 181 carries `reason\":\"clear\"`. Oracle: `grep -c last_clear` over `~/.claude/hooks/*.py` → **0**, and the T1 replay stays 4/4.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 55,
+          "state": "open",
+          "text": "**T4 — measure the silent cut.** `fold_capture.py`'s outcome row gains `entries` and `bytes`; `fold_restore.py`'s label already announces the dropped lines, and the restore writes a row naming how many entries of the map it carried versus what the capture produced. A long session then loses its beginning **visibly**. `std:` none found — the contract is the outcome-row shape in `fold_capture.py:81-85` (one JSON object per capture) and the 10 000-char per-hook cap. Oracle: the T1 large-transcript case — the outcome row carries a count and the restore's row names the delta; the pre-fix baseline prints a label with no count anywhere.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 56,
+          "state": "open",
+          "text": "**T5 — the second half of the owner's restore order becomes code.** On SessionStart, after injecting the map, the restore joins the map's brief md5s against the fossil snapshots whose commit message carries `parent-goal-md5:` (the chain the owner named: *«пройтись по fossil … будет parent md5 — тогда ты получишь диффы»*, fold map row 172) and prints the matching snapshot addresses in the injected context. The md5s are already in the map; the join is mechanical. `std:` none found — the contract is the fossil snapshot timeline's own comment format (`auto-snapshot sv:<md5> … parent-goal-md5: <md5>`), which the project's own `fossilgrep` tool reads; no external standard governs it. Oracle: the T1 harness with a map carrying a known brief md5 — the injected context names the matching snapshot addresses, the baseline names none.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 57,
+          "state": "open",
+          "text": "**T6 — `memory_audit.py`: the memory folder becomes checkable.** One script over `~/.claude/projects/D--zPython-opencode/memory/`: (a) `originSessionId` present; (b) the transcript exists **or** the app's registry lists it `deleted_<uuid>`; (c) `modified` equals the file's last write; (d) every artefact the file names resolves, or is explicitly marked historical by its own text; (e) the index names the file. It prints the verdict per file (CURRENT / STALE / CONTRADICTED / UNVERIFIABLE) and names each broken pointer **with its new location**. Reuse the t124 extracts; promote them from `experiments/` into the repo's own script surface. `std:` none found — the contract is the memory frontmatter's own schema (`name`, `description`, `metadata.{node_type,type,originSessionId,modified}`) and the app's registry layout (`claude-code-sessions/<account>/<org>/deleted_<uuid>`); no standard governs a memory folder. Oracle: it reports **0 unexplained roots** and names all 15 STALE pointers; a fixture (a file renamed under it) makes it FAIL loudly.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 58,
+          "state": "open",
+          "text": "**T7 — the index becomes mechanical, and one fact lives in one place.** Either generate `MEMORY.md` from the folder's frontmatter (the project already has the precedent: `svm render` regenerates `plans/MASTER_PLAN.md` from the plan files) or make each frontmatter `name` exactly the index link text, so a string compare decides; then resolve the contradiction between `MEMORY.md:110` (bin 1482, kernel t111) and `memory/project_state_2026_10_18_legislator.md:3,15-26` (bin 10.0.1435, kernel t84) by moving the UPDATE **into the file** — and merge the three `project_state_*` handoffs into one current file with a dated history section. `std:` none found — the contract is the project's own renderer (`svm render`, `plans/MASTER_PLAN.md`); the one-fact-one-place rule is the kernel's G9 canon rule. Oracle: the regenerated index diff = empty and the bin-version extraction finds **0 mismatches**; a fixture with a stale index makes both FAIL.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 59,
+          "state": "open",
+          "text": "**T8 — repair the two owner-facing pointers that rot.** `AGENTS.md` § STOP names `external/opencode-1.18.29` — **that directory no longer exists** (the tree is `external/opencode-1.19.0`), so the one command that settles the upstream question is dead as written; and `MEMORY.md:13` claims *«ADID 15.3 alive»* while the live doc is `ADID_Framework_15_4.md`. Fix the path, re-measure the divergence numbers against the tree that is actually there, and update the memory line; then let T6's check keep them from rotting again. `std:` none found — the contract is the measured tree (`glob external/opencode-*/packages/opencode/src/index.ts` → only 1.19.0) and the ADID doc's own filename; the upstream question is closed by measurement, not by a standard. Oracle: the diff command from `AGENTS.md` runs without «no such directory» and returns a count; the memory line's version equals the ADID doc's filename.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 60,
+          "state": "open",
+          "text": "**T9 — the two surviving rules become mechanisms.** (a) The **dispatcher refuses an order with no watcher**: the order and its `watch3.py` are one command, so the watch3 procedure cannot need to be remembered (it lives today only in `memory/project_after_rebuild_2026_10_21.md:14-22`). (b) The **kernel-distribution map becomes generated** — a script that lists the projects and writes the map, so the file cannot go stale and is read by the installer rather than by good intentions (it lives today only in `memory/reference_kernel_and_skills_distribution.md`). `std:` none found — the contract is the project's own dispatch contract (`experiments/2026-10-08_robot-wave/dispatch.py` refuses a note without an SV block) and the t118 replay shape; the owner's rule *«после кернела, только система»* forbids a kernel-text solution. Oracle: a dispatch replay — an order without a watcher is REFUSED naming the missing watcher, the baseline dispatches it; and the map script's output matches the file byte-for-byte, with a renamed project making the diff FAIL.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 61,
+          "state": "open",
+          "text": "**T10 — apply the memory repair list (Claude applies, the robot supplies and checks).** The list is `experiments/2026-10-21_delegator-memory-research/REPORT.md` §7: 2 files to CREATE, 17 edits, 10 provenance fields to add, 28 orphan marks, 1 merge, 1 retire (needs the owner's word), 3 index edits. **The robot does not edit the memory folder** — it verifies each proposed replacement fact against its cited source and hands the list over; Claude applies it and re-runs T6's script. `std:` none found — the contract is the memory frontmatter's own schema plus the owner's rule that durable memory is written during the work, not reconstructed after it (`docs/proposals/2026-10-08_claude-agent-continuity.md` point 7). Oracle: T6's script reports **0 STALE, 0 CONTRADICTED, 0 NO-PROVENANCE** and names **0** broken pointers; a fixture with a renamed file makes it FAIL.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "25c6baa9da|2026-10-21|t127: the delegator's memory in our style — SV per file, links that resolve, one fact in one place, a mechanical index, an audit that can fail",
+        "b08442eaec|2026-10-21|t124: delegator memory continuity research - plans/2026-10-21_delegator-memory-repair.md"
+      ],
+      "name_mentions": [
+        "b08442eaec|2026-10-21|t124: delegator memory continuity research - plans/2026-10-21_delegator-memory-repair.md"
+      ],
+      "hash_count": 11
+    },
+    {
+      "file": "plans/2026-10-21_fold-hooks-desktop-fork.md",
+      "tracked": true,
+      "bytes": 13312,
+      "lines": 81,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "fold-rebuild-routes, predecessor-pointer, live-transcript-build, replay-oracle",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 2,
+      "done": 7,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 41,
+          "state": "open",
+          "text": "**T7 — live check, FORK leg (still open).** A live desktop rebuild that FORKS with a new session id: the parent must leave a capture (PreCompact or SessionEnd), the fork's `SessionStart` must show `source: fork`, and eight `fold_restore.py` handlers must inject the map into the NEW id (the pointer chain or the live build from the fork's own transcript). *Oracle:* `hook_calls.log` shows the capture + the fork row, and the new window's transcript carries the injected map; until then the fork route is unproven live (replay P1 is the only evidence).",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 42,
+          "state": "open",
+          "text": "**T8 — live check, CLEAR leg (still open).** A live `/clear`: `SessionEnd` with `reason: clear` must capture and write `last_clear.json`, and `SessionStart` with `source: clear` must inject the predecessor map. *Oracle:* the capture row + the clear row in `hook_calls.log` + the injected map in the new window; replay P3 is the only evidence today.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "6d966d0a36|2026-10-21|plans/2026-10-21_fold-hooks-desktop-fork: t115 plan back in plans/ — compact leg live-proven, fork and clear open"
+      ],
+      "name_mentions": [
+        "6d966d0a36|2026-10-21|plans/2026-10-21_fold-hooks-desktop-fork: t115 plan back in plans/ — compact leg live-proven, fork and clear open"
+      ],
+      "hash_count": 7
+    },
+    {
+      "file": "plans/2026-10-21_portable-delegation-kit.md",
+      "tracked": true,
+      "bytes": 12542,
+      "lines": 89,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "Keywords: portable-delegation-kit 0.30, tracked-not-gitignored 0.20, discovered-paths 0.20, installer-route 0.15, fresh-machine-oracle 0.15\nSemantic dominant: Plan how the robot-delegation procedure becomes a tracked, path-discovering kit that installs on another machine and passes its oracles there.\nmd5: 3f8a2c1d9e047b5a6c7d8e9f0a1b2c3d\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 2b6e9d4a7f1c38e05b2e6a9d4f7c1b58\nnote: hash values are generative tags — search them, never compute them.",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 7,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 63,
+          "state": "open",
+          "text": "K1 — inventory every procedure piece: path, tracked or not (`git ls-files` vs `.gitignore:72`), hardcoded host paths (grep receipt), who reads it; runtime state listed by format only. <!-- sv: procedure-inventory, tracked-or-not, reader-map -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 64,
+          "state": "open",
+          "text": "K2 — kit home + discovery design: TRACKED home per project layout (candidates with the rule each violates/satisfies), every path discovered (git root, env home, `opencode_host`), converter pass for the counted literals. No moves. <!-- sv: kit-home, discovered-paths, no-literals -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 65,
+          "state": "open",
+          "text": "K3 — hooks as tracked source + idempotent installer design: source ships, installer writes `settings.json` entries with discovered paths, backup first, re-run is a no-op. No writes. <!-- sv: hooks-source, idempotent-installer, backup-first -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 66,
+          "state": "open",
+          "text": "K4 — ADID route fit: what the kit needs from the ADID lane (portable component vs skill scaffolds vs repo-shipped), compared without editing ADID; recommendation + what ADID must change (their lane). <!-- sv: adid-fit, compare-not-edit, recommendation -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 67,
+          "state": "open",
+          "text": "K5 — real-project list from the fossil registry with the separation rule and counts (31 real / 45 scratch-test-artefact). <!-- sv: registry-rule, real-count, reproducible -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 68,
+          "state": "open",
+          "text": "K6 — per-project kernel table: sha compare vs live (`ff958dcb…`) and ADID candidate (`6367e50b…`), re-hash before citing. <!-- sv: kernel-table, sha-compare, rehash-first -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        },
+        {
+          "line": 69,
+          "state": "open",
+          "text": "K7 — fresh-machine oracle: clean clone in a temp dir + HOME redirected to a temp dir, then the installer, then the replay suites pass with no hardcoded host string in any installed file. Predict the result before the run. <!-- sv: fresh-machine-oracle, replay-suites, no-host-strings -->",
+          "has_sv_tag": true,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "83a98c3fa9|2026-10-21|t120 portable delegation kit plan (plan only)"
+      ],
+      "name_mentions": [],
+      "hash_count": 8
+    },
+    {
+      "file": "plans/2026-10-21_robot-pending-stop-hook.md",
+      "tracked": true,
+      "bytes": 24157,
+      "lines": 117,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 1,
+      "done": 10,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 70,
+          "state": "open",
+          "text": "**T7 — live leg of the pending ask.** A real robot asks through the ask tool (or waits on a permission): watch3 must print `asked:` and exit, the gate must block the delegator's turn on the pending ask, and the ask must reach the owner when the decision is his. `std:` none found — no GOST/ISO/IEC governs a Claude Code Stop hook; the contract is the official hooks reference (the block decision shape) plus the host's own question/permission queues (question/index.ts:63-64, permission/index.ts:44-46), read in the source. *Oracle:* a `hook_calls.log` row with `state: pending-ask` and a transcript row showing the ask answered. Until then the mechanism is proven by replay only.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "7fd2fe8fda|2026-10-21|plans/2026-10-21_robot-pending-stop-hook: review 2 — gate tracks dispatch-started robots, a wrapper is not a watcher, never kill a process you did not start (t118)",
+        "8cf4380a7f|2026-10-21|plans/2026-10-21_robot-pending-stop-hook: Stop gate + pending-ask + nudge keeps the session model + one watcher per session (t118)"
+      ],
+      "name_mentions": [
+        "7fd2fe8fda|2026-10-21|plans/2026-10-21_robot-pending-stop-hook: review 2 — gate tracks dispatch-started robots, a wrapper is not a watcher, never kill a process you did not start (t118)",
+        "8cf4380a7f|2026-10-21|plans/2026-10-21_robot-pending-stop-hook: Stop gate + pending-ask + nudge keeps the session model + one watcher per session (t118)"
+      ],
+      "hash_count": 5
+    },
+    {
+      "file": "plans/2026-10-21_tui-standards-fixes.md",
+      "tracked": true,
+      "bytes": 6043,
+      "lines": 88,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": "Keywords: tui-standards-fixes 0.30, poka-yoke-pickers 0.25, capture-oracle 0.20, confirm-destructive 0.15, discoverable-hints 0.10\nSemantic dominant: Turn the t121 audit FAILs into bound fixes — pickers over free text, confirmed destructives, discoverable hints — each proven by a live capture.\nmd5: 7d1e9f2a4b5c48d6a0f3e5c7a9b1d4e2\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 9f2c5e8a1d7b36e04c9f2a5e8d1b7c43\nnote: hash values are generative tags — search them, never compute them.",
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 6,
+      "done": 0,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 26,
+          "state": "open",
+          "text": "A — pickers over free text: Global recents becomes a checklist over the catalogue",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 34,
+          "state": "open",
+          "text": "B — discoverable hints: Global recents footer names the newline keys",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 42,
+          "state": "open",
+          "text": "C — Esc out of busy: busy DialogPrompt (OAuth/browser wait) gets a cancel path (Esc resolves",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 48,
+          "state": "open",
+          "text": "D — confirmed destructives: `/cleanup` (N child sessions) and `/unshare` (published link)",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 54,
+          "state": "open",
+          "text": "E — title/width: Global recents title shortened to fit the 48-cell budget at medium width",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 60,
+          "state": "open",
+          "text": "F — keybind + empty-state honesty: resolve the `ctrl+g` shadow (dialog-local vs global",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "db175160f8|2026-10-21|t121 TUI standards audit: fixes plan (14 FAILs/6 kinds) + render, global-recents root cause"
+      ],
+      "name_mentions": [],
+      "hash_count": 3
+    },
+    {
+      "file": "plans/2026-10-22_legislator-reincarnation-method.md",
+      "tracked": true,
+      "bytes": 6999,
+      "lines": 86,
+      "lifecycle": "ACTIVE",
+      "intention": null,
+      "goal_sv": null,
+      "has_smoke_section": true,
+      "smoke_na": false,
+      "has_prior_art": false,
+      "has_stop_claim": false,
+      "open": 7,
+      "done": 1,
+      "partial": 0,
+      "open_boxes": [
+        {
+          "line": 43,
+          "state": "open",
+          "text": "T2 — Make the instrument tracked. `build.py` lives in gitignored `experiments/`, so a lost disk loses the method.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 48,
+          "state": "open",
+          "text": "T3 — Control leg (EXPECTED_FAIL). Ask a fresh session WITHOUT the turns the same six questions. Prediction: no row",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 51,
+          "state": "open",
+          "text": "T4 — Lineage leg. Read the reincarnated session's next emitted SV and check prev-md5 / parent-goal-md5 against",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 53,
+          "state": "open",
+          "text": "T5 — Record the owner's diagnostics of the reincarnated Legislator (owner, 2026-10-22: «Сча проведу диагностику»)",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 55,
+          "state": "open",
+          "text": "T6 — Source survival. Transcripts are deleted by the app; the fold map and the robot DB are the surviving copies.",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 59,
+          "state": "open",
+          "text": "T8 — Research: robots evolve through their SVs. The owner, 2026-10-22, verbatim: «В этой сессии будем заниматься",
+          "has_sv_tag": false,
+          "has_manifest": false
+        },
+        {
+          "line": 69,
+          "state": "open",
+          "text": "T7 — Generalise: the same method for any Claude lane or robot identity (input = era list + cut). Report-only",
+          "has_sv_tag": false,
+          "has_manifest": false
+        }
+      ],
+      "history": [
+        "de40757aa0|2026-10-22|plans/2026-10-22_legislator-reincarnation-method: T8 research — robots evolve through their SVs (owner 2026-10-22), metric and falsifier named",
+        "ee2a74dfe4|2026-10-22|plans/2026-10-22_legislator-reincarnation-method: T1 first Legislator rebuild from its own SV trajectory (6/6 oracle, cut at 1e712796:5108) + canon docs/legislator-rebuild.md"
+      ],
+      "name_mentions": [
+        "de40757aa0|2026-10-22|plans/2026-10-22_legislator-reincarnation-method: T8 research — robots evolve through their SVs (owner 2026-10-22), metric and falsifier named",
+        "ee2a74dfe4|2026-10-22|plans/2026-10-22_legislator-reincarnation-method: T1 first Legislator rebuild from its own SV trajectory (6/6 oracle, cut at 1e712796:5108) + canon docs/legislator-rebuild.md"
+      ],
+      "hash_count": 8
+    }
+  ]
+}

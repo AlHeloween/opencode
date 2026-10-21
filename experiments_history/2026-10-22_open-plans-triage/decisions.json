@@ -1,0 +1,268 @@
+{
+  "_about": "t135 — per-box classification of the 211 open boxes measured 2026-10-22 (before t135's own edits). Classes: a = already earned (closed with a receipt), b = robot-finishable (concrete binding + an oracle that could fail), c = owner decision needed (the quote is in the plan), d = superseded/obsolete, e = unobservable (split into leaves). Key = the task id exactly as util/plan-status.ts computes it; '*' = every open box of that plan.",
+  "plans/2026-09-12_anthropic-cache-breakpoints.md": {
+    "classes": { "*": "b" },
+    "action": "5 boxes ADDED (the tasks were headings — the plan was invisible to planstatus)",
+    "note": "T1-T5 became checkboxes with binding+oracle; T2 and T3 first (one line + a guard; one log line)."
+  },
+  "plans/2026-09-19_database-truth.md": {
+    "classes": { "*": "b" },
+    "action": "4 boxes ADDED (the tasks were bullets — the plan was invisible to planstatus)",
+    "note": "T1 first: its single writer is the fixture test/session/turn.test.ts:81; session_entry = 0 rows in production."
+  },
+  "plans/2026-09-21_mstar-order-and-summary-restore.md": {
+    "classes": { "TASK-11": "b", "TASK-12": "d", "TASK-15": "b", "TASK-16": "b", "TASK-18": "b", "TASK-19": "c" },
+    "action": "closed 1 box (d); marked 1 box (c) with the owner's quote",
+    "note": "TASK-12 superseded in FORM: parsePlanMap removed 2026-10-01 (memory/spine.ts:166 + util/plan-status.ts:501). TASK-19 — the recursive scan is contested by the five-terminal canon: «рекурсивный скан — СПОРЕН и владельцу записан открытым»."
+  },
+  "plans/2026-09-22_reasoning-stream-render-stability.md": {
+    "classes": { "T4": "d", "T5": "b", "T7": "d", "T8": "b", "T10b": "e", "TASK-18": "b", "T13a": "b", "T13b": "b", "TASK-21": "b", "T12": "e" },
+    "action": "closed 2 boxes (d); split 2 boxes (e) into 4 leaves",
+    "note": "T4 and T7 superseded (2026-09-24) by T13a/T13b — closed with the supersession record. T10b -> T10b-1 (measure the sixel-encode cost) + T10b-2 (build the handle cache only if the number says so). T12 -> T12-1 (probe the terminal) + T12-2 (act on the answer)."
+  },
+  "plans/2026-09-24_to-be-confirmed-shelf-triage.md": {
+    "classes": { "*": "b" },
+    "action": "next actions named for all 3 boxes",
+    "note": "T2 — the missing instrument (a full-window capture) EXISTS now: cua get_window_state. T3 — the shelf holds 12 files. T4 — rewrite the shelf readme."
+  },
+  "plans/2026-09-28_kernel-candidate-incorporation.md": {
+    "classes": { "TASK-44": "b", "TASK-57": "c", "TASK-59": "b" },
+    "action": "marked 1 box (c) with the owner's quote",
+    "note": "F5 splits: the measurable half (pytest + parity + typecheck + diff) is (b) and runs first; the --install half is the owner's act."
+  },
+  "plans/2026-09-29_codegraph-impact-decoupling.md": {
+    "classes": { "*": "b" },
+    "action": "next action named",
+    "note": "C2 — the sync moved to the host's turn-start pre-build (session/graph-prebuild.ts:55-105); the freshness half is still to be measured on the current host."
+  },
+  "plans/2026-09-29_cua-windows-debug-input.md": {
+    "classes": { "B1": "b", "S2": "b", "S3": "b", "P1": "b", "P2": "b", "P3": "e", "W1": "b", "W2": "b", "W4": "e", "T1b": "b", "T3b": "b", "T9": "b", "T5": "c", "T6": "c", "T7": "b" },
+    "action": "parked 2 boxes (e) with a resumption signal; marked 2 boxes (c) with the owner's quote",
+    "note": "P3/W4 — the game target and its outcome signal do not exist, so there is no oracle. T5/T6 — the VMware tier is parked by the owner (2026-10-01)."
+  },
+  "plans/2026-09-29_h2-session-pool-and-connection-badge.md": {
+    "classes": { "*": "b" },
+    "action": "left open (render claim: the glyphs must be SEEN on a rebuilt candidate)",
+    "note": "The text oracle is green (10/0 + 24/0); the visual residual needs a rebuilt candidate and a capture."
+  },
+  "plans/2026-09-30_cua-supply-chain-audit.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "SE — collect the reliability classes; SF — stage 2 of the Universal Search audit (the egress over a longer window)."
+  },
+  "plans/2026-09-30_robot-installer.md": {
+    "classes": { "Q2b": "b", "Q6": "b", "C1": "b", "P1": "b", "I1": "c", "B1": "b", "B1c": "b", "B1d": "b", "B1f": "b", "B2": "b", "B3": "b", "V1": "b", "V2": "b", "V3": "b", "U1": "c", "B5": "b", "B7": "b", "B6": "c" },
+    "action": "marked 3 boxes (c) with the owner's quotes",
+    "note": "I1/B6 need the pristine VMware snapshot the owner parked; U1 carries the legal/redistribution decision («a legal decision, not a measurement»)."
+  },
+  "plans/2026-10-01_tool-description-contracts.md": {
+    "classes": { "C2": "a", "C3": "d", "C4": "d", "C5": "d", "C7": "c" },
+    "action": "closed 4 boxes (1 a + 3 d); marked 1 box (c) with the owner's quote",
+    "note": "C2 earned by the mutation check (adedb84375). C3/C4/C5 superseded by plans/2026-10-19_tool-description-contracts.md (T10/T11) — the same tools, one commit per tool, most of them already landed. C7 waits on the owner's paste."
+  },
+  "plans/2026-10-04_files-api-and-tariff.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "T3 — a DeepSeek chat with a reused image carries {type:file,file_id} on the wire (raw-wire capture); T4 — the cache does not change."
+  },
+  "plans/2026-10-07_supersede-between-steps-loses-reply.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "Three leaves, each with a smoke: the reproducer first (RED: B unanswered), then the cause named by instrument, then the fix (the existing replacement test in prompt.test.ts stays green)."
+  },
+  "plans/2026-10-08_mcps-connector-manager.md": {
+    "classes": { "S3": "b", "S5": "b", "S7": "c", "S8": "b" },
+    "action": "marked 1 box (c) with the owner's quote",
+    "note": "The OAuth half of S7/S8 needs the owner's Developer-Portal credentials; the echo-server half of S8 is (b) and runs first."
+  },
+  "plans/2026-10-08_org-portable-home.md": {
+    "classes": { "*": "c" },
+    "action": "marked 1 box (c) with the owner's quote",
+    "note": "S9 is GATED on Claude's review verdict on the kernel diff — the declared stop of S6."
+  },
+  "plans/2026-10-10_plan-hygiene-in-build-mode.md": {
+    "classes": { "*": "b" },
+    "action": "recorded that SW is half done (the triage ran; the oracle runs did not)",
+    "note": "The remaining SW work is exactly the finish order below: run each plan's own named oracle today, one file per invocation, tick with the run id, then git mv."
+  },
+  "plans/2026-10-11_memory-orphan-parts.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "S1 (liveness filter) -> S2 (the index forgets) -> S3 (RED test) -> S4 (gates). The purge of the 18 903 parts is NOT a box — it stays the owner's, named in §4."
+  },
+  "plans/2026-10-12_specs-inventory-truth.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "S2 — add the <!-- generated below --> marker + a renderer that prints counts it computes and MISSING where it cannot."
+  },
+  "plans/2026-10-13_recall-read-address-space.md": {
+    "classes": { "R3": "b", "R4": "b", "R5": "c" },
+    "action": "marked 1 box (c) with the owner's quote",
+    "note": "R5 — stamping space on the persisted record touches a schema field and 72 parts: «the owner's call, not a robot's». R3/R4 do not wait for it."
+  },
+  "plans/2026-10-14_kernel-stop-claim-release.md": {
+    "classes": { "TASK-2": "a", "TASK-6": "b", "TASK-7": "b", "TASK-8": "b", "TASK-9": "b" },
+    "action": "closed 1 box (a: first half in the code, second half superseded)",
+    "note": "M1 — plan-status.ts:790-836 audits the stop claim (named missing pieces); the end-of-turn half is superseded by stop-check.ts:152 («A stop claim no longer ends a turn»)."
+  },
+  "plans/2026-10-14_return-channel-binding.md": {
+    "classes": { "*": "b" },
+    "action": "NOT APPLIED — the file is untracked (another robot's lane); classified only",
+    "note": "T1-T5 each carry a binding (org.py / orgd.py / Protocol.md / test_cross_handoff.py) and a fail-first oracle."
+  },
+  "plans/2026-10-15_dais-peer-trust-reward.md": {
+    "classes": { "TASK-2": "b", "TASK-3": "b", "TASK-4": "b", "TASK-5": "c" },
+    "action": "left open (D3 is the owner's)",
+    "note": "D3 — the weight of T in R is the owner's decision; the kernel text follows the pipeline (STOP before install)."
+  },
+  "plans/2026-10-15_kernel-undefined-contract-audit.md": {
+    "classes": { "*": "b" },
+    "action": "NOT APPLIED — the file is untracked (another robot's lane); classified only",
+    "note": "A2 — the independent reviewer read-back; the archive/commit step is still owed."
+  },
+  "plans/2026-10-15_project-fossil-cell.md": {
+    "classes": { "TASK-5": "a", "TASK-14": "a", "TASK-15": "a", "TASK-16": "a", "TASK-17": "a" },
+    "action": "NOT APPLIED — the file is dirty under another robot's edit; classified only",
+    "note": "B1's verdict IS written in the plan (## B1 verdict, 2026-10-15) and the four Gate boxes are satisfied by the plan's own smoke section + the commits' receipts."
+  },
+  "plans/2026-10-15_tui-active-sessions-panel.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "S5 — re-run `bun typecheck` from packages/opencode; the 10 errors were a peer's in-flight src/session/llm.ts, 0 of them in t52b paths."
+  },
+  "plans/2026-10-15_web-tui-parity.md": {
+    "classes": { "*": "c" },
+    "action": "marked 1 box (c) with the quote",
+    "note": "W5 — the busy frame needs a credential (401 Invalid credential upstream); the idle DOM + probe half is banked."
+  },
+  "plans/2026-10-16_haiku-omp-controlled-latency.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "P2 — the exact transmitted owner omp wire + auth/extension/MCP parity; P5 — the measured component of the latency is still unnamed."
+  },
+  "plans/2026-10-16_message-cleaner.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "E3/E8 are blocked by upstream 429 on the free pool (the continuation receipt names the resume: either id); E6 is the close (log row + svm render + commit)."
+  },
+  "plans/2026-10-16_model-chain-failover.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "C1-C8 + C3b, each with a binding and the A1-A8 acceptance frame; C2/C3/C4/C6/C8 carry no manifest yet — the oracle is inline."
+  },
+  "plans/2026-10-16_reasoning-lossless-replay.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "T4 (qualify the downstream SDK/adapters), T8 (the independent verifier + close), T9 (research-only HTTP/3 qualification)."
+  },
+  "plans/2026-10-16_self-edit-directive.md": {
+    "classes": { "P2": "c" },
+    "action": "split 1 box into P2a (b, the robot runs) + P2b (c, the owner's default)",
+    "note": "The plan's own words: «Owner decides default last»."
+  },
+  "plans/2026-10-16_zoekt-scip-fossil-sv.md": {
+    "classes": { "*": "b" },
+    "action": "NOT APPLIED — the file is dirty under another robot's edit; classified only",
+    "note": "M0b (baseline), Z4 (a local adapter + a comparative oracle), Z5 (replace the consumers after a proven parity)."
+  },
+  "plans/2026-10-17_portable-binary-hermetic.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "S1-S6, each with files + an assertion; S2 is the fixture test first, S6 is the real check after _build.ps1."
+  },
+  "plans/2026-10-18_codex-oauth-empty-error.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "S1-S4, each with a smoke line (S1: EADDRINUSE/1455, not {})."
+  },
+  "plans/2026-10-18_global-recents-constraint.md": {
+    "classes": { "*": "c" },
+    "action": "marked 1 box (c) with the owner's quote",
+    "note": "The OWNER BOX: the owner enters globalRecents in the TUI. Every other box is closed — this box IS the remainder."
+  },
+  "plans/2026-10-18_kernel-method-preamble.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "Oracle + build + commit for review 2, then STOP before --install (the install is the owner's)."
+  },
+  "plans/2026-10-19_codex-robot-event-handoff.md": {
+    "classes": { "*": "b" },
+    "action": "NOT APPLIED — the file is untracked (another robot's lane); classified only",
+    "note": "E1-E4, each with an sv tag and a binding (codex_hooks.py / opencode_events.py / tests)."
+  },
+  "plans/2026-10-19_edit-description-contract.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "S7 — the acceptance window (7 days after promotion, <=2% caller-avoidable errors) is not open yet; the query and the exclusions are already written."
+  },
+  "plans/2026-10-19_tool-description-contracts.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "T10 (the remaining .txt tools, alphabetical, one commit per tool), T11 (the four orphan mappings), T12 (the post-promotion measure)."
+  },
+  "plans/2026-10-19_undo-broken.md": {
+    "classes": { "TASK-3": "d" },
+    "action": "closed 1 box (d) and MOVED the plan to plans_completed/",
+    "note": "T2's condition (T1 reproduces) never held: T1 passed clean and the crash was falsified (b38d45e5ce). The 21:22 death keeps its own residual, as the box said."
+  },
+  "plans/2026-10-20_hr-delegator-driver.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "I1, H1, H2, C1, P1, D1, E1, U1, A1, S1, M1, F1, F2, D2, D3 — 15 leaves, each with a named oracle and a prediction."
+  },
+  "plans/2026-10-20_kernel-line-audit.md": {
+    "classes": { "TASK-1": "a", "TASK-2": "b", "TASK-3": "b", "TASK-4": "b", "TASK-5": "b", "TASK-6": "b", "TASK-7": "b", "TASK-8": "b", "TASK-9": "b", "TASK-10": "b" },
+    "action": "closed 1 box (a) with a fresh measurement",
+    "note": "P1 re-measured by t135: 75 630 B, sha256 8407d4aeb42dc5f2aac8bfb897a25dfcafb58809e0e3adacd01527be043b6114 — matches the manifest's oracle."
+  },
+  "plans/2026-10-20_robot-personnel-delegator.md": {
+    "classes": { "*": "b" },
+    "action": "NOT APPLIED — the file is untracked (another robot's lane); classified only",
+    "note": "H2 (the minimal automatic cycle), H3 (a different model executes the oracles), H4 (one permitted pilot on a DAIS residual)."
+  },
+  "plans/2026-10-20_triz-kernel-correspondence.md": {
+    "classes": { "S8": "a", "S9": "a" },
+    "action": "closed 2 boxes (a) — the plan then moves to plans_completed/",
+    "note": "S8 — commit 7cb11a686e carries the plan, the glossary and the report. S9 — the _build.ps1 run of this task (run id in the plan)."
+  },
+  "plans/2026-10-21_corporation-observability-bridge.md": {
+    "classes": { "TASK-1": "b", "TASK-2": "b", "TASK-3": "c", "TASK-4": "c", "TASK-5": "b", "TASK-6": "b", "TASK-7": "b" },
+    "action": "marked 2 boxes (c) with the owner's own questions",
+    "note": "B3/B4 need the panel surface and the push granularity; the decided part (B1, B2, B5, B6, B7) is (b) and runs first."
+  },
+  "plans/2026-10-21_delegation-tool-tdz.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "T6 — the closure: the plan moves with its evidence, svm render re-maps the tree, the log row lands."
+  },
+  "plans/2026-10-21_delegator-memory-repair.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "T1-T10; T1 is the oracle first (the replay harness: 5 payloads, baseline 1/5 -> 5/5)."
+  },
+  "plans/2026-10-21_fold-hooks-desktop-fork.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "T7 (the FORK leg) and T8 (the CLEAR leg) — live legs, each with a hook_calls.log row + an injected map."
+  },
+  "plans/2026-10-21_portable-delegation-kit.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "K1-K7, each with a read-back oracle; K2/K4 carry the owner question (where the kit lives) — the rest of each leaf is unblocked."
+  },
+  "plans/2026-10-21_robot-pending-stop-hook.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "T7 — the live leg of the pending ask (watch3 prints asked:, the gate blocks, the owner answers)."
+  },
+  "plans/2026-10-21_tui-standards-fixes.md": {
+    "classes": { "*": "b" },
+    "action": "left open",
+    "note": "A-F, one per FAIL kind, each with a capture oracle."
+  },
+  "plans/2026-10-16_unmanaged-options.md": {
+    "classes": { "*": "d" },
+    "action": "MOVED to plans/futures/ (0 boxes — the deliverable is delivered; the remainder is an owner DECISION, not a task)",
+    "note": "The plan's own leaf scope is «INVENTORY + PLAN ONLY. No product code»; its 88-row inventory + the /settings proposal are committed (a36f434dfe). CONDITION written into the file."
+  }
+}

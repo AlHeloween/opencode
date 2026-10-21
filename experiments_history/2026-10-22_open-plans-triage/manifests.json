@@ -1,0 +1,652 @@
+{
+  "2026-09-27_mechanical-s-cadence": {
+    "T4b": {
+      "plan": "plans_completed/2026-09-27_mechanical-s-cadence.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "Green: scoped 20261008T122934Z_7d9edf06 (1/0/6) and full file 20261008T123021Z_95904e4d (43 pass / 13 skip / 0 fail); mutation red 20261008T122953Z_f638d9ce, restored green 20261008T123012Z_95a1404d; typecheck exit 0 20261008T123243Z_5a27fec4. Commit 73e541ede2.",
+      "dominant": "Prove by test that a Layer-1 threshold crossing really writes its mechanical row through the prompt.ts:2498 block, under a harness with the real writer."
+    }
+  },
+  "2026-09-29_h2-session-pool-and-connection-badge": {
+    "T4": {
+      "plan": "plans/2026-09-29_h2-session-pool-and-connection-badge.md",
+      "state": "waiting-on-user",
+      "etaTurns": 2,
+      "oracle": "Text oracles green (run ids in plan): bun test test/tui/sidebar-protocol.test.ts 10/0 20261009T043107Z_a8ecc687; bun test test/tui/agent-model-cell.test.ts 24/0 20261009T043107Z_6444182c; bun typecheck exit 0 20261009T043117Z_0ba2fe5c. VISUAL oracle still owed: the glyphs must be SEEN on a rebuilt candidate (owner's step) before the boxes tick.",
+      "dominant": "T4a/b shipped as glyphs — ◉ on the active /agents row and ⇅ on the sidebar protocol cell, text oracles green, the on-screen check still owed to the owner."
+    }
+  },
+  "2026-09-29_svm-tool-and-master-plan": {
+    "S4": {
+      "plan": "plans/2026-09-29_svm-tool-and-master-plan.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "svm render: missingTaskSv и missingPlanSv падают до 0 и ни одна запись карты не печатает MISSING — один svm set на каждый открытый бокс, один заголовок intention на каждый план. Фальсификатор: любая строка карты без собственного вектора.",
+      "dominant": "Мастер-план обязан нести свой вектор на каждой записи — остаток S4 есть авторинг этих векторов, и бокс остаётся открытым `[ ]`, пока они не написаны."
+    },
+    "S5": {
+      "plan": "plans/2026-09-29_svm-tool-and-master-plan.md",
+      "state": "verified",
+      "etaTurns": 3,
+      "oracle": "an orphaned record is named by the coupling line AND by svm read; a live record is NOT flagged (both halves asserted at both layers)",
+      "dominant": "a manifest whose plan file no longer exists is reported as an orphan, never silently kept."
+    },
+    "S6": {
+      "plan": "plans/2026-09-29_svm-tool-and-master-plan.md",
+      "state": "verified",
+      "etaTurns": 2,
+      "oracle": "a folded m* ENDS with the rendered map (true on the real repo, twice), and the map is rendered AT fold time rather than inherited: measured by the block diverging from the file's body exactly after the plan changed between the two runs",
+      "dominant": "a folded window ends with the RENDERED master plan, so the next cycle opens holding the map."
+    }
+  },
+  "2026-09-30_drop-penalty-sampling-params": {
+    "P8": {
+      "plan": "plans/2026-09-30_drop-penalty-sampling-params.md",
+      "state": "waiting-on-user",
+      "etaTurns": 1,
+      "oracle": "bun test test/session/model-sampling.test.ts test/agent/subagent-sampling.test.ts test/session/session-settings-persist.test.ts (cwd packages/opencode) → 36 pass / 0 fail / 105 expect, exit 0, run 20260930T101208Z_ffe26266; bun typecheck = tsgo --noEmit (cwd packages/opencode) → exit 0, zero diagnostics, run 20260930T101221Z_ad011f5f. Residual S5: one live request on a chat/completions Zen model through a REBUILT binary — the owner's key, 400 → streamed reply.",
+      "dominant": "Our default sampling sent presence_penalty together with repetition_penalty, which the Zen-backed vendor rejects with a 400; the pair is removed so our body matches upstream."
+    }
+  },
+  "2026-09-30_turn-commit-slot": {
+    "R1": {
+      "plan": "plans/2026-09-30_turn-commit-slot.md",
+      "state": "verified",
+      "etaTurns": 3,
+      "oracle": "before/after on the same predicate — bun test snapshot-granularity + snapshot-tool-race 5 pass / 0 fail (20260930T033918Z_6920fda9) then 16 pass / 0 fail with session-undo-fossil added (20260930T034116Z_f7eda6f5); bun typecheck exit 0 (20260930T034216Z_3e9493ff); the removed join is proven dead by code (endTurn deletes the record holding job, same step, after the fork) and by the live 12/12 fossilMs 0",
+      "dominant": "the dead settle is gone and strict commit order is named where it actually lives — the per-repo fossil semaphore — while the turn waits for nothing."
+    },
+    "R2": {
+      "plan": "plans/2026-09-30_turn-commit-slot.md",
+      "state": "verified",
+      "etaTurns": 4,
+      "oracle": "bun test test/session/turn-timing.test.ts — a REAL turn through the real processor with a stub LLM, then the step-finish part read back from SQLite: RED before the writer (20260930T034925Z_bdcd40af, failing exactly on timing.requestMs) and GREEN after (20260930T034957Z_2b1f94d8, 1 pass / 4 expect, both halves, commitHash 40-hex); 19 pass / 0 fail over processor-effect + snapshot-tool-race + snapshot-granularity + turn-timing (20260930T035033Z_187d6d85); bun typecheck exit 0 (20260930T035139Z_7cde9bdc); live-store baseline 5394 step-finish parts, 0 with a timing",
+      "dominant": "the turn's felt wait and the price of its snapshot commit are fields of the turn itself, and the price is written back onto the same part once the detached commit has settled."
+    },
+    "R3": {
+      "plan": "plans/2026-09-30_turn-commit-slot.md",
+      "state": "verified",
+      "etaTurns": 2,
+      "oracle": "packages/opencode/test/snapshot/fossil-lock.test.ts — three concurrent track() calls on ONE repo through a stubbed ChildProcessSpawner that counts fossil invocations in flight: peak === 1 with both named paths present in the argv log as the control. GREEN 1 pass / 6 expect (20260930T035658Z_ca97891a); under the mutation locked := identity (snapshot/fossil.ts:181) RED with Received: 3 (20260930T035716Z_069ce67f); after restoring the file GREEN again (20260930T035735Z_6ec0f1ab) with git status showing no diff under src/; 6 pass / 0 fail with snapshot-granularity + snapshot-tool-race (20260930T035752Z_08605fa5); bun typecheck exit 0 (20260930T035808Z_e55effc8).",
+      "dominant": "порядок на репозиторий держит семафор, и теперь это измеряется подменённым спавнером — пик одновременных вызовов fossil равен единице, а снятие лока красит тест."
+    },
+    "R4": {
+      "plan": "plans/2026-09-30_turn-commit-slot.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "Recipe for cmd_runner: `start --cwd <stand> --raw --timeout-s 150 --env OPENCODE_TEST_CONFIG=<stand> --env OPENCODE_CONFIG_DIR=D:\\zPython\\opencode\\bin -- bun run --conditions=browser D:\\zPython\\opencode\\packages\\opencode\\src\\index.ts run -m deepseek/deepseek-flash ok`. Three qualification fixtures: probe2.cmd without bun → runs to the end, code 7 (20260930T040101Z_a5036d79); probe.cmd/probe3.cmd with bun → no AFTER-BUN (20260930T040030Z_dc28b557, 20260930T040130Z_4f25f444); --env proven separately (PROBE_X=hello, 20260930T040318Z_005afd3c). Verdicts: 20260930T040334Z_02147267 (package cwd — wrong worktree, question denied) and 20260930T040610Z_7d2d0944 (stand cwd + absolute entrypoint — a complete G0 turn, exit 0, the stand gained .opencode/, .codegraph/, .fossil-settings/, _FOSSIL_).",
+      "dominant": "раннер даёт вердикт при прямом запуске bun с --raw и --env, а его прежнее молчание объяснено обёрткой .cmd (умирает на bun, докладывая 0) и смещённым ворктри."
+    }
+  },
+  "2026-10-01_epoch-dominant-hook": {
+    "S3": {
+      "plan": "plans/2026-10-01_epoch-dominant-hook.md",
+      "state": "waiting-on-user",
+      "etaTurns": 2,
+      "oracle": "After a binary carrying the fix is promoted (owner's step): the next fold writes one `project_checkpoint` row whose body carries `dominant: \"…\"`, and `messagesearch { corpus: \"summaries\" }` prints that hook where it prints `(no dominant)` for the 23 rows below it.",
+      "dominant": "Живое подтверждение крючка эпохи отложено до следующего продвинутого в бинарь билда — `compaction.ts` это рантайм, так что свёртка в этой сессии всё ещё пишет старое тело; оракул назван: строка `dominant:` в новом `project_checkpoint` и её поиск через spine вместо `(no dominant)`."
+    }
+  },
+  "2026-10-01_tool-description-contracts": {
+    "C2": {
+      "plan": "plans/2026-10-01_tool-description-contracts.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "The ONLY thing left for C2 is ONE mutation check, and it is owed because a pin that has never been seen to fail is not yet a proof:\n\n`compare.test.ts` must go RED when the tool stops deciding by METADATA. Neutralise the property it is built on — make `walk()` compare content instead of size+mtime (or report the byte-identical twin as `same`) — and the case «calls two byte-identical files changed when their mtimes differ» must fail on `metadata.changed === 1` / `metadata.same === 0`, then restore and confirm `git status -- packages/opencode/src/` empty plus a control grep that the mutation marker is gone.\n\nEARNED (do not re-derive): schema pins for `compare` and `list` with their own mutation that went RED on exactly that assertion (20261001T054043Z_417766b6); `parameters.test.ts` 53/0 (20261001T054026Z_78a77d68) and 55/0 with list (20261001T054118Z_5aef656d); `list.test.ts` 4/0 (20261001T054311Z_96f82c23); `compare.test.ts` FIRST EVER RUN 3/0 (20261001T090412Z_b55ab98a); the live hash-addressed probe battery in experiments/2026-10-01_hash-address-live/README.md.\n\nOUT OF C2 and not to be re-filed here: the address refusal not naming its file and reporting only the first bad entry — those live in plans/2026-10-01_edit-refusal-names-its-target.md.",
+      "dominant": "Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно."
+    }
+  },
+  "2026-10-04_files-api-and-tariff": {
+    "T3": {
+      "plan": "plans/2026-10-04_files-api-and-tariff.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "DeepSeek chat with a reused image carries {\"type\":\"file\",\"file_id\"} on the wire (raw-wire capture), payload < 0.1 MB, and adjacent-request prefix bytes identical (T4)",
+      "dominant": "T3 wires the upload-once cache to a ModelMessage reference hook so images ride as file_id and the KV prefix holds."
+    },
+    "T5": {
+      "plan": "plans/2026-10-04_files-api-and-tariff.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "test/provider/raw-diff.test.ts 44/44 run 20261009T032748Z_1a95feca; mutation-check 20261009T032722Z_c96bcaed (case-2 red only); bun typecheck 20261009T032749Z_ea0251b7 exit 0; _build.ps1 20261009T032946Z_33dd2329 exit 0",
+      "dominant": "Detect base64 image data URLs inside TEXT blocks of the wire body and raise a WARN so the payload catastrophe is visible."
+    }
+  },
+  "2026-10-10_organization-wiki-and-reporting": {
+    "TASK-3": {
+      "plan": "plans/2026-10-10_organization-wiki-and-reporting.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "org.py wiki readback of each of the five pages returns full UTF8 bytes matching the prepared file hash; protocol unchanged; technote report artifact read back",
+      "dominant": "Publish the five prepared wiki pages through wiki-put with full UTF8 readback and pin the report technote."
+    },
+    "TASK-4": {
+      "plan": "plans/2026-10-10_organization-wiki-and-reporting.md",
+      "state": "doing",
+      "etaTurns": 2,
+      "oracle": "git log names the plan; _progress_log.md carries one boundary entry; docs/README.md routes to organization-reporting.md; plan moves to plans_completed/ with all boxes confirmed",
+      "dominant": "Route docs to the wiki, keep one progress-log boundary, and close the plan with a commit that names it."
+    }
+  },
+  "2026-10-10_tool-call-cap": {
+    "S5": {
+      "plan": "plans/2026-10-10_tool-call-cap.md",
+      "state": "blocked",
+      "etaTurns": 2,
+      "oracle": "bun test на ИМЕНОВАННЫХ существующих наборах processor/session из packages/opencode — exit 0 в state.json плюс полный stdout_text.log; и контроль без моих тестов как сравнение",
+      "dominant": "S5 прогон существующих наборов processor/session; молчание воспроизводится и БЕЗ моих тестов, поэтому UNKNOWN, а не зелёный."
+    },
+    "S6": {
+      "plan": "plans/2026-10-10_tool-call-cap.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "bun typecheck из packages/opencode — exit 0 в <run>/state.json, плюс полный лог без строк ошибок",
+      "dominant": "S6 typecheck после написания тестов; прежний замер 20261010T092156Z был ДО изменения файла, значит недействителен."
+    }
+  },
+  "2026-10-11_sv-chain-and-scope": {
+    "S1": {
+      "plan": "plans/2026-10-11_sv-chain-and-scope.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "bun test test/tool/history-filters.test.ts — RED first (the `*` case fails on `resolveScope(\"*\") === \"*\"`), then 8 pass / 0 fail; live check `messagesearch {session: \"*\", query: \"liveMessages\"}` must return the same 5 hits as the call with no `session` (measured today: it returned «No results found»).",
+      "dominant": "resolveScope accepts \"*\" as \"all\", so an unrecognised scope spelling stops returning nothing in silence."
+    }
+  },
+  "2026-10-12_agents-row-provider": {
+    "S1": {
+      "plan": "plans/2026-10-12_agents-row-provider.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "bun test test/tui/agent-model-cell.test.ts (24 pass) + typecheck exit 0 + _build.ps1 exit 0 + TUI screenshot experiments/2026-10-12_agents-provider-smoke/tui_agents2.png",
+      "dominant": "/agents row renders the provider next to the model name; the cursor hint stops repeating it."
+    }
+  },
+  "2026-10-12_model-wire-param-gate": {
+    "S1": {
+      "plan": "plans/2026-10-12_model-wire-param-gate.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "bun test test/provider/learned-facts.test.ts test/provider/wire-params.test.ts + stub E2E run 20261012T050006Z_eab16811 + live GLM run 20261012T050048Z_baac8c56 — all green",
+      "dominant": "Rejected body fields and stated limits become recorded per-model facts, learned once at runtime and applied at the single packaging point."
+    }
+  },
+  "2026-10-13_free-authority-map": {
+    "S1": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "REPORT.md S1 rows carry live-call records (URL, status, first-result fields, prediction verdict); sources.json parses.",
+      "dominant": "Prove the keyless cross-discipline registries (Crossref, OpenAlex, DOAJ, Zenodo, OpenAIRE) answer live with search and read interfaces."
+    },
+    "S2": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "REPORT.md S2 rows carry live-call records for PubMed/Europe PMC/PMC OA/ClinicalTrials; MEDLINE free confirmed; Cochrane/CINAHL rows state the free subset.",
+      "dominant": "Confirm MEDLINE is free through PubMed E-utilities, prove the biomed read chain live, and map Cochrane and CINAHL honestly."
+    },
+    "S3": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "REPORT.md S3 rows carry live-call records for arXiv/INSPIRE/DBLP/Semantic Scholar and a substitute mapping for all 7 paid names in the group.",
+      "dominant": "Prove arXiv, INSPIRE-HEP, DBLP and Semantic Scholar live as the free physics/CS/engineering spine and map the paid publisher indexes onto them."
+    },
+    "S4": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "REPORT.md S4 rows carry live-call records for PubChem/COD/AFLOW and mapped rows for Reaxys/SpringerMaterials/MatWeb with the gap named.",
+      "dominant": "Prove PubChem, COD and AFLOW keyless for chemistry and materials, and state what the paid indexes hold that they lack."
+    },
+    "S5": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "REPORT.md S5 rows carry live-call records for USGS/AGRIS and mapped rows for GeoRef/GeoScienceWorld/CAB with what each lacks.",
+      "dominant": "Prove the USGS Publications Warehouse and FAO AGRIS live and map GeoRef, GeoScienceWorld and CAB Abstracts with the coverage gap named."
+    },
+    "S6": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "REPORT.md S6 rows carry live-call records for ERIC/OECD/OSF and mapped rows for PsycINFO/PsycArticles/SocINDEX/SocAbstracts/AgeLine/EdSource/LearnTechLib.",
+      "dominant": "Prove ERIC, OECD and OSF/SocArXiv live and map the APA/EBSCO psychology and sociology indexes onto free substitutes."
+    },
+    "S7": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "REPORT.md S7 rows carry live-call records for CAP/EUR-Lex; CourtListener/GovInfo rows state the token; all three paid law names mapped.",
+      "dominant": "Prove Harvard CAP and EUR-Lex keyless, tier the token-keyed legal APIs, and map Westlaw, LexisNexis and HeinOnline onto free primary law."
+    },
+    "S8": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "REPORT.md S8 rows carry live-call records for HathiTrust/IA/Persée and mapped rows for JSTOR/Project MUSE.",
+      "dominant": "Prove HathiTrust, Internet Archive and Persée live and map JSTOR and Project MUSE onto open humanities repositories."
+    },
+    "S9": {
+      "plan": "plans/2026-10-13_free-authority-map.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "python -m json.tool exits 0; REPORT.md row count == 28 paid names; commit hash names the plan; _build.ps1 state.json read; render names the plan.",
+      "dominant": "Assemble the measured map into sources.json and REPORT.md with honest counts, then close with render, log, commit and build evidence."
+    }
+  },
+  "2026-10-13_prompt-pins-session-model": {
+    "S1": {
+      "plan": "plans/2026-10-13_prompt-pins-session-model.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "cmd_runner bun test test/session/prompt.test.ts -t \"pins the session layer\" on the UNCHANGED source → 1 fail (session layer held test/other-model) — run 20261013T143411Z_eecf9199, exit 1",
+      "dominant": "A focused regression that fails on the current code because a prompt's named model never reaches the session layer."
+    },
+    "S2": {
+      "plan": "plans/2026-10-13_prompt-pins-session-model.md",
+      "state": "verified",
+      "etaTurns": 2,
+      "oracle": "the same filtered run after the fix → 1 pass / 0 fail — run 20261013T143514Z_0e3a5462, exit 0",
+      "dominant": "createUserMessage fills the session layer with the prompt's named model so later readers answer with the pin, not the host default."
+    },
+    "S3": {
+      "plan": "plans_completed/2026-10-13_prompt-pins-session-model.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "full prompt.test.ts 20261013T144245Z_99ac2edc 44 pass/13 skip/0 fail exit 0; session-settings-smoke 6/0 20261013T143533Z_c95ede2b; fill-layers 19/0 20261013T143552Z_4404fb93; session-settings-persist 28/0 20261013T143600Z_fad1b92a; bun typecheck exit 0 20261013T144509Z_4a9de21b",
+      "dominant": "The pin test is green and the settings-layer regressions stay green before the build."
+    },
+    "S4": {
+      "plan": "plans_completed/2026-10-13_prompt-pins-session-model.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "_build.ps1 20261013T144532Z_9dae9d2f exit 0 (smoke 10.0.1314, embedded prompt PASS); commit daec4d2456 names the plan (5 paths); plan in plans_completed/; svm render gapsBefore [] with the plan mapped in plans/MASTER_PLAN.md",
+      "dominant": "Close the plan — build, log the evidence, commit the paths under the plan's name, map it in MASTER_PLAN."
+    }
+  },
+  "2026-10-13_recall-read-address-space": {
+    "R3": {
+      "plan": "plans/2026-10-13_recall-read-address-space.md",
+      "state": "waiting-on-user",
+      "etaTurns": 6,
+      "oracle": "A `_run.cmd` source run in an experiments stand, model-driven: read a >8 000-char file WHOLE (one call), `edit` it by a hash THAT read printed, then `recall(…, release: true)`; assertions are read off the run's own session DB — the read part holds every line, the edit's fromHash resolves, the released part replays as the ID-addressed placeholder, and `recall(id, range)` afterwards returns the same lines. Never the model's prose.",
+      "dominant": "prove the model-to-tool plumbing of the shared address space — read a unit whole, edit by hash, release, recall it back — in a live source run."
+    }
+  },
+  "2026-10-14_claude-desktop-compact-handoff": {
+    "S3": {
+      "plan": "plans/2026-10-14_claude-desktop-compact-handoff.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "Adopted sibling t40 live-fire (request.json 01:45:36 + hookrun install 01:45:48, re-read) + own SessionStart hook-fire (.probe-fired source=startup, run 20261014T015507Z_50b1e928); artifacts in REPORT.md §4/§7",
+      "dominant": "Show what the model sees after a triggered compact in an isolated scratch dir."
+    }
+  },
+  "2026-10-14_kernel-stop-claim-release": {
+    "K1": {
+      "plan": "plans/2026-10-14_kernel-stop-claim-release.md",
+      "state": "verified",
+      "etaTurns": 6,
+      "oracle": "python -m pytest prompt_kernel/tests/ -q → 3 failed / 213 passed (the 3 are the stale-receiver guards whose fix is --install, deferred to K3); measure.py: product 8 491/8 500 words / 63 982/64 000 B, claude 8 568/8 600, codex 8 514/8 600, cursor 8 590/8 600; the 7 new invariant tests in tests/test_status_claim.py FAIL on the pre-K1 text and PASS after (RED recorded run 20261014T102728Z_d2047f07)",
+      "dominant": "K1 — the falsifiable-exit kernel: @STATUS_CLAIM first shared rule, every terminal edge a stop claim with scope/receipts/falsifier, JIDOKA/KAIZEN split, REWARD compressed; tests first (7 RED → GREEN), all four variants inside their caps."
+    }
+  },
+  "2026-10-15_activators-vs-training-data": {
+    "T1": {
+      "plan": "plans/2026-10-15_activators-vs-training-data.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "source.py line pins for each name in REPORT.md Q1 table, verified by read",
+      "dominant": "List every named authority, method and structural term exactly as the kernel spells it."
+    },
+    "T2": {
+      "plan": "plans/2026-10-15_activators-vs-training-data.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "dataset paper/card URL + content hash per Documented row in REPORT.md Q2",
+      "dominant": "Ground each activator in the documented corpus that does or does not contain its source."
+    },
+    "T3": {
+      "plan": "plans/2026-10-15_activators-vs-training-data.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "primary citation per density claim in REPORT.md Q3",
+      "dominant": "Locate where reward, falsification and gate/FSM language is dense in the corpora."
+    },
+    "T4": {
+      "plan": "plans/2026-10-15_activators-vs-training-data.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "M1 design lists task, both prompts, usage field, confounders in REPORT.md Q4",
+      "dominant": "Establish how hybrid models select thinking mode and design the token-count plus SV-emission measurement."
+    },
+    "T5": {
+      "plan": "plans/2026-10-15_activators-vs-training-data.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "repo README/paper line pins + disclosure verdict per layer in REPORT.md Q5",
+      "dominant": "Separate 3FS prefix-cache infrastructure from Engram lookup memory and test the exact-name-as-key hypothesis."
+    },
+    "T6": {
+      "plan": "plans/2026-10-15_activators-vs-training-data.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "M2 design lists task, both presentations, scoring rubric in REPORT.md Q6",
+      "dominant": "Document natively multimodal pretraining effects on code and design the text-vs-image structure probe."
+    },
+    "T7": {
+      "plan": "plans/2026-10-15_activators-vs-training-data.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "REPORT.md 260 lines covers Q1-Q7, every Documented row carries url, grep 7/7 Q headers, no kernel file touched",
+      "dominant": "Reduce all findings to one activator table with documented versus inferred strength and the resonance-map consequences."
+    }
+  },
+  "2026-10-15_base-load-analyzer": {
+    "B14": {
+      "plan": "plans/2026-10-15_base-load-analyzer.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "build state.json exit 0 + \"[OK] Build complete\" (run 20261015T042624Z_7b3c7c16) + commit 44ae436d23 naming the plan + secret sweep CLEAN",
+      "dominant": "Per-host base load measured with each host's own instruments, no key touched; codex carries both kernel generations and truncates the repo AGENTS.md at 63.69%."
+    }
+  },
+  "2026-10-15_kernel-continuation-without-blocked": {
+    "B2": {
+      "plan": "plans/2026-10-15_kernel-continuation-without-blocked.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "Claude's word on a0e15e87b5 (incl. the B6 fixes) -> python -m prompt_kernel --install + 4 receivers + baseline repin + post-install pytest (the 3 install-currency reds green) + one _build.ps1",
+      "dominant": "B2 closed on Claude's PASS for cc84e46096: four receivers installed, baseline repinned, pytest 285 green, readback byte-equal ×4, build 10.0.1345."
+    },
+    "B4": {
+      "plan": "plans/2026-10-15_kernel-continuation-without-blocked.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "python -m pytest prompt_kernel/tests/ -q green including the new control_flow_rule run-limit tests (4 variants + dropped-clause mutation controls); measured render <= 66000 B",
+      "dominant": "A finite run limit ends the run at G9 with CLEAN_NEXT_STATE, task open — not a terminal, never a WAITING_APPROVAL; a delegated run's budgets come from its delegator's brief."
+    },
+    "B5": {
+      "plan": "plans/2026-10-15_kernel-continuation-without-blocked.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "python -m pytest prompt_kernel/tests/ -q green including reward mutation controls (per-plan %, abandoned-in-pct, excluded-open total, wrong weight, postponed counted); historical literal byte-exact; measured render <= 66000 B",
+      "dominant": "Portfolio-wide completion curve plans_completed/(101 − pct)^2 plus linear abandoned-plan penalty at the critical-risk weight; postponed plans count in neither term."
+    },
+    "B6": {
+      "plan": "plans/2026-10-15_kernel-continuation-without-blocked.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "python -m pytest prompt_kernel/tests/ -q green incl. mutation controls rejecting (a) pct denominator without plans_abandoned, (b) a receipt not read back from a result, (c) an unquoted owner decision; historical fixture green; bytes per variant reported; STOP before --install",
+      "dominant": "Claude's review fixes: abandoned plans enter the pct denominator (the abandon-exploit 8.95 closed), a continuation receipt is read back from a result, the postpone decision is QUOTED; utf8_budget and the validate.py ceiling step to 67 000."
+    }
+  },
+  "2026-10-15_tui-active-sessions-panel": {
+    "S1": {
+      "plan": "plans/2026-10-15_tui-active-sessions-panel.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "bun typecheck from packages/opencode exits 0 (or shows zero errors referencing the four t52b paths) after the peer's src/session/llm.ts lands.",
+      "dominant": "S1 RED receipted 0/7 on behavior; only S5 waits on the peer llm.ts."
+    },
+    "S5": {
+      "plan": "plans/2026-10-15_tui-active-sessions-panel.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "bun typecheck from packages/opencode exits 0 (or shows zero errors referencing the four t52b paths) after the peer's src/session/llm.ts lands.",
+      "dominant": "S5 waits on the peer's llm.ts; t52b paths already contribute zero errors."
+    }
+  },
+  "2026-10-16_message-cleaner": {
+    "E3": {
+      "plan": "plans/2026-10-16_message-cleaner.md",
+      "state": "doing",
+      "etaTurns": 2,
+      "oracle": "fixer_log.jsonl holds 27 lines with first ok=True; validator verdicts + REPORT supplement follow",
+      "dominant": "Re-run the 27-call fixer campaign when the free pool answers; validator and report supplement follow."
+    }
+  },
+  "2026-10-16_model-chain-failover": {
+    "C1": {
+      "plan": "plans/2026-10-16_model-chain-failover.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "A1: chain CRUD persists per agent/scope through the TUI's own server path with fill-once semantics; focused store test + readback; behind-back overwrite case green",
+      "dominant": "Persist the explicit model chain per agent and scope in LMDB through the TUI server path with fill-once semantics."
+    },
+    "C3b": {
+      "plan": "plans/2026-10-16_model-chain-failover.md",
+      "state": "doing",
+      "etaTurns": 2,
+      "oracle": "A3/live-stand: hanging member cut at the measured threshold, retried on the next UP member with a visible synthetic note; partial text kept with reason",
+      "dominant": "Walk the session chain inside one request with first-token abort and a visible note."
+    }
+  },
+  "2026-10-16_org-reconcile-m1-contest": {
+    "S2": {
+      "plan": "plans/2026-10-16_org-reconcile-m1-contest.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "test_queue_contract.py: V-кейсы RED-first затем PASS (verify без --receipt отказан, с квитанцией VERIFIED+verify_receipt, self-verify отказан а cancel закрывает); installed==repo sha256; init.py rc 0",
+      "dominant": "Verify требует квитанцию проверяющего и записывает её, а verify само-делегированного тикета отказан для доверия."
+    },
+    "S3": {
+      "plan": "plans/2026-10-16_org-reconcile-m1-contest.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "test_queue_contract.py: contest-кейсы RED-first затем PASS (contest пишет contest_ref и оставляет READY, чужой/не-отклонённый contest отказан, следующий verify с квитанцией); installed==repo sha256; init.py rc 0",
+      "dominant": "Исполнитель оспаривает reject доказательствами, тикет хранит спор, делегатор отвечает вердиктом с квитанцией."
+    }
+  },
+  "2026-10-16_presence-revoke-and-test-guard": {
+    "G4": {
+      "plan": "plans/2026-10-16_presence-revoke-and-test-guard.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "_build.ps1 exit 0 после снятия чужого maintenance-маркера (jobwait done + Build complete + lock released); затем тик G4 и коммит плана через commit_own",
+      "dominant": "Дожать G4 когда чужой промоушен снимет maintenance-маркер и владелец перезапустит orgd."
+    }
+  },
+  "2026-10-16_private-index-commit": {
+    "TASK-4": {
+      "plan": "plans/2026-10-16_private-index-commit.md",
+      "state": "doing",
+      "etaTurns": 2,
+      "oracle": "Live self-commit via scripts/commit_own.py (private index) + git status clean for own paths + _build.ps1 exit 0; no .git/index-* remains",
+      "dominant": "Each robot commits through its own git index so a commit carries only its own paths."
+    }
+  },
+  "2026-10-16_reasoning-lossless-replay": {
+    "T1": {
+      "plan": "plans/2026-10-16_reasoning-lossless-replay.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "A1–A4 source+baseline; SMOKE: RED preservation asserts + SDK capture-fetch control",
+      "dominant": "Re-ground reasoning loss graph and provider matrix with classified reproducers."
+    }
+  },
+  "2026-10-16_self-edit-directive": {
+    "P1b": {
+      "plan": "plans/2026-10-16_self-edit-directive.md",
+      "state": "doing",
+      "etaTurns": 3,
+      "oracle": "P1a RED-first tests, then P1b green + switch-OFF byte-rollback proof; P1c refusal receipts",
+      "dominant": "Self-edit directive in product behind an OFF switch with byte rollback."
+    }
+  },
+  "2026-10-18_codex-continuity-and-robot-hooks": {
+    "H1": {
+      "plan": "plans_completed/2026-10-18_codex-continuity-and-robot-hooks.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "Python unittest and independent transcript/Fossil/HTTP CLI probes; exact source readback",
+      "dominant": "Полный recovery/report компонент, проверяемый независимо."
+    },
+    "H2": {
+      "plan": "plans_completed/2026-10-18_codex-continuity-and-robot-hooks.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "Native Fossil and subprocess golden fixture report, EXPECTED_FAIL controls on frozen source SHA256",
+      "dominant": "Независимый стенд различает восстановление и правдоподобный отчёт."
+    },
+    "H3": {
+      "plan": "plans_completed/2026-10-18_codex-continuity-and-robot-hooks.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "hooks/list trusted enabled exact definitions; actual lifecycle smoke; build log and scoped Git readback",
+      "dominant": "Установленные хуки доступны runtime и доставляют проверенный контекст."
+    }
+  },
+  "2026-10-19_kernel-three-oracles": {
+    "TASK-10": {
+      "plan": "plans_completed/2026-10-19_kernel-three-oracles.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "owner's words («Ну, ради ТРИЗ можно поднять планку до 85000» / «Ревью, затем ставлю») -> utf8 85 000, tokens 11 600 (= 85 000 / 7.33 B per token at the measured 76 799/10 474); install: product d89955e6, claude c228edee, cursor ad4f6535, codex-global 5008e667; installed == render True x4; baseline repinned 5ff2dcad -> d89955e6; post-install suite 529 passed 0 failed; _build.ps1 run 20261020T020649Z_469c9393 exit 0, bytes_written 65756, smoke 10.0.1467.",
+      "dominant": "The owner's two decisions arrived and were executed — the ceiling moved to 85 000 B / 11 600 tokens and the rule went live in all four receivers, with the suite at 529/0 and the plan closed."
+    },
+    "TASK-9": {
+      "plan": "plans_completed/2026-10-19_kernel-three-oracles.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "python -m pytest prompt_kernel/tests/ -q -> 522 passed / 7 failed = 4 token caps (product 10474, claude 10558, codex 10489, cursor 10558 vs 10100) + 3 stale receivers (production prompt, claude kernel, cursor rule — green at install); four renders (product/claude/codex/cursor) print utf8_bytes + sha256 and write ONLY into prompt_kernel/dist*; _build.ps1 run 20261020T015315Z_20944745 exit 0, bytes_written 65734, smoke 10.0.1465.",
+      "dominant": "The t96 kernel candidate is rendered in all four variants with its byte and digest receipts, the suite is re-run green except the owner's token-ceiling reds, and every receiver is left uninstalled."
+    }
+  },
+  "2026-10-20_aicall-empty-completion": {
+    "TASK-1": {
+      "plan": "plans_completed/2026-10-20_aicall-empty-completion.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "bun test test/tool/aicall.test.ts -> 6 pass / 0 fail (2 new tests: the report's title/output/envelope, and the whitespace-insensitive emptiness check); bun typecheck -> exit 0; _build.ps1 run 20261020T023548Z_6ab93621 exit 0, bytes_written 66031, smoke 10.0.1471. The empty-completion report must name the failure, carry the envelope, and name the max_tokens remedy.",
+      "dominant": "The isolated call now names an empty completion as a failure with the max_tokens remedy, and no longer overwrites the target file with nothing."
+    }
+  },
+  "2026-10-20_first-3x3-criterion": {
+    "TASK-1": {
+      "plan": "plans_completed/2026-10-20_first-3x3-criterion.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "read plans_completed/2026-10-20_first-3x3-criterion.md — criterion sentence, nine-leg table (family + source per leg) and the parent anchor to the t96 plan are on disk; probe baseline prints 9/9 PASS",
+      "dominant": "The project's first criterion under the three-oracle rule is written as one sentence with nine legs, each pinned to a catalogue family and to a source address."
+    },
+    "TASK-2": {
+      "plan": "plans_completed/2026-10-20_first-3x3-criterion.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "python experiments/2026-10-20_first-3x3_receipts/probe.py exits 0 and prints 9/9 HOLDS plus D/C/E = 3 legs COVERED and 'Every leg carries a unique-detection receipt'; RECEIPTS.md written",
+      "dominant": "Nine injected defects, one per leg, each caught by exactly one leg and missed by the other two of its aspect — independence measured, not asserted."
+    },
+    "TASK-3": {
+      "plan": "plans_completed/2026-10-20_first-3x3-criterion.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "after any edit that touches a leg, the probe is re-run and the verdict stays 9/9 HOLDS with D/C/E = 3 legs COVERED; a FAILS (not unique) or DEGENERATE SIMPLEX line is a red",
+      "dominant": "A receipt lives only as long as its leg set, so every edit that touches a leg re-opens the receipts and the harness must be re-run before the criterion is called covered again."
+    },
+    "TASK-4": {
+      "plan": "plans_completed/2026-10-20_first-3x3-criterion.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "installed production prompt sha256 == prompt_kernel/baseline.json production.sha256; kernel suite 824 passed / 0 failed; the four receiver digests match the install output",
+      "dominant": "The second criterion — the rule is live in the runtime — closes on the owner's word: four receivers installed, the baseline repinned, the kernel suite green."
+    }
+  },
+  "2026-10-20_kernel-line-audit": {
+    "TASK-1": {
+      "plan": "plans/2026-10-20_kernel-line-audit.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "sha256 + size of experiments/2026-10-20_kernel-audit/kernel-product-c912b4ac52.txt -> 75630 B, sha256 8407d4aeb42dc5f2aac8bfb897a25dfcafb58809e0e3adacd01527be043b6114. MEASURED 2026-10-20: both match the plan's pin (75630 B / prefix 8407d4aeb42dc5f2) — the frozen input is intact, the audit may read it. A mismatch = stop, do not re-render.",
+      "dominant": "The frozen kernel snapshot the line-audit reads is re-hashed before any line is read, and a mismatch stops the audit instead of being explained away."
+    }
+  },
+  "2026-10-20_triz-kernel-correspondence": {
+    "S8": {
+      "plan": "plans/2026-10-20_triz-kernel-correspondence.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "python scripts/commit_own.py --session <id> -m \"t101: TRIZ<->kernel correspondence\" -- plans/2026-10-20_triz-kernel-correspondence.md docs/glossary.md experiments_history/2026-10-20_triz-kernel/ (the printed sha is the receipt) + a _progress_log.md line applied as own-hunks-only (--shared + --apply-patch). Then _build.ps1 via cmd_runner -> exit 0 + a smoke version.",
+      "dominant": "The TRIZ-to-kernel correspondence lands as one commit that names the plan, carries the 21 new glossary entries and the report, and leaves the shared progress log with only its own hunk."
+    }
+  },
+  "2026-10-21_delegator-memory-repair": {
+    "T1": {
+      "plan": "plans/2026-10-21_delegator-memory-repair.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "experiments/2026-10-21_delegator-memory-research/replay_restore.py — 5 payloads; baseline 1/5, new 5/5 (a failing baseline is the receipt that the harness can fail)",
+      "dominant": "The fold restore is routed on session sources the desktop app never emits and reads a pointer that can never be written, so the repair is routing, dead-route removal and a measurable cut, while the memory folder gets a provenance and pointer check that makes its index mechanical."
+    }
+  },
+  "2026-10-21_delegator-memory-style": {
+    "T1": {
+      "plan": "plans/2026-10-21_delegator-memory-style.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "python scripts/memory_audit.py <folder> --baseline <manifest> — PASS on the folder, FAIL (exit 1) on each of the four fixtures",
+      "dominant": "The memory folder becomes checkable: one script prints a verdict per file and fails on the renamed file, the dangling link, the duplicated label and the deleted quote."
+    },
+    "T2": {
+      "plan": "plans/2026-10-21_delegator-memory-style.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "python scripts/memory_index.py stamp <folder> && python scripts/memory_index.py write <folder> → \"0 file(s) changed\" and \"MEMORY.md unchanged\"",
+      "dominant": "The index and the per-file vectors are generated from the files themselves, so a second run over its own output changes nothing."
+    },
+    "T3": {
+      "plan": "plans/2026-10-21_delegator-memory-style.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "python scripts/memory_backup.py backup|verify|test-restore → 133/133 hashes equal, 0 differences",
+      "dominant": "The folder is copied with a sha256 list before the first edit, and the copy restores byte-identically."
+    },
+    "T4": {
+      "plan": "plans/2026-10-21_delegator-memory-style.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "python scripts/memory_audit.py <folder> --baseline <manifest> → 0 failures, empty evidence-token diff",
+      "dominant": "Every stale pointer is repointed, every orphan is marked with the artefact that still supports its claim, and the superseded handoffs carry a dated history section."
+    },
+    "T5": {
+      "plan": "plans/2026-10-21_delegator-memory-style.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "the audit sees both files, the index names them, and their facts appear nowhere else in the folder",
+      "dominant": "The two facts the folder lacked — the measured loss chain and the two-account registry — are written with their receipts, and the four link targets that existed nowhere now say where their content lives."
+    },
+    "T6": {
+      "plan": "plans/2026-10-21_delegator-memory-style.md",
+      "state": "verified",
+      "etaTurns": 0,
+      "oracle": "python scripts/memory_audit.py <folder> — no file whose description names a kernel rule without its tag",
+      "dominant": "A kernel rule is pointed to by its tag in the one line the delegator always reads; the rule's text stays in the kernel where it is maintained."
+    },
+    "T7": {
+      "plan": "plans/2026-10-21_delegator-memory-style.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "python scripts\\memory_audit.py \"C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\memory\" --baseline experiments\\2026-10-21_delegator-memory-style\\baseline.json — the same counts",
+      "dominant": "The second reader is one command for the owner, because the delegation dispatcher fails on this host."
+    },
+    "T8": {
+      "plan": "plans/2026-10-21_delegator-memory-style.md",
+      "state": "verified",
+      "etaTurns": 1,
+      "oracle": "The audit's own before/after table: 455 findings before, 0 after; the four fixtures still fail 4/4; the stamp idempotent; the index 140 lines / 21 617 bytes with the order as line 1.",
+      "dominant": ""
+    }
+  },
+  "2026-10-21_robot-pending-stop-hook": {
+    "T7": {
+      "plan": "plans/2026-10-21_robot-pending-stop-hook.md",
+      "state": "doing",
+      "etaTurns": 1,
+      "oracle": "hook_calls.log row with state: pending-ask, and a transcript row showing the ask answered",
+      "dominant": "A real robot asks through the ask tool and the delegator's turn is blocked on that ask until the owner answers."
+    }
+  }
+}

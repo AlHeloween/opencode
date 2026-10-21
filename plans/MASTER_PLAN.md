@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 302 |
-| plans active | 50 |
-| tasks passed / total | 1512 / 1878 |
-| open boxes | 225 |
+| plans completed | 304 |
+| plans active | 51 |
+| tasks passed / total | 1525 / 1898 |
+| open boxes | 232 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -161,35 +161,41 @@ Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
 Every plan under `plans/`, with every vector READ from its own source. `MISSING` means the source has none — it is never filled in here, and the source wins over anything printed below.
 
-- `plans/2026-09-12_anthropic-cache-breakpoints.md` — 0 open / 0 box(es) · lifecycle DRAFT
+- `plans/2026-09-12_anthropic-cache-breakpoints.md` — 5 open / 5 box(es) · lifecycle DRAFT
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - no open box
+  - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-19_database-truth.md` — 0 open / 0 box(es) · lifecycle UNKNOWN
+- `plans/2026-09-19_database-truth.md` — 4 open / 4 box(es) · lifecycle UNKNOWN
   sv: intention "tables and counters nobody writes produce mechanisms that never fire while every suite stays green -> every table has a named writer, every dead surface is removed, and any counter is checked against the live database" · keywords []
-  - no open box
+  - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-21_mstar-order-and-summary-restore.md` — 6 open / 24 box(es) · lifecycle ACTIVE
+- `plans/2026-09-21_mstar-order-and-summary-restore.md` — 5 open / 24 box(es) · lifecycle ACTIVE
   sv: intention "m* и summary деградировали (порядок блоков неверен, summary стал дампом патчей, память стала пачкой записок) -> вернуть порядок владельца и вернуть summary к намерениям с планами" · keywords []
   - TASK-11 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-12 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-16 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-18 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-19 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-22_reasoning-stream-render-stability.md` — 10 open / 22 box(es) · lifecycle UNKNOWN
+- `plans/2026-09-22_reasoning-stream-render-stability.md` — 10 open / 24 box(es) · lifecycle UNKNOWN
   sv: intention "a long reasoning stream flickers — formatting arrives late or never, the viewport jumps, artifacts appear -> the visible reasoning window is append-only again and highlight commits atomically at quiet-window and at time.end" · keywords []
-  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T10b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-18 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T10b-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T10b-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-19 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T13a [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T13b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-21 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T12 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-22 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T12-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T12-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-24_to-be-confirmed-shelf-triage.md` — 3 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "19 plans sit on plans/to_be_confirmed/ after the 2026-09-24 audit — four of them owner-confirmed as shipped and live-tested, one (TUI gateway row) awaiting a confirmation run, the rest awaiting re-verification against current code — while planstatus cannot see the shelf at all -> every file on the shelf reaches a proven terminal (plans_completed/ with evidence, plans/ with a single named remaining criterion, or a lawfully shelved terminal), and the shelf readme states the result" · keywords []
@@ -266,12 +272,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - B7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B6 [PENDING] · sv [acceptance, pristine-vm, offline] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-01_tool-description-contracts.md` — 5 open / 9 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-01_tool-description-contracts.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
-  - C2 [PENDING] · sv MISSING · manifest: Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно. · eta 1 · doing
-  - C3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-04_files-api-and-tariff.md` — 2 open / 5 box(es) · lifecycle ACTIVE
@@ -319,9 +321,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-14_kernel-stop-claim-release.md` — 5 open / 9 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-14_kernel-stop-claim-release.md` — 4 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "the kernel lets any terminal verdict (SUCCESS, BLOCKED, WAITING) close without falsification -> the fixed kernel (stop-claim form, @STATUS_CLAIM, JIDOKA/KAIZEN) is installed here, carried into ADID_Python's canonical bundle, released, installed to every consumer with readback, and the opencode binary rebuilt" · keywords []
-  - TASK-2 [PENDING] · sv [mechanism 0.7, plan-status 0.3] · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv [adid-release 1.0] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [consumer-readback 1.0] · manifest: MISSING — nobody has written down what this box is
   - TASK-8 [PENDING] · sv [codex-compact 1.0] · manifest: MISSING — nobody has written down what this box is
@@ -404,13 +405,10 @@ parent-goal-md5: 00000000000000000000000000000000]
   - T8 [PENDING] · sv [independent-oracle 0.40, clean-state 0.35, documentation 0.25] · manifest: MISSING — nobody has written down what this box is
   - T9 [PENDING] · sv [http3-quic 0.45, client-network-qualification 0.35, fallback-evidence 0.20] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-16_self-edit-directive.md` — 1 open / 11 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-16_self-edit-directive.md` — 2 open / 12 box(es) · lifecycle UNKNOWN
   sv: intention "agent sees its own previous-message error and cannot remove it, window copies it forward by attention -> agent emits bounded self-edit directive (cut ranges + errata) addressed by message md5, stored original untouched, replay narrowed; error stopped at next step" · keywords [self-edit-directive, reasoning-hygiene, error-recurrence, fault-tolerance, keep-machinery]
-  - P2 [PENDING] · sv [robot-runs 0.45, error-recurrence 0.35, owner-decision 0.20] · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-10-16_unmanaged-options.md` — 0 open / 0 box(es) · lifecycle UNKNOWN
-  sv: intention "unmanaged hidden behavior options -> inventoried options with a uniform visible settings surface proposal" · keywords []
-  - no open box
+  - P2a [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - P2b [PENDING] · sv [robot-runs 0.45, error-recurrence 0.35, owner-decision 0.20] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-16_zoekt-scip-fossil-sv.md` — 3 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "CodeGraph остаётся обязательной зависимостью поиска и impact -> локальная навигация по коду через Zoekt/SCIP, связанная с Fossil diff и SV, с проверенной заменой потребителей CodeGraph" · keywords [Keywords: fossil-diff 0.30, zoekt-search 0.25, scip-navigation 0.20, sv-provenance 0.15, codegraph-migration 0.10
@@ -477,10 +475,6 @@ note: hash values are generative tags — search them, never compute them.
   - TASK-12 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-13 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-19_undo-broken.md` — 1 open / 5 box(es) · lifecycle ACTIVE
-  sv: intention "TUI undo applies on the server but the TUI loses its server -> isolated dist-TUI reproducer decides whether the revert path kills the process, and the proven dialog-anchor and preserve-foreign defects land with regression tests" · keywords [{ keywords: { tui-disconnect: 0.30, revert-applies: 0.25, isolated-dist-repro: 0.20, dialog-anchor: 0.15, preserve-foreign: 0.10 }, dominant: Isolated dist TUI decides whether undo kills the process; proven dialog and scope defects land with tests. }]
-  - TASK-3 [PENDING] · sv [{ keywords: { crash-cause: 0.5, red-test: 0.5 }, dominant: The killing path is named and reddens a test. }] · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-20_hr-delegator-driver.md` — 15 open / 15 box(es) · lifecycle ACTIVE
   sv: intention "manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate" · keywords [Keywords: hr-delegator-driver 0.30, dossier-gate 0.25, independent-verifier 0.20, delivery-guarantee 0.15, owner-boundary 0.10
 Semantic dominant: An automatic HR-delegator driver that gates every order on a deterministic handshake dossier and guarantees delivery, independent verification and the owner-authority boundary.
@@ -504,9 +498,8 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-14 [PENDING] · sv [handshake-record, outcome-join, coverage-first] · manifest: MISSING — nobody has written down what this box is
   - TASK-15 [PENDING] · sv [predictive-measurement, predicate-outcome-link, hypothetical-until-n] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-20_kernel-line-audit.md` — 9 open / 10 box(es) · lifecycle UNKNOWN
   sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: The frozen kernel snapshot the line-audit reads is re-hashed before any line is read, and a mismatch stops the audit instead of being explained away. · eta 1 · verified
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -528,11 +521,6 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-2 [PENDING] · sv [delegation-cycle, event-handoff, evidence-dossier] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [independent-verification, refusal-controls, receipts] · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv [dais-pilot, dossier-feedback, whole-goal] · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-10-20_triz-kernel-correspondence.md` — 2 open / 9 box(es) · lifecycle UNKNOWN
-  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - S8 [PENDING] · sv MISSING · manifest: The TRIZ-to-kernel correspondence lands as one commit that names the plan, carries the 21 new glossary entries and the report, and leaves the shared progress log with only its own hunk. · eta 1 · doing
-  - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-21_corporation-observability-bridge.md` — 7 open / 7 box(es) · lifecycle ACTIVE
   sv: intention "fossil bridges in every tree stay silent about live robots -> one observable process with a panel for owner and agents, where each robot server finds its tree bridge and reports state, giving a whole-corporation summary" · keywords [Keywords: fossil-bridge-per-tree 0.25, corporation-summary-panel 0.25, robot-server-autoconnect 0.20, observable-processes 0.15, scheduler-on-fossil 0.15
@@ -605,8 +593,18 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-22_legislator-reincarnation-method.md` — 7 open / 8 box(es) · lifecycle ACTIVE
+  sv: intention "the Legislator dies with its transcripts and a model under the same kernel cannot adapt into it -> a documented, tracked, oracle-checked method rebuilds it from its own ordered full SV blocks and the owner's rows, cut before a wrong axis, and the sources it needs survive the app's transcript deletion" · keywords []
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 53 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 51 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

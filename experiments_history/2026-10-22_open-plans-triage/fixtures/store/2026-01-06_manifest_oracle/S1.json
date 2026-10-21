@@ -1,0 +1,8 @@
+{
+  "task": "S1",
+  "plan": "plans/2026-01-06_manifest_oracle.md",
+  "sv": "Keywords: fixture 1.0\nSemantic dominant: the oracle lives in the store.\nmd5: 00000000000000000000000000000000\nprev-md5: 00000000000000000000000000000000\nparent-goal-md5: 00000000000000000000000000000000\n",
+  "etaTurns": 1,
+  "state": "doing",
+  "oracle": "bun test test/x/guard.test.ts → 0 fail, from packages/opencode"
+}

@@ -18,6 +18,7 @@ parent-goal-md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
 - [x] STOP — Legislator reviewed (PASS 2026-10-18, §8 decisions settled)
 - [x] Implementation: gate in every §3 consumer (resolvers, assign head fallback, prompt/shell/command/title, task/pipeline/plan/reasoning, aicall, chain PUT write-gate, llm stream filter, small-model head), TUI writer/surface/marker, migration display, renamed-model failover (classify withdrawn + stream note + head fallback); RED→GREEN runs one file per call (§7 + §8)
 - [ ] OWNER BOX (do not close the plan): owner enters `globalRecents` in the TUI (Global recents action, ctrl+alt+r) — proposed seed: free zen → contributor via Go (owner order 2026-10-16). The plan stays ACTIVE until this box is ticked by the owner's own edit.
+- **t135 (2026-10-22): class (c) — an owner ACTION, quoted from this box:** «The plan stays ACTIVE until this box is ticked by the owner's own edit». Resume: the owner enters `globalRecents` in the TUI (Global recents, ctrl+alt+r) with the proposed seed (free zen → contributor via Go, owner order 2026-10-16). The robot may not tick it. Every other box in this plan is closed — this box IS the remainder, and it is one action, not a project.
 
 ## 1. Incident and mechanism (measured)
 

@@ -55,17 +55,18 @@ question about TDA and would have eaten that cycle. Separated so the TDA plan ca
 
 ## Tasks
 
-- **T1 — no table without a named writer.** For every zero-row table: find the writer in code, or state
+- [ ] **T1 — no table without a named writer.** For every zero-row table: find the writer in code, or state
   that there is none. A table with no writer is a SURFACE TO REMOVE, not to keep — a defect is fixed by
   deleting a surface, not by adding a guard.
-- **T2 — `event`, 87 548 rows, the largest object in the database.** Name its writer, its reader, and its
+- [ ] **T2 — `event`, 87 548 rows, the largest object in the database.** Name its writer, its reader, and its
   growth policy. It is a quarter larger than `part`, which is the working memory of the whole agent.
-- **T3 — `balance_snapshot`, 1 757 rows.** Either it is a snapshot (bounded: one row per provider) or it is
+- [ ] **T3 — `balance_snapshot`, 1 757 rows.** Either it is a snapshot (bounded: one row per provider) or it is
   a log (unbounded, and then it needs a retention rule or an honest name).
-- **T4 — the fixture rule, made checkable.** A fixture must write what PRODUCTION writes. The counter defect
+- [ ] **T4 — the fixture rule, made checkable.** A fixture must write what PRODUCTION writes. The counter defect
   survived precisely because a fixture inserted rows nothing in this build writes, so the test and the code
   agreed with each other and neither agreed with the database. Check every fixture that inserts raw SQL
   against the production writer.
+- **t135 (2026-10-22): these four tasks were BULLETS, not checkboxes — the plan was invisible to the status surface.** `planstatus` counts `- [ ]` only, so this file read as «no checklist» and none of T1–T4 appeared in the owed-counter that names the debt. Converted to boxes (class (b): each has an oracle that could fail — `dbread` inventory before/after, a `grep` proving zero call sites for every removed surface, the counter family against the live DB). Next: T1 first — its single writer is the fixture `test/session/turn.test.ts:81`, and `session_entry` holds 0 rows in production.
 
 ## Smoke Tests
 

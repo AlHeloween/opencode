@@ -21,8 +21,8 @@ note: hash values are generative tags — search them, never compute them.
 - [x] **S5** Write report: `experiments/2026-10-20_triz-kernel/REPORT.md`
 - [x] **S6** Append 21 TRIZ glossary entries to `docs/glossary.md`
 - [x] **S7** Write this plan with boxes, SV, Smoke Tests
-- [ ] **S8** Commit plan, glossary, report via `scripts/commit_own.py` + append `_progress_log.md`
-- [ ] **S9** Run `_build.ps1` via cmd_runner from repo root
+- [x] **S8** Commit plan, glossary, report via `scripts/commit_own.py` + append `_progress_log.md` — ✓ CONFIRMED 2026-10-22 (t135), class (a): the commit exists and names this plan. Receipt: commit `7cb11a686e` («t101: TRIZ↔kernel correspondence report + 21 glossary entries + plan») — it carries this plan, `docs/glossary.md` (the 21 entries) and the report.
+- [x] **S9** Run `_build.ps1` via cmd_runner from repo root — ✓ CONFIRMED 2026-10-22 (t135), class (a): the build ran in this task. Receipt: cmd_runner run `20261021T203353Z_ce9f9b26` (state.json: status finished / exit_code 0 / bytes_written 66 615 / bytes_dropped 0 / truncated false); the log's own lines: «Smoke test passed: 10.0.1515», «Smoke test passed: reasoning_prompt.txt embedded (BunFS asset present)», «[OK] Build complete - artifacts in dist/». `bin/` untouched (the build stages into `dist/`). With S8 and S9 closed, the plan moves to `plans_completed/` in the same commit (AGENTS § Plan Maintenance, JOB FAILED #2).
 
 ## Smoke Tests
 

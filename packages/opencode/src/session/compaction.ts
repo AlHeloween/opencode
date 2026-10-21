@@ -827,87 +827,6 @@ export function owedTasks(debt: PlanStatePayload) {
  *  the plans on disk before it is believed, so a path quoted in prose can never invent a plan. */
 const PLAN_REF = /plans\/[A-Za-z0-9._-]+\.md/g
 
-/** A session's first order, read whole — the record the Layer-1 Goal binding is decided by (review 2). */
-export interface SessionOrder {
-  id: string
-  head: string
-  dominant?: string
-  keywords?: { term: string; weight: number }[]
-  planRefs: string[]
-}
-
-/** Real (non-synthetic) text of a message — synthetic tail-note/panel parts are machinery, not orders. */
-export function orderTextOf(m: MessageV2.WithParts): string {
-  return m.parts
-    .filter((p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic)
-    .map((p) => (p as { text?: string }).text ?? "")
-    .join("\n")
-}
-
-/**
- * THE SESSION'S FIRST ORDER — over WHATEVER messages the caller hands in (review 2).
- *
- * The earliest user message with real text, excluding the Layer-1 panel and the
- * m* star (both machine artifacts). `planRefs` are the plan paths the order names,
- * in textual order — the FIRST one is the goal plan. Mirrors the t132 harness's
- * `sessionFirstOrder` over the same predicates, so the replay oracle and the
- * product read one spelling of "the order".
- */
-export function sessionOrderOf(msgs: readonly MessageV2.WithParts[]): SessionOrder | undefined {
-  const first = msgs.find(
-    (m) => m.info.role === "user" && !isLayer1SummaryMessage(m) && !isMessageStar(m) && orderTextOf(m).trim().length > 0,
-  )
-  if (!first) return undefined
-  const text = orderTextOf(first)
-  return {
-    id: first.info.id,
-    head: text.split("\n").find((l) => l.trim().length > 0)?.trim() ?? "",
-    dominant: extractMessageDominant(text),
-    keywords: extractKeywords(text)?.slice(0, 5),
-    planRefs: [...new Set(text.match(PLAN_REF) ?? [])],
-  }
-}
-
-/**
- * An EXPLICIT rebind cue (review 2): a later note rebinds the goal plan only when
- * it SAYS so — a bare mention never rebinds. Deliberately narrow: orders are
- * imperative ("work on X"), mentions are indicative ("saw X"). Tuned against the
- * 36-row real-corpus sample — widen only with a sample re-run proving no offender.
- */
-export const REBIND_CUE = /\b(rebind|re-bind|switch to|switch over|move to|now do|now work on|ordered onto|new order|your new task|take over|pick up)\b/i
-/**
- * A cue governed by a modal ("must move to", "should switch to") STATES work to be
- * done — it does not GIVE the order (t130-review3b: ckpt_15d0ee621 "the delegation
- * procedure must move to another machine" named the plan without ordering onto it).
- * The gate keeps `REBIND_CUE` as the vocabulary and refuses modal-governed hits.
- */
-const REBIND_MODAL = /(?:must|should|shall|ought\s+to|need\s+to|needs\s+to|have\s+to|has\s+to|должен|должна|должно|должны|надо|нужно|необходимо)\s+$/i
-export function hasExplicitRebindCue(t: string): boolean {
-  const re = new RegExp(REBIND_CUE.source, "gi")
-  let m: RegExpExecArray | null
-  while ((m = re.exec(t)) !== null) {
-    if (!REBIND_MODAL.test(t.slice(0, m.index))) return true
-  }
-  return false
-}
-/**
- * t130-review5: the product window for the first order, in messages. The capture
- * probes one row past it — the +1 row proves capping, it is never searched.
- */
-export const FIRST_ORDER_WINDOW = 10_000
-/**
- * t130-review5: split a newest-first-capped probe page (msgs oldest-first, the
- * capture's ascending page) into the searched window and the cap verdict. A full
- * page means the session runs past the window: truncated fires exactly there.
- */
-export function capProbeWindow(msgs: readonly MessageV2.WithParts[]): {
-  window: readonly MessageV2.WithParts[]
-  truncated: boolean
-} {
-  const truncated = msgs.length > FIRST_ORDER_WINDOW
-  return { window: truncated ? msgs.slice(-FIRST_ORDER_WINDOW) : msgs, truncated }
-}
-
 /** The tools that CREATE or MODIFY a worktree file. A plan file among their arguments is one the
  *  session owns; the read-side tools are absent on purpose — see `sessionSignals`. */
 const FILE_WRITING_TOOLS = new Set(["write", "edit"])
@@ -1659,19 +1578,6 @@ export function mechanicalSummaryBody(input: {
   diffs: readonly { file: string; additions: number; deletions: number }[]
   impact?: { from?: string; changedFiles?: number; callerCount?: number; topSymbols?: string[]; impactedFiles?: string[] }
   planState?: PlanStatePayload | null
-/** t130: session's OWN plan override. When undefined the binding below decides. */
-  ownPlan?: string | null
-  /** t130: full session for lineage (range + what precedes it). When absent the range alone is used. */
-  sessionMessages?: MessageV2.WithParts[]
-  /** t130-review2: the session's first order over FULL history (compacted
-   * included; captureMechanical loads it — the capture-time lineage loses the
-   * order after a fold). Wins over the lineage-derived order; when omitted the
-   * lineage's own first order is used. */
-  sessionOrder?: SessionOrder
-  /** t130-review4: the capture's window was capped — the earliest order in reach
-   * may be a LATER order, never the session's first. While set, nothing binds:
-   * the Goal carries the pointer and labels the window's latest order as later. */
-  orderTruncated?: boolean
 }): string {
   const text = (m: MessageV2.WithParts) =>
     m.parts
@@ -1787,82 +1693,11 @@ export function mechanicalSummaryBody(input: {
   // which is the only chaining that survives a break or a clarification inside a turn. `from_id`/
   // `to_id` remain the LOCAL coordinates; the label pair is the global one.
   const firstMd5 = rows.find((r) => r.chain.md5)?.chain.md5
-const plans = input.planState?.plans ?? []
+  const plans = input.planState?.plans ?? []
   const owed = plans.flatMap((p) =>
     p.tasks.filter((t) => t.status !== "PASS").map((t) => ({ plan: p.file, task: t })),
   )
   const passed = plans.flatMap((p) => p.tasks.filter((t) => t.status === "PASS").map((t) => ({ plan: p.file, task: t })))
-// t130-review2: the binding is decided by the ORDER, never by mention recency
-  // (differential replay over 341 stored ranges: newest-mention bound a foreign
-  // plan on 34 of 36 real later ranges). The goal plan is the plan the session's
-  // FIRST order names — the first PLAN_REF in the order text. A later note rebinds
-  // only on an explicit cue (`REBIND_CUE`); a bare mention never rebinds, and a
-  // file the session WROTE never rebinds either (work output is not a goal — a
-  // deliberate departure from `sessionPlan`, whose newest-wins rule serves the
-  // status note, not the summary). `sessionOrder` (full history, compacted
-  // included — captureMechanical loads it because the capture-time lineage loses
-  // the order after a fold) wins; otherwise the lineage's own first order.
-  const lineageMessages = input.sessionMessages ?? input.messages
-  const lineageOrder = sessionOrderOf(lineageMessages)
-  const effectiveOrder = input.sessionOrder ?? lineageOrder
-  const orderPlanRefs = effectiveOrder?.planRefs ?? []
-  const mirrorFiles = new Set(plans.map((p) => p.file))
-  // Later notes, in lineage order: everything after the effective order (by id
-  // when it is visible; when the order folded away, the whole visible lineage
-  // is later than it).
-  const lineageCandidates = lineageMessages.filter(
-    (m) =>
-      m.info.role === "user" &&
-      !isLayer1SummaryMessage(m) &&
-      !isMessageStar(m) &&
-      orderTextOf(m).trim().length > 0,
-  )
-  const orderIdx = effectiveOrder
-    ? lineageCandidates.findIndex((m) => m.info.id === effectiveOrder.id)
-    : -1
-  const laterNotes = orderIdx >= 0 ? lineageCandidates.slice(orderIdx + 1) : lineageCandidates
-  let reboundNote: SessionOrder | undefined
-  for (const note of laterNotes) {
-    const t = orderTextOf(note)
-    if (!hasExplicitRebindCue(t)) continue
-    const refs = [...new Set(t.match(PLAN_REF) ?? [])].filter((p) => mirrorFiles.has(p))
-    if (refs.length === 0) continue
-    const head = t.split("\n").find((l) => l.trim().length > 0)?.trim() ?? ""
-    reboundNote = {
-      id: note.info.id,
-      head,
-      dominant: extractMessageDominant(t),
-      keywords: extractKeywords(t)?.slice(0, 5),
-      planRefs: refs,
-    }
-  }
-  const displayOrder = reboundNote ?? effectiveOrder
-  const boundPlan: string | null =
-    input.ownPlan !== undefined ? input.ownPlan : (reboundNote?.planRefs[0] ?? orderPlanRefs[0] ?? null)
-  const own = boundPlan ? plans.find((p) => p.file === boundPlan) : undefined
-  const ownOwed = boundPlan ? owed.filter((o) => o.plan === boundPlan) : []
-  const latestLineage =
-    lineageCandidates.length > 0 ? lineageCandidates[lineageCandidates.length - 1]! : undefined
-  // t130-review5: the window's LATEST user order. lineageOrder is its FIRST — the
-  // review-4 label captioned the first as latest, a wrong fact (defect 1).
-  const latestInReach = latestLineage !== undefined ? sessionOrderOf([latestLineage]) : undefined
-  const latestLabel =
-    latestInReach !== undefined
-      ? `latest order in window ${latestInReach.id} (${lineageCandidates.length} of ${lineageCandidates.length} user orders in reach)`
-      : ""
-  // The order as Goal text: SV dominant + keywords when carried, else the head —
-  // always with the sessionread address. A later note that did NOT rebind still
-  // refines (named, never substituted).
-  const quoteOrder = (view: SessionOrder) => {
-    const quoted = view.dominant
-      ? `dominant "${view.dominant}"${view.keywords?.length ? ` \u00b7 keywords ${view.keywords.map((k) => `${k.term} ${k.weight}`).join(", ")}` : ""} \u00b7 "${view.head.slice(0, 300)}"`
-      : `"${view.head.slice(0, 300)}"`
-    return `Session order ${view.id}: ${quoted} (sessionread ${view.id} for the full order)`
-  }
-  const refineLine = (view: SessionOrder) =>
-    latestLineage && latestLineage.info.id !== view.id
-      ? `; latest note ${latestLineage.info.id} refines it (does not replace it)`
-      : ""
 
   // SEVEN of the nine sections are written here, from system-Exact sources. The remaining TWO —
   // `Constraints & Preferences` and `Key decisions` — are deliberately left OUT, and that is the
@@ -1913,35 +1748,19 @@ const plans = input.planState?.plans ?? []
       : "No @SV_TARGET in this range — nothing was steered, so there is no distance to measure.",
     "",
     "## Goal",
-// The session's OWN goal (t130-review2): the bound plan's intention when the order's
-    // plan is in the mirror; otherwise the ORDER itself with its address — never
-    // another plan. `no goal found` only when no user order exists at all.
-(() => {
-      // t130-review4 (Case B): the first order is out of reach — the window holds a
-      // later order at best. Never bind it: pointer plus the later-order label.
-      if (input.orderTruncated) {
-        const latest =
-          latestInReach !== undefined
-            ? `${latestLabel}: "${latestInReach.head.slice(0, 300)}" (sessionread ${latestInReach.id} for the full order) — a later order becomes the goal only by an explicit rebind instruction; `
-            : ""
-        return `no goal found in this window — the session's first order is not in reach; ${latest}recover it with dbread on the session's earliest user row, then sessionread and the earlier summaries; ask the delegator; do not invent a goal.`
-      }
-      if (boundPlan && own?.intention) {
-        return `${own.file} intention: ${own.intention.from_state} -> ${own.intention.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
-      }
-      if (boundPlan && displayOrder) {
-        return (
-          `${quoteOrder(displayOrder)}${refineLine(displayOrder)}; own plan ${boundPlan} is ` +
-          `${own ? "in the mirror but states no intention" : "not in the plan mirror"}` +
-          ` \u2014 the order above is the goal, never another plan.` +
-          `${reboundNote && effectiveOrder && reboundNote.id !== effectiveOrder.id ? ` (rebound ${effectiveOrder.id} \u2192 ${reboundNote.id} on explicit note)` : ""}`
-        )
-      }
-      if (displayOrder) {
-        return `${quoteOrder(displayOrder)}${refineLine(displayOrder)}; no plan bound \u2014 the order above is the goal.`
-      }
-      return "no goal found in this window — the session's first order is not in reach; recover it with dbread on the session's earliest user row, then sessionread and the earlier summaries; ask the delegator; do not invent a goal."
-})(),
+    // The plan's own DIGITAL_INTENTION is the system-Exact goal (plan-status.ts:141: «rides
+    // planState into every summary … so the target survives as a system-Exact anchor instead of
+    // being re-derived from the model's recollection»). The request that opened the range is the
+    // concrete instance of it, and it is quoted because it is what the user actually wrote.
+    plans.find((p) => p.intention)?.intention
+      ? `${plans.find((p) => p.intention)!.file} intention: ${plans.find((p) => p.intention)!.intention!.from_state} -> ${plans.find((p) => p.intention)!.intention!.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
+      : firstUser
+        ? `The range opens on the request: ${firstUser.head.slice(0, 400)}`
+        : // Reached only when no plan intention exists, so crediting one named a carrier that is not
+          // there — and filtering the panel opens this path in a new way (a range whose only user
+          // message WAS the panel used to be "answered" by quoting that panel). Acceptance #5's
+          // second clause: the Goal never becomes silent, and the reason is stated, not invented.
+          "No owner request in this range and no plan states an intention — nothing here carries a goal; read the range's own messages.",
     "",
     "## Plan",
     plans.length === 0
@@ -1952,15 +1771,9 @@ const plans = input.planState?.plans ?? []
     `${passed.length} tasks PASS · ${owed.length} open${plans.length ? ` across ${plans.length} plan(s)` : ""}. Window: ${rows.length} messages, ${input.diffs.length} files touched.`,
     "",
     "## Next Steps",
-      input.orderTruncated
-        ? `No owed task — first order out of reach (see Goal); ${latestInReach !== undefined ? `${latestLabel} is not the goal` : `no order in reach`}; ask the delegator; do not invent a goal.`
-        : boundPlan === null
-          ? displayOrder
-            ? `No owed task — no plan bound; continue the session order ${displayOrder.id}.`
-            : "No owed task — no goal found; ask the delegator; do not invent a goal."
-          : ownOwed.length === 0
-            ? `No owed task in ${boundPlan} at capture time.`
-            : ownOwed.slice(0, 5).map((o) => `${o.plan} → ${o.task.title ?? o.task.id}`).join("; "),
+    owed.length === 0
+      ? "No owed task in the plan mirror at capture time."
+      : owed.slice(0, 5).map((o) => `${o.plan} → ${o.task.title ?? o.task.id}`).join("; "),
     "",
     "## Critical Context",
     `Read the range with sessionread(${rows[0]?.id ?? "<from>"}..${rows[rows.length - 1]?.id ?? "<to>"}); the worktree diff lives in the row's diffs column, the code graph in the impact column. Answers older than this row are in earlier rows, and each one names its own message ids.`,

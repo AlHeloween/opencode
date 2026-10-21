@@ -15,7 +15,7 @@ import * as Session from "./session"
 import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID } from "./schema"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { capProbeWindow, FIRST_ORDER_WINDOW, mechanicalSummaryBody, sessionOrderOf, type SessionOrder } from "./compaction"
+import { mechanicalSummaryBody } from "./compaction"
 import { extractVectorChain } from "../memory/spine"
 import { Identifier } from "@/id/id"
 import type { PlanStatePayload } from "@/util/plan-status"
@@ -880,29 +880,11 @@ export const layer = Layer.effect(
         messages: input.messages,
         beforeMessages: input.beforeMessages,
       })
-      // t130-review2: the session's first order over FULL history (compacted
-      // included). The capture-time lineage loses the order after a fold, and
-      // the binding is decided by the order — so the capture reads what the
-      // range no longer holds. A failed read falls back to the lineage-derived
-      // order inside the body; never an approximation.
-      const probe = yield* sessions
-        .messages({ sessionID: input.sessionID, limit: FIRST_ORDER_WINDOW + 1, visibleOnly: false })
-        .pipe(Effect.catch(() => Effect.succeed(undefined as MessageV2.WithParts[] | undefined)))
-      // t130-review5: probe discipline — the +1 row proves capping, it is not searched.
-      const { window: orderWindow, truncated } = capProbeWindow(probe ?? [])
-const body = mechanicalSummaryBody({
+      const body = mechanicalSummaryBody({
         messages: input.messages,
         diffs,
         impact,
         planState: input.planState,
-        // t130-review2: full lineage so a later range still resolves the session's OWN plan
-        // (the brief lives at the session start, before this range).
-        sessionMessages: [...(input.beforeMessages ?? []), ...input.messages],
-        // First order rides the spread below (undefined falls back to lineage).
-        ...(orderWindow.length > 0 ? { sessionOrder: sessionOrderOf(orderWindow) } : {}),
-        // t130-review4 (Case B): a full page proves the window was capped — the earliest
-        // order in reach may be a LATER one, so the body points instead of binding.
-        ...(truncated ? { orderTruncated: true } : {}),
       })
       const row = IncrementalCheckpoint.save({
         id: Identifier.ascending("checkpoint"),

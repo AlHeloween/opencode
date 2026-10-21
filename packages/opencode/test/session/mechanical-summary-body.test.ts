@@ -197,11 +197,7 @@ test("the Goal carrier never quotes the machine's own panel as the owner's reque
     msg("msg_2", "user", "Что у нас на повестке?"),
     msg("msg_3", "assistant", vector({ dominant: "повестка из одиннадцати галок", md5: A, prevMd5: ZERO })),
   ])
-expect(out).toContain("Session order msg_2")
-  expect(out).toContain("Что у нас на повестке?")
-  expect(out).toContain("sessionread msg_2")
-  // t130-followup: the panel is still skipped and the real request rides as the
-  // session ORDER (with its address), not as the range's quoted request.
+  expect(out).toContain("The range opens on the request: Что у нас на повестке?")
   // The whole marker, not just the Goal line: a machine artifact quoted anywhere in this row would
   // be the same lie wearing a different hat.
   expect(out).not.toContain(LAYER1_SUMMARY_MARKER)
@@ -218,11 +214,8 @@ test("a range with no owner request says so — it never credits a plan that sta
     msg("msg_2", "assistant", vector({ dominant: "только панель", md5: A, prevMd5: ZERO })),
   ])
   expect(out).not.toContain(LAYER1_SUMMARY_MARKER)
-expect(out).toContain("no goal found")
-  // t130-followup: a panel-only range has no user order at all, so the Goal names
-  // the G0 move instead of crediting an absent plan.
-  expect(out).toContain("ask the delegator; do not invent a goal")
-  expect(out).toContain("no user order in this session")
+  expect(out).toContain("no plan states an intention")
+  expect(out).not.toContain("opens mid-thread")
 })
 
 test("the epoch carries a `dominant:` FIELD — the one line a later window searches it by", () => {

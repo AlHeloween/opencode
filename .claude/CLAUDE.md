@@ -11,7 +11,7 @@ If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is 
 
 Host note (outside the generated block, re-measured 2026-10-03): on THIS host the shell CLI resolves to
 `bin\codegraph.cmd` (`where codegraph`); `bin/` is off-limits except `codegraph sync` / `codegraph status` (AGENTS.md,
-owner 2026-10-03). Queries go through the MCP tool `codegraph_explore`; run `codegraph sync` before a task's first
+owner 2026-10-03) and the `codegraph.cmd prompt-hook` UserPromptSubmit hook (owner 2026-10-21). Queries go through the MCP tool `codegraph_explore`; run `codegraph sync` before a task's first
 query and after edits. (2026-10-01 measured «No such file or directory» — no longer true.)
 
 ## Delegation — robots do the work, Claude manages and monitors (owner, 2026-10-08)

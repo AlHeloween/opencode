@@ -1,0 +1,88 @@
+# Robot-pending Stop gate — Claude may not end a turn while an ordered robot is unwatched or unverified
+
+<!-- intention: Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher running, or has finished with a result Claude has not marked verified; the existing watch3.py is the watcher, so no new waiter is built -->
+
+<!-- goal_sv: robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle -->
+
+<!-- workflow: lifecycle ACTIVE -->
+
+- **plan_id:** 2026-10-21_robot-pending-stop-hook
+- **revision:** 1
+- **state:** ACTIVE
+- **reported:** owner, 2026-10-21, verbatim: «Ты вообще не понял что я пишу чтобы ты проверил - это прямое нарушение протокола автономности.»; «если я пишу тебе чтобы продолжить работу означает что протокол 100% сломан»
+- **class:** the delegator's autonomy protocol has no gate — a robot's result can be produced and left unverified while the turn ends, and the only remedy is the owner typing «continue».
+
+```yaml
+Keywords: robot-pending-stop-gate 0.30, watch3-liveness 0.25, verification-ledger 0.20, replay-oracle 0.15, seeded-old-finals 0.10
+Semantic dominant: A Stop gate reads the ordered robots' live state, so a busy robot without a running watch3 and an idle robot with an unverified final both block the turn, while watch3.py stays the single completion watcher.
+md5: 6c47e1b93a2d058f6e31b7c4a9d2058e
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 4d7b2e9f1a6c38e05d4b7a2e9c1f6d38
+note: hash values are generative tags — search them, never compute them.
+```
+
+## Reuse — why no new waiter was built
+
+`experiments/2026-10-08_robot-wave/watch3.py` IS the completion event, and it was already in use: Claude launched it with `run_in_background` right after every dispatch in the earlier sessions (transcript rows 109 of session d8dafbff and 293 of 60a3d22e). It polls the authenticated host, reports the FIRST robot that FINISHED (idle + a trailing SV + lineage OK), nudges a robot that went idle without an SV, reports aborts and host outages, and its exit re-invokes Claude.
+
+So t118's first draft (`wait_robot.py` + `robot_state.py`, written before this check) **duplicated watch3 and was removed** — the owner's correction «У тебя были реальные events на завершение ходов» is right, and the removal is the receipt that it was taken. What watch3 does NOT have, and what the gate adds: a **persistent verification ledger** (watch3 reports; nobody records that the report was CHECKED) and a **Stop gate** (watch3 exits and wakes Claude, but nothing forbids the turn from ending first). The gate therefore finds the watcher in the PROCESS LIST (watch3 writes no marker file) and never invents a second waiter.
+
+## Evidence (each line carries its instrument)
+
+- ✓ read `~/.claude/hooks/no_offer_stop.py` whole (89 lines): the Stop payload contract (`{"decision":"block","reason":…}`), the `stop_hook_active` loop guard, and the sibling registration in `settings.json` § Stop.
+- ✓ read `watch3.py` whole (189 lines): `name=ses_…` args (both orders accepted), the busy signal `(st.get(sid) or {"type":"idle"}).get("type") != "idle"`, the finish/nudge/abort paths, `sys.exit(0)` on finish — the exit that re-invokes Claude.
+- ✓ read `tools/opencode_host.py` whole (114 lines): `connect()` (live-host record with nonce), `Host.get/post`, the token never printed; `send_note.py` for the send + receipt shape (`{"info":…,"parts":…}`).
+- ✓ `session_tasks.json` (6 tracked sessions) + the `~/.claude/robots/` ledger format; every exit path of the gate writes a row in `~/.claude/fold/hook_calls.log`.
+- ✓ replay oracle `experiments/2026-10-21_robot-pending-stop/replay.py`: **baseline (today's `no_offer_stop.py`) 4/7** — C1, C3 and C6 FAIL; **new gate 7/7** (the harness can fail, so the green run means movement).
+- ✓ live check against the live host with today's real sessions: the gate ALLOWED (exit 0, no block) after the install-time seed verified 6 sessions' current finals.
+
+- ✓ `dbread` of `.opencode/data/opencode.db` (2026-10-21, this session's rows): the user rows carry the model as an OBJECT (`$.model.providerID` / `$.model.modelID` / `$.model.variant`) while the assistant rows carry it flat (`$.modelID` / `$.providerID` / `$.variant`); the 05:53:58 nudge row `msg_15d0608cb` carries `muse-spark-1.3-contributor` while every owner row of this session carries `minimax-m3.1-flash-free` — the switch, in the data.
+- ✓ read `packages/opencode/src/session/prompt.ts:1066,1095-1110` (the pin): a prompt that NAMES a model writes it into the session layer — a nudge is a prompt, so the nudge's model becomes the session's model.
+- ✓ read `packages/opencode/src/session/message-v2.ts:637-641` (the carrier): `User.model = {providerID, modelID, variant?}`.
+- ✓ the live process list (`Get-CimInstance Win32_Process`, 2026-10-21): one watcher per session appears as 3 nested `bash` launchers + 1 `python` — so «a process whose command line mentions watch3.py» is NOT a watcher.
+- ✓ the live `/session/<sid>/message` page is `pageCompacted` with limit 500 (`session.ts:568-576`): only the post-compaction window is visible, so the model rule reads the rows that exist and carries no model when none qualifies.
+## Tasks
+
+- [x] **T1 — the Stop gate.** `C:/Users/Alexander/.claude/hooks/robot_pending_stop.py`: for every session in `session_tasks.json` — BUSY and no live `watch3.py` naming it → BLOCK «robot <sid> is busy and nothing will wake you: start watch3.py in the background»; IDLE and its last assistant message is not in the ledger → BLOCK «robot <sid> finished (<msg id>) and you have not verified it: read it back, check it, commit, then robot_verified.py»; `stop_hook_active` → allow; host unreachable → allow + a log row. `std:` none found — no GOST/ISO/IEC governs a Claude Code Stop hook; the contract is the official hooks reference (`{"decision":"block","reason":…}`, the `stop_hook_active` guard) and the sibling hook `no_offer_stop.py` (read whole). Oracle: replay C1-C7.
+- [x] **T2 — the verification ledger + its CLI.** `experiments/2026-10-08_robot-wave/robot_verified.py <session_id> <message_id> <receipt>` writes one JSON line to `~/.claude/robots/verified.jsonl` (host state, outside the repo); the receipt is a commit hash, a report path, or «returned: <note file>». `--seed` writes every tracked session's CURRENT last assistant message as verified (read from the DB with `mode=ro`) so old finals never block. `std:` none found — the ledger format is this plan's contract (one JSON per line: `session_id`, `message_id`, `receipt`, `ts`); the host-state location follows the project's own rule (runtime state outside the repo). Oracle: the live check + the seed receipts in the ledger.
+- [x] **T3 — registration.** `~/.claude/settings.json` § Stop: the gate is registered next to `no_offer_stop.py` (timeout 25 s, so the host is reachable within the Stop budget). `std:` ECMA-404 (JSON, validated by parse) + the official hooks reference (Stop hook fields `command`/`timeout`). Backup `settings.json.bak-t118` was made BEFORE the edit. Oracle: `json.load` of the file + the live check running the registered path.
+- [x] **T4 — replay oracle.** `experiments/2026-10-21_robot-pending-stop/replay.py`: 7 cases (busy without watch3 → block; busy with watch3 alive → allow; idle unverified → block; idle verified → allow; `stop_hook_active` → allow; host down → allow + log row; a final seeded at install → allow), each with a fixture injected through `ROBOT_STOP_FIXTURE`/`ROBOT_STOP_TASKS`/`ROBOT_STOP_LEDGER`/`ROBOT_STOP_LOG`, so the live host and the live ledger are never touched by a replay. Predictions are written in the file's header BEFORE the run. `std:` none found — project convention is `experiments/` scratch (AGENTS.md); receipt: `glob experiments/*fold*` shows the t115 harness in the same shape. Oracle: baseline 4/7 → new 7/7.
+- [x] **T5 — install-time seed + live check.** `robot_verified.py --seed` wrote 6 sessions' current finals (ledger rows at 13:42:40 / 13:44:03, read back with `--list`); the live check against the live host and today's real sessions ALLOWED (exit 0). `std:` none found — same as T2. Oracle: the ledger read-back + the live check output.
+
+- [x] **T6 — the PENDING-ASK event (owner, 2026-10-21: «робот может задать вопрос пользователю через ask - SV тогда не придет»).** `watch3.py` now reads the host's `/question` and `/permission` queues on every poll (question/index.ts:63-64, permission/index.ts:44-46): a pending request for a watched session prints `asked: <name> (<sid>) — question <id>:` with the question and its options (or the permission and its patterns) and EXITS, exactly like «finished», so Claude is re-invoked; the ask is never answered and a session with a pending ask is never nudged. The gate blocks on a pending ask whether or not watch3 is alive: «robot <sid> is waiting on your answer: <question id>», with the authority boundary (answer only what your envelope covers; an OWNER decision — install, money, a paid model, a ceiling, a kernel cut — goes to the owner through AskUserQuestion; never answer in the owner's name). `std:` none found — the contract is the official hooks reference (the block decision shape) plus the t105 A1 authority rule and the t100 «Да.» regression case; receipt: the two queue shapes read in the source. Oracle: replay C8-C10 (gate) + W0-W3 (watch3).
+- [ ] **T7 — live leg of the pending ask.** A real robot asks through the ask tool (or waits on a permission): watch3 must print `asked:` and exit, the gate must block the delegator's turn on the pending ask, and the ask must reach the owner when the decision is his. `std:` none found — no GOST/ISO/IEC governs a Claude Code Stop hook; the contract is the official hooks reference (the block decision shape) plus the host's own question/permission queues (question/index.ts:63-64, permission/index.ts:44-46), read in the source. *Oracle:* a `hook_calls.log` row with `state: pending-ask` and a transcript row showing the ask answered. Until then the mechanism is proven by replay only.
+- [x] **T8 — the nudge carries the SESSION's own model (never `dispatch.MODEL`).** Owner, 2026-10-21: «the nudge must keep the session's own current model (read it from the session's last user row) and never `dispatch.MODEL`». Measured cause: a nudge is a PROMPT, and `createUserMessage` pins the model a prompt names into the session layer (`packages/opencode/src/session/prompt.ts:1095-1110`, the 2026-10-13 «prompt pins the session model» plan) — so a nudge carrying `dispatch.MODEL` (Muse) re-pinned a MiniMax session to Muse between two steps and the next step aborted (`MessageAbortedError`, 05:53:59Z; the nudge's own user row `msg_15d0608cb` carries `muse-spark-1.3-contributor`). The rule now lives in ONE place, `experiments/2026-10-08_robot-wave/watch3_model.py::session_model`: the last user row that is not one of OUR nudges decides (a user row carries `model:{providerID,modelID,variant?}` — `message-v2.ts:637-641`); our own nudges are recognised by their opening word AND the SV block `with_sv()` appends, because the mark ALONE also appears inside a QUOTED block (the compacted handoff carries this session's own earlier SV — measured: the mark-only rule read `null` for the live session). With no readable model the nudge carries NONE and the session layer decides. `std:` none found — no GOST/ISO/IEC governs a Claude Code watcher; the contract is the message schema (`message-v2.ts:637-641`) and the pin rule (`prompt.ts:1095-1110`). Oracle: `replay_watch3.py` W3/W4/W8 (new posts the session's model; the pre-fix baseline `watch3_before_addendum2.py` posts Muse) + the live read-only receipt `watch3_model.py <sid>`.
+- [x] **T9 — a second watcher refuses to start, naming the pid that watches.** Owner, 2026-10-21: «a second `watch3.py` naming a session already watched by a live watch3 refuses to start, saying which pid watches it». `watch3.py` now checks at start-up (`watcher_conflict`) and exits 3 with «refuse: session <sid> (<name>) is already watched by watch3 pid <pid> — a second watcher races the first; start none.». A watcher is a REAL python process running `watch3.py` (`watch3_procs.py` filters on the image name): the delegator's launcher shells ALSO carry the watch3 command line in their own command line, so counting every process that mentions `watch3.py` makes each launch see its own shell chain as a conflict and refuse to start — measured 2026-10-21, one watcher per session appears as 3 nested `bash` wrappers + 1 `python` (the wrappers are the launch chain, not watchers). `std:` none found. Oracle: `replay_watch3.py` W5 (new refuses, naming pid 4242; the baseline starts) + W6/W7 controls (a watcher on ANOTHER session, and no watcher, both start) + the live refusal against the real process list.
+
+## Smoke Tests
+
+Predicted BEFORE each run (@SMOKE_BEFORE); a delta off the prediction is a divergence, not a pass.
+
+| # | command | prediction | actual |
+|---|---|---|---|
+| B1 | `replay.py --hook C:/Users/Alexander/.claude/hooks/no_offer_stop.py` (today's hook) | 4/7 — C1, C3, C6 FAIL (no gate at all, no log row) | 4/7, exactly C1/C3/C6 |
+| R1 | `replay.py` (the new gate) | 7/7 PASS, every case exit 0 | 7/7, all exit 0 |
+| R2 | `robot_verified.py --seed` then the live check | seed writes one line per tracked session; the live check ALLOWS (no unverified final, no busy unwatched robot) | seeded 6 sessions; live check exit 0, no block |
+| R3 | `json.load` of `~/.claude/settings.json` | valid JSON; § Stop carries both hooks | valid; Stop = no_offer_stop + robot_pending_stop (timeout 25) |
+| R4 | `replay.py` (the gate, with the ask cases) | 10/10 PASS — C8 pending question → block, C9 pending permission → block, C10 answered (queues empty) → allow | 10/10 (after the C10 fixture fix) |
+| R5 | `replay_asks.py` (the first watch3 ask harness) | the new watch3 prints «asked:» and exits; the pre-addendum watch3 prints nothing | SUPERSEDED by R6 — this harness ran the LIVE watcher (60 s sleep + live host) and was killed twice without a verdict; `replay_watch3.py` replaces it with a fixture world (no sleep, no live host) |
+| R6 | `replay_watch3.py` (watch3: the ask, the nudge's model, the second watcher) | 16/16 PASS — W3/W4/W8 the POST carries the session's model (minimax) while the pre-fix baseline posts Muse; W5 the second watcher refuses (exit 3, names the pid) while the baseline starts; W0/W6/W7 the controls | 16/16 (run 2026-10-21, `ALL CASES PASS`) |
+| R7 | `watch3.py t123=ses_ea839e8d9ffeLucdUJDtIY8F2B` (a second watcher for a REAL watched session) | REFUSE with the pid of the live watcher; no POST, no host write | refused: «session ses_ea839e8d9ffeLucdUJDtIY8F2B (t123) is already watched by watch3 pid 16976» (the python watcher; the 3 bash wrappers were not counted) |
+| R8 | the live watchers after the fix (process list) | every session has exactly ONE watcher, and every one of them runs the fixed file | 3 python watchers (pids 5784 t118, 11820 t123, 28872 t124), each `python …/watch3.py …` — the two stale pre-fix watchers (16976, 32496) were stopped and relaunched |
+
+## Residuals
+
+- The gate fails OPEN when the host is unreachable (documented, with a log row): a dead host cannot be proven busy, and blocking every turn would make the delegator unusable.
+- The ledger is append-only and never expires: a message id stays verified even if the same session later produces another final — the new final is a different id, so it is unverified until checked (that is the point).
+- The gate reads the watcher from the PROCESS LIST: a watch3 started with a different argument order (`ses_…=name`) still names the session in its command line, so both orders are covered; a watcher started with NO session argument covers nothing and is correctly not counted.
+- The live check exercised the ALLOW path only: a live BLOCK needs a real busy robot with no watcher, which is the owner's next dispatch to produce.
+
+## Out of scope
+
+- Changing `watch3.py` itself (it is the working instrument; the gate only reads its liveness) — SUPERSEDED 2026-10-21 by the owner's order: T8/T9 change watch3 (the nudge's model, the second-watcher refusal). The gate still only READS the watcher's liveness.
+- Making the delegator auto-verify: the receipt is Claude's judgement, the ledger is its record, the gate is the refusal to end the turn without it.
+- The `resume`/`startup` sources and the fold hooks of t115 (separate mechanism, separate plan).
+
+## Rollback
+
+`~/.claude/settings.json` → restore `settings.json.bak-t118` (removes the gate registration); delete `~/.claude/hooks/robot_pending_stop.py`; the repo files (`robot_verified.py`, `replay.py`, this plan) are inert without the registration. The ledger `~/.claude/robots/verified.jsonl` is data — deleting it makes every current final unverified again, which the gate will (correctly) refuse to let pass. T8/T9 roll back by restoring `experiments/2026-10-08_robot-wave/watch3.py` from `watch3_before_addendum2.py` (the pre-fix copy, kept beside it) and deleting `watch3_model.py` + `watch3_procs.py`; the pre-fix copy is the exact baseline the replay compares against.

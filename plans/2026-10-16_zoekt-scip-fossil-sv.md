@@ -94,6 +94,7 @@ Unix-only NewIndexFile/unix.Umask. WSL probe сообщил not installed; ус�
 
 - [x] **M0a** — native Windows toolchain/source/platform qualification; Linux runtime не квалифицирован и исключён из Windows acceptance. <!-- sv: toolchain, portability, source-pins -->
 - [ ] **M0b** — corpus и current CodeGraph baseline, воспроизводимый reader. <!-- sv: baseline, corpus, measurement -->
+  **t135 addendum 2 (2026-10-22): class (b) — robot-finishable.** Next: the reproducible reader on the named corpus/query set (the M0b criteria 1-5 in ## Smoke Tests); the partial baseline `20261016T104235Z_3fe9d41d` (6020 files / 83244 nodes, structural only — no fulltext/MCP/index_time/peak-RSS) is the start, not the close. Z4/Z5 wait on it.
 - [x] **M1** — Go Fossil Provider с реальными fixture tests и negative controls. Parent run 20261016T160250Z_3a37d7bc. <!-- sv: fossil-provider, revision-identity, oracle-equivalence -->
 - [x] **M2** — Zoekt full/delta adapter и atomic publication oracle на fixture; compiled CLI 20261016T160746Z_a0d80ed8. <!-- sv: zoekt-adapter, incremental-equivalence, atomic-publication -->
 

@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 298 |
+| plans completed | 299 |
 | plans active | 44 |
-| tasks passed / total | 1472 / 1805 |
-| open boxes | 191 |
+| tasks passed / total | 1478 / 1812 |
+| open boxes | 192 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -494,21 +494,27 @@ note: hash values are generative tags — search them, never compute them.
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-20_hr-delegator-driver.md` — 13 open / 13 box(es) · lifecycle UNKNOWN
-  sv: intention "manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate" · keywords []
+- `plans/2026-10-20_hr-delegator-driver.md` — 14 open / 14 box(es) · lifecycle ACTIVE
+  sv: intention "manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate" · keywords [Keywords: hr-delegator-driver 0.30, dossier-gate 0.25, independent-verifier 0.20, delivery-guarantee 0.15, owner-boundary 0.10
+Semantic dominant: An automatic HR-delegator driver that gates every order on a deterministic handshake dossier and guarantees delivery, independent verification and the owner-authority boundary.
+md5: 9b4d1f2a6c7e48b3a0d5c8e71f2a3b4c
+prev-md5: 7f3c2a91b8e44d05a6c7f1e29d3b5a77
+parent-goal-md5: e27b5c90a4d13f68b0c9e2a71d4f8b53
+note: hash values are generative tags — search them, never compute them.]
   - TASK-1 [PENDING] · sv [internship-admission, sv-decode-exam, trivial-triz-exam] · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv [handshake-brief, triz-probe, predicate-list] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [dossier-gate, model-extracts-gate-decides] · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv [applicability-passport, configuration-key, stale-on-change] · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv [idle-send, receipt-readback, layer-model-check] · manifest: MISSING — nobody has written down what this box is
-  - TASK-6 [PENDING] · sv [watch-to-boundary, executor-ledger, independent-verifier] · manifest: MISSING — nobody has written down what this box is
-  - TASK-7 [PENDING] · sv [owner-boundary, named-decisions, no-canned-yes] · manifest: MISSING — nobody has written down what this box is
-  - TASK-8 [PENDING] · sv [state-namespace, no-new-json, legacy-readonly] · manifest: MISSING — nobody has written down what this box is
-  - TASK-9 [PENDING] · sv [assumptions-list, attribution-first, brief-gap-vs-prior] · manifest: MISSING — nobody has written down what this box is
-  - TASK-10 [PENDING] · sv [analyst-separation, failure-inputs, passport-writeback] · manifest: MISSING — nobody has written down what this box is
-  - TASK-11 [PENDING] · sv [ripeness-threshold, mechanism-first-proposal, routed-not-applied] · manifest: MISSING — nobody has written down what this box is
-  - TASK-12 [PENDING] · sv [handshake-record, outcome-join, sqlite-namespace] · manifest: MISSING — nobody has written down what this box is
-  - TASK-13 [PENDING] · sv [predictive-measurement, predicate-outcome-link, hypothetical-until-n] · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv [sv-correction-loop, probe-fail-attribution, bounded-reprobe] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv [applicability-passport, configuration-key, stale-on-change] · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv [idle-send, receipt-readback, layer-model-check] · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv [watch-to-boundary, executor-ledger, independent-verifier] · manifest: MISSING — nobody has written down what this box is
+  - TASK-8 [PENDING] · sv [owner-boundary, named-decisions, no-canned-yes] · manifest: MISSING — nobody has written down what this box is
+  - TASK-9 [PENDING] · sv [state-namespace, no-new-json, legacy-readonly] · manifest: MISSING — nobody has written down what this box is
+  - TASK-10 [PENDING] · sv [assumptions-list, attribution-first, brief-gap-vs-prior] · manifest: MISSING — nobody has written down what this box is
+  - TASK-11 [PENDING] · sv [analyst-separation, failure-inputs, passport-writeback] · manifest: MISSING — nobody has written down what this box is
+  - TASK-12 [PENDING] · sv [ripeness-threshold, mechanism-first-proposal, routed-not-applied] · manifest: MISSING — nobody has written down what this box is
+  - TASK-13 [PENDING] · sv [handshake-record, outcome-join, sqlite-namespace] · manifest: MISSING — nobody has written down what this box is
+  - TASK-14 [PENDING] · sv [predictive-measurement, predicate-outcome-link, hypothetical-until-n] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
   sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []

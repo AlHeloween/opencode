@@ -66,6 +66,16 @@ note: hash values are generative tags — search them, never compute them.
   Falsifier: cross-fold persistence no higher than a shuffled-order baseline. The same reader finds a wrong axis (the
   1e712796:5108 shape) in robot chains. Standard: kernel @L1_DISTANCE, @MEDOID_SIMPLEX (a second, independent leg is
   needed, e.g. diff/commit outcome per axis).
+  - **Run 1, 2026-10-22** (`experiments/2026-10-22_robot-sv-evolution/RESULT.md`, predictions before each run in
+    `PREDICTIONS.md`): 38 sessions, 565 own SVs, 38 cross-fold and 489 within-segment pairs. Three instruments were
+    qualified on fixtures (E exact, T token, S bge-m3/CUDA).
+    - ✓ Within-segment carry: p < 0.001 on all three.
+    - ✗ Cross-fold carry over the shuffled control: E p 0.44, T p 0.11, S +0.0098 p 0.058. Against gap-matched
+      within-segment pairs the drop is 0.040, p 0.001, so it is a fold effect.
+    - Convergence to the brief across folds: UNKNOWN (n = 5; the 1 positive is t127/MiniMax).
+    - Mechanism candidate, not tested: the fold vectors carry prev-md5 000 and recurring md5s.
+    - Open for this box: the outcome leg (@MEDOID_SIMPLEX — the SV text is one source category); the channel test
+      (post-fold SV vs the summary's SV); more sessions for convergence.
 - [ ] T7 — Generalise: the same method for any Claude lane or robot identity (input = era list + cut). Report-only
   first, kept in `plans/futures/` until T2-T4 pass.
 

@@ -26,6 +26,10 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 _spec = importlib.util.spec_from_file_location("memory_lib", Path(__file__).resolve().parent / "memory_lib.py")
 ml = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ml)
+_auspec = importlib.util.spec_from_file_location("memory_authoring", Path(__file__).resolve().parent / "memory_authoring.py")
+au = importlib.util.module_from_spec(_auspec)
+_auspec.loader.exec_module(au)
+AUTHORED = au.AUTHORED
 
 PARENT_GOAL_MD5 = "c7218c11076948a099404504393f1f50"
 STEP0 = "project_after_rebuild_2026_10_21.md"
@@ -73,18 +77,19 @@ def order_for(texts, index_text):
 
 
 def entries_for(texts, order):
+    """-> [(title, target, summary)] — the title and the rule the delegator acts on.
+
+    The title is AUTHORED (the file's meaning in plain case) and the summary
+    is the dominant's RULE clause, so the index line carries what to do; the
+    why stays in the file.
+    """
     entries = []
     for target in order:
         text = texts[target]
-        fm = ml.parse_frontmatter(text)
-        dominant = ml.dominant_of(fm.get("description", ""))
-        entries.append(
-            (
-                ml.title_from_stem(Path(target).stem, text),
-                target,
-                ml.summary_of(dominant),
-            )
-        )
+        sv = ml.read_sv(text) or {}
+        title = ml.title_for(target, text)
+        dominant = sv.get("Semantic dominant", "")
+        entries.append((title, target, ml.summary_of(dominant)))
     return entries
 
 
@@ -141,8 +146,14 @@ def resolve_link(target, texts):
     return hits.pop() if len(hits) == 1 else None
 
 
-def stamp_one(path, text, texts, names):
-    """-> (new_text, changed, notes) — the SV block, the canonical name, the links."""
+def stamp_one(path, text, texts, names, labels):
+    """-> (new_text, changed, notes) — the SV block, the canonical name, the links.
+
+    The MEANING is never derived here: it comes from the authored table
+    (scripts/memory_authoring.py) or, for a file with no authored entry, from
+    the block already in the file. A file with no block and no authored
+    meaning is left alone and REPORTED — a script cannot write the meaning.
+    """
     fname = path.name
     notes = []
     stem = Path(fname).stem
@@ -165,7 +176,6 @@ def stamp_one(path, text, texts, names):
         raw = new_raw
         changed = True
         notes.append("metadata.node_type filled")
-
     if not fm.get("metadata.modified"):
         from datetime import datetime, timezone
 
@@ -176,17 +186,21 @@ def stamp_one(path, text, texts, names):
         changed = True
         notes.append("metadata.modified filled from the file's own write time")
 
+    entry = AUTHORED.get(fname, {})
+    if entry.get("description") and entry["description"] != fm.get("description", ""):
+        quoted = '"' + entry["description"].replace('"', "'") + '"'
+        new_raw = ml.set_frontmatter_field(raw, "description", quoted)
+        text = text.replace(raw, new_raw, 1)
+        raw = new_raw
+        changed = True
+        notes.append("description replaced with the current state")
+
     for target, _line in ml.scan_links(text):
         canon = resolve_link(target, texts)
         if canon and canon != target:
             text = text.replace(f"[[{target}]]", f"[[{canon}]]")
             changed = True
             notes.append(f"link [[{target}]] -> [[{canon}]]")
-
-    description = ml.parse_frontmatter(text).get("description", "")
-    mtype = ml.parse_frontmatter(text).get("metadata.type", "")
-    dominant = ml.dominant_of(description)
-    keywords = ml.keywords_for(want_name, description, mtype)
 
     sv = ml.read_sv(text)
     if sv:
@@ -200,26 +214,43 @@ def stamp_one(path, text, texts, names):
         md5 = secrets.token_hex(16)
         prev = ml.ZERO_MD5
         notes.append("SV block added")
-    block = ml.render_sv(dominant, keywords, md5, prev, PARENT_GOAL_MD5)
+    if entry:
+        keywords = entry["keywords"]
+        dominant = entry["dominant"]
+        parent = entry.get("parent")
+        parent_md5 = labels.get(parent) or PARENT_GOAL_MD5
+        if parent and parent not in labels:
+            notes.append(f"parent {parent!r} has no label — the goal md5 was used")
+    elif sv:
+        keywords = ml.sv_keywords(sv.get("Keywords", ""))
+        dominant = sv.get("Semantic dominant", "")
+        parent_md5 = sv.get("parent-goal-md5", PARENT_GOAL_MD5)
+    else:
+        return text, changed, notes + ["no SV block and no authored meaning — the meaning must be written by a reader"]
+    block = ml.render_sv(dominant, keywords, md5, prev, parent_md5)
 
     if sv and sv["_block"].replace("\r\n", "\n") == block:
         return text, changed, notes
     if sv:
-        text = text[: sv["_start"]] + block + text[sv["_end"]:]
+        text = text[: sv["_start"]] + block + text[sv["_end"] :]
     else:
         raw, body = ml.split_frontmatter(text)
         text = raw + "\n" + block + "\n" + body.lstrip("\n")
     changed = True
     return text, changed, notes
 
-
 def cmd_stamp(args):
     folder = Path(args.folder)
     _, texts, _, _ = load(folder)
     names = canonical_name_map(texts)
+    labels = {}
+    for fname, text in texts.items():
+        sv = ml.read_sv(text)
+        if sv and ml.HEX32_RE.match(sv.get("md5", "")):
+            labels[fname] = sv["md5"]
     changed = 0
     for fname in sorted(texts):
-        new_text, did, notes = stamp_one(folder / fname, texts[fname], texts, names)
+        new_text, did, notes = stamp_one(folder / fname, texts[fname], texts, names, labels)
         if did:
             path = folder / fname
             ml.write_text(path, new_text)

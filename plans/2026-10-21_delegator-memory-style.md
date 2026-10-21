@@ -12,7 +12,8 @@ note: hash values are generative tags — search them, never compute them.
 ```
 
 - **plan_id:** 2026-10-21_delegator-memory-style
-- **revision:** 1
+- **revision:** 2
+- **revision 2 (owner, 2026-10-21, verbatim, the review of this plan's result):** «The audit's form checks pass, but the SVs were stamped from file names and types instead of from the file's meaning, the STEP 0 order fell out of the index the delegator loads every session, and some titles and cuts now state the opposite of their file — so the organisation goes one round further on meaning, with checks that can catch exactly these. […] A brief gap is mine: I never said what an SV in a memory file has to carry. I say it now. […] The SVs are written by you reading each file, not by a script from its name. A script may check their form. Keep the backup and the evidence-token guarantee.» The same order, the same acceptance, plus seven checks in the audit — see T8.
 - **state:** ACTIVE
 - **reported:** owner, 2026-10-21, verbatim: «Супер, теперь огранизуй память в нашем стиле чтобы больше проблем не было. SV, links и так далее. Потом займемся DAIS Desk иначе в твоем текущем состоянии мы просто получим грыжу не начав работать.»
 - **context, owner, 2026-10-21, verbatim:** «место того чтобы прочитать свою прошлую память ты скриптами выборочно грепанул и не разобрался в принципах которые были сжаты до уровня многократной вложенности.»
@@ -59,6 +60,7 @@ The app's own contract is the primary authority for the index: `https://code.cla
 - [x] **T6 — the kernel rules are pointed to by tag, never restated.** Where a topic file paraphrases a kernel rule, the file carries the rule's tag (`@THREE_ORACLES`, `@REWARD_FUNCTION`, `@ORACLE`, `@SMOKE_BEFORE`, `@DIVERGENCE_PROTOCOL`, `@TEST_INVARIANT`, …) instead of the rule's text; the rule stays in the kernel, where it is maintained. `std:` none found — the contract is the kernel's own rule tags (`prompt_kernel/source.py`). **Oracle:** the audit lists every file that names a kernel rule without its tag.
 - [ ] **T7 — the second reader.** The audit is re-run by a robot that did not write it, and the delegator reads the folder whole. `std:` none found — the contract is the project's own delegation rule (a delegate's "done" is testimony; the parent re-verifies). **Oracle:** a second run of the same script over the same folder reports the same counts. **OPEN, waiting on the owner, 2026-10-21:** the `task` dispatcher fails on this host with «Cannot access 'ge' before initialization» — three agent types (researcher, general, explorer), the same defect t124 hit twice. The second reader is therefore ONE command for the owner or any live robot (see §Result); the delegator's own next session reads the folder whole — STEP 0 first, then the links — which is what the order made possible.
 
+- [x] **T8 — the meaning (review 1, 2026-10-21).** The owner's review found the FORM passing and the MEANING missing: the SVs carried the file's label (the top keyword of 117 of 137 was the type word), every dominant was the description copied, the STEP 0 order had fallen out of the index, and some titles and cuts stated the opposite of their file. So: (a) `scripts/memory_authoring.py` — the AUTHORED meaning of every file, written by reading each one (the title, the keyword axes, the dominant as rule | why, the chain's parent); (b) `memory_index.py stamp` applies that table and NEVER derives meaning — a file with no block and no authored meaning is left alone and REPORTED, because a script cannot write the meaning; (c) the index's line 1 is the STEP 0 order verbatim and every line carries the file's RULE clause (the dominant up to the first ';'), cut at a clause boundary and never inside an abbreviation; (d) the seven new checks in the audit, each proven to FAIL on the folder as it stood. `std:` none found — the contract is the owner's review itself plus the app's own index rules (`code.claude.com/docs/en/memory`). **Oracle:** the audit's before/after table — 455 findings before, 0 after — with the four fixtures still failing and the stamp idempotent.
 ## Smoke Tests
 
 Predicted BEFORE each run (@SMOKE_BEFORE); a delta off the prediction is a divergence, not a pass.
@@ -77,6 +79,13 @@ Predicted BEFORE each run (@SMOKE_BEFORE); a delta off the prediction is a diver
 | S10 | `python scripts/memory_audit.py <folder>` with the baseline manifest | **0 failures** and an empty evidence-token diff | **✓** «PASS: the folder is in our style» — 137 files, 273 links, 137 index lines, 23 345 bytes, and 0 evidence tokens lost (1 108 baseline tokens) |
 | S11 | the index size | ≤ 200 lines and ≤ 25 600 bytes (the app's own load limits), STEP 0 first | **✓** 140 lines / 23 345 bytes — headroom 60 lines / 2 255 bytes; STEP 0 first ✓ |
 
+| S12 | the new audit on the folder as the review found it (the backup) | **FAIL** — every new check fires | **✓ FAIL** — 455 findings over 138 files (0 files OK): 117 type-word keywords, 6 unsorted weights, 2 «NOT» contradictions, 1 missing STEP 0 line, 1 cut inside an abbreviation, 126 title findings, 1 stale CURRENT description, 137 copied dominants, 64 dominants without a rule and a why |
+| S13 | the new audit on the reorganised folder | **0 findings** and PASS | **✓ PASS** — 137 files OK, 274 links, 137 index lines, 21 617 bytes, 0 evidence tokens lost |
+| S14 | `python scripts/memory_index.py stamp <folder>` again | **0 file(s) changed** | **✓** «0 file(s) changed» |
+| S15 | `python scripts/memory_index.py write <folder>` again | **MEMORY.md unchanged** | **✓** «MEMORY.md unchanged (21617 bytes, 137 entries)» |
+| S16 | the four fixtures on the reorganised folder | the control PASSes and each defect still FAILs | **✓ 5/5** — the control PASSes; the renamed file, the dangling link, the duplicated md5 and the deleted owner quote each exit 1 and NAME the defect |
+| S17 | the index size | ≤ 200 lines and ≤ 25 600 bytes, the order as line 1 | **✓** 140 lines / 21 617 bytes — headroom 60 lines / 3 983 bytes; line 1 is the order |
+| S18 | the backup taken before the meaning was applied | a copy of the folder exists beside it | **✓** `memory-backup-20261021T113547Z` — 138 files, taken before the first write |
 ## Result (2026-10-21, t127)
 
 **Before → after**, measured by the audit itself:
@@ -104,6 +113,31 @@ Predicted BEFORE each run (@SMOKE_BEFORE); a delta off the prediction is a diver
 python scripts\memory_audit.py "C:\Users\Alexander\.claude\projects\D--zPython-opencode\memory" --baseline experiments\2026-10-21_delegator-memory-style\baseline.json
 ```
 
+## Result (2026-10-21, t127 review 1 — the meaning)
+
+**The brief gap, closed.** The owner stated what an SV in a memory file has to carry: «keywords = the principle axes the file teaches, highest first; dominant = what to do or know and why, in one sentence; parent-goal-md5 = the md5 of the file whose principle this one refines (the chain), or this plan's md5 when it is a root».
+
+**What changed, measured by the audit itself (before → after):**
+
+| check | before | after |
+|---|---|---|
+| files with findings | 138 (0 OK) | **0 (137 OK)** |
+| a  the top keyword is not a type word / date / version | 117 | **0** |
+| b  the keyword weights are highest first | 6 | **0** |
+| c  no keyword or title word is what the file marks «NOT» | 2 | **0** |
+| d  STEP 0 is the index's line 1, verbatim | 1 | **0** |
+| e  no index line ends inside an abbreviation | 1 | **0** |
+| f  a title keeps the file's own casing | 126 | **0** |
+| g  no CURRENT description contradicts a HISTORICAL mark | 1 | **0** |
+| the dominant is not a copy of the description | 137 | **0** |
+| the dominant carries a rule and a why | 64 | **0** |
+| the parent chain resolves to a file's own label | 0 | **0** |
+
+**The index** is 140 lines / 21 617 bytes (the app's limits: 200 / 25 600) and its line 1 is the order verbatim: «STEP 0: read the whole memory and follow the [[links]], never grep it; then procedures, robots in flight, owner decisions». Every line carries the file's RULE clause — the hook the delegator acts on without opening the file.
+
+**The meaning travels in the repo.** `scripts/memory_authoring.py` holds the authored meaning of all 137 files (title, keyword axes, dominant, chain), so any machine gets the same organisation of this folder: the folder is per-CWD, the meaning is not.
+
+**Three of my own defects, caught by the new checks and fixed in the rules themselves.** The forbidden-term form matched «DO-NOT zone» and «NOT MEASURED» (a name the file forbids, not a shout) ⇒ the marker must be a standalone «NOT» and the term a mixed-case name. The link check scanned the SV block, so the owner's own «[[links]]» in the order read as a broken link ⇒ the block is the organisation's stamp, not the file's body. The plain-case title rule needed the file's own spelling («КИП» is Cyrillic, «GPT's» is «GPT/Codex's»).
 ## Residuals
 
 - **Delegation is broken on this host** (`Cannot access 'ge' before initialization` — t124 §5, §9.5 reproduced at t127 G1). The "another robot re-runs the audit" leg (T7) therefore needs the owner or a live robot; the command is one line and is printed in the final report.

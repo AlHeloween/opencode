@@ -152,7 +152,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 299 |
 | plans active | 51 |
-| tasks passed / total | 1503 / 1870 |
+| tasks passed / total | 1504 / 1871 |
 | open boxes | 226 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -567,7 +567,7 @@ note: hash values are generative tags — search them, never compute them.]
   - T9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T10 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-21_delegator-memory-style.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-21_delegator-memory-style.md` — 1 open / 8 box(es) · lifecycle UNKNOWN
   sv: intention "the delegator's memory is a pile it greps instead of a linked, checkable structure -> every file carries its own @SV_FORMAT block computed from that file alone, every [[link]] resolves to an existing file's name under one naming convention, superseded handoffs carry a dated history section instead of contradicting a newer file, MEMORY.md is regenerated mechanically from the files (byte-identical on the second run, inside the app's own 200-line / 25 KB load limit), no owner quote, receipt or measured number is lost, and an audit script that can fail proves all of it" · keywords []
   - T7 [PENDING] · sv MISSING · manifest: The second reader is one command for the owner, because the delegation dispatcher fails on this host. · eta 1 · doing
 

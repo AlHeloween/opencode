@@ -22,6 +22,12 @@ Conventions (one convention, stated once):
 import re
 from pathlib import Path
 
+import importlib.util
+
+_au_spec = importlib.util.spec_from_file_location("memory_authoring", Path(__file__).resolve().parent / "memory_authoring.py")
+_au = importlib.util.module_from_spec(_au_spec)
+_au_spec.loader.exec_module(_au)
+AUTHORED = _au.AUTHORED
 INDEX_NAME = "MEMORY.md"
 LEGEND = "note: hash values are generative tags — search them, never compute them."
 TYPES = ("feedback", "project", "reference", "user")
@@ -139,38 +145,84 @@ def set_metadata_field(raw, field, value):
 
 def canonical_name(stem):
     return stem.replace("_", "-")
+def plain_name_title(name):
+    """A fallback title from the file's own `name:` — plain case, no claim."""
+    words = [w for w in (name or "").replace("_", "-").split("-") if w]
+    if not words:
+        return name or ""
+    out = [w.lower() for w in words]
+    out[0] = out[0][:1].upper() + out[0][1:]
+    return " ".join(out)
 
 
-def title_from_stem(stem, text=""):
-    """The stem without its type prefix, sentence-cased; dates keep their dashes.
+def title_for(fname, text):
+    """-> the title the index must carry for this file: the AUTHORED one (the
+    file's meaning in plain case), else a plain-case fallback from its `name:`."""
+    entry = AUTHORED.get(fname)
+    if entry and entry.get("title"):
+        return entry["title"]
+    return plain_name_title(parse_frontmatter(text).get("name", "") or fname)
 
-    A word takes the case it has in the file's own text, so `cmd_runner` stays
-    `cmd_runner` and `DeepSeek` keeps its capital — the title is derived, never
-    guessed, and it never contradicts the file it names.
+
+def title_findings(title, text):
+    """-> the reasons the title is not the file's meaning in plain case.
+
+    The rule (owner, t127 review 1): a title is the file's name-meaning in
+    PLAIN case. A word that is not lowercase is allowed only where the FILE
+    itself uses it that way — an identifier (an internal capital, an
+    underscore) or a spelling the file uses somewhere that is not a sentence
+    or clause start. That is what catches «SAY when», «Reward is load
+    bearing Never cut» and «Robot loop State», while «Call the robot Smit»
+    passes because the file writes «addressing it as Smit».
+
+    The title itself is AUTHORED (scripts/memory_authoring.py): a script
+    cannot know that the file about the robot is called Smit and not Smith.
     """
-    rest = stem
-    for t in TYPES:
-        if rest.startswith(t + "_"):
-            rest = rest[len(t) + 1:]
-            break
-    rest = re.sub(r"_(\d{4})_(\d{2})_(\d{2})", r" \1-\2-\3", rest)
-    rest = rest.replace("_", " ").strip()
-    if not rest:
-        rest = stem
-    words = rest.split(" ")
-    if text:
-        seen = {}
-        for m in re.finditer(r"[A-Za-z][A-Za-z0-9_.-]*", text):
-            key = m.group(0).lower()
-            if key not in seen:
-                seen[key] = m.group(0)
-        words = [seen.get(w.lower(), w) for w in words]
-    first = words[0]
-    if first.isascii() and first.isalpha() and first.islower():
-        words[0] = first[0].upper() + first[1:]
-    return " ".join(words)
+    out = []
+    for i, word in enumerate((title or "").split()):
+        core = word.strip(".,:;!?()[]«»\"'")
+        if not core or not any(ch.isalpha() for ch in core):
+            continue
+        if core.islower() or i == 0:
+            continue
+        if _is_identifier(core, text):
+            continue
+        if core not in (text or ""):
+            out.append(f"the word {core!r} is not spelled that way in the file")
+        else:
+            out.append(f"the word {core!r} is capitalised but the file does not use it that way")
+    return out
 
 
+def _is_identifier(word, text):
+    """Is this capitalised word one the file itself uses that way?"""
+    if "_" in word or "." in word:
+        return True
+    if re.search(r"[a-z][A-Z]", word) or re.search(r"[A-Z][a-z]", word[1:]):
+        return True
+    if not text or word not in text:
+        return False
+    starts = _sentence_start_positions(text)
+    pattern = r"(?<![A-Za-z0-9Ѐ-ӿ])" + re.escape(word) + r"(?![A-Za-z0-9Ѐ-ӿ])"
+    return any(m.start() not in starts for m in re.finditer(pattern, text))
+
+
+# A word that opens a sentence or a clause is a plain word the file merely
+# capitalised; the same word used inside a clause is a name.
+_SKIP_BEFORE = " \t*_>#-|`"
+_SENTENCE_END = ".!?:;—–"
+
+
+def _sentence_start_positions(text):
+    """-> the offsets where a word would open a sentence or a clause."""
+    starts = set()
+    for m in re.finditer(r"[A-Za-zЀ-ӿ][A-Za-z0-9Ѐ-ӿ'’.-]*", text or ""):
+        i = m.start() - 1
+        while i >= 0 and text[i] in _SKIP_BEFORE:
+            i -= 1
+        if i < 0 or text[i] in _SENTENCE_END:
+            starts.add(m.start())
+    return starts
 # --------------------------------------------------------------- the vector
 
 
@@ -193,14 +245,100 @@ def dominant_of(description, cap=160):
 
 
 def summary_of(dominant, cap=90):
-    """The index view of the dominant: the same text, trimmed to a word boundary."""
-    if len(dominant) <= cap:
-        return dominant
-    cut = dominant[:cap]
-    if " " in cut:
-        cut = cut[:cut.rfind(" ")]
-    return cut.rstrip(" ,;:-") + "…"
+    """The index view of the dominant: its RULE clause (everything before the
+    first ';'), cut at a clause boundary and never inside an abbreviation.
 
+    The index line is what the delegator acts on without opening the file, so
+    it carries the rule; the why stays in the file. A cut ends at a sentence
+    or a clause — never inside an abbreviation (the owner's «… (e.g» and
+    «… (Giordano Memorization System, V»).
+    """
+    rule = (dominant or "").split(";")[0].strip()
+    if len(rule) <= cap:
+        return rule
+    cut = rule[:cap]
+    for sep in (", ", "; ", ": "):
+        idx = cut.rfind(sep)
+        if idx > 0:
+            cut = cut[:idx]
+            break
+    else:
+        if " " in cut:
+            cut = cut[: cut.rfind(" ")]
+    cut = cut.rstrip(" ,;:-")
+    while ends_inside_abbreviation(cut) and " " in cut:
+        cut = cut[: cut.rfind(" ")].rstrip(" ,;:-")
+    return cut
+
+
+# The order, verbatim (owner, t127 review 1, quoting the index of 2026-10-21):
+# the delegator loads ONLY this file at session start, so the one rule that
+# prevents the failure of that day is pinned as the index's line 1.
+STEP0_TEXT = (
+    "STEP 0: read the whole memory and follow the [[links]], never grep it; "
+    "then procedures, robots in flight, owner decisions"
+)
+
+# A term the file marks as NOT what it is — the owner's crude form for
+# A term the file marks as NOT what it is — the owner's crude form for
+# «no keyword contradicts the file». Two refinements, both forced by the
+# folder's own text: the marker must be a STANDALONE «NOT» (so «DO-NOT zone»
+# names the thing instead of forbidding the word), and the term must be a
+# NAME the file capitalises (so «NOT started» is a state, not a prohibition,
+# and «NOT MEASURED» names a bucket, not a banned word).
+FORBIDDEN_RE = re.compile(r"(?<![A-Za-z-])NOT\s+([A-Z][a-z][A-Za-z0-9_-]*)")
+
+# A cut that ends inside one of these is a broken cut.
+ABBREV_TAIL = {"e.g", "i.e", "vs", "etc", "dr", "mr", "ms", "st", "no", "vol", "fig", "al", "cf", "ca"}
+
+
+def forbidden_terms(text):
+    """-> the terms the file marks as NOT what it is.
+
+    A function word forbids nothing («NOT the» is not a prohibition), so the
+    project's own stopword list drops it.
+    """
+    out = set()
+    for m in FORBIDDEN_RE.finditer(text or ""):
+        term = m.group(1)
+        if term.lower() in STOPWORDS:
+            continue
+        out.add(term.lower())
+    return out
+
+
+def ends_inside_abbreviation(text):
+    """-> the trailing fragment, when the text ends inside an abbreviation."""
+    t = (text or "").rstrip()
+    if not t:
+        return None
+    last = t.split()[-1] if " " in t else t
+    last = last.strip(".,;:!?)]}»\"'")
+    if len(last) == 1 and last.isalpha():
+        return last
+    if re.fullmatch(r"[A-Za-z]\.[A-Za-z]", last):
+        return last
+    if last.lower() in ABBREV_TAIL:
+        return last
+    return None
+
+
+def body_of(text):
+    """The file's body without its frontmatter and without its SV block."""
+    _, body = split_frontmatter(text)
+    found = find_sv(body)
+    if found:
+        body = body[: found[1]] + body[found[2] :]
+    return body
+
+
+def meaning_text(text):
+    """The file's own text: frontmatter + body, WITHOUT the SV block (that
+    block is the organisation's stamp, not the file's own claim)."""
+    found = find_sv(text)
+    if not found:
+        return text
+    return text[: found[1]] + text[found[2] :]
 
 def _tokens(text):
     words = re.findall(r"[0-9A-Za-zЀ-ӿ_@.-]{3,}", text or "")
@@ -321,9 +459,14 @@ def index_order(text):
     return [target for _, target, _ in index_entries(text)]
 
 
-def render_index(entries, header="# Memory Index"):
-    """`entries` -> [(title, target, summary)]; STEP 0 first, then the rest packed."""
-    lines = [header, ""]
+def render_index(entries):
+    """`entries` -> [(title, target, summary)].
+
+    Line 1 is the ORDER, verbatim — the app loads only this file at session
+    start, so the rule that prevents the failure of today comes first. Then
+    one line per file, each carrying the rule the delegator acts on.
+    """
+    lines = [STEP0_TEXT, ""]
     if not entries:
         return "\n".join(lines) + "\n"
     lines.append(f"- [{entries[0][0]}]({entries[0][1]}) — {entries[0][2]}")

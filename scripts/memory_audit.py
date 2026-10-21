@@ -17,6 +17,17 @@ least one FAIL. The script is read-only: it never writes to the folder.
   5  no evidence is lost: every owner quote, receipt and measured number of the
      baseline manifest is still present
 
+  6  the MEANING checks of the owner's review 1 (t127, 2026-10-21) — each of
+     them is a FORM check, because the meaning itself is authored by reading
+     the file (scripts/memory_authoring.py) and a script cannot invent it:
+     a  the top keyword is not a type word, a date or a version;
+     b  the keyword weights are highest first;
+     c  no keyword and no title word is what the file marks as NOT;
+     d  STEP 0 is the index's line 1, verbatim;
+     e  no index line ends inside an abbreviation;
+     f  a title keeps the file's own casing (plain case, identifiers excepted);
+     g  no CURRENT description contradicts a HISTORICAL mark in its own body.
+
 The expectation table below is the t124 verdict (REPORT.md §4) carried forward:
 it says WHICH files were stale, which contradicted, and which lost their
 transcript — and what each of them must now say.
@@ -25,9 +36,32 @@ transcript — and what each of them must now say.
 import argparse
 import importlib.util
 import json
-import json
+import re
 import sys
 from pathlib import Path
+
+# A keyword that is a date or a version is a LABEL, not an axis (owner, review 1).
+DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
+VERSION_RE = re.compile(r"^\d+(\.\d+)+$")
+
+
+def current_contradicts_history(desc, body):
+    """-> the reason, when a CURRENT description repeats a state that the file's
+    own body marks HISTORICAL (the owner's check 7: «no CURRENT description
+    contradicts a HISTORICAL mark in its own body»)."""
+    if "CURRENT" not in desc.upper():
+        return None
+    words = {w.lower().strip(".,;:!?()[]«»\"'") for w in desc.split()}
+    words = {w for w in words if len(w) > 3 and w.isalpha()}
+    for para in re.split(r"\n\s*\n", body):
+        upper = para.upper()
+        if "HISTORICAL" not in upper and "HISTORY" not in upper:
+            continue
+        claim = para.split(":")[0].lower()
+        hit = {w for w in words if re.search(r"\b" + re.escape(w) + r"\b", claim)}
+        if len(hit) >= 2:
+            return f"the description repeats the state the body marks historical ({', '.join(sorted(hit))})"
+    return None
 
 _spec = importlib.util.spec_from_file_location("memory_lib", Path(__file__).resolve().parent / "memory_lib.py")
 ml = importlib.util.module_from_spec(_spec)
@@ -167,7 +201,7 @@ def load_folder(folder):
     return topic_files, texts, index_text
 
 
-def check_file(rep, name, text, names, used_labels):
+def check_file(rep, name, text, names, used_labels, labels):
     fm = ml.parse_frontmatter(text)
     stem = Path(name).stem
 
@@ -201,9 +235,37 @@ def check_file(rep, name, text, names, used_labels):
     total = round(sum(w for _, w in kws), 2)
     if abs(total - 1.0) > 0.005:
         rep.fail(name, f"Keywords: weights sum to {total}, not 1.0")
-    want_dom = ml.dominant_of(fm.get("description", ""))
-    if sv.get("Semantic dominant") != want_dom:
-        rep.fail(name, "Semantic dominant is not the file's own description")
+    weights = [w for _, w in kws]
+    if weights != sorted(weights, reverse=True):
+        rep.fail(name, f"Keywords: the weights are not highest first ({weights})")
+    if kws:
+        top = kws[0][0]
+        if top.lower() in ml.TYPES:
+            rep.fail(name, f"the top keyword {top!r} is the type word, not an axis")
+        if DATE_RE.match(top):
+            rep.fail(name, f"the top keyword {top!r} is a date, not an axis")
+        if VERSION_RE.match(top):
+            rep.fail(name, f"the top keyword {top!r} is a version, not an axis")
+    dominant = sv.get("Semantic dominant", "")
+    if dominant == ml.dominant_of(fm.get("description", "")):
+        rep.fail(name, "the dominant is a copy of the description — it carries no meaning of its own")
+    if ";" not in dominant:
+        rep.fail(name, "the dominant carries no rule and why (a ';' between them)")
+    forbidden = ml.forbidden_terms(ml.meaning_text(text))
+    for term, _w in kws:
+        parts = {term.lower()} | {p for p in term.lower().split("-") if len(p) > 2}
+        bad = parts & forbidden
+        if bad:
+            rep.fail(name, f"the keyword {term!r} asserts {sorted(bad)[0]!r}, which the file marks as NOT")
+    title = ml.title_for(name, text)
+    for reason in ml.title_findings(title, ml.meaning_text(text)):
+        rep.fail(name, f"the title {title!r}: {reason}")
+    for word in re.findall(r"[A-Za-z][A-Za-z0-9']*", title):
+        if word.lower() in forbidden:
+            rep.fail(name, f"the title {title!r} asserts {word!r}, which the file marks as NOT")
+    contradiction = current_contradicts_history(fm.get("description", ""), ml.body_of(text))
+    if contradiction:
+        rep.fail(name, contradiction)
     if not ml.HEX32_RE.match(sv.get("md5", "")):
         rep.fail(name, f"md5 {sv.get('md5')!r} is not 32 hex")
     elif sv["md5"] in used_labels:
@@ -212,13 +274,14 @@ def check_file(rep, name, text, names, used_labels):
         used_labels[sv["md5"]] = name
     if not ml.HEX32_RE.match(sv.get("prev-md5", "")):
         rep.fail(name, f"prev-md5 {sv.get('prev-md5')!r} is not 32 hex")
-    if sv.get("parent-goal-md5") != PARENT_GOAL_MD5:
-        rep.fail(name, f"parent-goal-md5 {sv.get('parent-goal-md5')!r} != the t127 goal")
+    parent = sv.get("parent-goal-md5", "")
+    if parent != PARENT_GOAL_MD5 and parent not in labels:
+        rep.fail(name, f"parent-goal-md5 {parent!r} is neither the t127 goal nor a file's own label")
     if ml.LEGEND not in sv.get("_block", ""):
         rep.fail(name, "the legend line is missing from the SV block")
 
     # --- links ------------------------------------------------------------
-    for target, line in ml.scan_links(text):
+    for target, line in ml.scan_links(ml.meaning_text(text)):
         if target not in names:
             rep.fail(name, f"line {line}: [[{target}]] resolves to no file")
 
@@ -278,8 +341,13 @@ def main():
         names[n] = name
 
     used_labels = {}
+    labels = {}
     for name, text in texts.items():
-        check_file(rep, name, text, names, used_labels)
+        sv = ml.read_sv(text)
+        if sv and ml.HEX32_RE.match(sv.get("md5", "")):
+            labels[sv["md5"]] = name
+    for name, text in texts.items():
+        check_file(rep, name, text, names, used_labels, labels)
 
     # --- the index --------------------------------------------------------
     index_path = folder / ml.INDEX_NAME
@@ -304,13 +372,17 @@ def main():
             rep.fail(ml.INDEX_NAME, f"the index names {len(extra)} file(s) that do not exist: {extra[:5]}")
         if targets and targets[0] != STEP0:
             rep.fail(ml.INDEX_NAME, f"the first entry is {targets[0]!r}, not the STEP 0 file {STEP0!r}")
+        # --- the ORDER is the index's line 1, verbatim -------------------------
+        first_line = lines[0] if lines else ""
+        if first_line != ml.STEP0_TEXT:
+            rep.fail(ml.INDEX_NAME, f"the index's line 1 is {first_line[:70]!r}, not the STEP 0 order verbatim")
         # the generated index vs the file on disk
         generated = ml.render_index(
             [
                 (
-                    ml.title_from_stem(Path(t).stem, texts[t]),
+                    ml.title_for(t, texts[t]),
                     t,
-                    ml.summary_of(ml.dominant_of(ml.parse_frontmatter(texts[t]).get("description", ""))),
+                    ml.summary_of((ml.read_sv(texts[t]) or {}).get("Semantic dominant", "")),
                 )
                 for t in targets
                 if t in texts
@@ -327,13 +399,15 @@ def main():
         for title, target, summary in entries:
             if target not in texts:
                 continue
-            fm = ml.parse_frontmatter(texts[target])
-            want_title = ml.title_from_stem(Path(target).stem, texts[target])
-            want_summary = ml.summary_of(ml.dominant_of(fm.get("description", "")))
+            want_title = ml.title_for(target, texts[target])
+            want_summary = ml.summary_of((ml.read_sv(texts[target]) or {}).get("Semantic dominant", ""))
             if title != want_title:
                 rep.fail(ml.INDEX_NAME, f"the line for {target} has the title {title!r}, not {want_title!r}")
             if summary != want_summary:
-                rep.fail(ml.INDEX_NAME, f"the line for {target} has a summary that is not the file's own dominant")
+                rep.fail(ml.INDEX_NAME, f"the line for {target} has a summary that is not the file's own rule clause")
+            frag = ml.ends_inside_abbreviation(summary)
+            if frag:
+                rep.fail(ml.INDEX_NAME, f"the line for {target} ends inside an abbreviation: {frag!r}")
 
     # --- evidence ---------------------------------------------------------
     if args.baseline:

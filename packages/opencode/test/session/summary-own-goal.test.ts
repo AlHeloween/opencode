@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { MessageV2 } from "../../src/session/message-v2"
-import { hasExplicitRebindCue, mechanicalSummaryBody, REBIND_CUE } from "../../src/session/compaction"
+import { capProbeWindow, FIRST_ORDER_WINDOW, hasExplicitRebindCue, mechanicalSummaryBody, REBIND_CUE } from "../../src/session/compaction"
 import type { PlanStatePayload } from "../../src/util/plan-status"
 
 /**
@@ -360,6 +360,41 @@ test("review4: first order out of reach — later order labelled, never bound (C
   // Labelled as later — never bound as the goal.
   expect(goal).not.toContain("tui has no standards -> tui meets standards")
   expect(goal).not.toContain("own plan")
-  expect(next).toContain("latest order in window msg_9 is not the goal")
+  expect(next).toContain("latest order in window msg_9 (1 of 1 user orders in reach) is not the goal")
   expect(next).toContain("ask the delegator; do not invent a goal")
+})
+
+test("review5: the latest label names the window's latest order with its position, not its first", () => {
+  const lineage: MessageV2.WithParts[] = [
+    msg("msg_7", "user", `First note per ${OWN}.`),
+    msg("msg_8", "assistant", vector("working", B, A, BRIEF_MD5)),
+    msg("msg_9", "user", `Later note per ${TUI}.`),
+  ]
+  const out = mechanicalSummaryBody({
+    messages: lineage,
+    diffs: [],
+    planState: planState(),
+    sessionMessages: lineage,
+    orderTruncated: true,
+  })
+  const goal = section(out, "## Goal", "## Plan")
+  expect(goal).toContain("latest order in window msg_9")
+  expect(goal).toContain("2 of 2 user orders in reach")
+  expect(goal).not.toContain("latest order in window msg_7")
+})
+
+test("review5: the +1 probe row is not searched — the flag fires exactly past the window", () => {
+  const many = (n: number): MessageV2.WithParts[] =>
+    Array.from({ length: n }, (_, i) => msg(`m${i}`, i % 2 === 0 ? "user" : "assistant", `note ${i}`))
+  const at = capProbeWindow(many(FIRST_ORDER_WINDOW))
+  expect(at.truncated).toBe(false)
+  expect(at.window.length).toBe(FIRST_ORDER_WINDOW)
+  expect(at.window[0]!.info.id as string).toBe("m0")
+  const over = capProbeWindow(many(FIRST_ORDER_WINDOW + 1))
+  expect(over.truncated).toBe(true)
+  expect(over.window.length).toBe(FIRST_ORDER_WINDOW)
+  expect(over.window[0]!.info.id as string).toBe("m1")
+  const empty = capProbeWindow([])
+  expect(empty.truncated).toBe(false)
+  expect(empty.window.length).toBe(0)
 })

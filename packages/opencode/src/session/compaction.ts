@@ -890,6 +890,23 @@ export function hasExplicitRebindCue(t: string): boolean {
   }
   return false
 }
+/**
+ * t130-review5: the product window for the first order, in messages. The capture
+ * probes one row past it — the +1 row proves capping, it is never searched.
+ */
+export const FIRST_ORDER_WINDOW = 10_000
+/**
+ * t130-review5: split a newest-first-capped probe page (msgs oldest-first, the
+ * capture's ascending page) into the searched window and the cap verdict. A full
+ * page means the session runs past the window: truncated fires exactly there.
+ */
+export function capProbeWindow(msgs: readonly MessageV2.WithParts[]): {
+  window: readonly MessageV2.WithParts[]
+  truncated: boolean
+} {
+  const truncated = msgs.length > FIRST_ORDER_WINDOW
+  return { window: truncated ? msgs.slice(-FIRST_ORDER_WINDOW) : msgs, truncated }
+}
 
 /** The tools that CREATE or MODIFY a worktree file. A plan file among their arguments is one the
  *  session owns; the read-side tools are absent on purpose — see `sessionSignals`. */
@@ -1826,6 +1843,13 @@ const plans = input.planState?.plans ?? []
   const ownOwed = boundPlan ? owed.filter((o) => o.plan === boundPlan) : []
   const latestLineage =
     lineageCandidates.length > 0 ? lineageCandidates[lineageCandidates.length - 1]! : undefined
+  // t130-review5: the window's LATEST user order. lineageOrder is its FIRST — the
+  // review-4 label captioned the first as latest, a wrong fact (defect 1).
+  const latestInReach = latestLineage !== undefined ? sessionOrderOf([latestLineage]) : undefined
+  const latestLabel =
+    latestInReach !== undefined
+      ? `latest order in window ${latestInReach.id} (${lineageCandidates.length} of ${lineageCandidates.length} user orders in reach)`
+      : ""
   // The order as Goal text: SV dominant + keywords when carried, else the head —
   // always with the sessionread address. A later note that did NOT rebind still
   // refines (named, never substituted).
@@ -1897,8 +1921,8 @@ const plans = input.planState?.plans ?? []
       // later order at best. Never bind it: pointer plus the later-order label.
       if (input.orderTruncated) {
         const latest =
-          lineageOrder !== undefined
-            ? `latest order in window ${lineageOrder.id}: "${lineageOrder.head.slice(0, 300)}" (sessionread ${lineageOrder.id} for the full order) — a later order becomes the goal only by an explicit rebind instruction; `
+          latestInReach !== undefined
+            ? `${latestLabel}: "${latestInReach.head.slice(0, 300)}" (sessionread ${latestInReach.id} for the full order) — a later order becomes the goal only by an explicit rebind instruction; `
             : ""
         return `no goal found in this window — the session's first order is not in reach; ${latest}recover it with dbread on the session's earliest user row, then sessionread and the earlier summaries; ask the delegator; do not invent a goal.`
       }
@@ -1929,7 +1953,7 @@ const plans = input.planState?.plans ?? []
     "",
     "## Next Steps",
       input.orderTruncated
-        ? `No owed task — first order out of reach (see Goal); ${lineageOrder !== undefined ? `latest order in window ${lineageOrder.id} is not the goal` : `no order in reach`}; ask the delegator; do not invent a goal.`
+        ? `No owed task — first order out of reach (see Goal); ${latestInReach !== undefined ? `${latestLabel} is not the goal` : `no order in reach`}; ask the delegator; do not invent a goal.`
         : boundPlan === null
           ? displayOrder
             ? `No owed task — no plan bound; continue the session order ${displayOrder.id}.`

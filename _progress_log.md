@@ -8567,3 +8567,21 @@ CONFIRMED ✓ item 5 (стоимость не выросла): байты, за�
 REFUTED ✗ остаточная проблема не устранена, а только переименована: ограничение окна по-прежнему по СЧЁТУ сообщений, а не по байтам (10 001 × ~18 КБ ≈ 180 МБ на capture), и правило признака обрезания «length > 10_000» срабатывает уже при 10 001 сообщениях — на одно сообщение раньше реальной границы окна (окно при 10 001 сообщениях покрывает всю сессию, а Goal всё равно скажет «первый заказ вне досягаемости»). Это off-by-one в признаке, а не в самом окне.
 
 Остаток владельцу: (1) ярлык «latest order in window» должен брать заказ ИЗ ОКНА (sessionOrder), а не из линии, иначе он называет первый заказ последним и цитирует чужой текст (Case C); (2) признак обрезания должен быть «окно заполнено И сессия длиннее окна», а не «ok > 10_000»; (3) ограничение остаётся по счёту, а не по байтам.
+## [2026-10-21] t130 review 5 — latest label names the window-latest order; flag exact at the boundary
+
+WHAT: two defects the blind verifier named in review 4, smallest fix, no new state: (1) the latest label read
+lineageOrder (the window's FIRST order) — now latestInReach/latestLabel from lineageCandidates-last, by id and
+position (N of N user orders in reach), in Goal and Next Steps; (2) the capture searched all 10_001 probe rows
+so the flag fired at exactly-10_001 with a complete search (one early) — now capProbeWindow/FIRST_ORDER_WINDOW
+in compaction.ts: the +1 row proves capping, the search runs the newest 10_000, the flag fires exactly past the
+window; summary.ts uses it (limit text unchanged at FIRST_ORDER_WINDOW + 1). Self-found in the same change:
+first Next Steps edit leaked a bound later plan (unit caught, guard hoisted); one bad-hash span deleted the
+array tail (restored from .bak, re-applied with read-back hashes).
+
+THE ORACLE: units summary-own-goal 14/14 (run 20261021T175607Z_260df65d exit 0; the 2 new cases fail on
+21dfc4ff11 — label names msg_7 there, capProbeWindow missing); typecheck exit 0 (run 20261021T175628Z_94576967);
+census base-vs-new 344 compared, 0 outside Goal/Next Steps (out/r2-report-5.json, replay 348/348 run
+20261021T175853Z_39d50861); fresh sample corrected 35/36 with the same pre-existing miss ckpt_15e9cb1aa as
+full-3b renderings of the identical sample (out/r2-rescored-4on3bfull.json) — no regression; mutant
+range→rangE 344/344 Critical-Context offenders (replay run 20261021T180222Z_af4de491 exit -1 with complete
+_build.ps1 exit 0, smoke 10.0.1510 (run 20261021T180325Z_d790af6e).

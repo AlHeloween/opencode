@@ -1578,6 +1578,12 @@ export function mechanicalSummaryBody(input: {
   diffs: readonly { file: string; additions: number; deletions: number }[]
   impact?: { from?: string; changedFiles?: number; callerCount?: number; topSymbols?: string[]; impactedFiles?: string[] }
   planState?: PlanStatePayload | null
+  /** t130: session's OWN plan. When undefined it is derived from the session lineage
+   * (the plan the order names, via `sessionPlan`) — never the first plan with an intention.
+   * `null` = no plan bound; the Goal then says `no goal found`, never another plan's. */
+  ownPlan?: string | null
+  /** t130: full session for lineage (range + what precedes it). When absent the range alone is used. */
+  sessionMessages?: MessageV2.WithParts[]
 }): string {
   const text = (m: MessageV2.WithParts) =>
     m.parts
@@ -1693,11 +1699,23 @@ export function mechanicalSummaryBody(input: {
   // which is the only chaining that survives a break or a clarification inside a turn. `from_id`/
   // `to_id` remain the LOCAL coordinates; the label pair is the global one.
   const firstMd5 = rows.find((r) => r.chain.md5)?.chain.md5
-  const plans = input.planState?.plans ?? []
+const plans = input.planState?.plans ?? []
   const owed = plans.flatMap((p) =>
     p.tasks.filter((t) => t.status !== "PASS").map((t) => ({ plan: p.file, task: t })),
   )
   const passed = plans.flatMap((p) => p.tasks.filter((t) => t.status === "PASS").map((t) => ({ plan: p.file, task: t })))
+  // t130: the session's OWN plan — the plan its order names (text or write), read via
+  // `sessionPlan` (the 2026-10-08 status-note fix, REUSE.BEFORE). `sessionMessages` is the
+  // full lineage (range + what precedes it); without it the range alone is used. An explicit
+  // `ownPlan` (captureMechanical's full-session resolution) wins. Never the first plan with
+  // an intention: that array order is newest-first, so `find` names whoever wrote last.
+  const lineageMessages = input.sessionMessages ?? input.messages
+  const derivedOwn: string | null =
+    input.ownPlan !== undefined
+      ? input.ownPlan
+      : sessionPlan({ messages: sessionSignals(lineageMessages), plans: plans.map((p) => p.file) })
+  const own = derivedOwn ? plans.find((p) => p.file === derivedOwn) : undefined
+  const ownOwed = derivedOwn ? owed.filter((o) => o.plan === derivedOwn) : []
 
   // SEVEN of the nine sections are written here, from system-Exact sources. The remaining TWO —
   // `Constraints & Preferences` and `Key decisions` — are deliberately left OUT, and that is the
@@ -1748,19 +1766,27 @@ export function mechanicalSummaryBody(input: {
       : "No @SV_TARGET in this range — nothing was steered, so there is no distance to measure.",
     "",
     "## Goal",
-    // The plan's own DIGITAL_INTENTION is the system-Exact goal (plan-status.ts:141: «rides
-    // planState into every summary … so the target survives as a system-Exact anchor instead of
-    // being re-derived from the model's recollection»). The request that opened the range is the
-    // concrete instance of it, and it is quoted because it is what the user actually wrote.
-    plans.find((p) => p.intention)?.intention
-      ? `${plans.find((p) => p.intention)!.file} intention: ${plans.find((p) => p.intention)!.intention!.from_state} -> ${plans.find((p) => p.intention)!.intention!.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
-      : firstUser
-        ? `The range opens on the request: ${firstUser.head.slice(0, 400)}`
-        : // Reached only when no plan intention exists, so crediting one named a carrier that is not
-          // there — and filtering the panel opens this path in a new way (a range whose only user
-          // message WAS the panel used to be "answered" by quoting that panel). Acceptance #5's
-          // second clause: the Goal never becomes silent, and the reason is stated, not invented.
-          "No owner request in this range and no plan states an intention — nothing here carries a goal; read the range's own messages.",
+// The session's OWN DIGITAL_INTENTION (t130): the plan-status intention of the plan
+    // THIS session owns, plus the request that opened the range (what the user wrote).
+    // Never the first plan with an intention — that names whoever wrote last. When no
+    // plan is bound the Goal says `no goal found`, never another plan's.
+    (() => {
+      if (derivedOwn !== null && own?.intention) {
+        return `${own.file} intention: ${own.intention.from_state} -> ${own.intention.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
+      }
+      if (derivedOwn !== null) {
+        if (!own)
+          return firstUser
+            ? `The range opens on the request: ${firstUser.head.slice(0, 400)} (own plan ${derivedOwn} not on disk \u2014 no goal found elsewhere)`
+            : `no goal found \u2014 session owns ${derivedOwn} which is not on disk; read the range's own messages.`
+        return firstUser
+          ? `The range opens on the request: ${firstUser.head.slice(0, 400)} (own plan ${derivedOwn} states no intention \u2014 no goal found elsewhere)`
+          : `no goal found \u2014 session owns ${derivedOwn} which states no intention (no plan states an intention for this session); read the range's own messages.`
+      }
+      return firstUser
+        ? `no goal found \u2014 no plan bound to this session. The range opens on the request: ${firstUser.head.slice(0, 400)}`
+        : "no goal found \u2014 No owner request in this range and no plan bound to this session (no plan states an intention for this session); read the range's own messages."
+})(),
     "",
     "## Plan",
     plans.length === 0
@@ -1771,9 +1797,11 @@ export function mechanicalSummaryBody(input: {
     `${passed.length} tasks PASS · ${owed.length} open${plans.length ? ` across ${plans.length} plan(s)` : ""}. Window: ${rows.length} messages, ${input.diffs.length} files touched.`,
     "",
     "## Next Steps",
-    owed.length === 0
-      ? "No owed task in the plan mirror at capture time."
-      : owed.slice(0, 5).map((o) => `${o.plan} → ${o.task.title ?? o.task.id}`).join("; "),
+derivedOwn === null
+      ? "No owed task \u2014 no plan bound to this session (no goal found)."
+      : ownOwed.length === 0
+        ? `No owed task in ${derivedOwn} at capture time.`
+        : ownOwed.slice(0, 5).map((o) => `${o.plan} \u2192 ${o.task.title ?? o.task.id}`).join("; "),
     "",
     "## Critical Context",
     `Read the range with sessionread(${rows[0]?.id ?? "<from>"}..${rows[rows.length - 1]?.id ?? "<to>"}); the worktree diff lives in the row's diffs column, the code graph in the impact column. Answers older than this row are in earlier rows, and each one names its own message ids.`,

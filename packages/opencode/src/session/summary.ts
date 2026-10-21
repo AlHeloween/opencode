@@ -880,11 +880,14 @@ export const layer = Layer.effect(
         messages: input.messages,
         beforeMessages: input.beforeMessages,
       })
-      const body = mechanicalSummaryBody({
+const body = mechanicalSummaryBody({
         messages: input.messages,
         diffs,
         impact,
         planState: input.planState,
+        // t130: full lineage so a later range still resolves the session's OWN plan
+        // (the brief lives at the session start, before this range).
+        sessionMessages: [...(input.beforeMessages ?? []), ...input.messages],
       })
       const row = IncrementalCheckpoint.save({
         id: Identifier.ascending("checkpoint"),

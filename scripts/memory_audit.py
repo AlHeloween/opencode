@@ -18,8 +18,8 @@ least one FAIL. The script is read-only: it never writes to the folder.
      baseline manifest is still present
 
   6  the MEANING checks of the owner's review 1 (t127, 2026-10-21) — each of
-     them is a FORM check, because the meaning itself is authored by reading
-     the file (scripts/memory_authoring.py) and a script cannot invent it:
+      them is a FORM check, because the meaning itself is written by a reader into
+      the file's own SV block and a script cannot invent it:
      a  the top keyword is not a type word, a date or a version;
      b  the keyword weights are highest first;
      c  no keyword and no title word is what the file marks as NOT;
@@ -27,6 +27,8 @@ least one FAIL. The script is read-only: it never writes to the folder.
      e  no index line ends inside an abbreviation;
      f  a title keeps the file's own casing (plain case, identifiers excepted);
      g  no CURRENT description contradicts a HISTORICAL mark in its own body.
+      h  the SV block carries the file's own Title — the index's title has a source
+         in the file, and the derived index line cannot disagree with it;
 
 The expectation table below is the t124 verdict (REPORT.md §4) carried forward:
 it says WHICH files were stale, which contradicted, and which lost their
@@ -227,6 +229,8 @@ def check_file(rep, name, text, names, used_labels, labels):
     sv = ml.read_sv(text)
     if not sv:
         return rep.fail(name, "no @SV_FORMAT block")
+    if not sv.get("Title", "").strip():
+        rep.fail(name, "the SV block carries no Title — the index's title has no source in the file")
     kws = ml.sv_keywords(sv.get("Keywords", ""))
     if not 3 <= len(kws) <= 9:
         rep.fail(name, f"Keywords: {len(kws)} terms (3..9)")

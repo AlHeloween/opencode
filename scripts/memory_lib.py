@@ -20,14 +20,9 @@ Conventions (one convention, stated once):
 """
 
 import re
-from pathlib import Path
-
-import importlib.util
-
-_au_spec = importlib.util.spec_from_file_location("memory_authoring", Path(__file__).resolve().parent / "memory_authoring.py")
-_au = importlib.util.module_from_spec(_au_spec)
-_au_spec.loader.exec_module(_au)
-AUTHORED = _au.AUTHORED
+# The MEANING lives in the files themselves: each file's own SV block carries its
+# keywords, its dominant, its title and its chain. There is no table here — that
+# second copy is what the t127 order removed.
 INDEX_NAME = "MEMORY.md"
 LEGEND = "note: hash values are generative tags — search them, never compute them."
 TYPES = ("feedback", "project", "reference", "user")
@@ -156,11 +151,12 @@ def plain_name_title(name):
 
 
 def title_for(fname, text):
-    """-> the title the index must carry for this file: the AUTHORED one (the
-    file's meaning in plain case), else a plain-case fallback from its `name:`."""
-    entry = AUTHORED.get(fname)
-    if entry and entry.get("title"):
-        return entry["title"]
+    """-> the title the index must carry for this file: the file's OWN title (its
+    meaning in plain case, written by a reader into its SV block), else a plain-case
+    fallback from its `name:`."""
+    title = (read_sv(text) or {}).get("Title", "").strip()
+    if title:
+        return title
     return plain_name_title(parse_frontmatter(text).get("name", "") or fname)
 
 
@@ -175,8 +171,8 @@ def title_findings(title, text):
     bearing Never cut» and «Robot loop State», while «Call the robot Smit»
     passes because the file writes «addressing it as Smit».
 
-    The title itself is AUTHORED (scripts/memory_authoring.py): a script
-    cannot know that the file about the robot is called Smit and not Smith.
+    The title is written by a reader into the file's own SV block: a script cannot
+    know that the file about the robot is called Smit and not Smith.
     """
     out = []
     for i, word in enumerate((title or "").split()):
@@ -375,18 +371,21 @@ def keywords_for(name, description, mtype, limit=5):
     return list(zip(picked, rounded))
 
 
-def render_sv(dominant, keywords, md5, prev_md5, parent_md5):
+def render_sv(dominant, keywords, md5, prev_md5, parent_md5, title=None):
+    """The file's SV block. `title` is the file's meaning in plain case (the index's
+    title); it is written by a reader into the file, never derived by a script."""
     kw = ", ".join(f"{t} {w:.2f}" for t, w in keywords)
-    return (
-        "```yaml\n"
-        f"Keywords: {kw}\n"
-        f"Semantic dominant: {dominant}\n"
-        f"md5: {md5}\n"
-        f"prev-md5: {prev_md5}\n"
-        f"parent-goal-md5: {parent_md5}\n"
-        f"{LEGEND}\n"
-        "```"
-    )
+    lines = ["```yaml", f"Keywords: {kw}", f"Semantic dominant: {dominant}"]
+    if title:
+        lines.append(f"Title: {title}")
+    lines += [
+        f"md5: {md5}",
+        f"prev-md5: {prev_md5}",
+        f"parent-goal-md5: {parent_md5}",
+        LEGEND,
+        "```",
+    ]
+    return "\n".join(lines)
 
 
 def find_sv(text):
@@ -408,7 +407,7 @@ def read_sv(text):
         if line.startswith("```"):
             continue
         key, _, val = line.partition(":")
-        if key.strip() in ("Keywords", "Semantic dominant", "md5", "prev-md5", "parent-goal-md5"):
+        if key.strip() in ("Keywords", "Semantic dominant", "Title", "md5", "prev-md5", "parent-goal-md5"):
             out[key.strip()] = val.strip()
     out["_block"] = found[0]
     out["_start"] = found[1]

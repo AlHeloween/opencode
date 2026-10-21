@@ -26,10 +26,8 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 _spec = importlib.util.spec_from_file_location("memory_lib", Path(__file__).resolve().parent / "memory_lib.py")
 ml = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ml)
-_auspec = importlib.util.spec_from_file_location("memory_authoring", Path(__file__).resolve().parent / "memory_authoring.py")
-au = importlib.util.module_from_spec(_auspec)
-_auspec.loader.exec_module(au)
-AUTHORED = au.AUTHORED
+# The MEANING lives in the files' own SV blocks — there is no table here any more
+# (t127 memory add 1: the file is the source, the index is the derived copy).
 
 PARENT_GOAL_MD5 = "c7218c11076948a099404504393f1f50"
 STEP0 = "project_after_rebuild_2026_10_21.md"
@@ -79,8 +77,8 @@ def order_for(texts, index_text):
 def entries_for(texts, order):
     """-> [(title, target, summary)] — the title and the rule the delegator acts on.
 
-    The title is AUTHORED (the file's meaning in plain case) and the summary
-    is the dominant's RULE clause, so the index line carries what to do; the
+    The title is the file's OWN (its SV block, the meaning in plain case) and the
+    summary is the dominant's RULE clause, so the index line carries what to do; the
     why stays in the file.
     """
     entries = []
@@ -149,10 +147,10 @@ def resolve_link(target, texts):
 def stamp_one(path, text, texts, names, labels):
     """-> (new_text, changed, notes) — the SV block, the canonical name, the links.
 
-    The MEANING is never derived here: it comes from the authored table
-    (scripts/memory_authoring.py) or, for a file with no authored entry, from
-    the block already in the file. A file with no block and no authored
-    meaning is left alone and REPORTED — a script cannot write the meaning.
+    The MEANING is never derived here: it is read from the block already in the
+    file. A file with no block is left alone and REPORTED — a script cannot write
+    the meaning, and the title, the keywords, the dominant and the chain are the
+    reader's.
     """
     fname = path.name
     notes = []
@@ -186,15 +184,7 @@ def stamp_one(path, text, texts, names, labels):
         changed = True
         notes.append("metadata.modified filled from the file's own write time")
 
-    entry = AUTHORED.get(fname, {})
-    if entry.get("description") and entry["description"] != fm.get("description", ""):
-        quoted = '"' + entry["description"].replace('"', "'") + '"'
-        new_raw = ml.set_frontmatter_field(raw, "description", quoted)
-        text = text.replace(raw, new_raw, 1)
-        raw = new_raw
-        changed = True
-        notes.append("description replaced with the current state")
-
+    # the description is the file's own label — no table overrides it any more.
     for target, _line in ml.scan_links(text):
         canon = resolve_link(target, texts)
         if canon and canon != target:
@@ -203,31 +193,24 @@ def stamp_one(path, text, texts, names, labels):
             notes.append(f"link [[{target}]] -> [[{canon}]]")
 
     sv = ml.read_sv(text)
-    if sv:
-        md5 = sv.get("md5", "")
-        prev = sv.get("prev-md5", ml.ZERO_MD5)
-        if not ml.HEX32_RE.match(md5):
-            md5 = secrets.token_hex(16)
-            prev = sv.get("md5", ml.ZERO_MD5)
-            notes.append("md5 was not 32 hex — a fresh label was minted")
-    else:
+    if not sv:
+        return text, changed, notes + ["no SV block — the meaning must be written by a reader into the file"]
+    md5 = sv.get("md5", "")
+    prev = sv.get("prev-md5", ml.ZERO_MD5) or ml.ZERO_MD5
+    if not ml.HEX32_RE.match(md5):
         md5 = secrets.token_hex(16)
-        prev = ml.ZERO_MD5
-        notes.append("SV block added")
-    if entry:
-        keywords = entry["keywords"]
-        dominant = entry["dominant"]
-        parent = entry.get("parent")
-        parent_md5 = labels.get(parent) or PARENT_GOAL_MD5
-        if parent and parent not in labels:
-            notes.append(f"parent {parent!r} has no label — the goal md5 was used")
-    elif sv:
-        keywords = ml.sv_keywords(sv.get("Keywords", ""))
-        dominant = sv.get("Semantic dominant", "")
-        parent_md5 = sv.get("parent-goal-md5", PARENT_GOAL_MD5)
-    else:
-        return text, changed, notes + ["no SV block and no authored meaning — the meaning must be written by a reader"]
-    block = ml.render_sv(dominant, keywords, md5, prev, parent_md5)
+        prev = sv.get("md5", ml.ZERO_MD5)
+        notes.append("md5 was not 32 hex — a fresh label was minted")
+    # The MEANING is the file's own: its keywords, its dominant, its title and its
+    # chain are read from the block that is already there. Nothing here invents one.
+    keywords = ml.sv_keywords(sv.get("Keywords", ""))
+    dominant = sv.get("Semantic dominant", "")
+    title = sv.get("Title", "")
+    parent_md5 = sv.get("parent-goal-md5", PARENT_GOAL_MD5)
+    if parent_md5 != PARENT_GOAL_MD5 and parent_md5 not in labels.values():
+        parent_md5 = PARENT_GOAL_MD5
+        notes.append("parent-goal-md5 is not a label in this folder — the goal md5 was used")
+    block = ml.render_sv(dominant, keywords, md5, prev, parent_md5, title)
 
     if sv and sv["_block"].replace("\r\n", "\n") == block:
         return text, changed, notes

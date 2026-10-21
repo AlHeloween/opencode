@@ -827,6 +827,55 @@ export function owedTasks(debt: PlanStatePayload) {
  *  the plans on disk before it is believed, so a path quoted in prose can never invent a plan. */
 const PLAN_REF = /plans\/[A-Za-z0-9._-]+\.md/g
 
+/** A session's first order, read whole — the record the Layer-1 Goal binding is decided by (review 2). */
+export interface SessionOrder {
+  id: string
+  head: string
+  dominant?: string
+  keywords?: { term: string; weight: number }[]
+  planRefs: string[]
+}
+
+/** Real (non-synthetic) text of a message — synthetic tail-note/panel parts are machinery, not orders. */
+export function orderTextOf(m: MessageV2.WithParts): string {
+  return m.parts
+    .filter((p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic)
+    .map((p) => (p as { text?: string }).text ?? "")
+    .join("\n")
+}
+
+/**
+ * THE SESSION'S FIRST ORDER — over WHATEVER messages the caller hands in (review 2).
+ *
+ * The earliest user message with real text, excluding the Layer-1 panel and the
+ * m* star (both machine artifacts). `planRefs` are the plan paths the order names,
+ * in textual order — the FIRST one is the goal plan. Mirrors the t132 harness's
+ * `sessionFirstOrder` over the same predicates, so the replay oracle and the
+ * product read one spelling of "the order".
+ */
+export function sessionOrderOf(msgs: readonly MessageV2.WithParts[]): SessionOrder | undefined {
+  const first = msgs.find(
+    (m) => m.info.role === "user" && !isLayer1SummaryMessage(m) && !isMessageStar(m) && orderTextOf(m).trim().length > 0,
+  )
+  if (!first) return undefined
+  const text = orderTextOf(first)
+  return {
+    id: first.info.id,
+    head: text.split("\n").find((l) => l.trim().length > 0)?.trim() ?? "",
+    dominant: extractMessageDominant(text),
+    keywords: extractKeywords(text)?.slice(0, 5),
+    planRefs: [...new Set(text.match(PLAN_REF) ?? [])],
+  }
+}
+
+/**
+ * An EXPLICIT rebind cue (review 2): a later note rebinds the goal plan only when
+ * it SAYS so — a bare mention never rebinds. Deliberately narrow: orders are
+ * imperative ("work on X"), mentions are indicative ("saw X"). Tuned against the
+ * 36-row real-corpus sample — widen only with a sample re-run proving no offender.
+ */
+export const REBIND_CUE = /\b(rebind|re-bind|switch to|switch over|move to|now do|now work on|ordered onto|new order|your new task|take over|pick up)\b/i
+
 /** The tools that CREATE or MODIFY a worktree file. A plan file among their arguments is one the
  *  session owns; the read-side tools are absent on purpose — see `sessionSignals`. */
 const FILE_WRITING_TOOLS = new Set(["write", "edit"])
@@ -1578,12 +1627,15 @@ export function mechanicalSummaryBody(input: {
   diffs: readonly { file: string; additions: number; deletions: number }[]
   impact?: { from?: string; changedFiles?: number; callerCount?: number; topSymbols?: string[]; impactedFiles?: string[] }
   planState?: PlanStatePayload | null
-  /** t130: session's OWN plan. When undefined it is derived from the session lineage
-   * (the plan the order names, via `sessionPlan`) — never the first plan with an intention.
-   * `null` = no plan bound; the Goal then says `no goal found`, never another plan's. */
+/** t130: session's OWN plan override. When undefined the binding below decides. */
   ownPlan?: string | null
   /** t130: full session for lineage (range + what precedes it). When absent the range alone is used. */
   sessionMessages?: MessageV2.WithParts[]
+  /** t130-review2: the session's first order over FULL history (compacted
+   * included; captureMechanical loads it — the capture-time lineage loses the
+   * order after a fold). Wins over the lineage-derived order; when omitted the
+   * lineage's own first order is used. */
+  sessionOrder?: SessionOrder
 }): string {
   const text = (m: MessageV2.WithParts) =>
     m.parts
@@ -1704,47 +1756,70 @@ const plans = input.planState?.plans ?? []
     p.tasks.filter((t) => t.status !== "PASS").map((t) => ({ plan: p.file, task: t })),
   )
   const passed = plans.flatMap((p) => p.tasks.filter((t) => t.status === "PASS").map((t) => ({ plan: p.file, task: t })))
-  // t130: the session's OWN plan — the plan its order names (text or write), read via
-  // `sessionPlan` (the 2026-10-08 status-note fix, REUSE.BEFORE). `sessionMessages` is the
-  // full lineage (range + what precedes it); without it the range alone is used. An explicit
-  // `ownPlan` (captureMechanical's full-session resolution) wins. Never the first plan with
-  // an intention: that array order is newest-first, so `find` names whoever wrote last.
+// t130-review2: the binding is decided by the ORDER, never by mention recency
+  // (differential replay over 341 stored ranges: newest-mention bound a foreign
+  // plan on 34 of 36 real later ranges). The goal plan is the plan the session's
+  // FIRST order names — the first PLAN_REF in the order text. A later note rebinds
+  // only on an explicit cue (`REBIND_CUE`); a bare mention never rebinds, and a
+  // file the session WROTE never rebinds either (work output is not a goal — a
+  // deliberate departure from `sessionPlan`, whose newest-wins rule serves the
+  // status note, not the summary). `sessionOrder` (full history, compacted
+  // included — captureMechanical loads it because the capture-time lineage loses
+  // the order after a fold) wins; otherwise the lineage's own first order.
   const lineageMessages = input.sessionMessages ?? input.messages
-  const derivedOwn: string | null =
-    input.ownPlan !== undefined
-      ? input.ownPlan
-      : sessionPlan({ messages: sessionSignals(lineageMessages), plans: plans.map((p) => p.file) })
-const own = derivedOwn ? plans.find((p) => p.file === derivedOwn) : undefined
-  const ownOwed = derivedOwn ? owed.filter((o) => o.plan === derivedOwn) : []
-  // t130-followup: the session's FIRST order — the earliest user message of the WHOLE
-  // session (lineage, never the range). A plan-less session still has a goal: its order.
-  // Synthetic carriers (tail-note, Layer-1 panel, m* star) are not orders. A later
-  // follow-up note refines the order; it does not replace it. `no goal found` is only
-  // for a session with no user order at all (kernel G0 @INTENTION_CLARITY).
-  const realTextOf = (m: MessageV2.WithParts) =>
-    m.parts
-      .filter((p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic)
-      .map((p) => (p as { text?: string }).text ?? "")
-      .join("\n")
-  const orderCandidates = lineageMessages.filter((m) => {
-    if (m.info.role !== "user") return false
-    if (isLayer1SummaryMessage(m) || isMessageStar(m)) return false
-    return realTextOf(m).trim().length > 0
-  })
-  const firstOrder = orderCandidates[0]
-  const latestNote = orderCandidates.length > 1 ? orderCandidates[orderCandidates.length - 1] : undefined
-  const firstOrderText = firstOrder ? realTextOf(firstOrder) : ""
-  const firstOrderDominant = firstOrder ? extractMessageDominant(firstOrderText) : undefined
-  const firstOrderKeywords = firstOrder ? extractKeywords(firstOrderText) : undefined
-  const firstOrderHead = firstOrderText.split("\n").find((l) => l.trim().length > 0)?.trim() ?? ""
-  const sessionOrderGoal = () => {
-    if (!firstOrder) return "no goal found \u2014 no user order in this session; ask the delegator; do not invent a goal."
-    const quoted =
-      firstOrderDominant
-        ? `dominant "${firstOrderDominant}"${firstOrderKeywords?.length ? ` \u00b7 keywords ${firstOrderKeywords.slice(0, 5).map((k) => `${k.term} ${k.weight}`).join(", ")}` : ""} \u00b7 "${firstOrderHead.slice(0, 300)}"`
-        : `"${firstOrderHead.slice(0, 300)}"`
-    return `Session order ${firstOrder.info.id}: ${quoted} (sessionread ${firstOrder.info.id} for the full order)${latestNote && latestNote.info.id !== firstOrder.info.id ? `; latest note ${latestNote.info.id} refines it (does not replace it)` : ""}; no plan bound \u2014 the order above is the goal.`
+  const lineageOrder = sessionOrderOf(lineageMessages)
+  const effectiveOrder = input.sessionOrder ?? lineageOrder
+  const orderPlanRefs = effectiveOrder?.planRefs ?? []
+  const mirrorFiles = new Set(plans.map((p) => p.file))
+  // Later notes, in lineage order: everything after the effective order (by id
+  // when it is visible; when the order folded away, the whole visible lineage
+  // is later than it).
+  const lineageCandidates = lineageMessages.filter(
+    (m) =>
+      m.info.role === "user" &&
+      !isLayer1SummaryMessage(m) &&
+      !isMessageStar(m) &&
+      orderTextOf(m).trim().length > 0,
+  )
+  const orderIdx = effectiveOrder
+    ? lineageCandidates.findIndex((m) => m.info.id === effectiveOrder.id)
+    : -1
+  const laterNotes = orderIdx >= 0 ? lineageCandidates.slice(orderIdx + 1) : lineageCandidates
+  let reboundNote: SessionOrder | undefined
+  for (const note of laterNotes) {
+    const t = orderTextOf(note)
+    if (!REBIND_CUE.test(t)) continue
+    const refs = [...new Set(t.match(PLAN_REF) ?? [])].filter((p) => mirrorFiles.has(p))
+    if (refs.length === 0) continue
+    const head = t.split("\n").find((l) => l.trim().length > 0)?.trim() ?? ""
+    reboundNote = {
+      id: note.info.id,
+      head,
+      dominant: extractMessageDominant(t),
+      keywords: extractKeywords(t)?.slice(0, 5),
+      planRefs: refs,
+    }
   }
+  const displayOrder = reboundNote ?? effectiveOrder
+  const boundPlan: string | null =
+    input.ownPlan !== undefined ? input.ownPlan : (reboundNote?.planRefs[0] ?? orderPlanRefs[0] ?? null)
+  const own = boundPlan ? plans.find((p) => p.file === boundPlan) : undefined
+  const ownOwed = boundPlan ? owed.filter((o) => o.plan === boundPlan) : []
+  const latestLineage =
+    lineageCandidates.length > 0 ? lineageCandidates[lineageCandidates.length - 1]! : undefined
+  // The order as Goal text: SV dominant + keywords when carried, else the head —
+  // always with the sessionread address. A later note that did NOT rebind still
+  // refines (named, never substituted).
+  const quoteOrder = (view: SessionOrder) => {
+    const quoted = view.dominant
+      ? `dominant "${view.dominant}"${view.keywords?.length ? ` \u00b7 keywords ${view.keywords.map((k) => `${k.term} ${k.weight}`).join(", ")}` : ""} \u00b7 "${view.head.slice(0, 300)}"`
+      : `"${view.head.slice(0, 300)}"`
+    return `Session order ${view.id}: ${quoted} (sessionread ${view.id} for the full order)`
+  }
+  const refineLine = (view: SessionOrder) =>
+    latestLineage && latestLineage.info.id !== view.id
+      ? `; latest note ${latestLineage.info.id} refines it (does not replace it)`
+      : ""
 
   // SEVEN of the nine sections are written here, from system-Exact sources. The remaining TWO —
   // `Constraints & Preferences` and `Key decisions` — are deliberately left OUT, and that is the
@@ -1795,24 +1870,25 @@ const own = derivedOwn ? plans.find((p) => p.file === derivedOwn) : undefined
       : "No @SV_TARGET in this range — nothing was steered, so there is no distance to measure.",
     "",
     "## Goal",
-// The session's OWN goal (t130 + followup): the owned plan's intention when bound;
-    // otherwise the session's FIRST order (lineage, never the range's marker/follow-up),
-    // with its SV dominant when it carries one. `no goal found` only when no user order
-    // exists at all — plus `ask the delegator` (kernel G0 @INTENTION_CLARITY).
-    (() => {
-      if (derivedOwn !== null && own?.intention) {
+// The session's OWN goal (t130-review2): the bound plan's intention when the order's
+    // plan is in the mirror; otherwise the ORDER itself with its address — never
+    // another plan. `no goal found` only when no user order exists at all.
+(() => {
+      if (boundPlan && own?.intention) {
         return `${own.file} intention: ${own.intention.from_state} -> ${own.intention.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
       }
-      if (derivedOwn !== null) {
-        if (!own)
-          return firstUser
-            ? `The range opens on the request: ${firstUser.head.slice(0, 400)} (own plan ${derivedOwn} not on disk \u2014 no goal found elsewhere)`
-            : `no goal found \u2014 session owns ${derivedOwn} which is not on disk; read the range's own messages.`
-        return firstUser
-          ? `The range opens on the request: ${firstUser.head.slice(0, 400)} (own plan ${derivedOwn} states no intention \u2014 no goal found elsewhere)`
-          : `no goal found \u2014 session owns ${derivedOwn} which states no intention (no plan states an intention for this session); read the range's own messages.`
+      if (boundPlan && displayOrder) {
+        return (
+          `${quoteOrder(displayOrder)}${refineLine(displayOrder)}; own plan ${boundPlan} is ` +
+          `${own ? "in the mirror but states no intention" : "not in the plan mirror"}` +
+          ` \u2014 the order above is the goal, never another plan.` +
+          `${reboundNote && effectiveOrder && reboundNote.id !== effectiveOrder.id ? ` (rebound ${effectiveOrder.id} \u2192 ${reboundNote.id} on explicit note)` : ""}`
+        )
       }
-return sessionOrderGoal()
+      if (displayOrder) {
+        return `${quoteOrder(displayOrder)}${refineLine(displayOrder)}; no plan bound \u2014 the order above is the goal.`
+      }
+      return "no goal found \u2014 no user order in this session; ask the delegator; do not invent a goal."
 })(),
     "",
     "## Plan",
@@ -1824,12 +1900,12 @@ return sessionOrderGoal()
     `${passed.length} tasks PASS · ${owed.length} open${plans.length ? ` across ${plans.length} plan(s)` : ""}. Window: ${rows.length} messages, ${input.diffs.length} files touched.`,
     "",
     "## Next Steps",
-derivedOwn === null
-      ? firstOrder
-        ? `No owed task \u2014 no plan bound; continue the session order ${firstOrder.info.id}.`
+boundPlan === null
+      ? displayOrder
+? `No owed task \u2014 no plan bound; continue the session order ${displayOrder.id}.`
         : "No owed task \u2014 no goal found; ask the delegator; do not invent a goal."
       : ownOwed.length === 0
-        ? `No owed task in ${derivedOwn} at capture time.`
+? `No owed task in ${boundPlan} at capture time.`
         : ownOwed.slice(0, 5).map((o) => `${o.plan} \u2192 ${o.task.title ?? o.task.id}`).join("; "),
     "",
     "## Critical Context",

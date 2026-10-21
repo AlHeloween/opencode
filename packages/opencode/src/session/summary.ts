@@ -15,7 +15,7 @@ import * as Session from "./session"
 import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID } from "./schema"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { mechanicalSummaryBody } from "./compaction"
+import { mechanicalSummaryBody, sessionOrderOf, type SessionOrder } from "./compaction"
 import { extractVectorChain } from "../memory/spine"
 import { Identifier } from "@/id/id"
 import type { PlanStatePayload } from "@/util/plan-status"
@@ -880,14 +880,24 @@ export const layer = Layer.effect(
         messages: input.messages,
         beforeMessages: input.beforeMessages,
       })
+      // t130-review2: the session's first order over FULL history (compacted
+      // included). The capture-time lineage loses the order after a fold, and
+      // the binding is decided by the order — so the capture reads what the
+      // range no longer holds. A failed read falls back to the lineage-derived
+      // order inside the body; never an approximation.
+      const fullHistory = yield* sessions
+        .messages({ sessionID: input.sessionID, limit: 10_000, visibleOnly: false })
+        .pipe(Effect.catch(() => Effect.succeed(undefined as MessageV2.WithParts[] | undefined)))
 const body = mechanicalSummaryBody({
         messages: input.messages,
         diffs,
         impact,
         planState: input.planState,
-        // t130: full lineage so a later range still resolves the session's OWN plan
+        // t130-review2: full lineage so a later range still resolves the session's OWN plan
         // (the brief lives at the session start, before this range).
         sessionMessages: [...(input.beforeMessages ?? []), ...input.messages],
+        // First order rides the spread below (undefined falls back to lineage).
+...(fullHistory ? { sessionOrder: sessionOrderOf(fullHistory) } : {}),
       })
       const row = IncrementalCheckpoint.save({
         id: Identifier.ascending("checkpoint"),

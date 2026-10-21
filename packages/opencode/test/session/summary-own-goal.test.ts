@@ -201,3 +201,82 @@ test("t130: a later range still resolves the session brief that precedes it (ful
   expect(next).not.toContain(TUI)
   expect(goal.toLowerCase()).not.toContain("no goal found")
 })
+
+test("review2: order-named plan absent from the mirror shows the order, never another plan", () => {
+  // Measured on ses_ea267453: the order names plans/2026-10-21_delegator-memory-repair.md,
+  // the mirror has no such file, and newest-mention bound the foreign TUI plan.
+  const GHOST = "plans/2026-10-21_delegator-memory-repair.md"
+  const order: MessageV2.WithParts[] = [
+    msg("msg_1", "user", `Repair the delegator memory index per ${GHOST}.`),
+    msg("msg_2", "assistant", vector("repairing", A, ZERO, BRIEF_MD5)),
+  ]
+  const later: MessageV2.WithParts[] = [
+    msg("msg_9", "assistant", vector("still repairing", B, A, BRIEF_MD5)),
+    msg("msg_10", "user", `noted that ${TUI} is active today`),
+  ]
+  const out = mechanicalSummaryBody({
+    messages: later,
+    diffs: [],
+    planState: planState(),
+    sessionMessages: [...order, ...later],
+  })
+  const goal = section(out, "## Goal", "## Plan")
+  const next = section(out, "## Next Steps", "## Critical Context")
+  expect(goal).toContain("Session order msg_1")
+  expect(goal).toContain(GHOST)
+  expect(goal).toContain("not in the plan mirror")
+  expect(goal).not.toContain(TUI)
+  expect(goal).not.toContain("tui meets standards")
+  expect(next).toContain(`No owed task in ${GHOST}`)
+  expect(next).not.toContain(TUI)
+})
+
+test("review2: a plan mentioned in passing never becomes the goal", () => {
+  const order: MessageV2.WithParts[] = [
+    msg("msg_1", "user", `Work on ${OWN} until it is done.`),
+    msg("msg_2", "assistant", vector("organising", A, ZERO, BRIEF_MD5)),
+  ]
+  const later: MessageV2.WithParts[] = [
+    msg("msg_9", "assistant", vector("still organising", B, A, BRIEF_MD5)),
+    msg("msg_10", "user", `saw ${TUI} mentioned in the status note today`),
+  ]
+  const out = mechanicalSummaryBody({
+    messages: later,
+    diffs: [],
+    planState: planState(),
+    sessionMessages: [...order, ...later],
+  })
+  const goal = section(out, "## Goal", "## Plan")
+  const next = section(out, "## Next Steps", "## Critical Context")
+expect(goal).toContain(OWN)
+  expect(goal).toContain("memory is scattered -> memory is organised")
+  // Carrier semantics, as the t132 sample reads them: the intention part names the
+  // own plan; the range's own request (with its passing mention) rides after the split.
+  const carrier8 = goal.split(" In this range the user asked:")[0]!
+  expect(carrier8).toContain(OWN)
+  expect(carrier8).not.toContain(TUI)
+  expect(goal).toContain(`saw ${TUI} mentioned in the status note today`)
+  expect(next).toContain("organise memory")
+  expect(next).not.toContain(TUI)
+})
+
+test("review2: an explicit later note rebinds the goal plan (capability pin, passes before and after)", () => {
+  const order: MessageV2.WithParts[] = [
+    msg("msg_1", "user", `Work on ${OWN} until it is done.`),
+    msg("msg_2", "assistant", vector("organising", A, ZERO, BRIEF_MD5)),
+  ]
+  const later: MessageV2.WithParts[] = [
+    msg("msg_9", "assistant", vector("still organising", B, A, BRIEF_MD5)),
+    msg("msg_10", "user", `Switch to ${TUI} now — the delegator reordered the day.`),
+  ]
+  const out = mechanicalSummaryBody({
+    messages: later,
+    diffs: [],
+    planState: planState(),
+    sessionMessages: [...order, ...later],
+  })
+  const goal = section(out, "## Goal", "## Plan")
+  expect(goal).toContain(TUI)
+  expect(goal).toContain("tui has no standards -> tui meets standards")
+  expect(goal).not.toContain(OWN)
+})

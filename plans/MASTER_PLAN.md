@@ -152,8 +152,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 298 |
 | plans active | 45 |
-| tasks passed / total | 1479 / 1815 |
-| open boxes | 194 |
+| tasks passed / total | 1479 / 1816 |
+| open boxes | 195 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -494,7 +494,7 @@ note: hash values are generative tags — search them, never compute them.
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-20_hr-delegator-driver.md` — 14 open / 14 box(es) · lifecycle ACTIVE
+- `plans/2026-10-20_hr-delegator-driver.md` — 15 open / 15 box(es) · lifecycle ACTIVE
   sv: intention "manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate" · keywords [Keywords: hr-delegator-driver 0.30, dossier-gate 0.25, independent-verifier 0.20, delivery-guarantee 0.15, owner-boundary 0.10
 Semantic dominant: An automatic HR-delegator driver that gates every order on a deterministic handshake dossier and guarantees delivery, independent verification and the owner-authority boundary.
 md5: 9b4d1f2a6c7e48b3a0d5c8e71f2a3b4c
@@ -508,13 +508,14 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-5 [PENDING] · sv [applicability-passport, configuration-key, stale-refusal] · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv [idle-send, receipt-readback, layer-model-check] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [watch-to-boundary, executor-ledger, independent-verifier] · manifest: MISSING — nobody has written down what this box is
-  - TASK-8 [PENDING] · sv [owner-boundary, named-decisions, no-canned-yes] · manifest: MISSING — nobody has written down what this box is
-  - TASK-9 [PENDING] · sv [state-namespace, no-new-json, legacy-readonly] · manifest: MISSING — nobody has written down what this box is
-  - TASK-10 [PENDING] · sv [assumptions-list, attribution-first, brief-gap-vs-prior] · manifest: MISSING — nobody has written down what this box is
-  - TASK-11 [PENDING] · sv [analyst-separation, failure-inputs, passport-writeback] · manifest: MISSING — nobody has written down what this box is
-  - TASK-12 [PENDING] · sv [ripeness-threshold, mechanism-first-proposal, routed-not-applied] · manifest: MISSING — nobody has written down what this box is
-  - TASK-13 [PENDING] · sv [handshake-record, outcome-join, coverage-first] · manifest: MISSING — nobody has written down what this box is
-  - TASK-14 [PENDING] · sv [predictive-measurement, predicate-outcome-link, hypothetical-until-n] · manifest: MISSING — nobody has written down what this box is
+  - TASK-8 [PENDING] · sv [cross-decode-teach-back, verifier-decodes-first, understanding-record] · manifest: MISSING — nobody has written down what this box is
+  - TASK-9 [PENDING] · sv [owner-boundary, named-decisions, no-canned-yes] · manifest: MISSING — nobody has written down what this box is
+  - TASK-10 [PENDING] · sv [state-namespace, no-new-json, legacy-readonly] · manifest: MISSING — nobody has written down what this box is
+  - TASK-11 [PENDING] · sv [assumptions-list, attribution-first, brief-gap-vs-prior] · manifest: MISSING — nobody has written down what this box is
+  - TASK-12 [PENDING] · sv [analyst-separation, failure-inputs, passport-writeback] · manifest: MISSING — nobody has written down what this box is
+  - TASK-13 [PENDING] · sv [ripeness-threshold, mechanism-first-proposal, routed-not-applied] · manifest: MISSING — nobody has written down what this box is
+  - TASK-14 [PENDING] · sv [handshake-record, outcome-join, coverage-first] · manifest: MISSING — nobody has written down what this box is
+  - TASK-15 [PENDING] · sv [predictive-measurement, predicate-outcome-link, hypothetical-until-n] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-20_kernel-line-audit.md` — 10 open / 10 box(es) · lifecycle UNKNOWN
   sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []

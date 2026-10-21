@@ -151,9 +151,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 298 |
-| plans active | 45 |
-| tasks passed / total | 1479 / 1816 |
-| open boxes | 195 |
+| plans active | 48 |
+| tasks passed / total | 1491 / 1837 |
+| open boxes | 204 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -552,8 +552,31 @@ note: hash values are generative tags — search them, never compute them.]
   - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-21_portable-delegation-kit.md` — 7 open / 7 box(es) · lifecycle ACTIVE
+  sv: intention "delegation-procedure-gitignored-and-host-pinned -> tracked-path-discovering-kit-with-fresh-machine-oracle" · keywords [Keywords: portable-delegation-kit 0.30, tracked-not-gitignored 0.20, discovered-paths 0.20, installer-route 0.15, fresh-machine-oracle 0.15
+Semantic dominant: Plan how the robot-delegation procedure becomes a tracked, path-discovering kit that installs on another machine and passes its oracles there.
+md5: 3f8a2c1d9e047b5a6c7d8e9f0a1b2c3d
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 2b6e9d4a7f1c38e05b2e6a9d4f7c1b58
+note: hash values are generative tags — search them, never compute them.]
+  - TASK-1 [PENDING] · sv [procedure-inventory, tracked-or-not, reader-map] · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv [kit-home, discovered-paths, no-literals] · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv [hooks-source, idempotent-installer, backup-first] · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv [adid-fit, compare-not-edit, recommendation] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv [registry-rule, real-count, reproducible] · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv [kernel-table, sha-compare, rehash-first] · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv [fresh-machine-oracle, replay-suites, no-host-strings] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-21_robot-pending-stop-hook_1.md` — 1 open / 7 box(es) · lifecycle ACTIVE
+  sv: intention "Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher running, or has finished with a result Claude has not marked verified; the existing watch3.py is the watcher, so no new waiter is built" · keywords [robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle]
+  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-21_robot-pending-stop-hook.md` — 1 open / 7 box(es) · lifecycle ACTIVE
+  sv: intention "Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher running, or has finished with a result Claude has not marked verified; the existing watch3.py is the watcher, so no new waiter is built" · keywords [robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle]
+  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 48 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 51 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

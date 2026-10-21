@@ -8458,3 +8458,7 @@ Route text: usage one-liner in `commit_own.py`, `experiments/2026-10-08_robot-wa
 file stays clean). Concurrent lane note: t127 committed `ac7c91862a` mid-work (5 insertions, 0 deletions — clean,
 no sweep) but left the shared index holding the t130 blob; this commit's T5 sync moves the log entry to the new
 HEAD. Next: restore of the swept t123 row rides the same `--append` route in the following commit.
+
+## [2026-10-21] t123 follow-up 1 — six type errors in HEAD (fixed, behaviour unchanged)
+
+Fixed the 6 typecheck errors the t123 slice shipped with (independent verifier t129, run 20261021T102803Z_186311af; reproduced RED run 20261021T105529Z_49703e9a exit 2): «origSpans» made optional in «addressReport» input (runtime fallback to the moved-label list already existed, so write.ts + edit-exact + edit-overlap-t114 keep their exact behaviour), and the two dead «kind === refused» guards removed from the t123 test («edited()» throws on refused, the comparison was against the narrowed text type). GREEN run 20261021T105813Z_20b18754 exit 0; suites one file per run via real bun.exe through cmd_runner: t123 5/5 (20261021T105917Z_0f732217), t114 7/7 (20261021T105959Z_94c2840f), edit-exact 34/34 (20261021T110028Z_52385eea), contract 7/7 (20261021T110048Z_f60f989b), edit 25/25 (20261021T110108Z_83512aa2); build 20261021T110306Z_40ce380a exit 0, smoke 10.0.1498. No bin/, no --no-verify; MASTER_PLAN untouched.

@@ -1714,8 +1714,37 @@ const plans = input.planState?.plans ?? []
     input.ownPlan !== undefined
       ? input.ownPlan
       : sessionPlan({ messages: sessionSignals(lineageMessages), plans: plans.map((p) => p.file) })
-  const own = derivedOwn ? plans.find((p) => p.file === derivedOwn) : undefined
+const own = derivedOwn ? plans.find((p) => p.file === derivedOwn) : undefined
   const ownOwed = derivedOwn ? owed.filter((o) => o.plan === derivedOwn) : []
+  // t130-followup: the session's FIRST order — the earliest user message of the WHOLE
+  // session (lineage, never the range). A plan-less session still has a goal: its order.
+  // Synthetic carriers (tail-note, Layer-1 panel, m* star) are not orders. A later
+  // follow-up note refines the order; it does not replace it. `no goal found` is only
+  // for a session with no user order at all (kernel G0 @INTENTION_CLARITY).
+  const realTextOf = (m: MessageV2.WithParts) =>
+    m.parts
+      .filter((p) => p.type === "text" && !(p as { synthetic?: boolean }).synthetic)
+      .map((p) => (p as { text?: string }).text ?? "")
+      .join("\n")
+  const orderCandidates = lineageMessages.filter((m) => {
+    if (m.info.role !== "user") return false
+    if (isLayer1SummaryMessage(m) || isMessageStar(m)) return false
+    return realTextOf(m).trim().length > 0
+  })
+  const firstOrder = orderCandidates[0]
+  const latestNote = orderCandidates.length > 1 ? orderCandidates[orderCandidates.length - 1] : undefined
+  const firstOrderText = firstOrder ? realTextOf(firstOrder) : ""
+  const firstOrderDominant = firstOrder ? extractMessageDominant(firstOrderText) : undefined
+  const firstOrderKeywords = firstOrder ? extractKeywords(firstOrderText) : undefined
+  const firstOrderHead = firstOrderText.split("\n").find((l) => l.trim().length > 0)?.trim() ?? ""
+  const sessionOrderGoal = () => {
+    if (!firstOrder) return "no goal found \u2014 no user order in this session; ask the delegator; do not invent a goal."
+    const quoted =
+      firstOrderDominant
+        ? `dominant "${firstOrderDominant}"${firstOrderKeywords?.length ? ` \u00b7 keywords ${firstOrderKeywords.slice(0, 5).map((k) => `${k.term} ${k.weight}`).join(", ")}` : ""} \u00b7 "${firstOrderHead.slice(0, 300)}"`
+        : `"${firstOrderHead.slice(0, 300)}"`
+    return `Session order ${firstOrder.info.id}: ${quoted} (sessionread ${firstOrder.info.id} for the full order)${latestNote && latestNote.info.id !== firstOrder.info.id ? `; latest note ${latestNote.info.id} refines it (does not replace it)` : ""}; no plan bound \u2014 the order above is the goal.`
+  }
 
   // SEVEN of the nine sections are written here, from system-Exact sources. The remaining TWO —
   // `Constraints & Preferences` and `Key decisions` — are deliberately left OUT, and that is the
@@ -1766,10 +1795,10 @@ const plans = input.planState?.plans ?? []
       : "No @SV_TARGET in this range — nothing was steered, so there is no distance to measure.",
     "",
     "## Goal",
-// The session's OWN DIGITAL_INTENTION (t130): the plan-status intention of the plan
-    // THIS session owns, plus the request that opened the range (what the user wrote).
-    // Never the first plan with an intention — that names whoever wrote last. When no
-    // plan is bound the Goal says `no goal found`, never another plan's.
+// The session's OWN goal (t130 + followup): the owned plan's intention when bound;
+    // otherwise the session's FIRST order (lineage, never the range's marker/follow-up),
+    // with its SV dominant when it carries one. `no goal found` only when no user order
+    // exists at all — plus `ask the delegator` (kernel G0 @INTENTION_CLARITY).
     (() => {
       if (derivedOwn !== null && own?.intention) {
         return `${own.file} intention: ${own.intention.from_state} -> ${own.intention.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
@@ -1783,9 +1812,7 @@ const plans = input.planState?.plans ?? []
           ? `The range opens on the request: ${firstUser.head.slice(0, 400)} (own plan ${derivedOwn} states no intention \u2014 no goal found elsewhere)`
           : `no goal found \u2014 session owns ${derivedOwn} which states no intention (no plan states an intention for this session); read the range's own messages.`
       }
-      return firstUser
-        ? `no goal found \u2014 no plan bound to this session. The range opens on the request: ${firstUser.head.slice(0, 400)}`
-        : "no goal found \u2014 No owner request in this range and no plan bound to this session (no plan states an intention for this session); read the range's own messages."
+return sessionOrderGoal()
 })(),
     "",
     "## Plan",
@@ -1798,7 +1825,9 @@ const plans = input.planState?.plans ?? []
     "",
     "## Next Steps",
 derivedOwn === null
-      ? "No owed task \u2014 no plan bound to this session (no goal found)."
+      ? firstOrder
+        ? `No owed task \u2014 no plan bound; continue the session order ${firstOrder.info.id}.`
+        : "No owed task \u2014 no goal found; ask the delegator; do not invent a goal."
       : ownOwed.length === 0
         ? `No owed task in ${derivedOwn} at capture time.`
         : ownOwed.slice(0, 5).map((o) => `${o.plan} \u2192 ${o.task.title ?? o.task.id}`).join("; "),

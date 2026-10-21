@@ -83,7 +83,7 @@ test("t130: a session ordered onto its own plan names THAT plan — never the ne
   expect(next).not.toContain(TUI)
 })
 
-test("t130: a session whose order names no plan says no goal found — never another plan's", () => {
+test("t130-followup: plan-less first range falls back to its order, never no-goal stupor", () => {
   const messages: MessageV2.WithParts[] = [
     msg("msg_1", "user", "hello — no plan named in this brief, just verify the build"),
     msg("msg_2", "assistant", vector("verifying build", C, ZERO, ZERO)),
@@ -91,12 +91,91 @@ test("t130: a session whose order names no plan says no goal found — never ano
   const out = mechanicalSummaryBody({ messages, diffs: [], planState: planState() })
   const goal = section(out, "## Goal", "## Plan")
   const next = section(out, "## Next Steps", "## Critical Context")
+  expect(goal).toContain("Session order msg_1")
+  expect(goal).toContain("hello — no plan named in this brief, just verify the build")
+  expect(goal).toContain("sessionread msg_1")
   expect(goal).not.toContain(TUI)
   expect(goal).not.toContain("tui meets standards")
+  expect(goal.toLowerCase()).not.toContain("no goal found")
+  expect(next).toContain("continue the session order msg_1")
   expect(next).not.toContain("tui fix one")
   expect(next).not.toContain(TUI)
+})
+
+test("t130-followup: later range of a plan-less session names the FIRST order with its SV, not the marker", () => {
+  const orderText = [
+    "Verify the build stands.",
+    "",
+    "Keywords: build-verify 0.50, stand-check 0.30, order-guard 0.20",
+    "Semantic dominant: build stands verified",
+    `md5: ${A}`,
+    `prev-md5: ${ZERO}`,
+    `parent-goal-md5: ${BRIEF_MD5}`,
+  ].join("\n")
+  const order: MessageV2.WithParts[] = [
+    msg("msg_1", "user", orderText),
+    msg("msg_2", "assistant", vector("checking the build", B, A, BRIEF_MD5)),
+  ]
+  const later: MessageV2.WithParts[] = [
+    msg("msg_9", "assistant", vector("still checking", C, B, BRIEF_MD5)),
+    msg("msg_10", "user", "=== COMPACTED ==="),
+  ]
+  const out = mechanicalSummaryBody({
+    messages: later,
+    diffs: [],
+    planState: planState(),
+    sessionMessages: [...order, ...later],
+  })
+  const goal = section(out, "## Goal", "## Plan")
+  const next = section(out, "## Next Steps", "## Critical Context")
+  expect(goal).toContain("Session order msg_1")
+  expect(goal).toContain('dominant "build stands verified"')
+  expect(goal).toContain("build-verify")
+  expect(goal).toContain("sessionread msg_1")
+  expect(goal).not.toContain("=== COMPACTED ===")
+  expect(goal).not.toContain(TUI)
+  expect(goal.toLowerCase()).not.toContain("no goal found")
+  expect(next).toContain("continue the session order msg_1")
+  expect(next).not.toContain(TUI)
+})
+
+test("t130-followup: a follow-up note refines the order but never replaces it", () => {
+  const order: MessageV2.WithParts[] = [
+    msg("msg_1", "user", "Verify the build stands."),
+    msg("msg_2", "assistant", vector("checking the build", B, ZERO, ZERO)),
+  ]
+  const later: MessageV2.WithParts[] = [
+    msg("msg_9", "assistant", vector("still checking", C, B, ZERO)),
+    msg("msg_10", "user", "Also check the installer."),
+  ]
+  const out = mechanicalSummaryBody({
+    messages: later,
+    diffs: [],
+    planState: planState(),
+    sessionMessages: [...order, ...later],
+  })
+  const goal = section(out, "## Goal", "## Plan")
+  expect(goal).toContain("Session order msg_1")
+  expect(goal).toContain("Verify the build stands.")
+  expect(goal).toContain("sessionread msg_1")
+  expect(goal).toContain("latest note msg_10 refines it (does not replace it)")
+  expect(goal).not.toContain("The range opens on the request: Also check")
+  expect(goal).not.toContain(TUI)
+})
+
+test("t130-followup: no user order at all says no goal found and names the G0 move", () => {
+  const messages: MessageV2.WithParts[] = [
+    msg("msg_1", "assistant", vector("working with no order", C, ZERO, ZERO)),
+    msg("msg_2", "assistant", vector("still no order", B, C, ZERO)),
+  ]
+  const out = mechanicalSummaryBody({ messages, diffs: [], planState: planState() })
+  const goal = section(out, "## Goal", "## Plan")
+  const next = section(out, "## Next Steps", "## Critical Context")
   expect(goal.toLowerCase()).toContain("no goal found")
-  expect(next.toLowerCase()).toContain("no goal found")
+  expect(goal).toContain("ask the delegator; do not invent a goal")
+  expect(goal).not.toContain(TUI)
+  expect(next).toContain("ask the delegator; do not invent a goal")
+  expect(next).not.toContain(TUI)
 })
 
 test("t130: a later range still resolves the session brief that precedes it (full lineage)", () => {

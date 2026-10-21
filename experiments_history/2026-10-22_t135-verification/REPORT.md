@@ -11,6 +11,7 @@ A shell/search line never stands in for a reading; a test run is a separate leg.
 Claims enumerated from the report: §2 table = 12 box rows; §3 table = 3 move
 rows; class (c) = 17 boxes (table TOTAL row); MASTER_PLAN = 1 change.
 **Rows below: 33. Claims enumerated: 33.**
+**Verdicts: PASS 28 / FAIL 5 / UNKNOWN 0.**
 
 ## A. Closed boxes (12 rows from REPORT §2)
 
@@ -110,15 +111,7 @@ rows; class (c) = 17 boxes (table TOTAL row); MASTER_PLAN = 1 change.
   (144 lines, read) but was never committed (`git log --all --oneline --`
   that path → empty) and is gitignored (`.gitignore:72:experiments/`).
   The receipt as written is false on all three carried items except the plan.
-- A12 same plan S9 (a) — **UNKNOWN**. Ticked at :25 with run
-  `20261021T203353Z_ce9f9b26` and precise state.json numbers. The run
-  directory does not exist (`dir` named query → File Not Found) and no
-  `*ce9f9b26*` artifact exists under `.opencode/data`. But absence is not
-  contradiction here: the store demonstrably prunes — the control run
-  `20261014T120445Z_71b83365` (cited 8 days earlier in a settled plan,
-  `plans/2026-10-14_kernel-stop-claim-release.md:37`) is likewise absent,
-  while 2026-10-20 runs are retained. No leg confirms the run happened; no
-  leg refutes it. UNKNOWN, with the store-pruning evidence stated.
+- A12 same plan S9 (a) — **PASS** (corrected on recheck: the first store checked was the wrong binary's). Ticked at :25 with run `20261021T203353Z_ce9f9b26`. The run exists in the repo-root store t135 actually used (`D:\zPython\opencode\cmd_runner.exe` → `logs/cmd_runner/`): `logs/cmd_runner/20261021T203353Z_ce9f9b26/state.json` reads status finished / exit_code 0 / bytes_written 66615 / bytes_dropped 0 / truncated false / "log final" — every number exactly as the receipt states (`:25`). `meta.json` confirms the payload: `pwsh -NoProfile -File _build.ps1`, cwd `D:\zPython\opencode`, 20:33:53→20:35:01Z. The log carries the quoted smoke lines verbatim (`stdout_text.log:670-671,679`: "Smoke test passed: 10.0.1515", "reasoning_prompt.txt embedded (BunFS asset present)", "[OK] Build complete - artifacts in dist/"). The earlier UNKNOWN rested on the `C:\Windows\cmd_runner.exe` store alone — a second binary with its own store; the control run `20261014T120445Z_71b83365` likewise lives in the repo store. One store is one instrument, never the inventory.
 
 ## B. Moved plans (3 rows from REPORT §3 — the brief says "2", the report
 names 3; the count "2" is itself a finding, see §E)
@@ -129,11 +122,7 @@ names 3; the count "2" is itself a finding, see §E)
   `git show --find-renames --stat e4b2313eb0` shows
   `{plans => plans_completed}/2026-10-19_undo-broken.md` (R092 — similarity
   under 100% because the T2 tick rode along, which is the earned tick).
-- B2 `plans/2026-10-20_triz-kernel-correspondence.md` → `plans_completed/` —
-  **FAIL**. Landed as a rename (R070) but not earned: S8 and S9 receipts fail
-  (rows A11, A12), so two boxes lack confirmed artefacts and the plan still
-  has unconfirmed work at the moment of the move. The rename is real; the
-  earned-ness is not.
+- B2 `plans/2026-10-20_triz-kernel-correspondence.md` → `plans_completed/` — **FAIL**. Landed as a rename (R070) but not earned: the S8 receipt fails (row A11; S9 confirmed in row A12, but one unconfirmed box suffices), so the plan still has unconfirmed work at the moment of the move. The rename is real; the earned-ness is not.
 - B3 `plans/2026-10-16_unmanaged-options.md` → `plans/futures/` — **PASS**.
   Zero boxes (nothing executable to earn). The deliverable is the file itself
   (284 lines: the inventory + the `/settings` proposal), the leaf scope is
@@ -285,6 +274,4 @@ names 3; the count "2" is itself a finding, see §E)
   expect `.gitignore:72:experiments/…`.
 - `git log --all --oneline -- experiments/2026-10-20_triz-kernel/REPORT.md`
   → expect empty (never committed).
-- `dir /b "C:\Windows\logs\cmd_runner\20261021T203353Z_ce9f9b26"` → expect
-  File Not Found (A12 stays UNKNOWN; control
-  `…\20261014T120445Z_71b83365` is likewise absent — the store prunes).
+- `dir /b "D:\zPython\opencode\logs\cmd_runner\20261021T203353Z_ce9f9b26"` → expect the 8-file run dir (state.json: finished / exit 0 / 66615 / 0 / false; meta.json: `_build.ps1` from the repo root). NOTE: `C:\Windows\logs\cmd_runner` is a different binary's store and proves nothing about this run — check the repo-root store.

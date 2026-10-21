@@ -8433,3 +8433,28 @@ WHAT: `mechanicalSummaryBody` (packages/opencode/src/session/compaction.ts) no l
 WHAT: (a) **The owner's words of 2026-10-21 are in the delegator's memory, verbatim** — three NEW files (`project_dais_desk_hr_lane_is_gpt.md` — the HR delegator is DAIS Desk's lane, our robots stay out and our part is keeping the surfaces it consumes stable; `project_delegator_psychologist_role.md` — every robot needs a delegator-psychologist, the role reads the executor's state and restores it from primary sources; `project_anti_benchmark_model_routing.md` — the anti-benchmark is a per-model catalogue of where and how the model breaks on OUR tasks, the output is routing not a rank, the falsifier is fewer rework rounds than the 58-60% baseline) and ONE EXTENDED file (`project_kernel_essence_gosplan_slogan.md` — the syndicate must work flawlessly and the members be comfortable, so a member that fails a task gets a different task and not blame; the slogan line is recorded as PROPOSED, NOT approved). Every quote is the owner's, word for word; every derived reading is marked as the delegator's. (b) **The meaning lives in ONE place now: the file.** The title moved into each file's own SV block (137/137, byte-level, with the backup taken first) and `scripts/memory_authoring.py` — the second copy — is DELETED, not parked: a memory the delegator writes now carries its own meaning and needs no repo commit. `stamp` became a FORM tool (it repairs the name, the metadata, the links, the labels and never writes the meaning), and the audit gained the check that a block without a `Title:` fails. (c) **The provenance label is corrected**: the T7 receipt in `plans_completed/2026-10-21_delegator-memory-style.md` no longer wears the owner's authority — it reads «Receipt (2026-10-21, the delegator's note; the owner confirmed the reader and the close)».
 
 THE ORACLE: the folder's own audit — BEFORE **PASS** (137 files | 274 links | 137 index lines | 21 617 index bytes), AFTER **PASS** (140 files | 281 links | 140 index lines | 22 144 index bytes) with the baseline manifest attached, so no evidence token was lost and the new quotes are the new tokens. `memory_index.py stamp` changed **3** files (the new ones' `metadata.modified`) and left the 137 migrated blocks untouched ⇒ the blocks are canonical and the stamp is idempotent. `memory_index.py write`: MEMORY.md 22 144 B / 143 lines / 140 entries — inside the app's 25 600 B / 200-line load limits. The fixture harness: **7/7** — the control PASSes and six defect fixtures FAIL with their own message, including the two new ones (a file with no `Title:` and a hand-edited index line) ⇒ the new checks are proven fallible.
+
+## [2026-10-21] t131 — a robot's own log row cannot sweep the shared progress log
+
+WHAT: `scripts/commit_own.py` gains `--append PATH=ROWFILE` plus a shared-file guard, so recording a log row
+cannot drop a committed row or carry a worktree-only row. The route appends the row file's bytes to HEAD's bytes
+of the file (`cat-file` + `hash-object -w` + `update-index --cacheinfo` in the private index, rebuilt from the fresh
+HEAD on every CAS retry) and never reads the worktree copy; the guard refuses a shared-file commit whose staged
+diff against HEAD has a deletion on an append-only path or any added/deleted line the caller did not pass
+(Counter-subset over the staged diff vs patch +/- hunks + row lines), and refuses whole-file staging of
+`_progress_log.md` outright (also when smuggled through a directory pathspec). WHY: `git apply --cached` rejects
+a CRLF patch file on this host even with zero HEAD movement (measured: LF applies, CRLF fails, path form
+irrelevant — a text-mode write is enough to kill the `--shared/--apply-patch` route), a BOM at the file head
+corrupts any patch touching line 1, and a peer end-append invalidates a `-U3` context; every fallback committed
+worktree bytes and swept (t129 whole-file after lock refusal: 4 committed rows gone, ~40 foreign lines carried;
+t130 through `commit_own` whole-file: t123 row deleted, foreign rows carried). ORACLE: new
+`scripts/tests/test_commit_own_log_append.py` (4 cases: append-only-carry, whole-file refused, deletion-patch
+refused, CRLF refusal names `--append`) RED `20261021T125345Z_8bc88dfa` exit 1, 4 failed → GREEN
+`20261021T125919Z_4d5bd34c` exit 0, 4 passed; existing `scripts/tests` (T5 + sync-trap) 4 passed
+`20261021T125954Z_c85b6a8d`, bun `test/git/private-index-commit.test.ts` 6 passed `20261021T130035Z_65f41a9d`
+(T6's own-hunks patch still stages: its `-f01` deletion is a *passed* hunk on a non-append-only path).
+Route text: usage one-liner in `commit_own.py`, `experiments/2026-10-08_robot-wave/common.md`,
+`docs/plan-maintenance.md`. Defense in depth: `_progress_log.md text eol=lf` in `.gitattributes` (status of the
+file stays clean). Concurrent lane note: t127 committed `ac7c91862a` mid-work (5 insertions, 0 deletions — clean,
+no sweep) but left the shared index holding the t130 blob; this commit's T5 sync moves the log entry to the new
+HEAD. Next: restore of the swept t123 row rides the same `--append` route in the following commit.

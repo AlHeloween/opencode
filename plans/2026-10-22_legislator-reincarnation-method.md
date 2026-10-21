@@ -85,7 +85,14 @@ note: hash values are generative tags — search them, never compute them.
     - **Trader data is not on this host.** Searched: every transcript under `~/.claude/projects/*` (`bias_base`,
       `A2-herd`, `трейдер`), the robot DB, and the fossil registry (71 repos, no trading project). What remains is
       the c12b531d fold map dominants r243 and r250 (that transcript was deleted 2026-10-21) and memory testimony. To
-      test H-anchor on the trader, its session or DB is needed.
+      test H-anchor on the trader, its session or DB is needed. Owner, 2026-10-22: «Чуть позже я запросил у чела
+      скинуть мне логи.»
+      Resume when the logs arrive. What the test needs from them:
+      - the robot's own SV blocks with timestamps;
+      - the fold markers (`=== COMPACTED ===` / layer-1 summaries);
+      - the slogan or brief text and when it entered;
+      - the per-day P&L as the outcome leg, net of costs (r243: «per-trade predictions, baseline comparison, net costs
+        and a held-out period»).
     - Open for this box: the outcome leg (@MEDOID_SIMPLEX — the SV text is one source category); the channel test
       (post-fold SV vs the summary's SV); more sessions for convergence.
 - [ ] T7 — Generalise: the same method for any Claude lane or robot identity (input = era list + cut). Report-only

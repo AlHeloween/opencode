@@ -8620,3 +8620,10 @@ THE ORACLE: `python -m pytest scripts/tests/test_experiments_budget.py -q` → *
 ## [2026-10-21] t134 — revert t130: no foreign task, the summary's open-plan Goal was the design
 WHAT: Restored `packages/opencode/src/session/compaction.ts`, `packages/opencode/src/session/summary.ts`, `packages/opencode/test/session/mechanical-summary-body.test.ts` to `9de289405d` bytes and removed `packages/opencode/test/session/summary-own-goal.test.ts` (absent at base). Reason: owner rule — every open plan is owed work for whoever sees it first, so the layer-1 summary naming an open plan was the design, not a defect; t130's six commits (`17b70a4eb0`, `645e51b00b`, `64b3cd4c13`, `ddf628a250`, `21dfc4ff11`, `6144c3f767`) come out. Oracle1 `git diff 9de289405d -- <four paths>` is EMPTY. Left alone: t132 verify folder `experiments/2026-10-21_t132-verify/` and stash `t130-review3 fill-once store` entry.
 THE ORACLE: `test/session/compaction.test.ts` 91 pass / 0 fail (run 20261021T194848Z_0c813d81, state.json finished exit 0); `mechanical-summary-body.test.ts` 18/0 (run 20261021T194922Z_ab07a48a); `summary-block-shape.test.ts` 18/0 (run 20261021T194946Z_2ccf88a0); `status-note-goal.test.ts` 10/0 (run 20261021T195016Z_dc929158); `bun typecheck` exit 0 (run 20261021T195034Z_2127af62, `$ tsgo --noEmit` only).
+
+## [2026-10-22] Legislator reincarnation — first rebuild from its own SV trajectory (plan 2026-10-22_legislator-reincarnation-method T1)
+
+- Sources: fold maps c1ecd23b/d8dafbff/1e712796 + transcript 60a3d22e + 96 robot-DB notes; app deleted 9 transcripts 2026-10-21T19:59:46Z.
+- Build: experiments/2026-10-22_legislator-rebuild/build.py -> 1050/1190 kept, 4 chain breaks, cut at 1e712796:5108 (summary-wrong-goal-defect axis).
+- Oracle: session local_68dc4a28 answered 6/6 (Q1-Q4 cite trajectory rows); lineage UNKNOWN (classifier cut on the SV block). RESULT.md.
+- Canon: docs/legislator-rebuild.md. Open: T2 tracked tool, T3 control leg, T4 lineage, T5 owner diagnostics, T6 source survival.

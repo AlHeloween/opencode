@@ -46,6 +46,7 @@
 - [Linux deploy](linux-deploy.md) — Linux build and portable install
 - [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, Fossil/rg/markdownify
 - [Codex semantic-vector chain](codex-svchain.md) — ordered transcript topics and broken links
+- [Legislator rebuild](legislator-rebuild.md) — reassemble the delegator's identity from its own SV trajectory when its transcripts are gone: sources, filter, cut, three turns, reincarnation oracle
 - [Gateway three-point capture](gateway-capture.md) — intent / wire / response under one exchange key; masking, terminal states, derived views
 - [Независимый тест кеша Go/GLM](independent-glm-cache-probe.md) — standalone HTTP-измеритель, локальная квалификация до сети; живой опыт остановлен runtime policy
 - [Протокол gateway в TUI](gateway-protocol-status.md) — фактический транспорт, адресация события и значение `unknown`

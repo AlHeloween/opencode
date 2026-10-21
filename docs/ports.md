@@ -79,6 +79,8 @@ Delegation range study: `experiments/2026-10-18_port-2727/RESULT.md`
 | 20000 | tcp/udp | `dnp` (DNP, Distributed Network Protocol) | — | never bind | IANA |
 | 47808 | tcp/udp | `bacnet` (Building Automation and Control Networks) | — | never bind | IANA |
 | 4840 | tcp `opcua-tcp` / udp `opcua-udp` | `opcua-tcp` (OPC UA Connection Protocol) / `opcua-udp` (OPC UA Multicast Datagram Protocol) | — | never bind | IANA |
+| 1947 | tcp/udp | `sentinelsrm` (SentinelSRM; HASP LDK / Sentinel License Manager, Unauthorized Use Known) | — (license dongles on industrial hosts) | never bind | IANA |
+| 475 | tcp/udp | `tcpnethaspsrv` (NetHASP, legacy HASP network keys) | — (license dongles on industrial hosts) | never bind | IANA |
 
 ## Rules
 

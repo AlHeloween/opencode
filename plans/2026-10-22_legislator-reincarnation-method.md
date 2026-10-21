@@ -74,6 +74,18 @@ note: hash values are generative tags — search them, never compute them.
       within-segment pairs the drop is 0.040, p 0.001, so it is a fold effect.
     - Convergence to the brief across folds: UNKNOWN (n = 5; the 1 positive is t127/MiniMax).
     - Mechanism candidate, not tested: the fold vectors carry prev-md5 000 and recurring md5s.
+    - **Strategy versus tactics** (owner, 2026-10-22, verbatim): «роботы умудряются впихнуть тонну смысла в SV и
+      работать как будто у них окно в кучу токенов. Сами данные вторичны, это тактика, а не стратегия … торговый робот
+      … что изменилось — ну слоган библейский в ключе нашего кернела и обвязка, тулы одни и те же, в начале не мог,
+      через 3 дня стал зарабатывать.»
+      Run 1 reads the same way: the turn-local axes (tactics) are cut at every fold and re-derived; what survives the
+      fold is the task-level identity (strategy). Hypothesis H-anchor: an explicit strategic anchor (the slogan, the
+      brief SV) is the part that survives, and it is what makes post-fold convergence possible. This is untested.
+      Run 1 has 1 converging session in 5.
+    - **Trader data is not on this host.** Searched: every transcript under `~/.claude/projects/*` (`bias_base`,
+      `A2-herd`, `трейдер`), the robot DB, and the fossil registry (71 repos, no trading project). What remains is
+      the c12b531d fold map dominants r243 and r250 (that transcript was deleted 2026-10-21) and memory testimony. To
+      test H-anchor on the trader, its session or DB is needed.
     - Open for this box: the outcome leg (@MEDOID_SIMPLEX — the SV text is one source category); the channel test
       (post-fold SV vs the summary's SV); more sessions for convergence.
 - [ ] T7 — Generalise: the same method for any Claude lane or robot identity (input = era list + cut). Report-only

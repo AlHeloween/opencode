@@ -235,3 +235,34 @@ All five cases met their expectation (the run's own last line: «every case met 
 | `fail_proof.py` + `fixtures/` | the fail-proof and its five cases |
 | `make_report.py` | this report, generated from the artefacts above |
 | `plan_inventory.json`, `open_boxes.md`, `box_context.json`, `manifests.json` | the raw measurements |
+| `pre_triage_census.json` | the PRE-triage census (53/211/285/14/3/27/9/49), kept because `plan_inventory.json` was regenerated post-move |
+| `plan_link.py` + `fail_proof_link.py` + `fixtures/link/` | the master-goal LINK check + its 3-case fail-proof |
+| `box_stale.py` + `fail_proof_stale.py` + `fixtures/stale/` | the STALE-box check + its 2-case fail-proof |
+
+## Addendum 2 (2026-10-22) — no foreign lane; six plans applied; link + stale mechanisms
+
+**Correction first:** the t135 closing message said «5 untracked + 2 dirty» — wrong on both counts. It is **4 untracked + 2 dirty = 6 plans** (the report's own table §1 and §7 already say four untracked; the message miscounted). Fixed here, not hidden.
+
+### A2.1 The six plans (one writer per file, proven)
+
+- **Dirty files, no live writer:** `plans/2026-10-15_project-fossil-cell.md` (mtime 2026-10-15 09:06Z) and `plans/2026-10-16_zoekt-scip-fossil-sv.md` (mtime 2026-10-20 12:41Z) carried uncommitted edits with no staged work and no recent writer. Receipt: `git diff --stat` (3 lines / +124 lines), mtimes above, `git status` showing only these two among the tree's dirty files as this task's. Committed first EXACTLY as authored (commit `b1ed6e73`, message names the provenance: fossil-cell ticket line DECIDED + zoekt M0b dispatch/knowledge continuation); triage landed in separate commits on top (one-writer rule held).
+- **Fossil-cell: closed 5/5 (a), moved to `plans_completed/`.** B1's verdict IS the plan (## B1 verdict, measured + read from code); the four Gate boxes are satisfied by the plan's own smoke section + the three phase commits (`cb89516ada` 6/6, `312b650d30` 4/4+20/20, `44f06b192c` 5/5+15/15). Receipts in the plan lines. Commit `881f77c1`.
+- **Zoekt: 3/3 (b), stays in `plans/`.** M0b/Z4/Z5 each carry binding + oracle; the t135 note names the next step (the reproducible reader on the named corpus; the partial `20261016T104235Z_3fe9d41d` baseline is the start, not the close). Classified in t135, applied now — no box was closable without inventing a receipt.
+- **Four untracked, tracked in the same change as their triage** (commit `881f77c1`): `2026-10-14_return-channel-binding.md` (5x b, T1 first), `2026-10-15_kernel-undefined-contract-audit.md` (A2 b — the independent read-back IS done, `parent-review.md` 9/9 + 8 rows, the archive/commit half is next), `2026-10-19_codex-robot-event-handoff.md` (4x b, E1/E2 first), `2026-10-20_robot-personnel-delegator.md` (H2–H4 b, H1 stays [~]). No box closed without a receipt; every box's binding + oracle is quoted in its t135 note.
+
+### A2.2 The five plans→completed moves
+
+- **Landed as renames (4):** `2026-10-17_host-fastfail-grep` (`fc` identical, 5/5 closed), `2026-10-17_sv-lineage-mechanism` (identical, 5/5), `2026-10-18_write-returns-addresses` (identical, 5/5), `2026-10-19_graph-first-reminder` (identical, 4/4). Each verified by `git show HEAD:plans/<f>` + `fc` against `plans_completed/<f>` → «no differences encountered», every box `[x]` with its artefact. Commit `881f77c1`.
+- **NOT landed, owner decision (1):** `2026-10-18_delegation-port-2727`. HEAD carries t92 (base 29200 in 29170–29998, T1–T5 closed); `plans_completed/` holds the older t91 (2727, T1–T4 closed) plus an untracked `*_2727_1.md` (also 29200, 55 lines). The move is earned in BOTH versions (all boxes closed), but they are DIFFERENT contents — landing either as «the rename» would silently drop the other. **Decision for the owner:** which completed content is canonical — the HEAD t92 (29200 + NEVER_BIND_PORTS + T5) or the archived t91 (2727)? Until named, `plans/2026-10-18_delegation-port-2727.md` stays DELETED in the tree and both completed copies stay untracked; nothing of this lane was committed by t135.
+
+### A2.3 A plan outside the master plan is reported, not executed
+
+- **Mechanism:** `plan_link.py` — one predicate per plan file (the plan's own SV must carry a non-zero `parent-goal-md5`). Refuses with the unlinked plans NAMED. Lives beside `plan_admission.py` in the same commit route. **Fail-proof 3/3** (`fail_proof_link.py`): linked PASS, zeros REFUSE, no-SV REFUSE — «every case met its expectation».
+- **Measured on the live tree:** `plan_link.py plans` → **34 of 50 plans UNLINKED** (the 16 linked carry real parent md5s; the rest carry zeros or no SV block). The gate is loud by design — this is the current debt, not a verdict on any one plan.
+- **History search (nothing settles it):** `messagesearch` for goal/md5/master (no settling discussion — only the 2026-09-30 note itself asking «почему у goal нету семантического вектора», which gave the goal keywords + dominant but no md5); `grep` over `plans/` + `docs/` (only `docs/ADID_Framework_15_4.md:100,353` defining parent-goal-md5 as «the md5 of the goal vector», no master-goal md5 value).
+- **Owner decision (asked, not assumed):** the level-0 goal in `plans/MASTER_PLAN.md` (2026-09-30, keywords + dominant, no md5) needs its md5 minted — by the owner, in the hand-owned head — and only then can plans carry it. Until that lands, every plan reports UNLINKED and no plan is executed on a borrowed link. t135 mints nothing here.
+
+### A2.4 A stale box is reported, never executed blind
+
+- **Mechanism:** `box_stale.py` — one predicate per open box carrying `<!-- pin: <repo-relative path> <sha256> -->` (the file as it was when the box was written): NO-PIN / FRESH / STALE (missing or hash differs, both hashes named). A dispatcher that reads it refuses to execute a STALE box as written — STALE dispatches only as re-grounding. **Fail-proof 2/2** (`fail_proof_stale.py`): the same box FRESH when the code is unchanged, STALE when it has drifted — «every case met its expectation».
+- **Scope honestly stated:** no open box carries a pin today (the format is new) — so the check reports NO-PIN everywhere on the live tree and refuses nothing. Pinning the 200+ open boxes is the next pass, not this one; the mechanism + its proof are what this task delivers.

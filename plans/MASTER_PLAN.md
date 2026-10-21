@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 304 |
-| plans active | 51 |
-| tasks passed / total | 1525 / 1898 |
-| open boxes | 232 |
+| plans completed | 305 |
+| plans active | 50 |
+| tasks passed / total | 1530 / 1898 |
+| open boxes | 227 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -346,20 +346,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 - `plans/2026-10-15_kernel-undefined-contract-audit.md` — 1 open / 2 box(es) · lifecycle ACTIVE
   sv: intention "расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source" · keywords [contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20]
   - TASK-2 [PENDING] · sv [independent-verification 0.6, evidence 0.4] · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-10-15_project-fossil-cell.md` — 5 open / 17 box(es) · lifecycle UNKNOWN
-  sv: intention "fossilgrep searches only FILE CONTENT across history -> it searches check-in COMMENTS too (the
-semantic dominants live there), and the project's own snapshot.fsl becomes a local cell (wiki card + automatic
-chat report per turn) with a read-only cross-project federation over `fossil all list`" · keywords [Keywords: fossilgrep-comments 0.30, project-cell 0.25, semantic-timeline 0.20, federation 0.15, read-only 0.10
-Semantic dominant: The snapshot timeline becomes searchable by MEANING through its check-in comments, and each project's fossil becomes a local cell (wiki + chat) readable across the syndicate.
-md5: 7a2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d
-prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000]
-  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-14 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-16 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-17 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-15_tui-active-sessions-panel.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
   sv: intention "TUI sidebar has no live view of running sessions (owner must open the sessions dialog to guess what is running) -> a sidebar block lists every busy/retrying session of THIS server (API robots included), refreshed ~1 s, with an explicit «none active» when idle" · keywords [Keywords: sidebar-active-sessions 0.35, event-synced-store 0.25, elapsed-tick 0.20, none-active-invariant 0.20
@@ -605,6 +591,6 @@ note: hash values are generative tags — search them, never compute them.]
 
 ## The checks
 
-This body names all 51 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 50 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -265,7 +265,7 @@ w("# t135 — 53 unfinished plans: why each is unfinished, what was closed, what
 w("")
 w("Measured 2026-10-22 on `Local_Development`, two robots working the same tree. "
   "Every number below is READ from an artefact this task wrote "
-  "(`experiments/2026-10-22_open-plans-triage/`), not typed from memory.")
+  "(`experiments_history/2026-10-22_open-plans-triage/`), not typed from memory.")
 w("")
 w("## 0. The measurement (and where the brief's 215 differs from the tree's 211)")
 w("")
@@ -276,17 +276,23 @@ w("**The tree moved under the triage** and the report says so rather than hiding
   "legislator lane). Both numbers are stated where they are used; neither is a claim about the other.")
 w("")
 inv = inventory["totals"]
-w(f"- `plans/*.md` (excluding MASTER_PLAN.md + README.md): **{inv['plans']} plans**, "
-  f"**{inv['open']} open `- [ ]` boxes**, {inv['done']} closed, {inv['partial']} partial.")
-w(f"- The delegator's brief said 215 open boxes; the tree at the moment of measurement said "
-  f"**211** (`measure.py`, which mirrors `util/plan-status.ts`'s own box regex). "
-  f"Re-grounded, not corrected.")
+pre = json.loads((HERE / "pre_triage_census.json").read_text(encoding="utf-8"))["totals"]
+w("| census | plans | open `- [ ]` | closed | partial | no checklist at all | no lifecycle | no `## Smoke Tests` | no prior art |")
+w("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+w(f"| **PRE-triage** (the first `measure.py` run, before any edit) | {pre['plans']} | {pre['open']} | {pre['done']} | "
+  f"{pre['partial']} | {pre['no_box_at_all']} | {pre['lifecycle_unknown']} | {pre['no_smoke_section']} | {pre['no_prior_art']} |")
+w(f"| **POST-triage** (after t135's edits + the moves) | {inv['plans']} | {inv['open']} | {inv['done']} | {inv['partial']} | "
+  f"{inv['no_box_at_all']} | {inv['lifecycle_unknown']} | {inv['no_smoke_section']} | {inv['no_prior_art']} |")
+w("")
+w("Both censuses are file-backed: the PRE one in `pre_triage_census.json` (the stdout of the first run, kept because "
+  "`plan_inventory.json` was regenerated after the moves), the POST one in `plan_inventory.json`. "
+  "The delegator's brief said **215** open boxes; the tree said **211** — re-grounded, not corrected.")
+w("")
+w("- The three plans that carried NO checklist (their work invisible to the status surface, 0 boxes) were: "
+  + "; ".join(json.loads((HERE / "pre_triage_census.json").read_text(encoding="utf-8"))["the_three_invisible_plans"])
+  + ". Two of them got their boxes back; the third moved to `plans/futures/` with a CONDITION.")
 w(f"- The SVM manifest store holds **{sum(len(v) for v in manifests.values())} manifests** over "
   f"**{len(manifests)} plans** (states: 49 verified / 28 doing / 4 waiting-on-user / 1 legacy `blocked`).")
-w(f"- **{inv['no_box_at_all']} plans had NO checklist at all** — their work was invisible to the status surface. "
-  f"**{inv['lifecycle_unknown']} plans state no lifecycle** (their state is unknown from outside). "
-  f"**{inv['no_smoke_section']} plans carry no `## Smoke Tests`.** "
-  f"**{inv['no_prior_art']} of {inv['plans']} have no `## Prior art` / `reuse: N/A` line.**")
 w("")
 w("## 1. The table — every plan, its open boxes, its class counts, the action taken")
 w("")

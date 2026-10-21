@@ -1,0 +1,22 @@
+{
+  "_about": "t135 — the FIRST census of the tree, taken BEFORE any of t135's edits, and never overwritten. The numbers are the stdout of the first `python measure.py` run (2026-10-21, session ses_e9ffe1e38ffeom6UvwKP1ZNMgo). The file plan_inventory.json in this folder was REGENERATED after the moves, so it carries the POST-triage census; this file is the PRE-triage one, kept because the report quotes both.",
+  "measured_at": "2026-10-21T20:2xZ (before the first plan edit)",
+  "totals": {
+    "plans": 53,
+    "open": 211,
+    "done": 285,
+    "partial": 14,
+    "no_box_at_all": 3,
+    "no_smoke_section": 9,
+    "no_prior_art": 49,
+    "untracked": 4,
+    "lifecycle_unknown": 27,
+    "boxes_without_sv_tag": 125
+  },
+  "the_three_invisible_plans": [
+    "plans/2026-09-12_anthropic-cache-breakpoints.md — 5 tasks written as HEADINGS (### T1 …), 0 boxes",
+    "plans/2026-09-19_database-truth.md — 4 tasks written as BULLETS (- **T1 …**), 0 boxes",
+    "plans/2026-10-16_unmanaged-options.md — 0 tasks, scope «INVENTORY + PLAN ONLY» (moved to plans/futures/)"
+  ],
+  "post_triage_note": "After t135's edits and moves the tree reads 51 plans / 218 open / 284 done / 14 partial / 0 without a checklist / 25 without a lifecycle — the delta also contains ANOTHER robot's work in the same tree (a t134 revert that restored five plans' worth of boxes, and a new plan committed by the legislator lane)."
+}

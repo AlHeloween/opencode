@@ -1,15 +1,20 @@
 # t135 — 53 unfinished plans: why each is unfinished, what was closed, what is next
 
-Measured 2026-10-22 on `Local_Development`, two robots working the same tree. Every number below is READ from an artefact this task wrote (`experiments/2026-10-22_open-plans-triage/`), not typed from memory.
+Measured 2026-10-22 on `Local_Development`, two robots working the same tree. Every number below is READ from an artefact this task wrote (`experiments_history/2026-10-22_open-plans-triage/`), not typed from memory.
 
 ## 0. The measurement (and where the brief's 215 differs from the tree's 211)
 
 **The tree moved under the triage** and the report says so rather than hiding it: the numbers below are the PRE-triage snapshot (53 plans / 211 open boxes), and the tree after t135's own changes and moves reads 51 plans / 218 open boxes — the difference is t135's 9 added boxes and 8 closed ones, PLUS another robot's work in the same tree (a t134 revert that restored five plans' worth of boxes, and a new plan committed by the legislator lane). Both numbers are stated where they are used; neither is a claim about the other.
 
-- `plans/*.md` (excluding MASTER_PLAN.md + README.md): **51 plans**, **218 open `- [ ]` boxes**, 284 closed, 14 partial.
-- The delegator's brief said 215 open boxes; the tree at the moment of measurement said **211** (`measure.py`, which mirrors `util/plan-status.ts`'s own box regex). Re-grounded, not corrected.
+| census | plans | open `- [ ]` | closed | partial | no checklist at all | no lifecycle | no `## Smoke Tests` | no prior art |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| **PRE-triage** (the first `measure.py` run, before any edit) | 53 | 211 | 285 | 14 | 3 | 27 | 9 | 49 |
+| **POST-triage** (after t135's edits + the moves) | 51 | 218 | 284 | 14 | 0 | 25 | 9 | 47 |
+
+Both censuses are file-backed: the PRE one in `pre_triage_census.json` (the stdout of the first run, kept because `plan_inventory.json` was regenerated after the moves), the POST one in `plan_inventory.json`. The delegator's brief said **215** open boxes; the tree said **211** — re-grounded, not corrected.
+
+- The three plans that carried NO checklist (their work invisible to the status surface, 0 boxes) were: plans/2026-09-12_anthropic-cache-breakpoints.md — 5 tasks written as HEADINGS (### T1 …), 0 boxes; plans/2026-09-19_database-truth.md — 4 tasks written as BULLETS (- **T1 …**), 0 boxes; plans/2026-10-16_unmanaged-options.md — 0 tasks, scope «INVENTORY + PLAN ONLY» (moved to plans/futures/). Two of them got their boxes back; the third moved to `plans/futures/` with a CONDITION.
 - The SVM manifest store holds **82 manifests** over **38 plans** (states: 49 verified / 28 doing / 4 waiting-on-user / 1 legacy `blocked`).
-- **0 plans had NO checklist at all** — their work was invisible to the status surface. **25 plans state no lifecycle** (their state is unknown from outside). **9 plans carry no `## Smoke Tests`.** **47 of 51 have no `## Prior art` / `reuse: N/A` line.**
 
 ## 1. The table — every plan, its open boxes, its class counts, the action taken
 

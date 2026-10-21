@@ -150,10 +150,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 298 |
+| plans completed | 299 |
 | plans active | 49 |
-| tasks passed / total | 1491 / 1843 |
-| open boxes | 210 |
+| tasks passed / total | 1490 / 1855 |
+| open boxes | 223 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -481,19 +481,6 @@ note: hash values are generative tags — search them, never compute them.
   sv: intention "TUI undo applies on the server but the TUI loses its server -> isolated dist-TUI reproducer decides whether the revert path kills the process, and the proven dialog-anchor and preserve-foreign defects land with regression tests" · keywords [{ keywords: { tui-disconnect: 0.30, revert-applies: 0.25, isolated-dist-repro: 0.20, dialog-anchor: 0.15, preserve-foreign: 0.10 }, dominant: Isolated dist TUI decides whether undo kills the process; proven dialog and scope defects land with tests. }]
   - TASK-3 [PENDING] · sv [{ keywords: { crash-cause: 0.5, red-test: 0.5 }, dominant: The killing path is named and reddens a test. }] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-20_edit-label-remap-slice-2.md` — 3 open / 3 box(es) · lifecycle UNKNOWN
-  sv: intention "chained labels go stale after a batch edit -> return an old-to-new map for every label the agent knew, so no later edit addresses a moved line by its old hash" · keywords [```yaml
-Keywords: label-remap-batch 0.40, chainHash-stale-labels 0.25, old-to-new-map 0.20, report-budget-8k 0.15
-Semantic dominant: Return an old-to-new label map for every hash the agent knew in the edited file so later edits never use a stale chained label.
-md5: 5d7c1a9e3f2b4860a1d4c7e9f0b2d4a6
-prev-md5: 00000000000000000000000000000000
-parent-goal-md5: b89560e8bbec4459b72bebac364fcd6d
-note: hash values are generative tags — search them, never compute them.
-```]
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-20_hr-delegator-driver.md` — 15 open / 15 box(es) · lifecycle ACTIVE
   sv: intention "manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate" · keywords [Keywords: hr-delegator-driver 0.30, dossier-gate 0.25, independent-verifier 0.20, delivery-guarantee 0.15, owner-boundary 0.10
 Semantic dominant: An automatic HR-delegator driver that gates every order on a deterministic handshake dossier and guarantees delivery, independent verification and the owner-authority boundary.
@@ -547,6 +534,34 @@ note: hash values are generative tags — search them, never compute them.]
   - S8 [PENDING] · sv MISSING · manifest: The TRIZ-to-kernel correspondence lands as one commit that names the plan, carries the 21 new glossary entries and the report, and leaves the shared progress log with only its own hunk. · eta 1 · doing
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-21_corporation-observability-bridge.md` — 7 open / 7 box(es) · lifecycle ACTIVE
+  sv: intention "fossil bridges in every tree stay silent about live robots -> one observable process with a panel for owner and agents, where each robot server finds its tree bridge and reports state, giving a whole-corporation summary" · keywords [Keywords: fossil-bridge-per-tree 0.25, corporation-summary-panel 0.25, robot-server-autoconnect 0.20, observable-processes 0.15, scheduler-on-fossil 0.15
+Semantic dominant: Ground what exists of the fossil bridges, then design one observable process with a panel that both the owner and agents use, where every robot server reports its state into it.
+md5: 7c2e9a4b5d6f48e0a1b2c3d4e5f6a7b8
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 6b1e8d4a2f9c37e05b6e1a8d4f2c9e73
+note: hash values are generative tags — search them, never compute them.]
+  - TASK-1 [PENDING] · sv [bridge-census, writers-readers, visible-today] · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv [state-schema, cheapest-route, no-new-table] · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv [autoconnect, well-known-path, visible-failure] · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv [panel-compare, same-verbs, oracle-per-option] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv [scheduler-plug, scheduled-to-verified, missed-rows] · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv [failure-visibility, stalled-not-silent, unknown-recorded] · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv [panel-oracle, prediction-first, fixture-corporation] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-21_delegator-memory-repair.md` — 10 open / 10 box(es) · lifecycle ACTIVE
+  sv: intention "the desktop /clear of 2026-10-21 left the delegator's memory folder intact but delivered an empty window (its only input was «Продолжай») because the fold restore is routed on a session source the app never emits and two captures were skipped on a reason the app never sends -> every link of the continuity path that is still a rule becomes a mechanism, every memory pointer becomes checkable, and the owner's own restore order (owner rows + full SVs, then fossil diffs by parent md5) is completed by code rather than by memory" · keywords [fold-restore-routing, dead-route-removal, measurable-cut, memory-provenance-check, generated-index]
+  - T1 [PENDING] · sv MISSING · manifest: The fold restore is routed on session sources the desktop app never emits and reads a pointer that can never be written, so the repair is routing, dead-route removal and a measurable cut, while the memory folder gets a provenance and pointer check that makes its index mechanical. · eta 1 · doing
+  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T10 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-21_fold-hooks-desktop-fork.md` — 2 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "whatever way the Claude desktop app rebuilds a window — fork with a new session id, compact or clear — opens with no owner messages and no semantic vectors -> the new window opens with the previous window's owner messages and full SV blocks, row-addressed, on all three routes, with every exit path logged" · keywords [fold-rebuild-routes, predecessor-pointer, live-transcript-build, replay-oracle]
   - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -567,13 +582,9 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-6 [PENDING] · sv [kernel-table, sha-compare, rehash-first] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [fresh-machine-oracle, replay-suites, no-host-strings] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-21_robot-pending-stop-hook_1.md` — 1 open / 7 box(es) · lifecycle ACTIVE
+- `plans/2026-10-21_robot-pending-stop-hook.md` — 1 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher running, or has finished with a result Claude has not marked verified; the existing watch3.py is the watcher, so no new waiter is built" · keywords [robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle]
-  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-10-21_robot-pending-stop-hook.md` — 1 open / 7 box(es) · lifecycle ACTIVE
-  sv: intention "Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher running, or has finished with a result Claude has not marked verified; the existing watch3.py is the watcher, so no new waiter is built" · keywords [robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle]
-  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T7 [PENDING] · sv MISSING · manifest: A real robot asks through the ask tool and the delegator's turn is blocked on that ask until the owner answers. · eta 1 · doing
 
 - `plans/2026-10-21_tui-standards-fixes.md` — 6 open / 6 box(es) · lifecycle ACTIVE
   sv: intention "tui-commands-violate-surface-standards -> all-dialogs-bound-to-ui-standards-clauses-with-capture-evidence" · keywords [Keywords: tui-standards-fixes 0.30, poka-yoke-pickers 0.25, capture-oracle 0.20, confirm-destructive 0.15, discoverable-hints 0.10

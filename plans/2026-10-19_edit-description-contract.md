@@ -7,7 +7,7 @@ Keywords: edit-description-contract 0.35, refusal-catalogue 0.25, contradiction-
 Semantic dominant: Rewrite the edit tool description from the code's own refusals and pin it with a test so the txt cannot drift from the ts.
 md5: 84719f6efd224ad99c3f617cb2c92570
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```
 -->

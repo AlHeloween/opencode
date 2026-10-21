@@ -84,7 +84,7 @@ export const SvmTool = Tool.define<typeof Parameters, Metadata, Storage.Service>
               }
             }
             return {
-              title: `svm: render — ${result.stats.plans} plan(s), ${result.stats.openBoxes} open box(es), ${result.stats.missingTaskSv + result.stats.missingPlanSv} vector(s) MISSING`,
+              title: `svm: render — ${result.stats.plans} plan(s), ${result.stats.openBoxes} open box(es), ${result.stats.missingTaskSv + result.stats.missingPlanSv} vector(s) MISSING, ${result.stats.unlinked} plan(s) UNLINKED`,
               output: JSON.stringify({ file: result.file, bytes: result.bytes, ...result.stats }, null, 2),
               metadata: { action: "render", present: true },
             }

@@ -32,6 +32,10 @@ loop itself (stall, snapshot, automode) before any new surface.
 sv:
   keywords: { agent-continuity: 0.35, mechanical-state: 0.25, proof-not-claim: 0.25, turn-loop-first: 0.15 }
   dominant: Continuity stops depending on memory — every turn opens from a known state, and nothing is called done without an instrument that could have failed.
+  md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+  prev-md5: 00000000000000000000000000000000
+  parent-goal-md5: 00000000000000000000000000000000
+  note: hash values are generative tags — search them, never compute them.
 ```
 
 The goal's vector is the ONE vector this file owns: nothing else states the goal, so it cannot be read from a
@@ -444,7 +448,7 @@ Keywords: edit-description-contract 0.35, refusal-catalogue 0.25, contradiction-
 Semantic dominant: Rewrite the edit tool description from the code's own refusals and pin it with a test so the txt cannot drift from the ts.
 md5: 84719f6efd224ad99c3f617cb2c92570
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```]
   - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -455,7 +459,7 @@ Keywords: tool-description-audit 0.35, refusal-key-contract 0.25, error-census-p
 Semantic dominant: The edit lesson is applied to every tool: each description is checked against its code by refusal keys, schema and examples, in order of measured failure rate, so that no model fails a tool because its manual promised something the code refuses.
 md5: a3eb5a7edb7d42fabae35e82e1c60284
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```]
   - TASK-11 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is

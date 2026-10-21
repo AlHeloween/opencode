@@ -7,7 +7,7 @@ Keywords: terminal-verdict-falsification 0.30, kernel-install 0.20, adid-release
 Semantic dominant: Ship the falsifiable-exit kernel end to end — fix and install here, carry it through an ADID release to every consumer with readback, rebuild the binary.
 md5: 6e8a0c2f4b1d3579a1c3e5b7d9f02468
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 ```
 
 Owner, 2026-10-14, verbatim: «нам надо исправить кернел, потом обновить этот кернел в adid_python, зарелизить новую

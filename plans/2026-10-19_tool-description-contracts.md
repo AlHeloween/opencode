@@ -7,7 +7,7 @@ Keywords: tool-description-audit 0.35, refusal-key-contract 0.25, error-census-p
 Semantic dominant: The edit lesson is applied to every tool: each description is checked against its code by refusal keys, schema and examples, in order of measured failure rate, so that no model fails a tool because its manual promised something the code refuses.
 md5: a3eb5a7edb7d42fabae35e82e1c60284
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```
 -->

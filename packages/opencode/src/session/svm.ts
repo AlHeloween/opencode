@@ -30,6 +30,7 @@ import {
   getPlanStatus,
   masterPlanCoverage,
   parsePlanFiles,
+  isPlanLinked,
   type PlanStatePlan,
 } from "@/util/plan-status"
 
@@ -266,6 +267,8 @@ export interface RenderStats {
   missingTaskSv: number
   /** An open box with no manifest in the store. */
   missingManifests: number
+  /** A plan whose own SV names no master-plan goal (parent-goal-md5 is 32 zeros or absent). */
+  unlinked: number
   /** Plans the file named BEFORE this render and does not name now — the map was stale. */
   gapsBefore: string[]
 }
@@ -307,6 +310,7 @@ export function renderBody(worktree: string): { body: string; stats: RenderStats
   let missingPlanSv = 0
   let missingTaskSv = 0
   let missingManifests = 0
+  let unlinked = 0
   for (const plan of plans) {
     const open = plan.tasks.filter((task) => task.status !== "PASS")
     openBoxes += open.length
@@ -321,6 +325,12 @@ export function renderBody(worktree: string): { body: string; stats: RenderStats
     } else {
       missingPlanSv += 1
       map.push("  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for")
+    }
+    if (isPlanLinked(plan)) {
+      map.push(`  link: parent-goal-md5 ${plan.goal_parent} (names a master-plan goal)`)
+    } else {
+      unlinked += 1
+      map.push("  link: UNLINKED — the plan names no master-plan goal (parent-goal-md5 is 32 zeros or absent)")
     }
     if (open.length === 0) {
       map.push("  - no open box")
@@ -347,6 +357,7 @@ export function renderBody(worktree: string): { body: string; stats: RenderStats
     `| plans active | ${status.active.length} |`,
     `| tasks passed / total | ${status.completedTasks} / ${status.totalTasks} |`,
     `| open boxes | ${openBoxes} |`,
+    `| unlinked plans | ${unlinked} |`,
     "",
     "Counts read from the same instrument `planstatus` uses; nothing here is retyped.",
     "",
@@ -368,6 +379,7 @@ export function renderBody(worktree: string): { body: string; stats: RenderStats
     missingPlanSv,
     missingTaskSv,
     missingManifests,
+    unlinked,
     gapsBefore: coverage.misses,
   }
   return { body: lines.join("\n") + "\n", stats }

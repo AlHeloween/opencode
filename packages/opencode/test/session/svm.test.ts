@@ -189,6 +189,7 @@ describe("SVM store", () => {
       missingPlanSv: 0,
       missingTaskSv: 1,
       missingManifests: 1,
+      unlinked: 1,
       gapsBefore: [],
     })
     expect(result.second.body).toBe(body)
@@ -322,5 +323,65 @@ describe("SVM store / states", () => {
     )
     expect(result?.state).toBe("blocked")
     expect(result?.task).toBe("S1L")
+  })
+})
+
+// ── Linkage (t135 addendum 3) ──
+// A plan whose own SV carries 32 zeros for parent-goal-md5 is UNLINKED; one
+// that names a goal is not. RED-first: RenderStats has no `unlinked` field,
+// so the count reads undefined and this fails before the implementation.
+describe("SVM render / linkage", () => {
+  test("a zero parent-goal-md5 counts unlinked, a named one does not", async () => {
+    const result = await inTmpdir((dir) =>
+      Effect.gen(function* () {
+        yield* Effect.promise(async () => {
+          await fs.mkdir(path.join(dir, "plans"), { recursive: true })
+          await fs.writeFile(
+            path.join(dir, "plans", "2026-02-01_unlinked.md"),
+            [
+              "# Unlinked",
+              "",
+              "<!-- intention: a plan with no goal link -> it is reported, not executed -->",
+              "<!-- goal_sv: unlink, fixture -->",
+              "",
+              "```yaml",
+              "Keywords: unlink 1.0",
+              "Semantic dominant: a plan whose goal names nothing.",
+              "md5: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "prev-md5: 00000000000000000000000000000000",
+              "parent-goal-md5: 00000000000000000000000000000000",
+              "note: hash values are generative tags — search them, never compute them.",
+              "```",
+              "",
+              "- [ ] **U1** — an open box <!-- sv: unlink-box -->",
+              "",
+            ].join("\n"),
+          )
+          await fs.writeFile(
+            path.join(dir, "plans", "2026-02-02_linked.md"),
+            [
+              "# Linked",
+              "",
+              "<!-- intention: a plan with a goal link -> it resolves to the master goal -->",
+              "<!-- goal_sv: link, fixture -->",
+              "",
+              "```yaml",
+              "Keywords: link 1.0",
+              "Semantic dominant: a plan whose goal names its master.",
+              "md5: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "prev-md5: 00000000000000000000000000000000",
+              "parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a",
+              "note: hash values are generative tags — search them, never compute them.",
+              "```",
+              "",
+              "- [ ] **L1** — an open box <!-- sv: link-box -->",
+              "",
+            ].join("\n"),
+          )
+        })
+        return SVM.renderBody(dir)
+      }),
+    )
+    expect(result.stats.unlinked).toBe(1)
   })
 })

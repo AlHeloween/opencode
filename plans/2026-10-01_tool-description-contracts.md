@@ -14,7 +14,7 @@ Keywords: tool-description-contracts 0.30, falsifiable-promise 0.24, pinning-tes
 Semantic dominant: Каждое обещание в описании тула либо закреплено тестом, который без него краснеет, либо вычеркнуто из текста — и у этой линии работы наконец есть собственная метка.
 md5: d99945d67a57440775f414e816c78773
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 ```
 
 ## Why this plan carries THIS md5

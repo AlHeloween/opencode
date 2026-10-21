@@ -151,8 +151,16 @@ export interface PlanStatePlan {
   gate?: string
   intention?: PlanStateIntention
   goal_sv: string[]
+  /** The plan's own link: the FIRST `parent-goal-md5:` value in the file (lowercased 32-hex), or undefined. */
+  goal_parent?: string
   invariants: string[]
   tasks: PlanStateTask[]
+}
+
+/** A plan is LINKED when its own SV names a master-plan goal (non-zero parent). */
+const ZERO_PARENT = "0".repeat(32)
+export function isPlanLinked(plan: Pick<PlanStatePlan, "goal_parent">): boolean {
+  return plan.goal_parent !== undefined && plan.goal_parent !== ZERO_PARENT
 }
 
 export interface PlanStatePayload {
@@ -312,6 +320,7 @@ export function parsePlanFiles(worktree: string): PlanStatePlan[] {
       gate: parseGate(content),
       intention: parseIntention(content),
       goal_sv: goalSv,
+      goal_parent: content.match(/parent-goal-md5:\s*([0-9a-fA-F]{32})/)?.[1]?.toLowerCase(),
       invariants,
       tasks,
     })

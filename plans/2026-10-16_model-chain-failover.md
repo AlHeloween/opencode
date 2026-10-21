@@ -7,7 +7,7 @@ Keywords: model-chain 0.35, failover-classification 0.25, health-probe 0.20, ass
 Semantic dominant: An explicit ordered model chain per agent replaces blind retry with classified automatic failover and periodic health recovery.
 md5: 8f3a1c2d4e5f6a7b8c9d0e1f2a3b4c5d
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 ```
 
 Owner, 2026-10-16, verbatim: «Вообще надо доработать систему:

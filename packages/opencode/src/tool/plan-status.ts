@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import { InstanceState } from "@/effect/instance-state"
-import { formatPlanHygiene, getPlanStatus, planDebt, reconcilePlans } from "@/util/plan-status"
+import { formatPlanHygiene, getPlanStatus, isPlanLinked, parsePlanFiles, planDebt, reconcilePlans } from "@/util/plan-status"
 
 /**
  * THE TICK REPORT AS A TOOL (owner, 2026-09-22): «у нас в оркестраторе есть подсчёт галок — сделай тулзу,
@@ -48,19 +48,24 @@ export const PlanStatusTool = Tool.define(
           const reconciled = params.reconcile === true ? reconcilePlans(worktree) : undefined
           const status = reconciled?.status ?? getPlanStatus(worktree)
           const debt = planDebt(worktree)
+          const linked = parsePlanFiles(worktree)
+          const unlinked = linked.filter((p) => !isPlanLinked(p)).map((p) => p.file)
           const output = [
             formatPlanHygiene(status, reconciled),
             `Debt: ${debt.open} open box(es) across ${debt.plans} plan(s) in plans/`,
             `Active: ${status.active.length} · Completed: ${status.completed.length} · Misplaced: ${status.misplaced.length}`,
+            `Unlinked: ${unlinked.length} plan(s) name no master-plan goal${unlinked.length ? ` (${unlinked.join(", ")})` : ""}`,
           ].join("\n")
           return {
-            title: `planstatus: ${status.active.length} active · ${debt.open} open box(es) · ${status.misplaced.length} misplaced`,
+            title: `planstatus: ${status.active.length} active · ${debt.open} open box(es) · ${status.misplaced.length} misplaced · ${unlinked.length} unlinked`,
             metadata: {
               active: status.active.length,
               completed: status.completed.length,
               misplaced: status.misplaced.length,
               openBoxes: debt.open,
               plans: debt.plans,
+              unlinked: unlinked.length,
+              unlinkedPlans: unlinked,
               movedToCompleted: reconciled?.movedToCompleted ?? [],
               reopenedToActive: reconciled?.reopenedToActive ?? [],
               errors: reconciled?.errors ?? [],

@@ -15,7 +15,7 @@ Keywords: recall-address-space 0.30, read-window-cost 0.22, release-gate-removal
 Semantic dominant: Make recall and read share one line address space and stop the automatic size gate from forcing small read windows.
 md5: 5d2b8e1a7c4f903be6a1d5c8f2e0b479
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 ```
 
 ## Evidence (each line carries its instrument)

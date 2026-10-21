@@ -7,7 +7,7 @@ Keywords: supersede 0.30, runner-race 0.25, lost-reply 0.20, interrupt-ordering 
 Semantic dominant: The replacing prompt's run races the superseded run's in-flight interrupt and can end without answering.
 md5: 6c1f0e8a93b24d7f05ae11c2d8e4b7a9
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 ```
 
 **Date:** 2026-10-07 · **Status:** OPEN · **Severity:** user-visible (a prompt silently gets no answer) · **Found by:** `plans_completed/2026-09-30_replacement-empty-assistant-row.md`

@@ -52,4 +52,4 @@ note: hash values are generative tags — search them, never compute them.
 
 ## Out of scope
 
-ADID's canon (its resident robot does it). `bin/`. The IANA study itself (another robot's item). 2727 kept only as the study's open question.
+ADID's canon (its resident robot does it). `bin/`. The IANA study itself (another robot's item). 2727 kept only as the study's open question. The owner's live host on 4096 (never disturbed; the audit adapts to it) — kept from t91 (fc diff of `*_2727_1.md` vs `2727.md`, 2026-10-22; the only t91-only line not subsumed by t92's binding, still true since serve/web keep 4096).

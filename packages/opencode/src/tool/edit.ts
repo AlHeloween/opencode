@@ -387,7 +387,7 @@ export function resolveAddresses(
  * computed over the FINAL text with the SAME `chainHash`/`hashLabel` `read` prints, so the next call can address
  * moved lines by the labels it already holds. Labels above the first change did not move and are not repeated;
  * with `windowLabels` only labels still in the active window are listed. Bounded; a cut names the unmapped old
- * lines and the `read` offset that recovers them.
+ * lines and the `read` offset that recovers them. Without `origSpans` the report keeps the moved-label list.
  */
 export const ADDRESS_REPORT_BUDGET = 8 * 1024
 const ECHO_CONTEXT = 2
@@ -398,7 +398,7 @@ export function addressReport(
     oldText: string
     finalText: string
     spans: readonly AppliedSpan[]
-    origSpans: readonly OrigSpan[]
+    origSpans?: readonly OrigSpan[]
     windowLabels?: ReadonlySet<string>
     created: boolean
     formatTouched: boolean

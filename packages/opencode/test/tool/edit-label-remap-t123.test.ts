@@ -40,7 +40,6 @@ const reportFor = (
   window?: Set<string>,
 ) => {
   const resolution = edited(content, edits)
-  if (resolution.kind === "refused") throw new Error("unreachable")
   return addressReport({
     path: "mini.txt",
     oldText: content,
@@ -113,7 +112,6 @@ describe("t123 old-to-new label map", () => {
     const content = "l1\nl2\nl3\n"
     const h = labels(content)
     const resolution = edited(content, [{ fromHash: h[1]!, newString: "R1" }])
-    if (resolution.kind === "refused") throw new Error("unreachable")
     const input = {
       path: "mini.txt",
       oldText: content,

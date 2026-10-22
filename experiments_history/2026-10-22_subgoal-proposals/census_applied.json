@@ -345,21 +345,6 @@
   "lifecycle": ""
  },
  {
-  "file": "2026-10-15_kernel-undefined-contract-audit.md",
-  "link": "goal-tree",
-  "parent": "f2e94a7cb5d18603e8a4c9d2f7b56e0a",
-  "parent_line": 33,
-  "label": "21a66067b9824dab91f15b37970ac653",
-  "label_line": 31,
-  "parent_is_own_label": false,
-  "intention": "расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source",
-  "goal_sv": "contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20",
-  "has_sv_block": true,
-  "boxes_total": 2,
-  "open_boxes": 1,
-  "lifecycle": ""
- },
- {
   "file": "2026-10-15_tui-active-sessions-panel.md",
   "link": "goal-tree",
   "parent": "423648bc309f9b843f29291adf271959",
@@ -645,21 +630,6 @@
   "lifecycle": "ACTIVE"
  },
  {
-  "file": "2026-10-21_delegation-tool-tdz.md",
-  "link": "goal-tree",
-  "parent": "221e9347f99b038b669b74d80886fca1",
-  "parent_line": 10,
-  "label": "6f2a9c4b7e15d803a5c9f2e6b4d17a05",
-  "label_line": 8,
-  "parent_is_own_label": false,
-  "intention": "the delegation lane has been dead on every host since the t87 global-recents change — both `task` and `pipeline` read the `globalRecents` list inside the `Effect.sync` thunk of `chainResolved` while the lookup that fills it is declared further down, so the thunk reads a `const` still in its temporal dead zone and the tool dies with «Cannot access '<name>' before initialization.» -> both tools reso",
-  "goal_sv": "",
-  "has_sv_block": true,
-  "boxes_total": 6,
-  "open_boxes": 1,
-  "lifecycle": ""
- },
- {
   "file": "2026-10-21_delegator-memory-repair.md",
   "link": "goal-tree",
   "parent": "f2e94a7cb5d18603e8a4c9d2f7b56e0a",
@@ -761,7 +731,7 @@
   "goal_sv": "",
   "has_sv_block": true,
   "boxes_total": 8,
-  "open_boxes": 7,
+  "open_boxes": 6,
   "lifecycle": ""
  }
 ]

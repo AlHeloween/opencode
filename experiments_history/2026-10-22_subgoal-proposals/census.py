@@ -119,13 +119,17 @@ def main(argv: list[str]) -> int:
     worktree = Path(argv[0]).resolve()
     rows = census(worktree)
     out = worktree / "experiments" / "2026-10-22_subgoal-proposals" / "census.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
 
     by = {}
     for r in rows:
         by[r["link"]] = by.get(r["link"], 0) + 1
     print(f"{len(rows)} plan(s) · {by}")
-    unresolved = [r for r in rows if r["link"] != "goal"]
+    # The classes are: goal-tree (resolved) | foreign | zeros | no-parent-line.
+    # A STALE filter here (the old `!= "goal"`, from before the goal tree existed)
+    # counted every resolved plan as unresolved and printed a FALSE number.
+    unresolved = [r for r in rows if r["link"] in ("foreign", "zeros", "no-parent-line")]
     print(f"\n{len(unresolved)} plan(s) NOT resolving to the level-0 goal:\n")
     for r in unresolved:
         flag = " SELF" if r["parent_is_own_label"] else ""

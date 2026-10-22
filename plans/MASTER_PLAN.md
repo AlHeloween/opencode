@@ -220,10 +220,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 308 |
-| plans active | 50 |
-| tasks passed / total | 1550 / 1919 |
-| open boxes | 229 |
+| plans completed | 309 |
+| plans active | 49 |
+| tasks passed / total | 1551 / 1919 |
+| open boxes | 227 |
 | unlinked plans | 0 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -634,12 +634,6 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-6 [PENDING] · sv [failure-visibility, stalled-not-silent, unknown-recorded] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [panel-oracle, prediction-first, fixture-corporation] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-21_delegation-tool-tdz.md` — 2 open / 6 box(es) · lifecycle UNKNOWN
-  sv: intention "the delegation lane has been dead on every host since the t87 global-recents change — both `task` and `pipeline` read the `globalRecents` list inside the `Effect.sync` thunk of `chainResolved` while the lookup that fills it is declared further down, so the thunk reads a `const` still in its temporal dead zone and the tool dies with «Cannot access '<name>' before initialization.» -> both tools resolve the list FIRST (one lookup, one key — the t87 contract preserved), the red suite turns green, the lane that had no test at all gets one, and a live delegation in an isolated stand proves the lane works end to end and serves as the second reader t127's T7 asks for" · keywords []
-  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
-  - T5 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-21_delegator-memory-repair.md` — 10 open / 10 box(es) · lifecycle ACTIVE
   sv: intention "the desktop /clear of 2026-10-21 left the delegator's memory folder intact but delivered an empty window (its only input was «Продолжай») because the fold restore is routed on a session source the app never emits and two captures were skipped on a reason the app never sends -> every link of the continuity path that is still a rule becomes a mechanism, every memory pointer becomes checkable, and the owner's own restore order (owner rows + full SVs, then fossil diffs by parent md5) is completed by code rather than by memory" · keywords [fold-restore-routing, dead-route-removal, measurable-cut, memory-provenance-check, generated-index]
   link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
@@ -719,6 +713,6 @@ note: hash values are generative tags — search them, never compute them.]
 
 ## The checks
 
-This body names all 50 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 49 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

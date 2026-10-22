@@ -142,6 +142,16 @@ note: hash values are generative tags — search them, never compute them.
       - Reading: the owner's account holds on the OUTCOME leg and on the fold rate, not on the SV metrics. More SVs
         is not more evolution (Muse wrote 3× more). A confound to name: MiniMax inherited the session's 8 folds of
         accumulated memory from the Muse era.
+    - **Field observation 2026-10-22 (the Legislator's read-back of `ses_e9e4b49e3ffeTJCMuD6mpqLIGM`).**
+      - Robot t143 closed its own two plans, folded at 12:42:45, and after the fold took up this plan's open box T2
+        unordered.
+      - The design says an open plan is executable work (owner: «Нет понятия чужой задачи»).
+      - It delivered T2 in commit `2f447f48c8`, and the result held: 9 tests passed, the rebuild is byte-identical
+        to `sha256.txt`.
+      - This is the post-fold behaviour the t130 misread had called a defect, here producing verified work. It is one
+        case: a re-anchor onto the master plan's open work, not onto the old brief.
+      - Defect: the commit is labelled «t145», which is another task's number. The t-number allocator is still
+        missing.
     - Open for this box: the outcome leg (@MEDOID_SIMPLEX — the SV text is one source category); the channel test
       (post-fold SV vs the summary's SV); more sessions for convergence.
 - [ ] T7 — Generalise: the same method for any Claude lane or robot identity (input = era list + cut). Report-only

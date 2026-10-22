@@ -143,3 +143,29 @@ Each leaf names its oracle and the predicted result (per `@SMOKE_BEFORE`; a case
 ## Continuation
 
 Next: implement leaves in D2 → I1 → H1 → H2 → C1 → M1 → P1 → D1 → E1 → U1 → A1 → S1 → D3 → F1 → F2 order (D2 recording starts with the next order so the dataset exists; internship admits the configuration, per-order gate with a bounded correction loop, assumptions before passports use them, cross-decode gates verification inside E1, analyst after the surfaces it reads); each leaf closes on its smoke above with the run id / hash / read-back receipt. Residual if any leaf's oracle has no instrument: the leaf stays open with the named missing instrument, never a prose pass.
+
+## Input 2026-10-22: SV-state portability across models («цифровая душа»), measured
+
+Owner, verbatim: «сочетание SV специалиста мы условно будем называть цифровой душой. Но перед этим надо проверить
+переносимость SV состояния. Результаты отправь в проект по кадровику.» Source plan:
+`plans/2026-10-22_legislator-reincarnation-method.md` (T3, T8). Files:
+`experiments/2026-10-22_legislator-rebuild/PORTABILITY_PREDICTIONS.md` (sealed before the runs) and
+`PORTABILITY_RESULT.md`.
+
+- Specialist state: the Legislator's ordered SV trajectory, three turns (sha256 in `sha256.txt`). It was scored against
+  `oracle.md` (six questions), which was written before any run.
+- Claude → Claude rebuild: 6/6 on content, 4/4 cited rows valid, lineage unobserved (classifier cut).
+- **Claude → MiniMax m3.1 flash (opencode-go, free).** Transfer arm X (`ses_e9e4b8594ffe…`) read only the turns
+  (9 read calls): **6/6**. Control arm K (`ses_e9e4b8329ffe…`), same model, no turns, 0 tools: **1/6**, and its one
+  pass was the SV legend line from its own kernel template. **X − K = 5.**
+- The control's own words: a session without the trajectory «retains the rules (they are in the prefix) and loses
+  the history».
+- **Passport defect class (MiniMax m3.1 flash):** row-citation precision is 21/26 = 81%. Five cited rows exist nowhere,
+  and each was stamped «✓ CONFIRMED». An address must be read back before it is marked, and the dossier gate (H2)
+  should check cited addresses mechanically.
+- Lineage: X set prev-md5 as told. As its parent it took its own brief md5, which is task lineage, not identity lineage.
+  An identity («soul») lineage needs its own field, or an explicit instruction in the rebuild.
+- Related, owner testimony: a friend's robot with full memory and tools was lost while its kernel was broken, and
+  recovered once the kernel was fixed. Reading: the soul is the SV chain plus the kernel that executes it.
+- Scope: n = 1 per arm, one model pair, one specialist. Next legs: LongCat 2.5 and MiMo v2.6 through I1, and a second
+  specialist chain.

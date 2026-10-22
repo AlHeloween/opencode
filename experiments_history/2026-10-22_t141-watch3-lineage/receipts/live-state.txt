@@ -13,15 +13,20 @@ exit: 0
 
 watchers: [
  {
-  "pid": 15076,
+  "pid": 14580,
   "image": "python.exe",
-  "cmd": "D:\\USESoft\\Python313\\python.exe D:/zPython/opencode/experiments/2026-10-08_robot-wave/watch3.py t141=ses_e9e83a349ffeDv64NoAgxwmtK7"
+  "cmd": "D:\\USESoft\\Python313\\python.exe D:/zPython/opencode/experiments/2026-10-08_robot-wave/watch3.py t143=ses_e9e4b49e3ffeTJCMuD6mpqLIGM"
  },
  {
-  "pid": 28676,
+  "pid": 9712,
   "image": "python.exe",
-  "cmd": "D:\\USESoft\\Python313\\python.exe D:/zPython/opencode/experiments/2026-10-08_robot-wave/watch3.py t140=ses_e9e8f0cfbffejhQd1fRGWi7Z4X"
+  "cmd": "D:\\USESoft\\Python313\\python.exe D:/zPython/opencode/experiments/2026-10-08_robot-wave/watch3.py t142=ses_e9e82a337ffea7EI6TH6Myd613"
+ },
+ {
+  "pid": 28536,
+  "image": "python.exe",
+  "cmd": "D:\\USESoft\\Python313\\python.exe D:/zPython/opencode/experiments/2026-10-08_robot-wave/watch3.py t141=ses_e9e83a349ffeDv64NoAgxwmtK7"
  }
 ]
-busy sessions: {"ses_e9e83a349ffeDv64NoAgxwmtK7": "busy", "ses_e9e8f0cfbffejhQd1fRGWi7Z4X": "busy"}
+busy sessions: {"ses_e9e4b49e3ffeTJCMuD6mpqLIGM": "busy", "ses_e9e82a337ffea7EI6TH6Myd613": "busy", "ses_e9e83a349ffeDv64NoAgxwmtK7": "busy"}
 t135 (ses_e9ffe1e38ffeom6UvwKP1ZNMgo) in status: None

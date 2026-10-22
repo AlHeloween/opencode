@@ -1,0 +1,22 @@
+command: D:\USESoft\Python313\python.exe -c import importlib.util, sys
+sys.path.insert(0, 'D:/zPython/opencode/experiments/2026-10-08_robot-wave')
+spec = importlib.util.spec_from_file_location('replay_watch3',
+    'D:/zPython/opencode/experiments/2026-10-21_robot-pending-stop/replay_watch3.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print('FLEET  (dispatch.MODEL, live)  :', m.FLEET)
+print('MUSE   (a fixture row model)   :', m.MUSE)
+print('OWNER  (the fixture session)  :', m.OWNER_MODEL['modelID'])
+print('W8 rows distinct (applied)    :', m.MUSE != m.OWNER_MODEL['modelID'])
+print('W8 rows (one-constant variant):', m.FLEET != m.OWNER_MODEL['modelID'],
+      '  False => the case cannot tell WHICH row decided')
+print('W3/W8 pair discriminates      :', m.OWNER_MODEL['modelID'] != m.FLEET,
+      '  needs the fixture session model != the fleet model')
+
+exit: 0
+
+FLEET  (dispatch.MODEL, live)  : minimax-m3.1-flash-free
+MUSE   (a fixture row model)   : muse-spark-1.3-contributor
+OWNER  (the fixture session)  : minimax-m3.1-flash-free
+W8 rows distinct (applied)    : True
+W8 rows (one-constant variant): False   False => the case cannot tell WHICH row decided
+W3/W8 pair discriminates      : False   needs the fixture session model != the fleet model

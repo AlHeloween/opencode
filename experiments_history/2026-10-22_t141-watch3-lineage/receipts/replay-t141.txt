@@ -8,7 +8,7 @@ PASS L1 baseline (the defect): the old watcher has NO event for the idle robot: 
 PASS L2 after a nudge, the robot keeps the BRIEF md5: the lineage check passes: exit 0, finished=True, out=finished: t135-open-plans-triage (SV present, lineage ok, nudges 0)
 PASS L3 the nudge's md5 is REPORTED, never adopted: exit 0, parent-is-nudge=True, expected-parent-stays-the-brief=True, adopted=False
 PASS L3 baseline: the nudge's md5 is not even named: exit 0, parent-is-nudge=False
-PASS L4 the nudge states the parent to keep and names its own md5 as NOT a parent: exit 0, names-the-brief=True, names-the-parent-to-keep=True, denies-its-own-md5=True, sv-parent=ba748a084f9443aa9d39189641c4f9c4, sv-own=91a204ad30ef4b58baa6c0f5911eb474
+PASS L4 the nudge states the parent to keep and names its own md5 as NOT a parent: exit 0, names-the-brief=True, names-the-parent-to-keep=True, denies-its-own-md5=True, sv-parent=ba748a084f9443aa9d39189641c4f9c4, sv-own=8eec4e71b9dc4cf19568092f490374b3
 PASS L4 baseline: the nudge names neither the parent to keep nor its own md5: exit 0, names-the-parent-to-keep=False, denies-its-own-md5=False
 PASS L5 the lineage registry is untouched (the nudge's md5 is never adopted): session_tasks.json bytes unchanged=True
 ALL CASES PASS

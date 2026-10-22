@@ -1,0 +1,21 @@
+command: D:\USESoft\Python313\python.exe replay_watch3.py
+exit: 0
+
+PASS W0 the ask reader is new (source control): new has the ask queues=True, pre-addendum-1 has them=True
+PASS W8 a quoted SV block is not our nudge (new): new posted model={"providerID": "opencode-go", "modelID": "minimax-m3.1-flash-free"}
+PASS W8 baseline (the defect): old posted model={"providerID": "opencode-go", "modelID": "minimax-m3.1-flash-free"}
+PASS W1 pending question (new): exit 0, asked=True, posted=False
+PASS W1 pending question (old): exit 0, asked=True, posted=False
+PASS W2 pending permission (new): exit 0, asked=True, posted=False
+PASS W2 pending permission (old): exit 0, asked=True, posted=False
+PASS W3 idle without SV (new keeps the session model): new posted model={"providerID": "opencode-go", "modelID": "minimax-m3.1-flash-free"}
+PASS W3 baseline (the defect: dispatch.MODEL): old posted model={"providerID": "opencode-go", "modelID": "minimax-m3.1-flash-free"}
+PASS W4 our own nudge is the last user row (new): new posted model={"providerID": "opencode-go", "modelID": "minimax-m3.1-flash-free"}
+PASS W5 second watcher on this session (new): exit 3, out=refuse: session ses_t118_fixture (name) is already watched by watch3 pid 4242 — a second watcher races the fir
+PASS W5 second watcher on this session (baseline): exit 0, refused=False
+PASS W6 watcher on another session (new): exit 0, out=post: {"path": "/session/ses_t118_fixture/prompt_async", "body": {"agent": "build", "parts": [{"type": "text",
+PASS W6 watcher on another session (baseline): exit 0, refused=False
+PASS W7 no watcher (new): exit 0, out=post: {"path": "/session/ses_t118_fixture/prompt_async", "body": {"agent": "build", "parts": [{"type": "text",
+PASS W7 no watcher (baseline): exit 0, refused=False
+PASS W9 a launch wrapper is not a watcher (new): exit 0, refused=False
+ALL CASES PASS

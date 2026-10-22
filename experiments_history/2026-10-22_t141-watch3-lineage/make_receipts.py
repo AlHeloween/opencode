@@ -32,8 +32,11 @@ def run(cmd, cwd, out):
 
 
 rc1, _ = run([sys.executable, "replay_t141.py"], HERE, "replay-t141.txt")
+# The t118 oracle's CURRENT run. The 15/17 finding's receipt (replay-t118-after.txt) is history and
+# is NOT regenerated: it is the evidence of the defect this task fixed.
 rc2, _ = run([sys.executable, "replay_watch3.py"],
-             HERE.parent / "2026-10-21_robot-pending-stop", "replay-t118-after.txt")
+             pathlib.Path("D:/zPython/opencode/experiments/2026-10-21_robot-pending-stop"),
+             "replay-t118-now.txt")
 
 # The patch of the live watcher (the wave is gitignored: the patch is the versioned record).
 a = (WAVE / "watch3_before_t141.py").read_text(encoding="utf-8").splitlines(keepends=True)
@@ -70,6 +73,26 @@ probe = (
 )
 rc3, out3 = run([sys.executable, "-c", probe], HERE, "t118-baseline-model-probe.txt")
 
+# Which model the t118 oracle compares against, and what that costs the cases: the FIXTURE's rows
+# must stay distinct, and the pair (new posts the session model, old posts the fleet model) only
+# discriminates while the two differ.
+scope = (
+    "import importlib.util, sys\n"
+    "sys.path.insert(0, 'D:/zPython/opencode/experiments/2026-10-08_robot-wave')\n"
+    "spec = importlib.util.spec_from_file_location('replay_watch3',\n"
+    "    'D:/zPython/opencode/experiments/2026-10-21_robot-pending-stop/replay_watch3.py')\n"
+    "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)\n"
+    "print('FLEET  (dispatch.MODEL, live)  :', m.FLEET)\n"
+    "print('MUSE   (a fixture row model)   :', m.MUSE)\n"
+    "print('OWNER  (the fixture session)  :', m.OWNER_MODEL['modelID'])\n"
+    "print('W8 rows distinct (applied)    :', m.MUSE != m.OWNER_MODEL['modelID'])\n"
+    "print('W8 rows (one-constant variant):', m.FLEET != m.OWNER_MODEL['modelID'],\n"
+    "      '  False => the case cannot tell WHICH row decided')\n"
+    "print('W3/W8 pair discriminates      :', m.OWNER_MODEL['modelID'] != m.FLEET,\n"
+    "      '  needs the fixture session model != the fleet model')\n"
+)
+rc5, _ = run([sys.executable, "-c", scope], HERE, "t118-oracle-model-scope.txt")
+
 # The live state at the time of the fix: who watches what, and whether t135 is still watched.
 live = (
     "import sys, json\n"
@@ -95,4 +118,4 @@ for p in [WAVE / "watch3.py", WAVE / "watch3_before_t141.py", WAVE / "dispatch.p
 write(REC / "hashes.txt", "\n".join(lines) + "\n")
 
 print("exits: replay_t141=" + str(rc1) + " replay_t118=" + str(rc2) + " probe=" + str(rc3)
-      + " live=" + str(rc4))
+      + " live=" + str(rc4) + " scope=" + str(rc5))

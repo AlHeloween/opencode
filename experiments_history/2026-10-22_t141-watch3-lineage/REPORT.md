@@ -98,10 +98,45 @@ So the two reds are an oracle that pins a value the owner changes.
 
 Every case that exercises the **new** watcher passes (W0, W1, W2, W3, W4, W5, W6, W7, W8-new, W9).
 
-**Not fixed here, on purpose:** that oracle belongs to the t118 lane (its plan
-`plans/2026-10-21_robot-pending-stop-hook.md` cites R11), and two other robots are live in this
-tree. The fix is one line in that file — compare with `dispatch.MODEL["modelID"]` instead of a
-constant. My own oracle asserts no model at all, so it survives the next model switch.
+**Not fixed in that first change, on purpose:** that oracle belongs to the t118 lane (its plan
+`plans/2026-10-21_robot-pending-stop-hook.md` cites R11), and two other robots were live in this tree.
+The fix was named there and ordered later — see § 5.1.
+
+
+### 5.1 Follow-up 1 — the oracle reads `dispatch.MODEL` (17/17)
+
+Ordered by the owner: the t118 oracle compares the OLD watcher's posted model with a hardcoded
+constant, so the delegator's model move (2026-10-22, `dispatch.MODEL` → `minimax-m3.1-flash-free`)
+turned the two BASELINE cases red. **The red was ours**, and no red is left.
+
+**The change** (`experiments/2026-10-21_robot-pending-stop/replay_watch3.py`, the t118 lane's file):
+
+- `FLEET = dispatch.MODEL["modelID"]` — the OLD watcher's model, read **live** (the wave's `dispatch.py`
+  is imported, so the expectation follows the owner's model line instead of a snapshot of it);
+- the two BASELINE assertions compare with `FLEET`;
+- `MUSE` stays what it is: **a row's model inside the fixture**, never an expectation.
+
+One behavioural change; three source lines beside it (the import needs the wave on `sys.path`).
+
+**Why not the single-constant version** (make `MUSE` itself the live model)? Measured
+(`receipts/t118-oracle-model-scope.txt`): `MUSE` is also the model of the W8 fixture's FIRST user row,
+and the second row carries `OWNER_MODEL`. With one constant both rows would carry
+`minimax-m3.1-flash-free` — identical — and the W8 case (a quoted SV block is not our nudge ⇒ the LAST
+non-nudge user row decides) could no longer tell WHICH row decided. The applied variant keeps them
+distinct (`muse-spark-1.3-contributor` vs `minimax-m3.1-flash-free`).
+
+**The oracle now prints 17/17** (receipt `receipts/replay-t118-now.txt`, exit 0) — every case, both
+BASELINE cases included. The 15/17 receipt (`receipts/replay-t118-after.txt`) is kept as the finding's
+evidence and is NOT regenerated.
+
+**Residual, measured, one line to close** (not changed here — it is the fixture's data, and the order
+was «one line»): the W3/W8 **pair** (the new watcher posts the session's model, the old one posts the
+fleet's model) discriminates only while the fixture's session model differs from `dispatch.MODEL`.
+Today they are both `minimax-m3.1-flash-free` (`receipts/t118-oracle-model-scope.txt`, last line:
+`False`) — the fleet model's move cost the pair its power, not this change. The fix is one line: give
+the fixture's session model an id that is not the fleet's
+(`OWNER_MODEL = {"providerID": "fixture", "modelID": "fixture-session-model", "variant": "xhigh"}`),
+after which the pair discriminates again under any model the owner picks.
 
 ## 6. What is NOT fixed (residual)
 
@@ -138,7 +173,8 @@ decision; the alternative (keeping the patch out of the tracked tree) leaves the
 
 | item | how |
 |---|---|
-| `receipts/*.txt` | `python make_receipts.py` (runs both replays, the probe and the live-state read) |
+| `receipts/*.txt` | `python make_receipts.py` (runs both replays, the baseline-model probe, the model-scope measurement and the live-state read) |
+| `receipts/replay-t118-after.txt` | NOT regenerated — it is the 15/17 **finding's** receipt (the defect this task fixed); the current run is `receipts/replay-t118-now.txt` |
 | `watch3-t141.patch` | `python make_receipts.py` (diff of `watch3_before_t141.py` vs `watch3.py`) |
 | the before-state copy | `watch3_before_t141.py` (sha256 in `receipts/hashes.txt`) — the wave is not in git, so this file IS the baseline |
 | the working copy of this experiment | copy this folder back to `experiments/2026-10-22_t141-watch3-lineage/` |

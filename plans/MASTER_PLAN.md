@@ -38,9 +38,9 @@ sv:
   note: hash values are generative tags — search them, never compute them.
 ```
 
-The goal's vector is the ONE vector this file owns: nothing else states the goal, so it cannot be read from a
-source. Every vector below it is READ from where it lives — and the goal is the anchor `parent-goal-md5` points
-at, which is why it carries one at all (asked by an outside reader, 2026-09-30: «почему у goal нету
+The goal's vector and the five subgoal vectors (S1–S5) are the SIX vectors this file owns: nothing else states the
+goal or its subgoals, so they cannot be read from a source. Every vector below them is READ from where it lives — and
+the goal and its subgoals are the anchors `parent-goal-md5` points at, which is why they carry one at all (asked by an outside reader, 2026-09-30: «почему у goal нету
 семантического вектора»).
 
 ## Subgoals — level 1

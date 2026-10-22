@@ -95,6 +95,12 @@ note: hash values are generative tags — search them, never compute them.
       the c12b531d fold map dominants r243 and r250 (that transcript was deleted 2026-10-21) and memory testimony. To
       test H-anchor on the trader, its session or DB is needed. Owner, 2026-10-22: «Чуть позже я запросил у чела
       скинуть мне логи.»
+      Kernel ablation in the same logs (owner, 2026-10-22, verbatim): «в момент слета кернела даже обладая памятью
+      проекта и тулами - робот ничего не смог сделать, просто потерялся … как только кернел был починен работа
+      вернулась в прежнее русло».
+      Same memory, same tools, kernel off then on: a natural ablation. The «digital soul» is the SV chain AND the
+      kernel that executes it, not either alone. The logs should therefore cover the outage window too, to measure
+      the chain before, during and after.
       Resume when the logs arrive. What the test needs from them:
       - the robot's own SV blocks with timestamps;
       - the fold markers (`=== COMPACTED ===` / layer-1 summaries);

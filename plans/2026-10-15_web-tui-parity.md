@@ -6,6 +6,7 @@ md5: 9f3a7c2d1e4b4f6a8d2c5e7f1a3b4c5d
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000
 -->
+<!-- subgoal: s3-surfaces-agent-sees-drives — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S3 -->
 
 # t59 — web/TUI parity: the browser form shows everything the TUI shows
 

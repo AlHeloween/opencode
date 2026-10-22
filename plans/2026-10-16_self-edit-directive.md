@@ -7,9 +7,9 @@ State: **ACTIVE** — run `ses_ebcd19477ffeW4K3YSKHoghqLB` (t70, owner launch 20
 ```yaml
 Keywords: self-edit-directive 0.35, reasoning-hygiene 0.25, error-recurrence 0.20, fault-tolerance 0.12, keep-machinery 0.08
 Semantic dominant: Let the agent cut its own previous message inline by directive, original stored untouched.
-md5: 7f3a9c1e4b5d6a708192a3b4c5d6e7f
+md5: 51ebec8743f05391e69584a8b4cdeca2
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 6e41b38c90ad4a5f8732d697e0bc512a
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 ```
 
 ## Owner verbatims (testimony, not proof)

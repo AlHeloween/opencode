@@ -17,7 +17,7 @@ Keywords: window-rebuild-fold 0.30, predecessor-pointer 0.25, live-build-fallbac
 Semantic dominant: Every desktop window rebuild — fork, compact or clear — reopens on the predecessor's owner rows and full SV blocks through a capture-every-exit plus pointer-or-live restore chain proven by a replay oracle.
 md5: 9e4b7c2a51f683d0a9e5f147b3c8d621
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 7f2c9a4e1d6b3805c8e1a7f4d2b9c063
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```
 

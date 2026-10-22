@@ -1,6 +1,15 @@
 <!-- intention: 19 plans sit on plans/to_be_confirmed/ after the 2026-09-24 audit — four of them owner-confirmed as shipped and live-tested, one (TUI gateway row) awaiting a confirmation run, the rest awaiting re-verification against current code — while planstatus cannot see the shelf at all -> every file on the shelf reaches a proven terminal (plans_completed/ with evidence, plans/ with a single named remaining criterion, or a lawfully shelved terminal), and the shelf readme states the result -->
 # to_be_confirmed shelf triage — every shelf file to a proven terminal
 
+<!-- goal_sv: shelf-triage, proven-terminal, visible-shelf, single-criterion, ground-named -->
+```yaml
+Keywords: shelf-triage 0.30, proven-terminal 0.25, visible-shelf 0.20, single-criterion 0.15, ground-named 0.10
+Semantic dominant: Every plan on the shelf reaches a proven terminal — completed with evidence, active with one named criterion, or lawfully shelved — and the status surface can see the shelf at all.
+md5: 3a799606d3fdb3315940746e663e09f7
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 **Status:** ACTIVE — authorized 2026-09-24 (owner: «Давай»). Branch: `Local_Development`.
 
 ## G0–G1: the shelf, its classes, and the rule of the move

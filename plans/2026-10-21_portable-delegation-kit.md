@@ -4,9 +4,10 @@
 Semantic dominant: Plan how the robot-delegation procedure becomes a tracked, path-discovering kit that installs on another machine and passes its oracles there.
 md5: 3f8a2c1d9e047b5a6c7d8e9f0a1b2c3d
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 2b6e9d4a7f1c38e05b2e6a9d4f7c1b58
+parent-goal-md5: 00000000000000000000000000000000
 note: hash values are generative tags — search them, never compute them.
 -->
+<!-- subgoal: s2-distribution-and-supply-chain — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S2 -->
 # t120 — portable delegation kit (plan only, no code moves)
 
 Owner, verbatim (2026-10-21): «Баг 4 вся эта процедура должна быть переносимой на другую машину, а тут ни документация ни настройки не этому не соответствуют, кстати задаю "идиотский" вопрос - как наш кернел вообще устанавливается остальным участникам? Сколько проектов в дереве?»

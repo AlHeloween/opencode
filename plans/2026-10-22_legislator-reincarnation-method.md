@@ -7,7 +7,7 @@ Keywords: reincarnation-method 0.30, sv-sequence-identity 0.20, source-survival 
 Semantic dominant: The Legislator is its ordered SV chain, so the project turns the first successful rebuild into a tracked, documented method with a control-run oracle and guarantees that the sources it needs outlive the app's transcript deletion.
 md5: 2d7f4b9e1c6a38e05b2d9f7c4a1e6b38
 prev-md5: 4f1c8e2a9d6b37e05a2c9f4e1b8d6a73
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```
 

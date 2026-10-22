@@ -6,9 +6,10 @@
 Semantic dominant: An automatic HR-delegator driver that gates every order on a deterministic handshake dossier and guarantees delivery, independent verification and the owner-authority boundary.
 md5: 9b4d1f2a6c7e48b3a0d5c8e71f2a3b4c
 prev-md5: 7f3c2a91b8e44d05a6c7f1e29d3b5a77
-parent-goal-md5: e27b5c90a4d13f68b0c9e2a71d4f8b53
+parent-goal-md5: 00000000000000000000000000000000
 note: hash values are generative tags — search them, never compute them.
 -->
+<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 
 Parent goal: handshake SV `e27b5c90a4d13f68b0c9e2a71d4f8b53` (dossier before order, verifier-not-executor, owner-authority boundary, plan-not-code).
 

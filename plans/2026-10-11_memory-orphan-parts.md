@@ -2,6 +2,15 @@
 
 # Memory index serves deleted sessions
 
+<!-- goal_sv: memory-index-liveness, deleted-session-parts, no-ghost-search, watermark-monotonic, index-truth -->
+```yaml
+Keywords: memory-index-liveness 0.30, deleted-session-parts 0.25, no-ghost-search 0.20, watermark-monotonic 0.15, index-truth 0.10
+Semantic dominant: The memory index stops serving parts of deleted sessions and stops growing on them, so what a search returns is what still exists.
+md5: c6c8ea653074a18db658845cc3541532
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 **Status:** ACTIVE — 2026-10-11. Owner picked the "150 invisible parts" task; measurement + his explanation of their origin INVERTED it.
 
 ## 0. Why the first version of this plan was wrong (kept, not deleted)

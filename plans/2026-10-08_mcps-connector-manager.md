@@ -2,8 +2,16 @@
 
 # MCPs connector manager — /mcps gets hands
 
-- sv: { keywords: { mcps-ui 0.28, connector-auth 0.22, config-persist 0.18, oauth-flow 0.14, catalog-presets 0.10, kv-safe-reload 0.08 },
-  dominant: "/mcps becomes the connector manager: auth, add/remove with scope, persistent toggle — built on the existing server routes (add/auth*/connect/disconnect/status), with Canva as the first catalog preset." }
+<!-- goal_sv: mcps-connector-manager, connector-auth, config-persist, oauth-flow, catalog-presets -->
+```yaml
+Keywords: mcps-connector-manager 0.30, connector-auth 0.25, config-persist 0.20, oauth-flow 0.15, catalog-presets 0.10
+Semantic dominant: /mcps becomes the connector manager — statuses, OAuth, add/remove with scope and a persistent toggle — built on the server routes that already exist, with Canva as the first catalog preset.
+md5: 12817c6e2b8a1c5b578ab36838955cd6
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+```
+<!-- subgoal: s3-surfaces-agent-sees-drives — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S3 -->
 
 ## What already exists (reuse — do not rebuild)
 

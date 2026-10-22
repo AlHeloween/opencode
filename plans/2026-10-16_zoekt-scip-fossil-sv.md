@@ -3,7 +3,7 @@
 Semantic dominant: Поиск и навигация получают проверяемые адреса версий Fossil и SV до замены потребителей CodeGraph.
 md5: e8a16f092bce49a5b9f4130dd7c26e84
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 -->
 
 # Zoekt + SCIP + Fossil + SV

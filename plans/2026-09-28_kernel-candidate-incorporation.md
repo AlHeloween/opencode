@@ -2,6 +2,15 @@
 
 <!-- intention: incorporate the candidate kernel's stronger mechanisms (complete edge graph, real budgets, digest/rights formulas, knowledge statuses) into prompt_kernel/source.py via L2 cycles; never replace the file -->
 
+<!-- goal_sv: kernel-candidates, l2-cycles, never-replace, diff-to-owner, addons-stay-ours -->
+```yaml
+Keywords: kernel-candidates 0.30, l2-cycles 0.25, never-replace 0.20, diff-to-owner 0.15, addons-stay-ours 0.10
+Semantic dominant: The candidate kernel's stronger mechanisms arrive in source.py through L2 cycles that render, test, diff to the owner and install — the rendered file is never replaced.
+md5: 9ca618b9096545f78d469e869c863bb0
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 - status: ACTIVE
 - depth: L2 (SELF_MODIFY — normative)
 - owner approval (2026-09-28): «у тебя правильные рекомендации. Поехали.»

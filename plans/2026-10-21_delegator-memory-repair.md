@@ -16,9 +16,9 @@
 ```yaml
 Keywords: fold-restore-routing 0.30, dead-route-removal 0.20, memory-provenance-check 0.20, measurable-cut 0.15, generated-index 0.15
 Semantic dominant: The fold restore is routed on session sources the desktop app never emits and reads a pointer that can never be written, so the repair is routing, dead-route removal and a measurable cut, while the memory folder gets a provenance and pointer check that makes its index mechanical.
-md5: 9e2b47c1a8d350f6c4b9e1a7d205b83
+md5: 19d43ab86d651e97f28b5016e28c0dcc
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 1e6b9d3a7f2c48e05a1e6d9b3f7c2a85
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```
 

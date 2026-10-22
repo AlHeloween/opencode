@@ -2,6 +2,15 @@
 
 # Plan hygiene in build mode + closing the accumulated plans
 
+<!-- goal_sv: plan-hygiene, every-turn-repair, green-oracle-tick, move-and-doc, sweep-as-protocol -->
+```yaml
+Keywords: plan-hygiene 0.30, every-turn-repair 0.25, green-oracle-tick 0.20, move-and-doc 0.15, sweep-as-protocol 0.10
+Semantic dominant: Every ordinary turn repairs plans/ itself — a green oracle ticks the box with an artifact, the plan moves to plans_completed/ and the docs follow.
+md5: 7c49800b554334e7c4e2518ffd7ee1cc
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 **Status:** ACTIVE — M1 done 2026-10-10 (commit `9d4174ee41`); M2 (the TUI half) and SW (the sweep) are open. Owner, 2026-10-10, verbatim: «В том то все и дело что большая часть этих планов выполнена, у нас есть серьезный баг и его надо решить: смотри по протоколу - если все оракулы окей, план взяли и поместили в завершенные, обновили доки. Если потом чего вылезло - делаем новый план.» Also: «люди … слишком налегают на греп без codegraph» — the sweep below obeys that: the graph is asked first, grep only as a negative text control.
 
 ## 0. Grounding (read with instruments, 2026-10-10)

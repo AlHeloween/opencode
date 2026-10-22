@@ -71,3 +71,4 @@ md5: 3b8f1d6a9c2e07f45d3b8a1c6e9f2d47
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000
 ```
+<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->

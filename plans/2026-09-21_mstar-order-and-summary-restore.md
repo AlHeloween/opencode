@@ -1,5 +1,14 @@
 # Аварийно: порядок m* и восстановление summary
 
+<!-- goal_sv: mstar-order, summary-restore, memory-form, owner-order, legend-not-dump -->
+```yaml
+Keywords: mstar-order 0.30, summary-restore 0.25, memory-form 0.20, owner-order 0.15, legend-not-dump 0.10
+Semantic dominant: The memory block and the summary return to the owner's order — the body first, the legend after — and the summary carries the plans' intentions instead of a dump of patches.
+md5: 29605e36f66e3745627865dc378893b1
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 ## Статус пунктов (машиночитаемо — AGENTS.md § Plan Maintenance «JOB FAILED»)
 
 - [x] Сводки: легенда вместо тел патчей + якорь конца диапазона — `d399f8ccfd`, фальсификаторы 4 pass / 0 fail — **формат уточнён владельцем 2026-09-22** (`e2cccc7026`): точный путь + номера строк (`13: const more = 1`, удаление — `13: −…`), комментарий над каждой группой, закрывающая строка `Use codegraph for precise understanding of the task.`

@@ -2,6 +2,15 @@
 
 # specs/: stop writing down numbers that rot
 
+<!-- goal_sv: specs-inventory, no-rotting-numbers, recomputed-or-generated, rules-stay-handwritten, live-truth -->
+```yaml
+Keywords: specs-inventory 0.30, no-rotting-numbers 0.25, recomputed-or-generated 0.20, rules-stay-handwritten 0.15, live-truth 0.10
+Semantic dominant: Inventory that can rot is replaced by the command that recomputes it, while the rules and the work order — which do not rot — stay hand-written.
+md5: b2d2bf600f8b088f980cdaade238ad06
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 **Status:** ACTIVE — 2026-10-12. Owner: «Давай», after the audit below was measured.
 
 ## 1. What the specs are (audited, not assumed)

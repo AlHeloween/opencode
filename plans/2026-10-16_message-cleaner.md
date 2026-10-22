@@ -9,6 +9,7 @@ md5: 7c2a9e4f1b5d43a08f6e2d7c9a1b4e55
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000
 ```
+<!-- subgoal: s4-model-boundary — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S4 -->
 
 Owner, 2026-10-16, verbatim: «И вот на счет чего подумай - цепная обработка сообщений - но надо тестировать -
 например последнее сообщение пришло от longcat-2.5, в нем ошибки мы делаем быстрый запрос на openrouter (только это

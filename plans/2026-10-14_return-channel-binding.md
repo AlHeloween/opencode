@@ -18,6 +18,7 @@ md5: 7c2d9a4f1e6b8304c5d7e2a9b6140f3d
 prev-md5: 0b7e4d29c6a13f85de90b2c4718fa6d3
 parent-goal-md5: 00000000000000000000000000000000
 ```
+<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 
 ## Evidence (each line carries its instrument)
 

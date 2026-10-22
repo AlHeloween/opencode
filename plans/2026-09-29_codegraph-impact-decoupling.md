@@ -1,6 +1,15 @@
 <!-- intention: fossil carries only the BRIEF (which files changed) and codegraph carries the REAL impact (symbols and edges touched) selected by the SUMMARY's own time window; the graph is synced off the turn's critical path -> the turn stops paying 2.2 s for a value its own summary consumes, and an empty impact stops reading as "nothing happened" -->
 # Decouple codegraph impact from the turn path
 
+<!-- goal_sv: graph-impact, turn-granularity, time-window, empty-impact-visible, off-critical-path -->
+```yaml
+Keywords: graph-impact 0.30, turn-granularity 0.25, time-window 0.20, empty-impact-visible 0.15, off-critical-path 0.10
+Semantic dominant: The impact the summary consumes is selected by the summary's own time window and synced off the turn's critical path, so the turn stops paying for a value it does not read.
+md5: cdb9eee52f16dd2da3d32328cb7b531c
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 **Status:** ACTIVE — owner, 2026-09-29: «Не смешиваем - fossil нам нужен только чтобы показать краткий бриф изменений, а codegraph покажет реальные» + «нам надо просто убедиться что codegraph засинхронизирован… и сделать выборку по времени на которое попадает наш summary».
 
 ## Established by measurement — do not re-derive

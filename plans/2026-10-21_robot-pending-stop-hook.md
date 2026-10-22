@@ -17,9 +17,10 @@ Keywords: robot-pending-stop-gate 0.30, watch3-liveness 0.25, verification-ledge
 Semantic dominant: A Stop gate reads the ordered robots' live state, so a busy robot without a running watch3 and an idle robot with an unverified final both block the turn, while watch3.py stays the single completion watcher.
 md5: 6c47e1b93a2d058f6e31b7c4a9d2058e
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 4d7b2e9f1a6c38e05d4b7a2e9c1f6d38
+parent-goal-md5: 00000000000000000000000000000000
 note: hash values are generative tags — search them, never compute them.
 ```
+<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 
 ## Reuse — why no new waiter was built
 

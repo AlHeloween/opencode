@@ -1,0 +1,116 @@
+51 plan(s) · {'zeros': 28, 'goal': 23}
+
+28 plan(s) NOT resolving to the level-0 goal:
+
+[          zeros] 2026-09-12_anthropic-cache-breakpoints.md
+      parent@14=00000000000000000000000000000000 label@12=e9f8f8389d605ff2a2d49a94b283c1fe
+      open=5/5 lifecycle=-
+      aim: 55.1% of the static prefix sits behind no static breakpoint and 13 of 14 Anthropic catalog models emit an invalid or removed thinking payload -> the static half is covered by breakpoints (≤4, system messages included), the variant
+[          zeros] 2026-09-22_reasoning-stream-render-stability.md
+      parent@11=00000000000000000000000000000000 label@9=506dc328b39c5e55c4a73084c46ae4fc
+      open=10/24 lifecycle=-
+      aim: a long reasoning stream flickers — formatting arrives late or never, the viewport jumps, artifacts appear -> the visible reasoning window is append-only again and highlight commits atomically at quiet-window and at time.end
+[          zeros] 2026-09-29_cua-windows-debug-input.md
+      parent@10=00000000000000000000000000000000 label@8=6a1f0c93e2b847d5a09c3e71f4b28d56
+      open=15/29 lifecycle=-
+      aim: CUA debugging requires manual screenshots, IDs and multiple slow commands and cannot yet drive continuous Windows mouse input -> agents obtain an addressable visual observation and bounded, verifiable Windows mouse actions with mi
+[          zeros] 2026-09-29_h2-session-pool-and-connection-badge.md
+      parent@10=00000000000000000000000000000000 label@8=790170ed641655da683b33e78f70746b
+      open=1/8 lifecycle=-
+      aim: up to 2500 concurrent provider streams must ride a REUSED pool of HTTP/2 sessions (one session caps at the server's advertised 128), never short-lived connections, and the TUI sidebar must show the living connection as an icon -> 
+[          zeros] 2026-09-30_cua-supply-chain-audit.md
+      parent@10=00000000000000000000000000000000 label@8=8b41e0c7d3f95a2e6c1b7d04f9a3e582
+      open=2/10 lifecycle=-
+      aim: cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a record
+[          zeros] 2026-09-30_robot-installer.md
+      parent@10=00000000000000000000000000000000 label@8=3c90f5a1e7b24d68c0a9e3f7b15d2c84
+      open=18/33 lifecycle=-
+      aim: the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unpr
+[          zeros] 2026-10-04_files-api-and-tariff.md
+      parent@11=00000000000000000000000000000000 label@9=885fe2cd0ab29b492768937e9a96b3e1
+      open=2/5 lifecycle=-
+      aim: расход не сходится с моделью, и картинки едут инлайном в каждом запросе -> деньги считаются по фактическому тарифу, файлы живут в провайдерском хранилище и адресуются ссылкой, кеш не ломается
+[          zeros] 2026-10-08_mcps-connector-manager.md
+      parent@11=00000000000000000000000000000000 label@9=12817c6e2b8a1c5b578ab36838955cd6
+      open=4/8 lifecycle=-
+      aim: /mcps is a runtime-only toggle list -> the TUI's ONE place to attach MCP connectors: statuses, OAuth auth, add/remove with scope, persistent enable/disable, and a connector catalog (Canva first). The server-side routes (add / auth
+[          zeros] 2026-10-08_org-portable-home.md
+      parent@11=00000000000000000000000000000000 label@9=1d77cc3731109853fcd4091e486824a5
+      open=1/9 lifecycle=-
+      aim: hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and th
+[          zeros] 2026-10-14_return-channel-binding.md
+      parent@19=00000000000000000000000000000000 label@17=7c2d9a4f1e6b8304c5d7e2a9b6140f3d
+      open=5/5 lifecycle=-
+      aim: `done [--report]` makes the report optional and `escalate --code "why"` sets BLOCKED on one sentence, so the delegator receives bare fields and cannot tell a busy WORKING ticket from a dead one (heartbeat frozen at claim time) -> 
+[          zeros] 2026-10-15_dais-peer-trust-reward.md
+      parent@72=00000000000000000000000000000000 label@70=3b8f1d6a9c2e07f45d3b8a1c6e9f2d47
+      open=4/5 lifecycle=-
+      aim: the reward sees one run alone and the syndicate has no memory of whose claims held -> peer trust, earned only by claims that survived independent verification, enters the reward and routes delegation
+[          zeros] 2026-10-15_tui-active-sessions-panel.md
+      parent@7=00000000000000000000000000000000 label@5=b7e2c41d90a85f3671d4c0e2f8a6b593
+      open=1/7 lifecycle=-
+      aim: TUI sidebar has no live view of running sessions (owner must open the sessions dialog to guess what is running) -> a sidebar block lists every busy/retrying session of THIS server (API robots included), refreshed ~1 s, with an exp
+[          zeros] 2026-10-15_web-tui-parity.md
+      parent@7=00000000000000000000000000000000 label@5=9f3a7c2d1e4b4f6a8d2c5e7f1a3b4c5d
+      open=1/6 lifecycle=-
+      aim: browser form shows only part of what the TUI shows (no active-sessions block, no sidebar status rows, no scoped agent/model write path) -> the web app reaches parity surface by surface through the SAME server routes/events the TUI
+[          zeros] 2026-10-16_haiku-omp-controlled-latency.md
+      parent@12=00000000000000000000000000000000 label@10=81e70d3af5c64b8292d15e6f370a49bc
+      open=2/5 lifecycle=-
+      aim: Haiku в OpenCode даёт длительные паузы, в omp с загруженным kernel пользователь наблюдает быстрый ответ -> воспроизводимое сравнение actual запросов и изолированных факторов, с установленной областью причинного вывода и непокрытым
+[          zeros] 2026-10-16_message-cleaner.md
+      parent@10=00000000000000000000000000000000 label@8=7c2a9e4f1b5d43a08f6e2d7c9a1b4e55
+      open=3/9 lifecycle=-
+      aim: raw chain replies with foreign-script slips flow into requests uncleaned -> measured go/no-go on a one-shot free-model cleaner with a deterministic validator, no product change
+[          zeros] 2026-10-16_reasoning-lossless-replay.md
+      parent@12=00000000000000000000000000000000 label@10=6e41b38c90ad4a5f8732d697e0bc512a
+      open=3/9 lifecycle=-
+      aim: reasoning и metadata могут теряться до следующего запроса, поддержка HTTP3 у Anthropic на нашем сетевом пути не проверена -> reasoning сохраняется полностью и replay квалифицирован, HTTP3/QUIC и fallback установлены отдельными сет
+[          zeros] 2026-10-17_portable-binary-hermetic.md
+      parent@8=00000000000000000000000000000000 label@6=8f2a4c1d9e3b47a5b6c8d0f1a2b3c4d5
+      open=6/6 lifecycle=-
+      aim: portable install dir with exe-adjacent config -> hermetic binary that reads only exe-adjacent and data-root sources, never parent folders
+[          zeros] 2026-10-18_codex-oauth-empty-error.md
+      parent@10=00000000000000000000000000000000 label@8=9adfd300a9b35c3295d73bcf6725ac48
+      open=4/4 lifecycle=-
+      aim: от пустого {} при OAuth-логине -> к понятной ошибке или рабочему логину
+[          zeros] 2026-10-18_global-recents-constraint.md
+      parent@10=00000000000000000000000000000000 label@8=6d0b84e2f9a317c5b8e0d4a6c2f91b73
+      open=1/6 lifecycle=-
+      aim: stale per-worktree/session/chain model picks run unchecked -> every worktree, session and chain layer is checked against the global recents allowlist before a model is used
+[          zeros] 2026-10-19_codex-robot-event-handoff.md
+      parent@13=00000000000000000000000000000000 label@11=6b8e3a09c1754d62af4037e9b2d81650
+      open=4/5 lifecycle=-
+      aim: внешний робот завершает работу, отчёт остаётся без реакции родителя -> событие OpenCode завершает ожидающий вызов инструмента Codex, родитель получает адресный отчёт и продолжает независимую приёмку без таймерного опроса
+[          zeros] 2026-10-20_hr-delegator-driver.md
+      parent@9=00000000000000000000000000000000 label@7=9b4d1f2a6c7e48b3a0d5c8e71f2a3b4c
+      open=15/15 lifecycle=ACTIVE
+      aim: manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate
+[          zeros] 2026-10-20_robot-personnel-delegator.md
+      parent@6=00000000000000000000000000000000 label@4=25f8c07b61a94d3e8b204af59c716de2
+      open=3/4 lifecycle=-
+      aim: подбор роботов, инициализация по SV и назначение проверяющего выполняются Codex вручную -> внешний робот кадровик-делегатор автоматически ведёт этот цикл по проверяемым досье, с отдельным проверяющим и адресуемым результатом
+[          zeros] 2026-10-21_corporation-observability-bridge.md
+      parent@7=00000000000000000000000000000000 label@5=7c2e9a4b5d6f48e0a1b2c3d4e5f6a7b8
+      open=7/7 lifecycle=ACTIVE
+      aim: fossil bridges in every tree stay silent about live robots -> one observable process with a panel for owner and agents, where each robot server finds its tree bridge and reports state, giving a whole-corporation summary
+[          zeros] 2026-10-21_delegation-tool-tdz.md
+      parent@10=00000000000000000000000000000000 label@8=6f2a9c4b7e15d803a5c9f2e6b4d17a05
+      open=1/6 lifecycle=-
+      aim: the delegation lane has been dead on every host since the t87 global-recents change — both `task` and `pipeline` read the `globalRecents` list inside the `Effect.sync` thunk of `chainResolved` while the lookup that fills it is dec
+[          zeros] 2026-10-21_portable-delegation-kit.md
+      parent@7=00000000000000000000000000000000 label@5=3f8a2c1d9e047b5a6c7d8e9f0a1b2c3d
+      open=7/7 lifecycle=ACTIVE
+      aim: delegation-procedure-gitignored-and-host-pinned -> tracked-path-discovering-kit-with-fresh-machine-oracle
+[          zeros] 2026-10-21_robot-pending-stop-hook.md
+      parent@20=00000000000000000000000000000000 label@18=6c47e1b93a2d058f6e31b7c4a9d2058e
+      open=1/11 lifecycle=ACTIVE
+      aim: Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher runn
+[          zeros] 2026-10-21_tui-standards-fixes.md
+      parent@7=00000000000000000000000000000000 label@5=7d1e9f2a4b5c48d6a0f3e5c7a9b1d4e2
+      open=6/6 lifecycle=ACTIVE
+      aim: tui-commands-violate-surface-standards -> all-dialogs-bound-to-ui-standards-clauses-with-capture-evidence
+[          zeros] 2026-10-22_write-writeback.md
+      parent@11=00000000000000000000000000000000 label@9=6e2a9d4f1c7b38e05a6e2d9f4c1b7a85
+      open=7/7 lifecycle=ACTIVE
+      aim: the write tool builds its result from what it MEANT to write, and says "Wrote file successfully." over a file it did not write — the file is read back (TextCodec.syncFile) ONLY when a formatter ran (write.ts:103-108, ticket ca760c

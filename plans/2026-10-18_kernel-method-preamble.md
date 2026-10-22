@@ -7,7 +7,7 @@ Keywords: method-preamble 0.30, why-kernel-exists 0.20, human-not-oracle 0.20, h
 Semantic dominant: Every kernel variant opens with the working method, its why, and the no-human-oracle line, and the Claude variant grounds search on Universal Search hybrid.
 md5: b7c2e9a14d5f48b0a3c6e1f7d9a2b5c4
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 3d81f6a0c2e94b57a6d1e0f8c3b29a74
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```
 

@@ -30,5 +30,5 @@ Keywords: contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20
 Semantic dominant: Посчитать недоопределённые нормы на текущем исходнике и проверить каждую находку независимо.
 md5: 21a66067b9824dab91f15b37970ac653
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 617f4b0ae28149d0a8c369bec5724f13
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 ```

@@ -4,6 +4,17 @@ state: DRAFT
 scope: `packages/opencode/src/provider/transform.ts`, `packages/opencode/src/session/llm.ts` + tests
 evidence: `experiments_history/2026-09-12_anthropic-cache/REPORT.md`
 
+<!-- intention: 55.1% of the static prefix sits behind no static breakpoint and 13 of 14 Anthropic catalog models emit an invalid or removed thinking payload -> the static half is covered by breakpoints (≤4, system messages included), the variant's reasoning options and budget travel to the provider, and the diagnostic reads the live dialect -->
+<!-- goal_sv: anthropic-cache-breakpoints, static-prefix-breakpoints, thinking-variant-payload, reasoning-options-carry, live-dialect-diagnostic -->
+```yaml
+Keywords: anthropic-cache-breakpoints 0.30, static-prefix-breakpoints 0.25, thinking-variant-payload 0.20, reasoning-options-carry 0.15, live-dialect-diagnostic 0.10
+Semantic dominant: The static half of the prompt is behind real cache breakpoints and every high/max thinking variant carries its own payload to the wire, so the cost follows the measured price.
+md5: e9f8f8389d605ff2a2d49a94b283c1fe
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+```
+<!-- subgoal: s4-model-boundary — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S4 -->
 ## Shelf triage 2026-10-09 (t25-shelf-triage)
 
 **Verdict: RETURN — moved back to `plans/` root.** Verified current against the code: T1–T3 are unstarted, not stale.

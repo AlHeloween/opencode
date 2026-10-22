@@ -2,8 +2,16 @@
 
 # Org portable home — `$ORG_HOME`/`$ORG_PORT` as supported settings
 
-- sv: { keywords: { org-portability 0.30, org-home-port 0.22, protocol-wake-contract 0.18, fossil-resolution 0.16, read-verbs 0.14 },
-        dominant: "The organization becomes portable: ORG_HOME/ORG_PORT supported through ONE resolver, a bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and the kernel add-on." }
+<!-- goal_sv: org-portable-home, org-home-port-resolver, bundled-fossil-outranks-path, read-verbs-only, protocol-documented -->
+```yaml
+Keywords: org-portable-home 0.30, org-home-port-resolver 0.25, bundled-fossil-outranks-path 0.20, read-verbs-only 0.15, protocol-documented 0.10
+Semantic dominant: The organization becomes portable — one supported resolver for ORG_HOME/ORG_PORT, a bundled fossil that outranks PATH, and reads only through the org.py verbs.
+md5: 1d77cc3731109853fcd4091e486824a5
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+```
+<!-- subgoal: s2-distribution-and-supply-chain — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S2 -->
 - Owner, 2026-10-08: «вся наша корпорация агентов была переносимой». Requested by the Installer session for
   `plans/2026-09-30_robot-installer.md` box B1f (component `org` = `scripts/org-genesis/**`).
 - Requested by: Installer session (t14-org-portable-home). Kernel part STOPS before `--install`: Claude reviews

@@ -9,6 +9,7 @@ md5: 6a1f0c93e2b847d5a09c3e71f4b28d56
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000
 ```
+<!-- subgoal: s3-surfaces-agent-sees-drives — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S3 -->
 
 ## Modes and isolation tiers (owner decision, 2026-09-30)
 

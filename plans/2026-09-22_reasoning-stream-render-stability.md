@@ -2,6 +2,16 @@
 
 # Reasoning stream render stability — an append-only window and a two-phase commit
 
+<!-- goal_sv: reasoning-window-append-only, two-phase-highlight-commit, quiet-window-commit, viewport-stability, no-partial-flush -->
+```yaml
+Keywords: reasoning-window-append-only 0.30, two-phase-highlight-commit 0.25, quiet-window-commit 0.20, viewport-stability 0.15, no-partial-flush 0.10
+Semantic dominant: The visible reasoning window is append-only again and the highlight commits atomically at the quiet window and at time.end, so a long stream no longer flickers.
+md5: 506dc328b39c5e55c4a73084c46ae4fc
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+```
+<!-- subgoal: s3-surfaces-agent-sees-drives — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S3 -->
 Owner, 2026-09-22: «Блин баг опять…» — no: the report that opened this plan is the flicker analysis
 (an outside agent's, delivered Inferred with pins). Owner's correction of it is recorded in §0.
 

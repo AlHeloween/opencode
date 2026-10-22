@@ -1,6 +1,16 @@
 <!-- intention: up to 2500 concurrent provider streams must ride a REUSED pool of HTTP/2 sessions (one session caps at the server's advertised 128), never short-lived connections, and the TUI sidebar must show the living connection as an icon -> session pool + model concurrency limits + connected/disconnected badge -->
 # H2 session pool, model concurrency, connection badge
 
+<!-- goal_sv: h2-session-pool, model-concurrency-limits, warm-session-reuse, connection-badge, provider-advertised-caps -->
+```yaml
+Keywords: h2-session-pool 0.30, model-concurrency-limits 0.25, warm-session-reuse 0.20, connection-badge 0.15, provider-advertised-caps 0.10
+Semantic dominant: Concurrency rides a pool of reused HTTP/2 sessions sized from the provider's own advertised caps, and the sidebar shows the living connection.
+md5: 790170ed641655da683b33e78f70746b
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+```
+<!-- subgoal: s4-model-boundary — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S4 -->
 **Status:** ACTIVE — owner directive 2026-09-29: «провайдеры сильно не любят когда рвут соединение… до 1000 потоков через одно… чтобы всё было reuse и по феншую» + per-model limits given by the owner: **deepseek-flash 2500**, **deepseek-v4-pro 500** concurrent streams. Owner answered: badge = LIVING CONNECTION (keep-alive H2 session open), not auth and not last-request.
 
 ## Measured (2026-09-29, `experiments/2026-09-29_h2-limits/probe-settings.mjs`)

@@ -10,11 +10,20 @@ Keywords: event-handoff 0.50, completion-predicate 0.30, parent-continuation 0.2
 Semantic dominant: Связать завершение внешнего робота с реальным продолжением ожидающего родительского инструмента.
 md5: 6b8e3a09c1754d62af4037e9b2d81650
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: f81c69a257304de89b06173ac54e2f90
+parent-goal-md5: 00000000000000000000000000000000
 note: hash values are generative tags — search them, never compute them.
 ```
+<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 
 ## Grounding / mechanism
+
+### R3 продолжение владельцем — 2026-10-22
+
+Владелец: «Ок, давай продолжим». DIGITAL_INTENTION прежний, idle wake не подменяется pending-tool continuation. Новый bounded проход21:24–21:44UTC (2026-10-22 05:24–05:44 Asia/Singapore):120steps/80calls/4returns/depth1/1200000ms. READ/PLAN_WRITE/MODIFY_CANDIDATE собственный experiments/2026-10-22_parent-continuation/**; product/config/kernel/bin не меняются. Max4 busy host sessions в этом проходе:3owner-wave tasks нетронуты, не более1 нового робота одновременно; затем другой verifier. Новый scope по direct continuation, старый09:12UTC envelope не продлён.
+
+- [~] R3 — PARTIAL, criterion live pending continuation/idle wake остаётся открытым. SVc830be4612a947d5a6f309e87bc15204. MiniMax session ses_e9fa35a2bffeK0c5t0TP5n7RlV/direct msg_1605f8833001Bhk5HcmbTEFwTB, report worker/report.json; Muse ses_e9f985504ffeVfcGblIayVxwPp/direct msg_160692f0500112hb4cvO6Kdxe0, verification/report.json. Independent3test PASS подтверждён primary joboutput cmd-2/ev_b634ac0615fec3da22738f09, контроль безPYTHONPATH3ERROR/ev_bc8a55af538748d26d41eeb6. Rehash5/5 unchanged. Уже готовый report catchup0.811s не доказывает pending-child event. Parent waits90s/480s/120s TIMEOUT с явными current busy predicates, не acceptance. Последний reportdc683e6da9a4e100dd9cee869596aba3 в isolated verification/events.sqlite. Причина1634/7776reconciles требует matching-event счётчика; polling не доказан. Next leaf: короткий заранее ограниченный robot task -> combined dispatch-and-wait с canonical DB, primary final->receipt delay<=10s, затем parent continuation receipt. Idle-channel qualification остаётся отдельной. Parent21:44UTC limit, никаких новых приказов после него; reports доступны в experiments/2026-10-22_parent-continuation/. Production source/config не менялись, build неприменим. Experiments budget guard exit0/8800568320B/no breaches.
+
+CONFIRMED ✓ live nonce health/catalog:host PID1400/nonce89a4a48f-aded-4817-bbd6-297740c1e29b, old nonce не переиспользуется; MiniMax Free Zen/Go + Muse Contributor low доступны,3busy t136/t137/t138 не наши. Official docs hooks/Stop и app-server fetched: наличие turn/start не доказывает desktop transport. Next: SV-only init/readback -> bounded R3 order -> source report -> independent verifier + pending receiver -> actual parent continuation stamp. При лимите current session/anchor и next action сохраняются.
 
 ### Round2 continuation — 2026-10-21 09:09UTC
 

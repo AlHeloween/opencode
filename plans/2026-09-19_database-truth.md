@@ -1,6 +1,15 @@
 # Database truth — dead sources, unclear tables, and fixtures that agree with nobody
 
 <!-- intention: tables and counters nobody writes produce mechanisms that never fire while every suite stays green -> every table has a named writer, every dead surface is removed, and any counter is checked against the live database -->
+<!-- goal_sv: database-truth, named-writer, dead-surface-removal, counter-vs-live-db, fixture-truth -->
+```yaml
+Keywords: database-truth 0.30, named-writer 0.25, dead-surface-removal 0.20, counter-vs-live-db 0.15, fixture-truth 0.10
+Semantic dominant: Every table in the storage plane has a named writer, every dead surface is removed, and every counter is checked against the live database instead of a fixture that agrees with nobody.
+md5: 22c38dcb3be6d92d14855dbc9b2b8b4e
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 
 Owner, 2026-09-19: «если посмотреть базу там море таблиц с непонятными целями». That aside produced a real
 defect within the hour — and it was found by READING the database, not by any test.

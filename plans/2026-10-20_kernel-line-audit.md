@@ -8,7 +8,7 @@ Keywords: kernel-line-audit 0.30, duplicates-persons-wordiness 0.25, read-not-sc
 Semantic dominant: Read-only line-by-line audit of the frozen kernel snapshot for duplicates, persons and wordy phrases, producing a candidate table the owner approves cut by cut.
 md5: 7f3a9c1e4b5d6a8091c2d3e4f5a6b7c8
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: adc100a880d74971ba9cb20433459e10
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```
 

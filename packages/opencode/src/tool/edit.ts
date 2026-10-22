@@ -716,6 +716,9 @@ export const EditTool = Tool.define(
             contentOld: string
             contentNew: string
             contentFinal: string
+            // TRUE when the file on disk is not what the tool wrote and no formatter explains it — the
+            // divergence the result must NAME (t139).
+            diverged: boolean
             encoding: TextCodec.TextEncoding
             ending: TextCodec.LineEnding | undefined
             notice: string | undefined
@@ -759,6 +762,7 @@ export const EditTool = Tool.define(
                     contentOld: "",
                     contentNew: form.text,
                     contentFinal: form.text,
+                    diverged: false,
                     encoding: form.encoding,
                     ending: form.ending,
                     notice: form.notice,
@@ -820,6 +824,7 @@ export const EditTool = Tool.define(
                   contentOld: source.text,
                   contentNew: form.text,
                   contentFinal: form.text,
+                    diverged: false,
                   encoding: form.encoding,
                   ending: form.ending,
                   notice: form.notice,
@@ -853,9 +858,13 @@ export const EditTool = Tool.define(
                   yield* writeBackup(plan.bytesOld, ctx.sessionID, ctx.callID ?? "", plan.filePath, afs)
                 }
                 yield* afs.writeWithDirs(plan.filePath, TextCodec.encode(plan.contentNew, plan.encoding))
-                if (yield* format.file(plan.filePath)) {
-                  plan.contentFinal = yield* TextCodec.syncFile(afs, plan.filePath, plan.encoding, plan.ending)
-                }
+                const formatted = yield* format.file(plan.filePath)
+                // The file is read back ALWAYS, not only when a formatter ran: the report must describe the
+                // file that is REALLY there, not the one the tool meant to write. A formatter that ran is one
+                // reason the file differs; anything else is a DIVERGENCE — and a divergence is NAMED, because a
+                // silent corruption reported as success is worse than any refusal (owner, t139).
+                plan.contentFinal = yield* TextCodec.syncFile(afs, plan.filePath, plan.encoding, plan.ending)
+                plan.diverged = !formatted && plan.contentFinal !== plan.contentNew
                 yield* bus.publish(File.Event.Edited, { file: plan.filePath })
                 yield* bus.publish(FileWatcher.Event.Updated, { file: plan.filePath, event: plan.status })
                 plan.diff = trimDiff(
@@ -903,16 +912,23 @@ export const EditTool = Tool.define(
           })
 
           const changed = planned.map((plan) => path.relative(Instance.worktree, plan.filePath))
+          const diverged = planned.filter((plan) => plan.diverged)
           let output =
-            changed.length === 1
-              ? "Edit applied successfully."
-              : `Edit applied successfully to ${changed.length} files.`
+            diverged.length === 0
+              ? changed.length === 1
+                ? "Edit applied successfully."
+                : `Edit applied successfully to ${changed.length} files.`
+              : diverged.length === 1
+                ? "Edit applied, but the file on disk is not what was written — read it back before addressing it."
+                : `Edit applied, but the file on disk is not what was written for ${diverged.length} of ${changed.length} files — read them back before addressing them.`
           if (decodedStringified)
             output += "\n\n(decoded stringified `files` (JSON.parse) to its array, then validated its entries.)"
           for (const plan of planned) {
             // A conversion is never silent (owner: «агент получает уведомление»): the file's FORM changed beyond
             // the lines the agent addressed, and the next read prints different bytes.
             if (plan.notice) output += `\n\n${path.relative(Instance.worktree, plan.filePath)}: ${plan.notice}`
+            if (plan.diverged)
+              output += `\n\n${path.relative(Instance.worktree, plan.filePath)}: the file on disk is not what was written — the edit wrote ${terminated(plan.contentNew).length} lines, the file has ${terminated(plan.contentFinal).length}. Read it back before addressing it.`
             const normalized = AppFileSystem.normalizePath(plan.filePath)
             const block = LSP.Diagnostic.report(plan.filePath, diagnostics[normalized] ?? [])
             if (block) {

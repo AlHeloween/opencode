@@ -76,6 +76,7 @@ Extended in the same split: [architecture.md](architecture.md) (layer table, clo
 ## Measured vendor behaviour
 
 - [Остановки Claude: reasoning_extraction — 2026-10-22](../experiments_history/2026-10-22_classifier-investigation/REPORT.md) — четыре первичных refusal-события, независимая проверка, различение auto mode и серверного отказа; конкретный триггер и исправление остаются открыты
+- [Claude: кандидат публичной отчётности](proposals/2026-10-22_claude-public-records.md) — расширенный metadata census, отдельная промпт-вставка и две ограниченные CLI-пробы; производственное исправление не принято
 
 - [Haiku 5.5 adaptive thinking](haiku-adaptive-thinking.md) — исправление классификации модели, SDK wire-регрессия и граница локального доказательства
 - [Reasoning round-trip contract](reasoning-round-trip-contract.md) — cross-vendor reasoning field behaviour

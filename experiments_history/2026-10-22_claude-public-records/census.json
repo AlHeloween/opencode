@@ -1,0 +1,3735 @@
+{
+  "scope": "Top-level project JSONL files only; no subagents or other project roots",
+  "predictedBytes": 276670100,
+  "byteBudget": 367001600,
+  "fileCount": 222,
+  "controls": {
+    "cases": 4,
+    "passed": 4,
+    "expected_fail_control": "Quoted refusal and non-event blob are excluded"
+  },
+  "uniqueAssistantRefusals": 13,
+  "categories": {
+    "reasoning_extraction": 13
+  },
+  "models": {
+    "claude-opus-5-5": 11,
+    "<synthetic>": 2
+  },
+  "versions": {
+    "2.1.304": 9,
+    "2.1.299": 4
+  },
+  "files": [
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\00113433-8915-4c97-946c-bde7f4284133.jsonl",
+      "snapshotBytes": 602888,
+      "snapshotSha256": "a55b7caa6665f93440e177e0ef042d969f7059c52b8a8c8501b67efe64e8f392",
+      "lines": 68,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\0375d07f-a6d0-4f75-90f4-c26a3155d216.jsonl",
+      "snapshotBytes": 1126150,
+      "snapshotSha256": "5595eaeda027b0df0bf2f8b10b21176a9a3590d5c06c071ab82bd8997d80478e",
+      "lines": 153,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 21,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "878d5a60e4db6a80a0edc753cfd7c91de61afdae3405a28648e4fd20b7fa6fac",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\05efb09c-420d-41dc-b619-2edc74226fea.jsonl",
+      "snapshotBytes": 597287,
+      "snapshotSha256": "003dff442663620c38250e9fb85bc8fdf2a85f5e657482d32f5792439524bb0e",
+      "lines": 52,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\0789f8e6-1fe8-4d27-9a91-accf2cae0dc9.jsonl",
+      "snapshotBytes": 1207650,
+      "snapshotSha256": "835e7e051d2bbe7fcc6bf2acadebcabde477873b61082341671e2bfce7a3f37f",
+      "lines": 329,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 83,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\09b8113f-4033-4a94-b136-43397395c745.jsonl",
+      "snapshotBytes": 599756,
+      "snapshotSha256": "3e31d1879d5ef322790c77994731e56f8ee7b3f352503f83dcfa01633e323dfd",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\0a55fa66-51ce-4c21-87c6-fe2b2e0a903f.jsonl",
+      "snapshotBytes": 611436,
+      "snapshotSha256": "c5e810419ae87d140c7ec822906d9acff4dea8bc1004b05e1dbbd50d28e294a4",
+      "lines": 68,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\0f6bf285-59a9-4ba5-a5e5-bdfeaf87caac.jsonl",
+      "snapshotBytes": 571798,
+      "snapshotSha256": "e9402e41e3173931783b087dbc022510d9326fb5263a92faa6ea75f194d05662",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\101da556-91f0-4bc7-9b45-2e633798f599.jsonl",
+      "snapshotBytes": 606918,
+      "snapshotSha256": "dbaa1b9a81becfae06794ba427df47d7ad71e698502bb8bd37a62d9f973228fa",
+      "lines": 73,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\105349eb-dfe3-4c54-a664-6f6b6a7f1eb1.jsonl",
+      "snapshotBytes": 604134,
+      "snapshotSha256": "3914e2c4bb162e6a0cf0d193cbe4381abc97508afceca3eda2d015f0d6654509",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\11c31942-c1a1-4a75-8306-60819f525678.jsonl",
+      "snapshotBytes": 660496,
+      "snapshotSha256": "60dbfa9de12232afe976a795335d5911022208c3b4e27f35b6f2a44c694892dd",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\11f667c3-48e5-4d52-b556-d83e2e4efacc.jsonl",
+      "snapshotBytes": 386117,
+      "snapshotSha256": "a788acdb8861c0ea63df02930c7ce016bec4b6ae4374d3bf613071ee1050d414",
+      "lines": 29,
+      "badLines": [],
+      "stopOccurrences": {
+        "stop_sequence": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1257bacd-e4c9-491e-bd09-15264e3c23a2.jsonl",
+      "snapshotBytes": 594177,
+      "snapshotSha256": "eae66f7fc86d30f235fb69c92bf4f0bb3e0790af06d31b2bbb4e492ed47275db",
+      "lines": 36,
+      "badLines": [],
+      "stopOccurrences": {
+        "stop_sequence": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 25,
+          "role": "user",
+          "blobHash": "5167360b507bc64bc2b6924a091d0388f295f04f9644a97fed736fac1989dccb",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1315510b-f26d-4c20-ae9a-85ba7a57d95c.jsonl",
+      "snapshotBytes": 591426,
+      "snapshotSha256": "909c673ea672d2c0ddded674294ce8299bb542ef8a04f2a2d2a25c30afea9612",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\13861452-b72c-499e-83b7-6e49787b2654.jsonl",
+      "snapshotBytes": 806361,
+      "snapshotSha256": "0a1bd9c023a3ecbe6bcf95854819c2e98101bbf9209bd1c3f62f13b466a7893e",
+      "lines": 217,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 31,
+        "end_turn": 4
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\15596b72-e509-4d46-84f4-3a16d76c4c3c.jsonl",
+      "snapshotBytes": 936114,
+      "snapshotSha256": "18243dc1dcdd47dcd20a87e4a791228dbc661a8e0c9d2210c797ccfd4f12da85",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 5,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "fbc81bd701ac30d3bffa6ca86160215042f0ac60f90ea86bfc5395a3e499c30b",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1582706a-313c-4171-991c-b2863ee9db17.jsonl",
+      "snapshotBytes": 1094399,
+      "snapshotSha256": "49dd7d706cdcb2bb86c9cec33df5f9887f8e442959823ecf125ce194ad81bded",
+      "lines": 125,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 17,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "f4074e8803de2820f83c9fc4ffc757512c9d5320ba91d2bd31796c29e0194791",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\168c3672-47c8-4ae8-967b-032743184e46.jsonl",
+      "snapshotBytes": 560025,
+      "snapshotSha256": "fa9e6b427ab3611ceb6a748f861f2b9608699b28c4bf7176126149f53853a810",
+      "lines": 62,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\16b8406c-4098-4284-b9d0-605dcb76f4a6.jsonl",
+      "snapshotBytes": 558303,
+      "snapshotSha256": "4cf264c4fb2196055da416ba32cc342e81c5be7e7130ab7826da35755ec5457c",
+      "lines": 60,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\17e29ad9-80ed-4a8a-9c44-6ee72cf8559e.jsonl",
+      "snapshotBytes": 628410,
+      "snapshotSha256": "fa5b34c0db7c4885723f62387f4be516da68b4e33e4c4fb018081477153e6676",
+      "lines": 73,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\191eb571-d6cc-4d8a-9de2-2701164d9a45.jsonl",
+      "snapshotBytes": 602982,
+      "snapshotSha256": "3145fc73736db2556c93d55cd974541d4b1d42d50d19b7286ce1e3418b99733c",
+      "lines": 66,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1afb8a6d-8b8c-4a5f-9d3c-ff051b8ab957.jsonl",
+      "snapshotBytes": 993278,
+      "snapshotSha256": "93c650c984ae2d7638c5a06000d1bb58d6fd10d76f92389c39d85f1fce0a63f7",
+      "lines": 265,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 48,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1b469c0b-ca1a-41bd-988e-be9a4e60d2f9.jsonl",
+      "snapshotBytes": 602658,
+      "snapshotSha256": "b818e9faa01b791f093e5bcbce1b153d5a0694403f9f00c6fa12d2f38e07d25f",
+      "lines": 54,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1bc16879-a860-4325-a1f6-f2844b39dc6f.jsonl",
+      "snapshotBytes": 1044318,
+      "snapshotSha256": "062bf020cde4cb75ee9911d07445ada343d60c949cb598e2c114fe9d5e0bdd4d",
+      "lines": 118,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "966bb36b1d77773562ca5c4b502aab2ec7d4ab7283b1f25d981980a9ff79e89f",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1d04b7c2-b538-4ee2-a3db-cc21b34d83cd.jsonl",
+      "snapshotBytes": 652756,
+      "snapshotSha256": "55ce711c39e2b33d158be497841d78ec7a1f6553f609c1c09bea2d4d4db4cea4",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1d8b7613-3580-45b5-ac88-4b019c183bb4.jsonl",
+      "snapshotBytes": 1097289,
+      "snapshotSha256": "14d23038d0fcd2fdaa90af336afa763e54cbb4031c3e6cf76a2553756a5ead45",
+      "lines": 113,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 16,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "45339b2d8ffee75950c697fa7d55354fdeede6fde6a44743eefddd97906edb5f",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1e633a17-ab67-4223-9df5-1ca09600bbdf.jsonl",
+      "snapshotBytes": 633065,
+      "snapshotSha256": "b69851be45aec620d37cae0ac5d030df5d49e0e1853fd2f68bcc58c327bf3b47",
+      "lines": 73,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\1ea40690-cd5e-42f5-936c-3aaa7c0770eb.jsonl",
+      "snapshotBytes": 1173493,
+      "snapshotSha256": "489c8e34e3d0305feca8d71aa9dfca681b39a75e5b72a265d440fa9207355877",
+      "lines": 369,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 75,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\20adaf9b-767d-4bbd-a760-bbffe9c5bac5.jsonl",
+      "snapshotBytes": 1098033,
+      "snapshotSha256": "f4b0c5e963c6dc0c5e3a5e43d423f20d0ebaba52b8fa3afafb3a8e617bd2aa1c",
+      "lines": 122,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 17,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "64a27754fa3e737d63d60f8ad53c16dafa668a5fe75655e46f1938109e16d9c9",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\21be6e83-eca5-401c-b9b9-313b99860cdc.jsonl",
+      "snapshotBytes": 728180,
+      "snapshotSha256": "b7b7d9ef8bddb02e157fbd8ef64c6e813ddfb1a8325eccd2dd86c750a561ae50",
+      "lines": 113,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 27,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\2233f64b-3bf0-4bf9-ae0c-f868f19b0459.jsonl",
+      "snapshotBytes": 605004,
+      "snapshotSha256": "69a6177be1bdb194569afc37fdab66bc2fa7eae6d4198d15d1d545b69e567740",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 10,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\23ac4c8e-40b6-4b1d-8718-90d3ace6ba96.jsonl",
+      "snapshotBytes": 1066683,
+      "snapshotSha256": "da6e43c5bc4117d74331db9b6d477af1664c041cc87f1236bf7fa188b7db70dc",
+      "lines": 99,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "8b2e6f82df7ea01f6d4ff01c50c179b364cff4b42574708affe8a2d3dbe7051d",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\2585aff7-08e3-434e-8f9b-48bf50ff3592.jsonl",
+      "snapshotBytes": 1291552,
+      "snapshotSha256": "e896e0d9d39d0948bc343243e819c47401fa3840e9c09ff66aa668b504cdbb19",
+      "lines": 385,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 75,
+        "end_turn": 3
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\25e693a0-fb5f-4f1b-943d-48e73352e721.jsonl",
+      "snapshotBytes": 1104677,
+      "snapshotSha256": "f5b59cff84050a1c68f0ac70fc5ab669a2b76db000d645310f718fdaef092245",
+      "lines": 135,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 18,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "719b0c68c93c46c14a614e1f511d43de673d6ef92993199916056fcc7cfb37bd",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\2687547e-e98a-46d4-a502-549b755c6e14.jsonl",
+      "snapshotBytes": 7224849,
+      "snapshotSha256": "d3eb368531453cc5b435df2b359d4db5653dff14ef491c6f3f0dae10b295b20f",
+      "lines": 2510,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 421,
+        "end_turn": 33,
+        "refusal": 2
+      },
+      "events": [
+        {
+          "id": "msg_011CgG4R3JayngXUokCapJJa",
+          "line": 1319,
+          "time": "2026-10-21T21:03:36.112Z",
+          "requestId": "req_011CgG4R2WxYSZZy8KeRza3c",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "msg_011CgGYCndwrJDDpEs1yHL9c",
+          "line": 1722,
+          "time": "2026-10-22T03:08:01.389Z",
+          "requestId": "req_011CgGYCnJN57aVECSEpeFr5",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        }
+      ],
+      "publicBlobMarkers": [
+        {
+          "line": 30,
+          "role": "user",
+          "blobHash": "43f2a42ff3fdaa1b3e254d2a233af01c856544190b9adbdd2058b9e79dda08fb",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\2a91c23b-27ea-48a5-a9b0-a408753d16ab.jsonl",
+      "snapshotBytes": 622529,
+      "snapshotSha256": "4262cfe851cd8e84ef8a094ee86b649d95b69535b16c8e4ca618fe8547db1b59",
+      "lines": 55,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\2e34e940-cf2d-41f7-af53-e1f482f5aad0.jsonl",
+      "snapshotBytes": 575728,
+      "snapshotSha256": "c40fbb33a080c71a170ed3493dc5e9b6968a1cabe4ca1c74c0c7ff1a6c59b193",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\30d5abf8-1955-48c2-8940-2b98000f1fba.jsonl",
+      "snapshotBytes": 609316,
+      "snapshotSha256": "aa14bc804eee321610e2432f2b728a104626124f529ffa8dcf0b88f018148a6b",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\326d5df8-54c0-4907-939b-616b38630994.jsonl",
+      "snapshotBytes": 1254898,
+      "snapshotSha256": "708d6a27bd9c8b8494da38240ac9b6ef90810b0c9846e94d9ac780ea7b07503e",
+      "lines": 183,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 28,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 27,
+          "role": "user",
+          "blobHash": "3435c6f49257716579e71f2e8efeeeee74a6d94b246f49b304e73b49dc5f7ce5",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\32c76155-29a1-4835-ae7c-e64fa27b6495.jsonl",
+      "snapshotBytes": 597895,
+      "snapshotSha256": "d4d9c6c508fb14e865240490f5b10b42f22dff7af93e87df2a79593ecb428ab3",
+      "lines": 58,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\33625665-7180-449f-8168-af727fec95f8.jsonl",
+      "snapshotBytes": 993690,
+      "snapshotSha256": "2593424a37a103892b254eda1068c16edc417b207df6a2314cdc195761a4f89c",
+      "lines": 91,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 10,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "b4c387f34e3bafe3cd0b45065ed4b950cfde8916d61a458f94ed7bd5fd52c646",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\344cb338-dad4-45a0-a1d2-2682be8a64a2.jsonl",
+      "snapshotBytes": 625326,
+      "snapshotSha256": "fadbb1082b87a021aeb64ce494e9c94ecbcebab75b96c0af08ffa9727d13a228",
+      "lines": 74,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\348dd81f-8ad5-4e9d-a740-7e027c21e7b1.jsonl",
+      "snapshotBytes": 621721,
+      "snapshotSha256": "3e4a8a5005735e32df6f87b5cdcb026b309b604dec8593993caf5043d21ffe98",
+      "lines": 57,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 8,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\34a529b4-9218-4fce-8c39-0cb83f799aab.jsonl",
+      "snapshotBytes": 19424644,
+      "snapshotSha256": "7ee087c942d6dc870593144c3c92db2bdfcf9682dc71e8eca84c54331aadc9b7",
+      "lines": 6301,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 1307,
+        "end_turn": 166
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\34d612df-7eaa-4385-8da5-e3c3d7254c5c.jsonl",
+      "snapshotBytes": 773456,
+      "snapshotSha256": "ae86acb2756fd05d3ef3e466f9d21bd29221e7964d0bbefab2389005021ab123",
+      "lines": 120,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 20
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\353c0998-6ed5-444e-b6e8-97ce341cdbce.jsonl",
+      "snapshotBytes": 46212496,
+      "snapshotSha256": "a8385208ca8e595249c2c7827cf4083ea258befaa04f5bf4099890024529ea76",
+      "lines": 15593,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 3456,
+        "end_turn": 225,
+        "stop_sequence": 3
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 14873,
+          "role": "user",
+          "blobHash": "115b98f37cf615638205e6e5583cbcd4c2373adcca2ec475b2ae349d457f6302",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        },
+        {
+          "line": 14899,
+          "role": "user",
+          "blobHash": "34600db50eb633e60784d44fedb4d175dc1e8863eec106e432eaaca5531fc03a",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\394801f5-c386-4bc3-9751-9655adccc3c6.jsonl",
+      "snapshotBytes": 607459,
+      "snapshotSha256": "27bfbb53c9636f6d4347e8260982b5b6f0b0780ede57165ae32a43e3eba01815",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\39579136-636f-4e87-aaba-868d6d6b0ede.jsonl",
+      "snapshotBytes": 608706,
+      "snapshotSha256": "873afdc620419a2dc221c69f30156662db2e9b94e92df483cb10933e6595b136",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\3a24f009-6181-47ae-b50f-e9a31b438c44.jsonl",
+      "snapshotBytes": 1055483,
+      "snapshotSha256": "465d2d6b5e8518d0e36cdb080c2a0488d267ff238104469cbe90d7ece92253a9",
+      "lines": 123,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "6fa5b6d57741f792451473bf05952bf811b5b7c5b6c6b12a8d1ea33472875e70",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\3ae96b28-16b9-42a2-8c70-1717612accf6.jsonl",
+      "snapshotBytes": 609957,
+      "snapshotSha256": "81828583aa5c710e10273d79bee2af9a8ed9cd431e99562d4ed9e92d3ca53a88",
+      "lines": 52,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\3e23ecd8-4454-48ae-9fd9-0e3a435e9083.jsonl",
+      "snapshotBytes": 616946,
+      "snapshotSha256": "b5569fe4aeb032bde9a4304d9f53aa2f135014ce3c9136e8e82c8bfcee014151",
+      "lines": 98,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 13,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\3f4fd6af-5410-4cc9-8122-a08ff30301a5.jsonl",
+      "snapshotBytes": 627553,
+      "snapshotSha256": "5e4f1f15403413903a92007ab3edd5b3683dabad9236e7ebe7a49b388c3d5b97",
+      "lines": 63,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\3fb6216d-2beb-4dd4-919b-a49c950f096c.jsonl",
+      "snapshotBytes": 731120,
+      "snapshotSha256": "c97e1a789d03a791fa49f10ee5e4f8ab2a365cfe6fedc873109d94d969f13dd8",
+      "lines": 76,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\3ff7cd7f-894d-4a35-a87c-9e4e95bc818c.jsonl",
+      "snapshotBytes": 2925382,
+      "snapshotSha256": "4a543517fa517b93d84247fe1e94892589bd24fbc910c609d2f44ff920b392be",
+      "lines": 1271,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 449,
+        "end_turn": 12
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\4039eb0e-4464-4cf2-9ea9-0bd7afe97e5d.jsonl",
+      "snapshotBytes": 716670,
+      "snapshotSha256": "44405ce2359782bda0ba63f253cafd217d86a9e648cec78a962b35f57ef9370b",
+      "lines": 137,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 19,
+        "end_turn": 5
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\44812001-ea05-4156-881f-491048c1e7e8.jsonl",
+      "snapshotBytes": 621137,
+      "snapshotSha256": "614009edc954783fefee0346031cf52f93b18e03ceec9f06ae9ebd88847cf117",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\44b8757f-cff3-44a1-90a5-df2286528260.jsonl",
+      "snapshotBytes": 1478700,
+      "snapshotSha256": "4f27608e64d40b3bba205f1bd374d75f142a026fbe8f7ea0d537e3d7acf918b7",
+      "lines": 269,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 51,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 27,
+          "role": "user",
+          "blobHash": "a35788658afbfb47b16b6d3b10c72fe12b06ed04680f63013b43f29153c396dc",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\45f0eb70-c827-46f6-b5a2-a85e42cb2e0a.jsonl",
+      "snapshotBytes": 817323,
+      "snapshotSha256": "069e4e6f1a86f495a9fc018fb22fd2acbf1c0c2f564e9bacecfde91e5236ccd8",
+      "lines": 125,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 18,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\47680722-ef3c-435d-9a05-a7edc3648224.jsonl",
+      "snapshotBytes": 1106722,
+      "snapshotSha256": "6736e1d5d6dfb66d3d345dd593ec31cd6d6e5b8d8a1a006528b15b8c34798aa3",
+      "lines": 115,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 17,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "02f3950947669f6a285eb2d6aef6632554a25aac8b08ae7db08f43b9ac22a346",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\47e6e908-be49-4c5b-86d5-d7520fc83419.jsonl",
+      "snapshotBytes": 612554,
+      "snapshotSha256": "7a50e4e23427bb6383bd598c09cb8366f90726cdbdaee59557b7c117571ebf8d",
+      "lines": 71,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\4bd54202-55f7-4042-b4fb-bc61d147157c.jsonl",
+      "snapshotBytes": 924952,
+      "snapshotSha256": "7a93a0bbc66fbc1f34c2b2fb4e5d3fa9470f411978f649a824ba242b9399b9a6",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "fbc81bd701ac30d3bffa6ca86160215042f0ac60f90ea86bfc5395a3e499c30b",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\4bda2a63-ec22-4350-8c72-1750443338fd.jsonl",
+      "snapshotBytes": 607546,
+      "snapshotSha256": "fc4a8be5258eed2e5eef1dee0bdef73fa26a1a187eb6a36e12d3843f9773acec",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\4c08e0d3-2735-48cf-98fd-a7ff51d70587.jsonl",
+      "snapshotBytes": 1296499,
+      "snapshotSha256": "8c4c5092bf8953b81edc6bbac60580308847e1776fa4ab751542532bb42f3cd6",
+      "lines": 395,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 42,
+        "end_turn": 19
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\4dc7abd4-c57e-4dc5-b85d-cd43bef3396b.jsonl",
+      "snapshotBytes": 1132466,
+      "snapshotSha256": "5cbcf11382ffee1ef904bc0efce65777d2a5e280ca1ff2b325b5fc7a14770e24",
+      "lines": 136,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 19,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "7c1d14052091d7d67ae42bcae751898902a62e079875d24c700bc8cdb51ff8ff",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\4e24d6ee-edbd-40d7-af73-35a054d11711.jsonl",
+      "snapshotBytes": 2896800,
+      "snapshotSha256": "b5fe76a562f6842e30e42407284dd498e38c0a0388e0a36c202676159fc26d2e",
+      "lines": 1156,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 225,
+        "end_turn": 23
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\50d0b5a8-2161-4061-a7ae-a9ebfe3b9a71.jsonl",
+      "snapshotBytes": 607703,
+      "snapshotSha256": "7ac30f4af8e3ec613494b138c445961b0d6f0163302eeb0c9e42f1522f7a818b",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\51d1f153-1a05-4b17-acc5-435728dec643.jsonl",
+      "snapshotBytes": 681305,
+      "snapshotSha256": "2c90b01257eb2650e3997876dc44286c39984cd7cb5dc5c99b1478c6bb572c56",
+      "lines": 68,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\529f5889-3969-4aef-8ace-cc42fec82369.jsonl",
+      "snapshotBytes": 597371,
+      "snapshotSha256": "c37ae561e723c2c6c4f18766c58ee3c8320f44ad2aff72ba5b35128582e521f2",
+      "lines": 43,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 3
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\556d7321-874d-4bcd-8c6d-37c0ce3e0282.jsonl",
+      "snapshotBytes": 371694,
+      "snapshotSha256": "607b008b608d523edc63180c5801fd3602c3753f5f038d55112c511d04e8afd9",
+      "lines": 28,
+      "badLines": [],
+      "stopOccurrences": {
+        "stop_sequence": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\5611c1c4-8f9b-4f74-8994-60936d67a032.jsonl",
+      "snapshotBytes": 1090994,
+      "snapshotSha256": "f86c79eb79f1fddca3bc7e275e0e5bee1556aa8eaf88f21a3a7d2b6012929d11",
+      "lines": 248,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 57,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\575b6321-eb56-4504-9443-83127f928e58.jsonl",
+      "snapshotBytes": 930669,
+      "snapshotSha256": "0adb74525c647e70e12441afa615d30e9b196d10f393b0792229dae5ba012626",
+      "lines": 75,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 8,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "5a2a8c4742d11623c20b10ee8959e759c925e052c6d5070b4e22cefb0003ff4a",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\586381ac-17d4-43c8-9b83-ecac437bacd7.jsonl",
+      "snapshotBytes": 1054312,
+      "snapshotSha256": "f78428e028278fbbc1ac5b25c9c6de582ea05ff9e6df83b98452e8d6abdcb924",
+      "lines": 106,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "6dbdfc0fde8623a51b913b13ef8f1632f776e6a7ba2d1ff49fca6f857acadeff",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\5bee186c-2942-467a-a232-917feae3a642.jsonl",
+      "snapshotBytes": 1190546,
+      "snapshotSha256": "6587d1d08f53973a5da23852e09a3bd633376907c0d881758b30a18155750e6e",
+      "lines": 149,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 22,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 27,
+          "role": "user",
+          "blobHash": "2369340d9758eb3773465b04d66e190ca4a4afb32eb3c55128652fc2fdcb06a7",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\5cd5a063-4bc9-4ca0-885c-53d02996bdaa.jsonl",
+      "snapshotBytes": 597018,
+      "snapshotSha256": "0e40afea8a1d256000a3974a014d972db0a6d6606003315de130da606b39274b",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\5d5c37a5-edae-476b-8011-58db9951d0f7.jsonl",
+      "snapshotBytes": 608231,
+      "snapshotSha256": "a5dafb59f55f6370af3dfb1470492b70f17c628de70712629d8c621fe2e296f4",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\5e02fadb-8748-4ac3-adaf-45271118562b.jsonl",
+      "snapshotBytes": 1139848,
+      "snapshotSha256": "9840b66d22955f6d8ec05e4d572b54edb4adcde1c8887eeadaac392c5fa2f4d2",
+      "lines": 156,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 24,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 27,
+          "role": "user",
+          "blobHash": "b6fa0f347f1fd917b331aad6bb0143877d09f36937a3a982c9f6d3bbb9dc043f",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\5ebab8bf-c42f-4b7c-ae6c-b88ea5aa2779.jsonl",
+      "snapshotBytes": 628215,
+      "snapshotSha256": "03a1bf04686384fb2add6fe7804ca23e833c7b77a902a5c63a76917371e119d8",
+      "lines": 79,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\5ee34a89-f9f6-42c3-9b6b-8f8d38a334de.jsonl",
+      "snapshotBytes": 5770807,
+      "snapshotSha256": "7f3805bad79f7d52ded29a8254d784cb4f383e800d25e8d01f1b3ca1c5fc2dbc",
+      "lines": 1948,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 329,
+        "end_turn": 41,
+        "refusal": 12
+      },
+      "events": [
+        {
+          "id": "msg_011CgG1ceHU9GxpDi3rMfrJM",
+          "line": 173,
+          "time": "2026-10-21T20:27:13.676Z",
+          "requestId": "req_011CgG1cdutjrFGQLim3vjFj",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "msg_011CgGVFWRricwk9VhD57Hgv",
+          "line": 1086,
+          "time": "2026-10-22T02:29:18.508Z",
+          "requestId": "req_011CgGVFVxLmLcRBfHUBvjzX",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "msg_011CgGYaETonQCQmCkt8M9aX",
+          "line": 1348,
+          "time": "2026-10-22T03:12:52.332Z",
+          "requestId": "req_011CgGYaE3ziRN8qeq2VkDo8",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "msg_011CgGZGc4gS9yVjRS9ZXJLx",
+          "line": 1456,
+          "time": "2026-10-22T03:22:00.627Z",
+          "requestId": "req_011CgGZGbedd68JkXoFo3qiz",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "msg_011CgGbRWUKeBtEbaXEJ4RjN",
+          "line": 1725,
+          "time": "2026-10-22T03:50:13.744Z",
+          "requestId": "req_011CgGbRW2nBdZeG8WDa4Y9u",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "msg_011CgGbRjoWD8qA1vcT8ybfH",
+          "line": 1732,
+          "time": "2026-10-22T03:50:17.864Z",
+          "requestId": "req_011CgGbRjFmdjJuXjVbSur1K",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "98554713-32c5-4458-a68e-5d9636f44d54",
+          "line": 1735,
+          "time": "2026-10-22T03:50:18.662Z",
+          "requestId": "req_011CgGbRjFmdjJuXjVbSur1K",
+          "category": "reasoning_extraction",
+          "model": "<synthetic>",
+          "version": "2.1.304",
+          "entrypoint": "claude-desktop"
+        }
+      ],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "d8e61939045bfc1dfef52c7203ee5ff84151f0b5efb604a6a7c001e9b2c0b492",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": [
+        {
+          "line": 1734,
+          "subtype": "model_refusal_no_fallback"
+        }
+      ]
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\60a3d22e-cf58-4455-8e38-63ec8d3e73bf.jsonl",
+      "snapshotBytes": 30799615,
+      "snapshotSha256": "d26c452ca52e8252fd7822dc5e5ce63c174770fa9a548c21781b1823990d1e87",
+      "lines": 12905,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 2936,
+        "stop_sequence": 6,
+        "end_turn": 351,
+        "refusal": 5
+      },
+      "events": [
+        {
+          "id": "msg_011Cg8okJh3UXLJxGJLduWm6",
+          "line": 4738,
+          "time": "2026-10-18T01:07:07.471Z",
+          "requestId": "req_011Cg8okJE1agZF8SWDhAVLq",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.299",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "msg_011Cg8pWPBtNXHQgoBGmQJVL",
+          "line": 4844,
+          "time": "2026-10-18T01:17:04.662Z",
+          "requestId": "req_011Cg8pWNg8urJfYV8XffxSY",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.299",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "msg_011Cg8qCkGXMErx12oStrAtH",
+          "line": 4857,
+          "time": "2026-10-18T01:26:11.610Z",
+          "requestId": "req_011Cg8qCjYNfvviJF4ts9Y6G",
+          "category": "reasoning_extraction",
+          "model": "claude-opus-5-5",
+          "version": "2.1.299",
+          "entrypoint": "claude-desktop"
+        },
+        {
+          "id": "29b53407-8e7d-43d8-a7a2-c43169890a6c",
+          "line": 4859,
+          "time": "2026-10-18T01:26:11.697Z",
+          "requestId": "req_011Cg8qCjYNfvviJF4ts9Y6G",
+          "category": "reasoning_extraction",
+          "model": "<synthetic>",
+          "version": "2.1.299",
+          "entrypoint": "claude-desktop"
+        }
+      ],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": [
+        {
+          "line": 4858,
+          "subtype": "model_refusal_no_fallback"
+        }
+      ]
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\6120e9d1-7a4e-4433-a252-6eb291578d00.jsonl",
+      "snapshotBytes": 609645,
+      "snapshotSha256": "2caf21fbbf8bee533fcda796a0265605fb22e27832112a6c3ace898811429bd4",
+      "lines": 64,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\61b6086b-77e9-446a-a046-b22d991de771.jsonl",
+      "snapshotBytes": 1331506,
+      "snapshotSha256": "3ccc6d6478ba49e589152e0045ab4f1942460c355bbdffff53e2b50fc50d4508",
+      "lines": 185,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 23,
+        "end_turn": 3
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "6dbdfc0fde8623a51b913b13ef8f1632f776e6a7ba2d1ff49fca6f857acadeff",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\620cbc7f-1a82-4b22-9e4e-a6b1c8a5e881.jsonl",
+      "snapshotBytes": 618663,
+      "snapshotSha256": "8d68926e66dc83fa206071d6da0256ea4e505420cb735f1bd2abcffeaafb5e86",
+      "lines": 59,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 8,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\63f2efd5-a147-4b91-9830-8f790424e199.jsonl",
+      "snapshotBytes": 600732,
+      "snapshotSha256": "39057b083e908e3fc2499858bded2942846ea29af8c718fc4e65b049dc0e9b92",
+      "lines": 57,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\65aefe89-88fa-432a-872b-078b86be8d85.jsonl",
+      "snapshotBytes": 585615,
+      "snapshotSha256": "55247da223126caa5ee47a05728cd481f69656d8b6da0becfe73419f77c13846",
+      "lines": 60,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\66d385b6-2e69-405d-a649-72074bcfdbc1.jsonl",
+      "snapshotBytes": 5580,
+      "snapshotSha256": "753e290596cf9988deb23116dfe586db71cd5dd72fda1abbb217d406554eb994",
+      "lines": 12,
+      "badLines": [],
+      "stopOccurrences": {},
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\6784c7df-9a55-45be-9ee3-a5f9ecb30fac.jsonl",
+      "snapshotBytes": 598994,
+      "snapshotSha256": "1a89b75b5a49a12645b69d3f098d668bd518b656fe9582fe19f18545e8012025",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\67d8627c-694c-4a40-93e1-d33a00555ecd.jsonl",
+      "snapshotBytes": 705957,
+      "snapshotSha256": "c6536f6935283387fe16e3035fd7ad1f3a3f040008141c0adb36d964e159e302",
+      "lines": 99,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 21,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\68205f17-c8bd-44b7-a562-be4ef8b54c74.jsonl",
+      "snapshotBytes": 673895,
+      "snapshotSha256": "fa0942d91fc5d641c56887d1498e224c7d8fbd2d140150c4bec90ec27e911901",
+      "lines": 85,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\6831b812-aa2e-4c75-83d6-d879d3001472.jsonl",
+      "snapshotBytes": 5516287,
+      "snapshotSha256": "c2c2ad18f4c800e42ecec1f8a0eaea78d6bc95da42c4fe078887a7be70221de8",
+      "lines": 2673,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 625,
+        "end_turn": 10
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\69a901b3-17a5-4f70-8886-565653489d91.jsonl",
+      "snapshotBytes": 656583,
+      "snapshotSha256": "1c1fee1708151ec826a4bedfb9357face71abaf8b01443544a7eca012960194e",
+      "lines": 81,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\6e397634-af81-4aec-b5b4-4563d90862de.jsonl",
+      "snapshotBytes": 618745,
+      "snapshotSha256": "664238c16f162b900f8bb0250b69baff6ff1522fb589ae7e5874995bd469aa97",
+      "lines": 78,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 15,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\6ede1ea9-1982-45a5-9d16-107955b9f328.jsonl",
+      "snapshotBytes": 602385,
+      "snapshotSha256": "74e7cd7c92560faf0cdf0ef8c884e9b6c36edca27bb4ee33285dc25a30031c1d",
+      "lines": 59,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\6f451c46-44ed-4776-836a-d9dda3ccf1a8.jsonl",
+      "snapshotBytes": 601701,
+      "snapshotSha256": "01d5dd6c09e8d2e0d3bff25dc3620d7646207ae354be9940eb6d207d5d0a310b",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 10,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\6facf560-ddf1-433e-9efb-79169fef561b.jsonl",
+      "snapshotBytes": 386117,
+      "snapshotSha256": "d0432247cc5999f8deaddc82b660522e32a37575afc9cdb946096482cf559751",
+      "lines": 29,
+      "badLines": [],
+      "stopOccurrences": {
+        "stop_sequence": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\7113c25c-4ad4-4ce0-b50b-75ebf8e7fd84.jsonl",
+      "snapshotBytes": 611726,
+      "snapshotSha256": "06265669979d979e0a48320f5ab54df48a84dcc2f42546d0ac9f519eb7d36617",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\7143e1e1-d225-4e32-9d6b-c0a767927bbb.jsonl",
+      "snapshotBytes": 936146,
+      "snapshotSha256": "acbaf8401ea7fe28415cc7f54cca3b1565ed2377007b6c94a5d90424e652807f",
+      "lines": 77,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 8,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "0ee9bd126699d9009efd0d7e3cfd3a60c9452f4d6c3ccc5c50580423f0505652",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\72482d48-e7ef-4b34-95b2-9bd16e92f5b9.jsonl",
+      "snapshotBytes": 1157311,
+      "snapshotSha256": "08a56fa02a90498fa61844c44d39bd1cd222bd6f6b11a4e43d0a2f83bdc5f4ff",
+      "lines": 147,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 21,
+        "end_turn": 3
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 27,
+          "role": "user",
+          "blobHash": "35325f54727ebed80e8ccac01639044f6e66efd25f66049f38e27cc47a61e8b8",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\7423e55b-ace7-4ee5-b098-8ff2ea740e4b.jsonl",
+      "snapshotBytes": 985977,
+      "snapshotSha256": "6492014f8adfbeb8e8aa37def1363f83372bd31e63e11c8659f32c040b860926",
+      "lines": 71,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "b977bb7471ce8cea42aba94f70c3e8de6f294cee991399b6475a02e3bfcc15ba",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\744c9f13-312d-4427-9a71-a11306da565e.jsonl",
+      "snapshotBytes": 635380,
+      "snapshotSha256": "fd6e2165406155ef0d2ea0375907b336b151057a3c8d4cd374a7fb21ebef78e3",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\75d3344c-5870-4a49-8d92-47bc4eb5a6b3.jsonl",
+      "snapshotBytes": 610060,
+      "snapshotSha256": "e8b177728e10e27a2c5cdc0f7a168df1b0d736166aa7f496f64bb468976cbe5f",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\771bc849-6660-447b-9995-9b04057b4706.jsonl",
+      "snapshotBytes": 1104938,
+      "snapshotSha256": "4122b64421bd9237dca009eaffdb80f162ad0a4dc2fd2349f93d3af7cecb911e",
+      "lines": 318,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 58,
+        "end_turn": 6
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\780ef276-ca51-4ed7-8243-728df782e9a3.jsonl",
+      "snapshotBytes": 1213146,
+      "snapshotSha256": "40daea77c7e9001116335f50757824f84032e9a1521791d9a32cdafe0f5d3647",
+      "lines": 429,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 81,
+        "end_turn": 15
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\784b66d3-2e0b-4f07-86b0-edfcd24aefb6.jsonl",
+      "snapshotBytes": 573199,
+      "snapshotSha256": "fb7dcd1f3af9734ad730372ebc2be84ce12b9c62f4bd8c4299ba189f0c533d92",
+      "lines": 73,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 5,
+        "end_turn": 4
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\7905dd64-997e-446f-8566-7a33375d9e95.jsonl",
+      "snapshotBytes": 639946,
+      "snapshotSha256": "55b002054d83da2f48d2985619092fa0e81972a5922fa77846ea2b707688c926",
+      "lines": 109,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 15,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\7d315f2f-6976-4e49-be06-c698e39863b5.jsonl",
+      "snapshotBytes": 612367,
+      "snapshotSha256": "0a1b9d8ee4ea36dbf1c0488e08a6bd47b18937be6fb264d8e9864a656b8a6e15",
+      "lines": 63,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\7d676ca6-84c1-4268-838d-30ed34d2b522.jsonl",
+      "snapshotBytes": 589754,
+      "snapshotSha256": "c18743559fe873dcdde4c0912c85660fe77b1ab6931a59664fa10bb0fb19da06",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\7e72ae8b-6c25-43db-8ec5-777a0cd116c9.jsonl",
+      "snapshotBytes": 917763,
+      "snapshotSha256": "26603d6ac6ac054e70c3ea018c6061fa7b404e8474389686b5c8f383a88d4c1b",
+      "lines": 66,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "fbc81bd701ac30d3bffa6ca86160215042f0ac60f90ea86bfc5395a3e499c30b",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\82e2f0aa-ace8-417b-b659-1d9eca4a2af6.jsonl",
+      "snapshotBytes": 698772,
+      "snapshotSha256": "c2c71bde9e36fba1dc5c990c6b991629cfc7b796f789d7c2d8f10117dabdf851",
+      "lines": 93,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 19,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\8795f856-f58b-4605-a7dc-6515749144a2.jsonl",
+      "snapshotBytes": 992520,
+      "snapshotSha256": "fad8d51f2f094b44013df0b6aad76d6fab904f0b3a783bac668fa6e47ced0939",
+      "lines": 84,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "b977bb7471ce8cea42aba94f70c3e8de6f294cee991399b6475a02e3bfcc15ba",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\8a946770-5f13-444f-b179-ba0ce6877872.jsonl",
+      "snapshotBytes": 501571,
+      "snapshotSha256": "8cf69b6384f32ef50062be5fbe85fd80987142a5275655c6fa630d1dc21054cf",
+      "lines": 28,
+      "badLines": [],
+      "stopOccurrences": {
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\8b7dbdb2-8e55-4ec3-84f8-2cb85905f634.jsonl",
+      "snapshotBytes": 607809,
+      "snapshotSha256": "9767edd54d7ca6388a0137846163abe142a99d998e18f4fa1f257dc3b541f81e",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\8bb3851f-54ce-4d43-87fc-4b2c3789782d.jsonl",
+      "snapshotBytes": 620829,
+      "snapshotSha256": "a1866e1a7160912b68364873222cd4eb556adf6379aa868b3b17da1217e50e21",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\8c1366ab-620d-45a6-aa7a-4a554efdfa86.jsonl",
+      "snapshotBytes": 1174618,
+      "snapshotSha256": "ba1a6473973b3384694faf2ae11cd32e4f19520277c0200c2f7b513f43372ffe",
+      "lines": 94,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 8,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "0ee9bd126699d9009efd0d7e3cfd3a60c9452f4d6c3ccc5c50580423f0505652",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\8de6e303-084f-42ca-a0f2-513f0ec5a815.jsonl",
+      "snapshotBytes": 9780,
+      "snapshotSha256": "72cbf6eb1a94e27e88db6ea9e3b6eb5453baf600e90e545834d9c1357b32921d",
+      "lines": 71,
+      "badLines": [],
+      "stopOccurrences": {},
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\8e78aa92-619d-4ff4-8fee-8fd113e8b2b6.jsonl",
+      "snapshotBytes": 1063748,
+      "snapshotSha256": "5a2fec281b9395d815ba07f77d02581475f2054e2db54c9182be8ab446a2515e",
+      "lines": 121,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 16,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "2c6eccd403e82404d9e2f95835bdea20eff7f476349182c551d6c71a886e6bf3",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\8fa9d68e-3410-4e67-bcb0-cae936d211ed.jsonl",
+      "snapshotBytes": 631559,
+      "snapshotSha256": "dccc07122722aa9fef26ef227cefafdcb6d1dd8990f9ab6e794e1ea0ad59267f",
+      "lines": 60,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\939bf8ad-c8c1-4758-b66e-9005d9ae2048.jsonl",
+      "snapshotBytes": 1214248,
+      "snapshotSha256": "646b84b90dcf1d504ff63b8e50e860b4d09be77cd8ada66dda7f1ef676822e45",
+      "lines": 181,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 30,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 29,
+          "role": "user",
+          "blobHash": "378455bfad3528d6bc5ca44d8f0c34feac48bfeb3e669d9a2feac1206b03c231",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\942d7236-fe80-4969-8c8f-e1317c9f41f7.jsonl",
+      "snapshotBytes": 599810,
+      "snapshotSha256": "8c89ad18c9b2d0cc50ef7d876df696ee02f8853bfb3830cdbbf124a271690167",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\946f0f59-6898-4ec9-8056-9b94458251c4.jsonl",
+      "snapshotBytes": 665136,
+      "snapshotSha256": "54dbb131be9ac958ad53d74b15f96564a4c749cec400e90925d585fd0f51d875",
+      "lines": 80,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\949522a0-b1eb-46d4-a6b0-6a6872010055.jsonl",
+      "snapshotBytes": 597882,
+      "snapshotSha256": "97459f7178831ca22aa9cac9ede57f34002b80d6819374537470718d075f775d",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\952e9a90-49bb-415e-bfa9-9789b8f04ee1.jsonl",
+      "snapshotBytes": 1062881,
+      "snapshotSha256": "71ea46eea516305ed0700b58f20212592f0a56323e0e45e8d562730a6cbc389f",
+      "lines": 114,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "5000d9160d978f40743ddcc418832be105ac0c2647fd18e931ed4a999a8a7d64",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\98d6cdc8-0c79-419a-a6e5-8a7ea75fa383.jsonl",
+      "snapshotBytes": 565599,
+      "snapshotSha256": "123cea67418d9920b119b82d29245ca00f59ff382e5e8c5e41e86c2f2296a082",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\98f5f541-36e8-4a6a-94e6-ac9b0e8f150a.jsonl",
+      "snapshotBytes": 637176,
+      "snapshotSha256": "19a43d2eafd4074fe44b410fdba06a00734f1285559a0ee8b137f22ef7dea990",
+      "lines": 96,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 13,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\9a19280c-204f-4196-a1fa-444ea451d2d2.jsonl",
+      "snapshotBytes": 954576,
+      "snapshotSha256": "081b3af06ba75fa07c52984d0a36a6a7bec643e15e136dcd87e73f80505717a3",
+      "lines": 225,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 54,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\9b30bd15-9bb3-4a07-a31f-f851be986332.jsonl",
+      "snapshotBytes": 634560,
+      "snapshotSha256": "24de5a06f932f5510798e7e7f04e9daed37b51161a2f9bd53db3eb3a7df0eb04",
+      "lines": 72,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\9d09f452-fcd2-4cdf-b942-aad41ffae9c5.jsonl",
+      "snapshotBytes": 589560,
+      "snapshotSha256": "c982897ba22fa9a344a9c27695b28d93e9414b71be0a7f7935d0482b25fc761d",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\9d4bbf3f-9dea-48d0-ba5f-e47326e9d720.jsonl",
+      "snapshotBytes": 598504,
+      "snapshotSha256": "0709179fd1f50290122be616f257648e98c4142213c45577de280d22b910241a",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\9dd917f5-bf4e-4203-af31-6d7322cad106.jsonl",
+      "snapshotBytes": 598921,
+      "snapshotSha256": "99b8eac6fb83da7d8f7cf94bcb13a0aa11f6daf04823fd993b7e7685404ae004",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 10,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\9de32431-fb6d-4d30-937c-3062d29010d9.jsonl",
+      "snapshotBytes": 1053867,
+      "snapshotSha256": "987090bb8fc2a1d7f55ccdc9a351a766315b9a3897e5773a0980bda293e2bda8",
+      "lines": 236,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 53,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\9e72aef1-1d87-4161-b11a-85742a052db6.jsonl",
+      "snapshotBytes": 771477,
+      "snapshotSha256": "5d94a0a28804c8c0a7c98acf7a2653ffd097aa0c3ca7bc55ad0aee8f77b5a6ad",
+      "lines": 142,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 20,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\9f07fcc7-e863-45ab-b656-fe9b26308fa5.jsonl",
+      "snapshotBytes": 607255,
+      "snapshotSha256": "c5f962e3d593fc7d16da54835baf873a129281fee2c8e9b0318c586421a02a04",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\a33eda0c-6786-4bdf-b080-231d63498db5.jsonl",
+      "snapshotBytes": 1149192,
+      "snapshotSha256": "e4920006373e01edfb0de46a27a3c174c08486a644936af208cb9ad4cdf68157",
+      "lines": 167,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 26,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "643569effc72e376b0727292162c8c8ca445c4b77145f020b260d9ebeba801ca",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\a40103e5-a4b6-4ef9-af81-007e55694c5e.jsonl",
+      "snapshotBytes": 684898,
+      "snapshotSha256": "45ad74e576e970d39db254434aa79c9335579a5229841a3d4a122df5dbf81203",
+      "lines": 79,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 15,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\a4b45a74-8c03-4fa4-a6c1-628f6d06b63b.jsonl",
+      "snapshotBytes": 1119627,
+      "snapshotSha256": "e1df2499963ba56b2de1dd37d4b9de117d2e51f57632d4370069cddc55139daf",
+      "lines": 138,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 19,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "517174f698b9ff57f0439fd48d323de5ae56606b719d6abf2b40c3fe801fcd72",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\a6386d1e-ad3b-4848-8ab3-455ccdba3955.jsonl",
+      "snapshotBytes": 793792,
+      "snapshotSha256": "b2c31edb22b4f387409cfe13218e5ba4c8fb094415516ba2127445bfb19a7545",
+      "lines": 179,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 26,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\a82bebd6-4335-4004-a5a2-cfffb2b79622.jsonl",
+      "snapshotBytes": 12323,
+      "snapshotSha256": "f27d2a9d9c5a9f92364073a3246b555d8b02a2a84a1987d4db865ab6b600cbcc",
+      "lines": 7,
+      "badLines": [],
+      "stopOccurrences": {},
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\a961680d-dd82-4166-96e2-25045ec23e1c.jsonl",
+      "snapshotBytes": 605831,
+      "snapshotSha256": "7bac8d3a15c550bfdbce2abbb2bbb79a8f29f04cad31f00594035a8ac500012f",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\a9675e0f-237c-402d-a79e-1b9237faf264.jsonl",
+      "snapshotBytes": 761256,
+      "snapshotSha256": "fe7c7894de3fda67ca82a7a6506d521a113a8643108c3f2aa456318a58bbe63e",
+      "lines": 78,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ab3ec957-b9b2-472f-9384-c5b02e9eab93.jsonl",
+      "snapshotBytes": 621951,
+      "snapshotSha256": "0551e078d3cf4d91248b6a8cd62e37b30eb5782aedb06eb31a241ca58ccabd5f",
+      "lines": 64,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ab752fba-7f6c-45a1-816e-df0973a54709.jsonl",
+      "snapshotBytes": 647346,
+      "snapshotSha256": "2487745088d9eafad4ee40ce0772bc91af4a3f4c3ec63197c3a0ba18cec4ef7a",
+      "lines": 78,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 15,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\acbf0a71-e060-4d80-aeb6-a17f79db881a.jsonl",
+      "snapshotBytes": 643464,
+      "snapshotSha256": "70d671d67567c828b1de899ac0cb2fb658e856d9066f4222d69d4e6559934780",
+      "lines": 105,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ae3d21cd-1719-48f7-b1a5-e8b17e60b877.jsonl",
+      "snapshotBytes": 613439,
+      "snapshotSha256": "995ff091111e5e99a8234ced6e2136db37b06004766be97fe969d143ac62d8a5",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\agent-1b995b3d.jsonl",
+      "snapshotBytes": 2768,
+      "snapshotSha256": "7fdbde2ebe067c24d7a53dacfce7dbde7ed18e59ee463844af3f7d4959abef52",
+      "lines": 2,
+      "badLines": [],
+      "stopOccurrences": {
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\agent-2597fe86.jsonl",
+      "snapshotBytes": 2306,
+      "snapshotSha256": "e4478ee06d7bd1c0095809220997dd8a8fd96a4ee3b4a56c835ef96f8c7b920f",
+      "lines": 2,
+      "badLines": [],
+      "stopOccurrences": {
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\agent-8dd0cf4f.jsonl",
+      "snapshotBytes": 1693,
+      "snapshotSha256": "f87321a3115dcd810187c48466a53db1b2e8b1ccc300c3cb721ae68148ff1f29",
+      "lines": 2,
+      "badLines": [],
+      "stopOccurrences": {
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\agent-f302f70c.jsonl",
+      "snapshotBytes": 1652,
+      "snapshotSha256": "a07f2c5b89f79db5c11f6fa7012d15557fea026006179b0091e2fbd48a69da52",
+      "lines": 2,
+      "badLines": [],
+      "stopOccurrences": {
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b121e98f-69e0-4488-86c6-1f4500df4343.jsonl",
+      "snapshotBytes": 608122,
+      "snapshotSha256": "2b2de557254a539b4fe9e514c6a57435f6bcaa89e1343ea78ca534443fdab35e",
+      "lines": 57,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b1ca8229-d21a-425d-8291-c50cfed10122.jsonl",
+      "snapshotBytes": 420163,
+      "snapshotSha256": "0e6da884990760d7371a363544e96f4749cf9612bb66311ce4297790c6743505",
+      "lines": 37,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 3
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b2cf9063-9dd4-4f15-804b-720570befecb.jsonl",
+      "snapshotBytes": 675537,
+      "snapshotSha256": "e2265b55a46177a95065653e4eb3d0476092361f39d0284b78e6063ea5bbd31b",
+      "lines": 86,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 17,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b35762ef-bd35-4c39-b07b-80423637c83d.jsonl",
+      "snapshotBytes": 620393,
+      "snapshotSha256": "83862b34b4ff089c78114b8239c3b5479b452318317729e78d668fe495a9f932",
+      "lines": 61,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 8,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b3b27e70-372c-4aa8-b9d6-72b5862d3e8e.jsonl",
+      "snapshotBytes": 640497,
+      "snapshotSha256": "4e42ad95d0218d6d1afd6f8206667a16dcecd4d242a135a571a6d28d093377dc",
+      "lines": 89,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b3bf592e-6eda-4615-9979-a2fda0edca20.jsonl",
+      "snapshotBytes": 608845,
+      "snapshotSha256": "51b5db44f49fd30abb364ac3eff0e0757a89bb88c717d7951cd677d6425573df",
+      "lines": 71,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b3f5ad7d-f135-457e-b2cb-9b250f1251eb.jsonl",
+      "snapshotBytes": 600270,
+      "snapshotSha256": "8484335ec69ebaec31440b64e8b352154e8edf75ea8bdd188eb370537bee2cbe",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b5105cd3-ad94-4c89-ad03-029904976bb0.jsonl",
+      "snapshotBytes": 564206,
+      "snapshotSha256": "714c088577f77ba8377e431418923cf82360f0338e328a5f50f8b14cde5437cf",
+      "lines": 60,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b5897c8f-7ff3-40fc-8ca3-384a49c3532d.jsonl",
+      "snapshotBytes": 1123288,
+      "snapshotSha256": "26fe638bd1fd1b50087e1394a855c491a5b3ed71b55bc58337e602c06ba8b221",
+      "lines": 364,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 71,
+        "end_turn": 21,
+        "stop_sequence": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b6cd2db1-ee4b-4512-b5ee-012b98da9a61.jsonl",
+      "snapshotBytes": 607325,
+      "snapshotSha256": "c426003f25713f1f8ebba93ba37477a4e8697d8b80f0fd4f077b34915ebd799b",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\b872ebb8-7cee-410f-8358-7a55bc19ab73.jsonl",
+      "snapshotBytes": 2193,
+      "snapshotSha256": "1f555cb2a5d440766e508495288a952e0c43d730b98d06347026fc1e8c8dea29",
+      "lines": 8,
+      "badLines": [],
+      "stopOccurrences": {},
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\bb67a3ea-1164-4986-a2db-62d1a5ae7ced.jsonl",
+      "snapshotBytes": 1142709,
+      "snapshotSha256": "67bc2793ce2928cad582b11b3c40d0f6e03a27bc61f00f128ad49def323762e9",
+      "lines": 156,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 23,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 27,
+          "role": "user",
+          "blobHash": "017315e5a1b39957dd3addf19aaff934fe1456a226713bdde7c6514d07c284b5",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\bfbb7ac0-4130-4e1f-b38e-34c02b4f3e73.jsonl",
+      "snapshotBytes": 725669,
+      "snapshotSha256": "4967abfba40bbb7d001ca05307c4750399ad7b9e3db44c0fdb7f2695f5cbcf10",
+      "lines": 117,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 17,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c0a0328b-8ecb-4f4e-ac9d-b5a7dc84ac7d.jsonl",
+      "snapshotBytes": 606399,
+      "snapshotSha256": "1703fdf0006b58f314ef0a88c4d3780d381eadb01f2038a9aa1791d7c8c4867e",
+      "lines": 68,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c13ccec4-f82f-4c7d-bceb-8fe9e4eecf9c.jsonl",
+      "snapshotBytes": 618136,
+      "snapshotSha256": "d35bf6e43aa1beeeb8587decc298555aa7113fd1c99d8911472e7d0aa14178e2",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c156b0e9-477a-4d64-8ace-16dcff979f32.jsonl",
+      "snapshotBytes": 613550,
+      "snapshotSha256": "357292a12d315455a59cb400040949734ade3bc8399e3be73e0b69520cd7c3b7",
+      "lines": 56,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 5,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c1a026d8-af8c-4443-a27a-676e5ef03065.jsonl",
+      "snapshotBytes": 600125,
+      "snapshotSha256": "f545d93cd0f231235bf5817c90c5f076bb0516512aaa5fac37678332376be1e3",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c2ac6956-df3f-4653-ba0e-07a231593c7a.jsonl",
+      "snapshotBytes": 604972,
+      "snapshotSha256": "0c7cd0f2272e444659ce9531b89b0c6d868928240fc4a5f99c14d827666fc70a",
+      "lines": 62,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 8,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c4608b95-d256-4ed2-bc60-fd11ea30adb2.jsonl",
+      "snapshotBytes": 667319,
+      "snapshotSha256": "29f542131d3a8d390d32f32407dfd973acadf594b04ffcd8c6cd601f86d7a151",
+      "lines": 78,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 15,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c49b4765-411c-4c06-a23b-06d50c968520.jsonl",
+      "snapshotBytes": 821740,
+      "snapshotSha256": "2da37d295513e679bcbd9e110bb0f5e82ee18163a626228517c654ab3eb550c5",
+      "lines": 161,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 25,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c51d2baa-6856-4ef4-accb-5e0a70d08957.jsonl",
+      "snapshotBytes": 618444,
+      "snapshotSha256": "f2715b6b91bf107cf4fc7749b24e51a10f7576d7b8beb4d1552d6ece4579728d",
+      "lines": 101,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 3
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c5c29a16-c085-445d-ab9f-312580ac5b4e.jsonl",
+      "snapshotBytes": 602533,
+      "snapshotSha256": "0b864572d0a5c228f776653e136147a14c4e39fe3fa1cc94eacb76906d1c8178",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c79dfbb0-8b05-41cd-b737-f426f3f9bcdd.jsonl",
+      "snapshotBytes": 693061,
+      "snapshotSha256": "77d5cc3efa724c6741c66af0dc85ee22af66e344b5d77d16dbe4d91530bd7450",
+      "lines": 94,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 20,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c7d88040-8db8-4931-b5ca-76f300862b07.jsonl",
+      "snapshotBytes": 679229,
+      "snapshotSha256": "2506a35cdf10f81f41d5d1249bb04448f9f84b818e809456e9e2db5741b7a66c",
+      "lines": 71,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c87225c2-61d7-4ae8-86f1-5cd63e09f95c.jsonl",
+      "snapshotBytes": 602525,
+      "snapshotSha256": "e23f44799b35836f348258d46c674d5355c48be1ad972cc5bc4deb61a6333c40",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 10,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c8eea0a3-5675-49aa-9491-49e6dbe96ace.jsonl",
+      "snapshotBytes": 599848,
+      "snapshotSha256": "d76b1bb9a9a8155d276b401e069819af19e71117c54ef1e420984e133729bd8c",
+      "lines": 83,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\c98c44f9-b3b7-4af3-b5a5-f5ac6961adda.jsonl",
+      "snapshotBytes": 600964,
+      "snapshotSha256": "2b6413e11901ad500f2c963f72ad387cb7fe1cb0943b0ab9a7862ea7f8d4e719",
+      "lines": 64,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ca9445e1-aa9d-4f81-b91d-a5af487165d4.jsonl",
+      "snapshotBytes": 659095,
+      "snapshotSha256": "88fef1c1ef154ed15037570fd8eb9f1f336232ec229c7053f1c1cd93f7d20074",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\cc1e9775-3941-425b-8b92-adb8a1e2c660.jsonl",
+      "snapshotBytes": 632472,
+      "snapshotSha256": "e2012abe52082a779ce7a0195dcbca130305c6b4c12bde1a824ecac8ff21893f",
+      "lines": 70,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\cc99446c-446c-46ac-9018-96573176b34f.jsonl",
+      "snapshotBytes": 620405,
+      "snapshotSha256": "e2aa1013ea1e6823797093891898f07f48f7a8cdba16feb0f588b0388eea2eb9",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ccc81ea7-32fb-4e90-bb19-5adc4e1214bb.jsonl",
+      "snapshotBytes": 618424,
+      "snapshotSha256": "ec717358fb3bd1e0eb928fba40824ebc3e0e8b70752b8d0c96023f0c109f0a8c",
+      "lines": 73,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ccca1cc2-5a06-43f9-a348-6eb471db9a56.jsonl",
+      "snapshotBytes": 990504,
+      "snapshotSha256": "4819c4890c7ce3c847dffd6afc87d271291195cf0d537529620397753d81727f",
+      "lines": 85,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "ca7b805a9b49e0fe838972cdf44fe81cf40ccb22a4995dfa52c7a6134e66f470",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d2383f64-d5e1-4a15-ba5b-b15f39363d3f.jsonl",
+      "snapshotBytes": 604399,
+      "snapshotSha256": "fed7176b146b206f59da89606b2c930f4bdb74108df0732912c39eaff1b75699",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d3166d17-c383-47ef-a7bc-9fb603950926.jsonl",
+      "snapshotBytes": 610669,
+      "snapshotSha256": "0b3cc30573b080af00e071f9f45097d1cd38e977526c777a2944ee31d331d218",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d365fe78-beff-4e94-bf72-fb5021142b2d.jsonl",
+      "snapshotBytes": 1046312,
+      "snapshotSha256": "93412f5dd149400a18927ea54b604d935bfbd1508bfc90dd6368606da635cec5",
+      "lines": 85,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "fbc81bd701ac30d3bffa6ca86160215042f0ac60f90ea86bfc5395a3e499c30b",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d5ab3764-bb00-4602-ab90-9c28ea7994e7.jsonl",
+      "snapshotBytes": 1051479,
+      "snapshotSha256": "e11fc4a464eb0d99864e7d748293918c4dd9ec2494efa665ddd3429eca0c1147",
+      "lines": 226,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 56,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d6712834-b856-48e1-ae63-739a702edef4.jsonl",
+      "snapshotBytes": 633997,
+      "snapshotSha256": "3b5e476818776a6cc8ef7117fc845c71b3e568491057af4345065ea040b4f008",
+      "lines": 58,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 5,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d69a825f-cc4f-45f4-9baa-b453a39bedac.jsonl",
+      "snapshotBytes": 621298,
+      "snapshotSha256": "21081c4bad6ca587dff719121c7124bbce244481f7d88458586c9e287f0e1629",
+      "lines": 50,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d6b46042-cfa4-4acc-8d1f-8ff95942f623.jsonl",
+      "snapshotBytes": 601356,
+      "snapshotSha256": "47ef1599faf7708cb0a3ce241a3b265458c68225ef5c2fbfbea4037171572fd4",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d766a9d9-4771-4e0b-acb2-ac69ce11354c.jsonl",
+      "snapshotBytes": 603809,
+      "snapshotSha256": "6ebd4648951e09c9eab1ba4101de73f625492c2dfe9c7674003cb22827850f0d",
+      "lines": 66,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 10,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d814641f-ff6b-46aa-8164-3ccb5aab28a7.jsonl",
+      "snapshotBytes": 608184,
+      "snapshotSha256": "e4d66bc85e4ce9abe7f422c630c0ca8d552d514cf2b5d195a16418f465991421",
+      "lines": 68,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d8933e20-6b4e-4375-94f3-44ad1b3b1b2e.jsonl",
+      "snapshotBytes": 670976,
+      "snapshotSha256": "558666b189b19390bbb84d77de0f9ce99e2d04cafcc1e8a13abf21d941463f77",
+      "lines": 93,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 16,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\d8ca6138-c091-482c-b81c-db1233e2cfd0.jsonl",
+      "snapshotBytes": 598795,
+      "snapshotSha256": "6ed98589cc5ed38d782aa31f3dcc68af9c29b861460c68614fc97b50ec76fea0",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\da358507-8553-43c5-b0c8-302f6e0e8858.jsonl",
+      "snapshotBytes": 611671,
+      "snapshotSha256": "41590f08f6e56023471207d0ed86e242bea3771c64df4bbe6e78cd6b6d14857d",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\da9ace3d-b0fb-402c-ac0e-6b452ad8ca8a.jsonl",
+      "snapshotBytes": 579412,
+      "snapshotSha256": "987947919acf1fa4093a635cab39cda04467f4a413ee28ee753d2aff08d8ee57",
+      "lines": 56,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 6,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\dc8ee271-2638-4ef3-b671-a677e7dd370f.jsonl",
+      "snapshotBytes": 600782,
+      "snapshotSha256": "eb4cd353eb194d08ba7aafff01a2dcfb0dd70d90047955a4698094d83e95561c",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\dd77a32e-6695-4809-bd7f-0c7da63fea07.jsonl",
+      "snapshotBytes": 603685,
+      "snapshotSha256": "fc72d49839d87547e0c0409d074196ac006fe1313ecca41a8aa9e1755fe04272",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e13c0f0a-9ce5-4c6e-ae11-f336f61e30c6.jsonl",
+      "snapshotBytes": 3180,
+      "snapshotSha256": "a95090ad41860758675c72cfccfa55339ed75dec5a083621058592bcb75da43a",
+      "lines": 10,
+      "badLines": [],
+      "stopOccurrences": {},
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e1be1f06-057c-44d0-8c23-18383790386d.jsonl",
+      "snapshotBytes": 631014,
+      "snapshotSha256": "94ad44feabb324c67126f61b1ce78af4789e0874e2a17dfc9a4e7e8552787b47",
+      "lines": 99,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e1e303f3-e902-4215-ab66-ded9628d6342.jsonl",
+      "snapshotBytes": 596184,
+      "snapshotSha256": "ae45c851ded79635db2cda1b6cbaa3b631fe33c9432dbccb9ddcb7b80e3823d8",
+      "lines": 84,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 10,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e41d1df4-e4d5-4420-b891-9f52dbb7bef1.jsonl",
+      "snapshotBytes": 1040434,
+      "snapshotSha256": "b92855494c871c783855ca01bd17f5832d5673503b5e0e082129b579df96c67b",
+      "lines": 81,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "fbc81bd701ac30d3bffa6ca86160215042f0ac60f90ea86bfc5395a3e499c30b",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e4440dcd-cec3-4008-8dd9-4b0e8b3c8407.jsonl",
+      "snapshotBytes": 749479,
+      "snapshotSha256": "a520ba6f7e75b7c15bbc736e805b4e5d00e201923ea8cf1ec61feb903b5ae028",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "end_turn": 2,
+        "tool_use": 4
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 25,
+          "role": "user",
+          "blobHash": "5f922fbc1d6b17e3cb4322ade77638cb403897479a4b57da763bb4bd5ab0721f",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e45b4d51-7f4b-49ac-9e32-da06f51feeda.jsonl",
+      "snapshotBytes": 612768,
+      "snapshotSha256": "f0a57f8ced0e8400a1a734a2d164e2b2539ebdf6511aafd4498076310ebb2802",
+      "lines": 92,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e4b1365d-0bdd-4036-994a-fcf9adcc7df1.jsonl",
+      "snapshotBytes": 717381,
+      "snapshotSha256": "d9d3ac4372d16e51ed90bafa1597697594bfa8306ed36d22374a89ee3b8965e1",
+      "lines": 90,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e5d1b12a-1a45-4065-b65b-756ee7201cd0.jsonl",
+      "snapshotBytes": 601395,
+      "snapshotSha256": "b1b79292b2c1bde9afecf2f106c28d1a9d15a82bd8f827e03ea17f192c261811",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e5eb6fc1-1723-4faa-bd2f-64c1073a751d.jsonl",
+      "snapshotBytes": 4536339,
+      "snapshotSha256": "7d4dc1beffd2cfab4f4d7dc04fd004bc188c67075a99a9a4fa9a80997f9a489a",
+      "lines": 1435,
+      "badLines": [],
+      "stopOccurrences": {
+        "end_turn": 15,
+        "tool_use": 476
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e5f8873a-3eee-4b64-8bf9-267ed9a12bce.jsonl",
+      "snapshotBytes": 591768,
+      "snapshotSha256": "e514ade8b9fc8c34701971af52eedca688ae7593e1e2cf78437a8841d6fe859c",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e8c0b321-4fd1-4446-9047-9645e573672d.jsonl",
+      "snapshotBytes": 889847,
+      "snapshotSha256": "201ad89c1c7912e19152d24b4514cb29266b14df6123737b90c77709cb5cf4ed",
+      "lines": 186,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 40,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e9f3662d-543d-4fa0-8da9-244be5f0475f.jsonl",
+      "snapshotBytes": 601177,
+      "snapshotSha256": "dc29ea6a56abf8e9e093f4b0373e201beac95b279d4e9e2085ca5b540a096de6",
+      "lines": 69,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\e9f8abbb-c0ca-46f4-be9f-1270051d2d94.jsonl",
+      "snapshotBytes": 599799,
+      "snapshotSha256": "ee9699930efefa0fe7235ede7211788ea54fe963a13618c7903e47e0b304e1c8",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ea9f72dd-be6b-4fbd-9ef8-7aab1ed8d4ac.jsonl",
+      "snapshotBytes": 616348,
+      "snapshotSha256": "6f42010c2594a6ad2d8567f2216ef35120edda3753346739789ea27bc13b620d",
+      "lines": 72,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 12,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ec86838d-c114-467e-af86-30979a1f443b.jsonl",
+      "snapshotBytes": 1764,
+      "snapshotSha256": "dc886ed59cf730831150c7aba761d9116cff989f7ef48924365d6416743fc6a1",
+      "lines": 6,
+      "badLines": [],
+      "stopOccurrences": {},
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ee5addad-75ed-4aa1-9e53-06c1dd940e0a.jsonl",
+      "snapshotBytes": 779247,
+      "snapshotSha256": "e2ff162c383ce662eec29e3c0604dc6ce9971f15c9f55e266cd455825853669c",
+      "lines": 137,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 21,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\eedc7d61-9e2f-4394-b7d2-6c87dd50b095.jsonl",
+      "snapshotBytes": 600626,
+      "snapshotSha256": "c86b2d8c50ea1085621fd38ead4d5841520e8086aa0abf12a61dce89867f31a0",
+      "lines": 64,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 10,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f279157c-0b43-4863-bf2a-e8097076262a.jsonl",
+      "snapshotBytes": 722581,
+      "snapshotSha256": "61b6e42699feac9f8af0530116f272625d48cc36658f48fea74b8b2baaebf3b6",
+      "lines": 102,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 14,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f2ea9ae3-205d-4b8c-854a-561a520870d0.jsonl",
+      "snapshotBytes": 606159,
+      "snapshotSha256": "6d7379fcb95f2d6c39c5e3acfa78a26ce7fc06f2d75cd5079604c6126c786103",
+      "lines": 68,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f44ca7df-e881-4be6-a64f-e5913f641e87.jsonl",
+      "snapshotBytes": 688118,
+      "snapshotSha256": "70b824d7ace9b448916e85d33e9b37f9b64c1d7db22c5aa529e47d30533b757e",
+      "lines": 93,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 19,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f5affc8e-4eff-49d8-af2f-52b1a18da2cc.jsonl",
+      "snapshotBytes": 985926,
+      "snapshotSha256": "5b0c55511612c990be19b20c80507ce8a729f19b4e64b26368cc91d7713da3c7",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 5,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 28,
+          "role": "user",
+          "blobHash": "b977bb7471ce8cea42aba94f70c3e8de6f294cee991399b6475a02e3bfcc15ba",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f5f86c88-02a6-4a1d-97ba-d44d97ca7605.jsonl",
+      "snapshotBytes": 636050,
+      "snapshotSha256": "ed576315ff640d7e1288b4e657eefb4e674e5eeb4b9371da22a166b775bb070c",
+      "lines": 88,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 16,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f633f864-4e7a-4a70-a284-8a03f1174369.jsonl",
+      "snapshotBytes": 611782,
+      "snapshotSha256": "5a5180e0fbcceacf07fed0351cef901ac35a0651121fd2668abf6a1f3bb1bb65",
+      "lines": 67,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 11,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f69fe1d3-b6ed-4de7-8b8e-7048e6b1d2a6.jsonl",
+      "snapshotBytes": 667294,
+      "snapshotSha256": "d6e15f6e8a31c8348deba9b578e7b85f2937c7b1d668f3fd9be88a42e301f3e1",
+      "lines": 99,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 22,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f73e8fe6-c28e-4b9c-a87d-4be0fa244d1b.jsonl",
+      "snapshotBytes": 1348424,
+      "snapshotSha256": "1aecb8a9bbdec3cb08f6163c0adb9aed856c300abea0c8f8319fbee021f92e02",
+      "lines": 228,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 37,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 29,
+          "role": "user",
+          "blobHash": "f04d6431838348c7113d1dc8ddd6ad13feb6f6d8e545c7305b0aceca526fc305",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f7a3a8d1-bf54-44ab-89c7-457b3889062c.jsonl",
+      "snapshotBytes": 993065,
+      "snapshotSha256": "0fa7baf8e1ee016a1ba7f9be47b23ab6a783bef0ccd09f8c3c3fb23308b0e028",
+      "lines": 66,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 4,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [
+        {
+          "line": 26,
+          "role": "user",
+          "blobHash": "829f51c201253b003c7b63443e2ebf1a5953e9af8a9b3cfa2ec31e1df2f59a6f",
+          "markers": [
+            "reasoning included",
+            "Emit the observed @SV_FORMAT",
+            "State before reasoning"
+          ]
+        }
+      ],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\f9805b51-5cc4-4af5-8c84-1ab326f1b120.jsonl",
+      "snapshotBytes": 1036695,
+      "snapshotSha256": "3c0e0f4ef4dab3cb30498e07536d8e098dcb4244f746dada1dbd9a6fe24397bc",
+      "lines": 210,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 78
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\fda80ee9-ba8f-4f58-b6f0-cf1337138d4b.jsonl",
+      "snapshotBytes": 695303,
+      "snapshotSha256": "dcf1aaae7a2f093cbaef835eca5c18a893cfb22c9214e7eefd10a57bbfe34452",
+      "lines": 73,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 2
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\feeead0d-f9ca-4632-b8e9-9f82df24534c.jsonl",
+      "snapshotBytes": 624009,
+      "snapshotSha256": "6a371fe707a9c18a1f5925644a65ee2ff9b2b55b8d6298332ea204cc3a6d9fde",
+      "lines": 57,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 7,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    },
+    {
+      "source": "C:\\Users\\Alexander\\.claude\\projects\\D--zPython-opencode\\ffc7caa2-ff0f-48b7-896d-fb292e392091.jsonl",
+      "snapshotBytes": 599180,
+      "snapshotSha256": "f917c1304853c8c45931c5d93f40451e900e62ac7a1d83134c5d1cc50508f9e3",
+      "lines": 65,
+      "badLines": [],
+      "stopOccurrences": {
+        "tool_use": 9,
+        "end_turn": 1
+      },
+      "events": [],
+      "publicBlobMarkers": [],
+      "systemRefusalRecordsNotAddedToAssistantCounts": []
+    }
+  ],
+  "limits": "Live files may append. Marker presence is not causal attribution or proof of request membership. System refusal records are separate to avoid double counting."
+}

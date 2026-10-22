@@ -1,0 +1,13 @@
+{
+  "roles": [
+    "developer",
+    "developer",
+    "developer",
+    "user",
+    "user"
+  ],
+  "messageCount": 5,
+  "onlyUserPacket": false,
+  "verdict": "NOT_ISOLATED; no aicall model request made",
+  "note": "Default debug input includes developer/user instructions and environment. This is not a qualified frameless critic."
+}

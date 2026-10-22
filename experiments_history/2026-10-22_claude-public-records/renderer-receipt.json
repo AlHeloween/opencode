@@ -1,0 +1,32 @@
+{
+  "run": "20261022T044102Z_295b102d",
+  "state": {
+    "status": "finished",
+    "pids": [
+      27468
+    ],
+    "exit_code": 0,
+    "started_utc": "2026-10-22T04:41:03Z",
+    "finished_utc": "2026-10-22T04:41:07Z",
+    "stopped_utc": null,
+    "timeout_utc": null,
+    "backend": "raw-pipe",
+    "log": {
+      "limit_bytes": 52428800,
+      "bytes_written": 245,
+      "bytes_dropped": 0,
+      "truncated": false
+    },
+    "creation_tick": 0,
+    "host_pid": 27964,
+    "host_creation_tick": 134371176629349360,
+    "notes": "log final"
+  },
+  "stdout": "{\n  \"ok\": true,\n  \"file\": \"plans/MASTER_PLAN.md\",\n  \"bytes\": 74566,\n  \"stats\": {\n    \"plans\": 49,\n    \"openBoxes\": 228,\n    \"missingPlanSv\": 1,\n    \"missingTaskSv\": 142,\n    \"missingManifests\": 220,\n    \"unlinked\": 0,\n    \"gapsBefore\": []\n  }\n}\n",
+  "headBeforeSha256": "631b7e693c434a1978eeb797a627a5ddf0262a79fbfad7ca160417da32098454",
+  "headAfterSha256": "631b7e693c434a1978eeb797a627a5ddf0262a79fbfad7ca160417da32098454",
+  "headUnchanged": true,
+  "observation": "Before buffer read before renderer; exact full marker discovered after shorter literal failed",
+  "markerLineEndingNormalized": true,
+  "headDefinition": "Bytes strictly above marker; renderer normalizes marker line ending from CRLF to LF"
+}

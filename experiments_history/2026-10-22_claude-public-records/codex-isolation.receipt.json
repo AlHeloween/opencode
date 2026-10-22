@@ -1,0 +1,15 @@
+{
+  "name": "codex-isolation",
+  "status": "completed",
+  "exitCode": 0,
+  "elapsedSeconds": 3.603973865509033,
+  "argv": [
+    "D:\\zPython\\_coding_agents\\codex.exe",
+    "debug",
+    "prompt-input",
+    "PUBLIC_RECORDS_ISOLATION_FIXTURE"
+  ],
+  "cwd": "C:\\Users\\ALEXAN~1\\AppData\\Local\\Temp\\claude-public-records-h55kx62k",
+  "stdoutBytes": 96176,
+  "stderrBytes": 0
+}

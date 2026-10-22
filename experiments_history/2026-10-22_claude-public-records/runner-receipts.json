@@ -1,0 +1,106 @@
+[
+  {
+    "id": "20261022T042843Z_60165776",
+    "state": {
+      "status": "finished",
+      "pids": [
+        30164
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-22T04:28:43Z",
+      "finished_utc": "2026-10-22T04:28:48Z",
+      "stopped_utc": null,
+      "timeout_utc": null,
+      "backend": "raw-pipe",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 614,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "creation_tick": 0,
+      "host_pid": 35312,
+      "host_creation_tick": 134371169236604750,
+      "notes": "log final"
+    },
+    "fullLog": "{\"scope\": \"Top-level project JSONL files only; no subagents or other project roots\", \"predictedBytes\": 276670100, \"byteBudget\": 367001600, \"fileCount\": 222, \"controls\": {\"cases\": 4, \"passed\": 4, \"expected_fail_control\": \"Quoted refusal and non-event blob are excluded\"}, \"uniqueAssistantRefusals\": 13, \"categories\": {\"reasoning_extraction\": 13}, \"models\": {\"claude-opus-5-5\": 11, \"<synthetic>\": 2}, \"versions\": {\"2.1.304\": 9, \"2.1.299\": 4}, \"limits\": \"Live files may append. Marker presence is not causal attribution or proof of request membership. System refusal records are separate to avoid double counting.\"}\r\n"
+  },
+  {
+    "id": "20261022T043016Z_ce14f659",
+    "state": {
+      "status": "finished",
+      "pids": [
+        31924
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-22T04:30:16Z",
+      "finished_utc": "2026-10-22T04:30:29Z",
+      "stopped_utc": null,
+      "timeout_utc": null,
+      "backend": "raw-pipe",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 535,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "creation_tick": 0,
+      "host_pid": 25824,
+      "host_creation_tick": 134371170164257650,
+      "notes": "log final"
+    },
+    "fullLog": "{\"name\": \"claude-baseline\", \"status\": \"completed\", \"exitCode\": 0, \"elapsedSeconds\": 12.596958875656128, \"argv\": [\"C:\\\\Users\\\\Alexander\\\\.local\\\\bin\\\\claude.exe\", \"--safe-mode\", \"--print\", \"--tools\", \"\", \"--disable-slash-commands\", \"--strict-mcp-config\", \"--no-session-persistence\", \"--model\", \"claude-opus-5-5\", \"--max-turns\", \"1\", \"--output-format\", \"stream-json\", \"--include-partial-messages\", \"--verbose\"], \"cwd\": \"C:\\\\Users\\\\ALEXAN~1\\\\AppData\\\\Local\\\\Temp\\\\claude-public-records-helgtjgv\", \"stdoutBytes\": 32074, \"stderrBytes\": 0}\r\n"
+  },
+  {
+    "id": "20261022T043110Z_6832cfda",
+    "state": {
+      "status": "finished",
+      "pids": [
+        6680
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-22T04:31:10Z",
+      "finished_utc": "2026-10-22T04:31:19Z",
+      "stopped_utc": null,
+      "timeout_utc": null,
+      "backend": "raw-pipe",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 672,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "creation_tick": 0,
+      "host_pid": 3460,
+      "host_creation_tick": 134371170702751790,
+      "notes": "log final"
+    },
+    "fullLog": "{\"name\": \"claude-candidate\", \"status\": \"completed\", \"exitCode\": 0, \"elapsedSeconds\": 8.788982152938843, \"argv\": [\"C:\\\\Users\\\\Alexander\\\\.local\\\\bin\\\\claude.exe\", \"--safe-mode\", \"--print\", \"--tools\", \"\", \"--disable-slash-commands\", \"--strict-mcp-config\", \"--no-session-persistence\", \"--model\", \"claude-opus-5-5\", \"--max-turns\", \"1\", \"--output-format\", \"stream-json\", \"--include-partial-messages\", \"--verbose\", \"--append-system-prompt-file\", \"D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-22_claude-public-records\\\\claude-public-records-insert.txt\"], \"cwd\": \"C:\\\\Users\\\\ALEXAN~1\\\\AppData\\\\Local\\\\Temp\\\\claude-public-records-helgtjgv\", \"stdoutBytes\": 32914, \"stderrBytes\": 0}\r\n"
+  },
+  {
+    "id": "20261022T043017Z_1a5d37a3",
+    "state": {
+      "status": "finished",
+      "pids": [
+        22344
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-22T04:30:17Z",
+      "finished_utc": "2026-10-22T04:30:21Z",
+      "stopped_utc": null,
+      "timeout_utc": null,
+      "backend": "raw-pipe",
+      "log": {
+        "limit_bytes": 52428800,
+        "bytes_written": 341,
+        "bytes_dropped": 0,
+        "truncated": false
+      },
+      "creation_tick": 0,
+      "host_pid": 11132,
+      "host_creation_tick": 134371170177916400,
+      "notes": "log final"
+    },
+    "fullLog": "{\"name\": \"codex-isolation\", \"status\": \"completed\", \"exitCode\": 0, \"elapsedSeconds\": 3.603973865509033, \"argv\": [\"D:\\\\zPython\\\\_coding_agents\\\\codex.exe\", \"debug\", \"prompt-input\", \"PUBLIC_RECORDS_ISOLATION_FIXTURE\"], \"cwd\": \"C:\\\\Users\\\\ALEXAN~1\\\\AppData\\\\Local\\\\Temp\\\\claude-public-records-h55kx62k\", \"stdoutBytes\": 96176, \"stderrBytes\": 0}\r\n"
+  }
+]

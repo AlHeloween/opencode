@@ -1,0 +1,37 @@
+{
+  "prompt_kernel/source.py": {
+    "sha256": "7390e20f585815d74a86c5e85822f9ebec2ebb8643eb0742e08fe3f719038743",
+    "matches": [
+      {
+        "line": 481,
+        "text": "                \"Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.\",\r"
+      }
+    ]
+  },
+  "prompt_kernel/addons_claude.py": {
+    "sha256": "f8b3f216e35a691d2d24927f11c3f23ed3af362bcf6266c5c92a050c01475c6e",
+    "matches": []
+  },
+  ".claude/reasoning_kernel.md": {
+    "sha256": "ff958dcbdb9df4dca7002f5f6ccda846dfe87973157018cd48076b47327a506f",
+    "matches": [
+      {
+        "line": 294,
+        "text": "- Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency."
+      }
+    ]
+  },
+  ".opencode/skills/sv-chain/SKILL.md": {
+    "sha256": "1248c629e3b70613d2362caa2dd3b9389885021f2cc7553d4962b0886f59b234",
+    "matches": [
+      {
+        "line": 3,
+        "text": "description: Read your own reasoning trajectory out of past session transcripts — the @SV_FORMAT semantic-vector chain the kernel emits every turn. Use when you need what an earlier session was THINKING rather than what it changed: recovering intent after a fold or a /compact, finding when a topic entered and how it resolved, checking whether the chain lost a turn (a prev-md5 break makes recovery Guess, not Inferred), or auditing attention drift across a long run. Also use before re-deriving a decision you suspect a past session already reasoned through.\r"
+      },
+      {
+        "line": 6,
+        "text": "# SV chain — the reasoning trajectory reader\r"
+      }
+    ]
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "source": "D:/zPython/opencode/experiments/2026-10-22_claude-public-records",
+  "archive": "D:/zPython/opencode/experiments_history/2026-10-22_claude-public-records",
+  "trackedPublic": [
+    {
+      "path": "budget-receipt.json",
+      "bytes": 890,
+      "sha256": "cc94714c6d0ab812ed38201fe9911fd265e02dfaf1df0a46f37b38a0ff93c222"
+    },
+    {
+      "path": "census.json",
+      "bytes": 131810,
+      "sha256": "8111c6c7c715a0d88271872a8778fee3750fddfef4c89d1b5b87c1ece2997a77"
+    },
+    {
+      "path": "census.py",
+      "bytes": 5903,
+      "sha256": "b2c6b358b30991a9f82b49885ef5b22ad42dc7bde0b4f66e088cfcee0fb43481"
+    },
+    {
+      "path": "claude-baseline.receipt.json",
+      "bytes": 645,
+      "sha256": "003b92d87f2ffb4c9d044a7eb654359a07fc53acc74791ad50b755b24d52a722"
+    },
+    {
+      "path": "claude-baseline.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "claude-candidate.receipt.json",
+      "bytes": 792,
+      "sha256": "11c3249f770e143a0e7c8c4dfe8ed595ded6ad3f1dfee8cfe440b3d2ed90912f"
+    },
+    {
+      "path": "claude-candidate.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "claude-public-records-insert.txt",
+      "bytes": 3808,
+      "sha256": "e2114317ab2f7b8c22e21053a76ab6745fa85c80a72a06dc0bb02ea58f7e68a0"
+    },
+    {
+      "path": "cli-reference.md",
+      "bytes": 47884,
+      "sha256": "ac829f14528ebcb3b44364c2d27a134cf40bbb9bf26a1e9968d5c9cf1dc8314d"
+    },
+    {
+      "path": "codex-isolation.receipt.json",
+      "bytes": 391,
+      "sha256": "007397e58a53cfe032545ca36b6317c2f6f12d450c5f3208c7b1d362322d986b"
+    },
+    {
+      "path": "codex-isolation.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fixture.json",
+      "bytes": 1650,
+      "sha256": "6c531fe29a2970c630604763c52d485eae4e2a2de156ae94b3b00be5f31c3c47"
+    },
+    {
+      "path": "isolation-verdict.json",
+      "bytes": 330,
+      "sha256": "6981a44a74ed7cdb8501bbf949b8fc89980ebbcbae61d84cabeff723451612cc"
+    },
+    {
+      "path": "primary-sources.json",
+      "bytes": 502,
+      "sha256": "2ead7a6b990591eeb71566ed9a6aa9ce8cbad144f1c40ebd695e8705d16234f0"
+    },
+    {
+      "path": "probe.py",
+      "bytes": 2488,
+      "sha256": "a73e67de6c3ba6e5351cebe1bdf48ac5c14dd6bc07c815415374741ff03bcf1b"
+    },
+    {
+      "path": "progress_row.md",
+      "bytes": 1149,
+      "sha256": "bec942d4bd4b8d37a9df3085b32dacfa6cd271a9df2fe19b139fd6cde2253339"
+    },
+    {
+      "path": "prompt-source-pins.json",
+      "bytes": 1747,
+      "sha256": "afd119091828618ec777aec954a95b4daac51336819528250602c1ba3746a05d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1954,
+      "sha256": "6dcfa6b8fc69b238167f078cab17708b3ed63bbbd99ba5fea2eedb48be3c64a1"
+    },
+    {
+      "path": "renderer-receipt.json",
+      "bytes": 1311,
+      "sha256": "5c478e93b4bba37a61dd5cd2333d3610709f3903ed27e28206c435bda0e9e3e6"
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 14148,
+      "sha256": "7aade09a00ff8de946f73645aa1a8e90f81593edeead0a904ecc4bf88a7ae9ab"
+    },
+    {
+      "path": "reviewer-readback.json",
+      "bytes": 111,
+      "sha256": "9a87f32c2457c384123f0d819a8e7cb2d7338f21e5fe6a81033d3c32eacc9d0e"
+    },
+    {
+      "path": "reviewer-stop.json",
+      "bytes": 202,
+      "sha256": "68a1988a2af2fdefda5b6d87bff58db8814cfad66b6a8cdb9220a5a5e34e6f75"
+    },
+    {
+      "path": "reviewer-sv.md",
+      "bytes": 715,
+      "sha256": "36a72df2b1ae8b8927c534bf35da3918163e36f5125311791f80ae1b2f31c96b"
+    },
+    {
+      "path": "review_bridge.py",
+      "bytes": 1757,
+      "sha256": "ee63b5dc7c920a925db39f741e850a66c750d4b615d8bcb44a571be29e3368b9"
+    },
+    {
+      "path": "runner-receipts.json",
+      "bytes": 4902,
+      "sha256": "01142c75073a10f349d21d12038ba9c55203631c401157ea342cd010ede547ad"
+    },
+    {
+      "path": "validate.py",
+      "bytes": 3786,
+      "sha256": "885d561c591e788592668ca0b9b92f5eb1d541ccfadd748f0d539c57ffd4a0ba"
+    },
+    {
+      "path": "validation.json",
+      "bytes": 5691,
+      "sha256": "b3853e3bb68a46de82d663f19c5456543a178cfe43edd16aefe4e32684b57195"
+    }
+  ],
+  "privateRetained": [
+    {
+      "path": "D:\\zPython\\opencode\\experiments\\2026-10-22_claude-public-records\\claude-baseline.stdout.jsonl",
+      "bytes": 32074,
+      "sha256": "4b0a6e31fe4f131a8cf024562f9549628c900569f895e4bc548202d9e17da374"
+    },
+    {
+      "path": "D:\\zPython\\opencode\\experiments\\2026-10-22_claude-public-records\\claude-candidate.stdout.jsonl",
+      "bytes": 32914,
+      "sha256": "ac819a8f0619d699ddba0baba70d811e4eb518c2a6e95eba807c794a633db5ef"
+    },
+    {
+      "path": "D:\\zPython\\opencode\\experiments\\2026-10-22_claude-public-records\\codex-isolation.stdout.jsonl",
+      "bytes": 96176,
+      "sha256": "26eac460dcf7a9b2b5b394f716e60be1cbc3c013142fc6335755b61602d73b63"
+    }
+  ],
+  "checks": {
+    "json": 14,
+    "files": 27,
+    "bytes": 234566,
+    "secretFindings": [],
+    "privateBodies": [],
+    "brokenLinks": []
+  }
+}

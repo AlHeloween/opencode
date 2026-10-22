@@ -1,0 +1,29 @@
+{
+  "name": "claude-candidate",
+  "status": "completed",
+  "exitCode": 0,
+  "elapsedSeconds": 8.788982152938843,
+  "argv": [
+    "C:\\Users\\Alexander\\.local\\bin\\claude.exe",
+    "--safe-mode",
+    "--print",
+    "--tools",
+    "",
+    "--disable-slash-commands",
+    "--strict-mcp-config",
+    "--no-session-persistence",
+    "--model",
+    "claude-opus-5-5",
+    "--max-turns",
+    "1",
+    "--output-format",
+    "stream-json",
+    "--include-partial-messages",
+    "--verbose",
+    "--append-system-prompt-file",
+    "D:\\zPython\\opencode\\experiments\\2026-10-22_claude-public-records\\claude-public-records-insert.txt"
+  ],
+  "cwd": "C:\\Users\\ALEXAN~1\\AppData\\Local\\Temp\\claude-public-records-helgtjgv",
+  "stdoutBytes": 32914,
+  "stderrBytes": 0
+}

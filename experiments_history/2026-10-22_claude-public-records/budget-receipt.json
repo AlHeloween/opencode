@@ -1,0 +1,31 @@
+{
+  "run": "20261022T044138Z_b63458a1",
+  "state": {
+    "status": "finished",
+    "pids": [
+      29260
+    ],
+    "exit_code": 0,
+    "started_utc": "2026-10-22T04:41:38Z",
+    "finished_utc": "2026-10-22T04:41:42Z",
+    "stopped_utc": null,
+    "timeout_utc": null,
+    "backend": "raw-pipe",
+    "log": {
+      "limit_bytes": 52428800,
+      "bytes_written": 31216,
+      "bytes_dropped": 0,
+      "truncated": false
+    },
+    "creation_tick": 0,
+    "host_pid": 19920,
+    "host_creation_tick": 134371176984916740,
+    "notes": "log final"
+  },
+  "stdoutSha256": "0dc3145faed69926dddae3b3d0fee876398f91f1200fef8acfc84dfc0e4c3cf9",
+  "fullStdoutPath": "C:/Windows/logs/cmd_runner/20261022T044138Z_b63458a1/stdout_text.log",
+  "summary": [
+    "total: 8.20 GB (8800767588 bytes, 44120 files)\r",
+    "2026-10-22_claude-public-records                        157.39 KB          3\r"
+  ]
+}

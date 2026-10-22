@@ -1,0 +1,16 @@
+[
+  {
+    "url": "https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback",
+    "status": 200,
+    "accessed": "2026-10-22T04:30:45.620Z",
+    "bytes": 915071,
+    "sha256": "bc6018b87453a0279d55b3529ace693f0bf8f9d2cf1e6f6a406c6c110ff35a84"
+  },
+  {
+    "url": "https://code.claude.com/docs/en/cli-reference.md",
+    "status": 200,
+    "accessed": "2026-10-22T04:30:45.981Z",
+    "bytes": 47884,
+    "sha256": "ac829f14528ebcb3b44364c2d27a134cf40bbb9bf26a1e9968d5c9cf1dc8314d"
+  }
+]

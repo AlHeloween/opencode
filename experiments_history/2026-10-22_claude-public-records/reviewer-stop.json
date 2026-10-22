@@ -1,0 +1,6 @@
+{
+  "session": "ses_e9e5d41adffeUgrNVztMDV42ZB",
+  "abort": true,
+  "statusAfter": "idle",
+  "reason": "Bounded review stopped after repeated compaction without SV teach-back; no task order sent"
+}

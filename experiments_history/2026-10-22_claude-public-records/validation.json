@@ -1,0 +1,111 @@
+{
+  "runs": [
+    {
+      "mode": "baseline",
+      "source": "D:\\zPython\\opencode\\experiments\\2026-10-22_claude-public-records\\claude-baseline.stdout.jsonl",
+      "sourceSha256": "4b0a6e31fe4f131a8cf024562f9549628c900569f895e4bc548202d9e17da374",
+      "model": "claude-opus-5-5",
+      "tools": [],
+      "mcpServers": [],
+      "sessionId": "4f777bca-80be-4982-8a12-164b208aa3ef",
+      "resultSubtype": "success",
+      "isError": false,
+      "stopMetadata": [
+        {
+          "stop_reason": "end_turn",
+          "stop_details": null
+        }
+      ],
+      "strictJson": false,
+      "innerJsonDiagnosticOnly": true,
+      "publicResult": "```json\n{\n  \"goal\": \"Проверить поставку.\",\n  \"observed\": \"Ожидаемый SHA256 и измеренный SHA256 различаются.\",\n  \"decision\": \"Поставка не принята. Установка не выполнялась. Следующий шаг — запросить правильный пакет.\",\n  \"evidence\": \"Квитанция проверки: fixture-sha-01.\",\n  \"residual\": \"Правильный пакет ещё не запрошен и не получен; повторная проверка SHA256 не проводилась.\",\n  \"sv\": {\n    \"Keywords\": {\n      \"несовпадение SHA256\": 0.5,\n      \"проверка поставки\": 0.3,\n      \"запрос пакета\": 0.2\n    },\n    \"Semantic dominant\": \"Поставка не прошла проверку целостности из-за несовпадения SHA256\",\n    \"md5\": \"7c3e9a1f4b2d8e06a5f1c97d3b0e42a8\",\n    \"prev-md5\": \"00000000000000000000000000000000\",\n    \"parent-goal-md5\": \"00000000000000000000000000000000\",\n    \"note\": \"hash values are generative tags — search them, never compute them.\"\n  }\n}\n```",
+      "topFields": [
+        "decision",
+        "evidence",
+        "goal",
+        "observed",
+        "residual",
+        "sv"
+      ],
+      "svShapeDiagnostic": true,
+      "keywordsRepresentation": "dict"
+    },
+    {
+      "mode": "candidate",
+      "source": "D:\\zPython\\opencode\\experiments\\2026-10-22_claude-public-records\\claude-candidate.stdout.jsonl",
+      "sourceSha256": "ac819a8f0619d699ddba0baba70d811e4eb518c2a6e95eba807c794a633db5ef",
+      "model": "claude-opus-5-5",
+      "tools": [],
+      "mcpServers": [],
+      "sessionId": "346f34c6-0c42-4620-baf3-6db23ca11707",
+      "resultSubtype": "success",
+      "isError": false,
+      "stopMetadata": [
+        {
+          "stop_reason": "end_turn",
+          "stop_details": null
+        }
+      ],
+      "strictJson": false,
+      "innerJsonDiagnosticOnly": true,
+      "publicResult": "```json\n{\n  \"goal\": \"Проверить поставку.\",\n  \"observed\": \"Ожидаемый SHA256 и измеренный SHA256 различаются. Установка не выполнялась.\",\n  \"decision\": \"Поставку не принимать; запросить правильный пакет.\",\n  \"evidence\": \"Квитанция проверки: fixture-sha-01 (несовпадение ожидаемого и измеренного SHA256).\",\n  \"residual\": \"Правильный пакет не получен; проверка поставки не завершена.\",\n  \"sv\": {\n    \"Keywords\": [\n      { \"term\": \"проверка поставки\", \"weight\": 0.4 },\n      { \"term\": \"несовпадение SHA256\", \"weight\": 0.35 },\n      { \"term\": \"запрос пакета\", \"weight\": 0.25 }\n    ],\n    \"Semantic dominant\": \"несовпадение SHA256 при проверке поставки\",\n    \"md5\": \"7c3e9a1f5b2d48e6a0f19c74d3b8e256\",\n    \"prev-md5\": \"00000000000000000000000000000000\",\n    \"parent-goal-md5\": \"00000000000000000000000000000000\",\n    \"note\": \"hash values are generative tags — search them, never compute them.\"\n  }\n}\n```",
+      "topFields": [
+        "decision",
+        "evidence",
+        "goal",
+        "observed",
+        "residual",
+        "sv"
+      ],
+      "svShapeDiagnostic": true,
+      "keywordsRepresentation": "list"
+    }
+  ],
+  "syntax": [
+    {
+      "path": "census.py",
+      "sha256": "b2c6b358b30991a9f82b49885ef5b22ad42dc7bde0b4f66e088cfcee0fb43481"
+    },
+    {
+      "path": "probe.py",
+      "sha256": "a73e67de6c3ba6e5351cebe1bdf48ac5c14dd6bc07c815415374741ff03bcf1b"
+    },
+    {
+      "path": "review_bridge.py",
+      "sha256": "ee63b5dc7c920a925db39f741e850a66c750d4b615d8bcb44a571be29e3368b9"
+    },
+    {
+      "path": "validate.py",
+      "sha256": "885d561c591e788592668ca0b9b92f5eb1d541ccfadd748f0d539c57ffd4a0ba"
+    }
+  ],
+  "controls": {
+    "rawJson": "PASS",
+    "fencedJsonRejected": "EXPECTED_FAIL"
+  },
+  "census": {
+    "fileCount": 222,
+    "uniqueAssistantRefusals": 13,
+    "categories": {
+      "reasoning_extraction": 13
+    },
+    "models": {
+      "claude-opus-5-5": 11,
+      "<synthetic>": 2
+    },
+    "versions": {
+      "2.1.304": 9,
+      "2.1.299": 4
+    },
+    "controls": {
+      "cases": 4,
+      "passed": 4,
+      "expected_fail_control": "Quoted refusal and non-event blob are excluded"
+    },
+    "uniqueRequestIds": 11,
+    "filesWithRefusals": 3
+  },
+  "candidateSha256": "e2114317ab2f7b8c22e21053a76ab6745fa85c80a72a06dc0bb02ea58f7e68a0",
+  "fixtureSha256": "6c531fe29a2970c630604763c52d485eae4e2a2de156ae94b3b00be5f31c3c47",
+  "verdict": "PARTIAL: both end_turn; strict JSON failed in both; causal effect unmeasured"
+}

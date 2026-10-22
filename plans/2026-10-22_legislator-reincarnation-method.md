@@ -45,7 +45,14 @@ note: hash values are generative tags — search them, never compute them.
   add its missing `--full` mode, and add tests in `tools/tests/`: a full block round-trips; a fold line parses; a
   dropped ack still links; a pasted body keeps its address. Standard: PEP 8; repo test canon `cd tools && python -m
   pytest tests/ -q`. Oracle: the tests RED before the move, GREEN after; `build.py` output byte-identical before and after.
-- [ ] T3 — Control leg (EXPECTED_FAIL). Ask a fresh session WITHOUT the turns the same six questions. Prediction: no row
+- [x] T3 — Control leg (EXPECTED_FAIL). Done 2026-10-22 as the portability pair on MiniMax m3.1 flash:
+  - control K = 1/6 (0 tools, 0 row cites);
+  - transfer X = 6/6 (cites 21/26 valid; 5 invented rows were stamped CONFIRMED).
+  Artifact: `experiments/2026-10-22_legislator-rebuild/PORTABILITY_RESULT.md`, robots verified in the ledger. The
+  results were delivered to the HR project (`plans/2026-10-20_hr-delegator-driver.md`, commit `228a7cfba5`).
+  A Claude-context control is not run: there Q6 is in CLAUDE.md, so it would not discriminate.
+  Original text:
+  Control leg (EXPECTED_FAIL). Ask a fresh session WITHOUT the turns the same six questions. Prediction: no row
   citations on Q1-Q4, and Q6 still answered (it comes from CLAUDE.md, so it does not discriminate). Record the
   comparison in `RESULT.md`. Standard: kernel @THREE_ORACLES unique-detection receipt.
   - **Extended to portability across models** (owner, 2026-10-22, verbatim): «сочетание SV специалиста мы условно

@@ -48,6 +48,14 @@ note: hash values are generative tags — search them, never compute them.
 - [ ] T3 — Control leg (EXPECTED_FAIL). Ask a fresh session WITHOUT the turns the same six questions. Prediction: no row
   citations on Q1-Q4, and Q6 still answered (it comes from CLAUDE.md, so it does not discriminate). Record the
   comparison in `RESULT.md`. Standard: kernel @THREE_ORACLES unique-detection receipt.
+  - **Extended to portability across models** (owner, 2026-10-22, verbatim): «сочетание SV специалиста мы условно
+    будем называть цифровой душой. Но перед этим надо проверить переносимость SV состояния. Результаты отправь в
+    проект по кадровику.»
+    - Arms: X = MiniMax reads turn1-3 and answers the six questions; K = the same model, no turns.
+    - Briefs: `experiments/2026-10-08_robot-wave/t144x-…`, `t144k-…`. Predictions are sealed in
+      `experiments/2026-10-22_legislator-rebuild/PORTABILITY_PREDICTIONS.md`.
+    - The results go to the HR project as design input: `plans/2026-10-20_hr-delegator-driver.md`, which the DAIS Desk
+      HR lane consumes.
 - [ ] T4 — Lineage leg. Read the reincarnated session's next emitted SV and check prev-md5 / parent-goal-md5 against
   `oracle.md` (`3a8f1d6c…` / `9e4a1c73…`) and that its own md5 is fresh. Oracle: equality on the transcript text.
 - [ ] T5 — Record the owner's diagnostics of the reincarnated Legislator (owner, 2026-10-22: «Сча проведу диагностику»)

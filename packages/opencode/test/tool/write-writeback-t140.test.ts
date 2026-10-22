@@ -152,3 +152,61 @@ describe("tool.write — the result is built from the file ON DISK", () => {
     ),
   )
 })
+
+
+/**
+ * A language server that NEVER answers the diagnostics request.
+ *
+ * This is the shape that made the write suite hang: the tool waited for advice that never came, and the case ran
+ * into the test's 30 s ceiling. `edit` bounds the same wait with `DIAGNOSTICS_BUDGET` — ONE constant, shared, not
+ * a second one — so `write` answers anyway: ~1.5 s, with no diagnostics.
+ *
+ * The layer set below does NOT include the real LSP layer: the stub is the ONLY provider, so this case is the same
+ * on every host — no server, no boot, no race. It is the control that proves the bound is load-bearing.
+ */
+const stallingLsp = Layer.succeed(
+  LSP.Service,
+  LSP.Service.of({
+    init: () => Effect.void,
+    status: () => Effect.succeed([]),
+    hasClients: () => Effect.succeed(false),
+    touchFile: () => Effect.void,
+    diagnostics: () => Effect.promise(() => new Promise<never>(() => {})),
+    hover: () => Effect.succeed([]),
+    definition: () => Effect.succeed([]),
+    references: () => Effect.succeed([]),
+    implementation: () => Effect.succeed([]),
+    documentSymbol: () => Effect.succeed([]),
+    workspaceSymbol: () => Effect.succeed([]),
+    prepareCallHierarchy: () => Effect.succeed([]),
+    incomingCalls: () => Effect.succeed([]),
+    outgoingCalls: () => Effect.succeed([]),
+  }),
+)
+
+const itStalling = testEffect(
+  Layer.mergeAll(
+    Agent.defaultLayer,
+    AppFileSystem.defaultLayer,
+    CrossSpawnSpawner.defaultLayer,
+    Format.defaultLayer,
+    Bus.layer,
+    Truncate.defaultLayer,
+    stallingLsp,
+  ),
+)
+
+describe("tool.write — the diagnostics wait is BOUNDED", () => {
+  itStalling.live("a language server that never answers does not stall the write", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const file = `${dir}/stalled.txt`
+        const result = yield* write({ filePath: file, content: "one\ntwo\n" })
+
+        // The write landed and the result came back, even though the server never answered.
+        expect(yield* readBytes(file)).toEqual(Buffer.from("one\ntwo\n", "utf8"))
+        expect(result.output).toContain("Wrote file successfully")
+      }),
+    ),
+  )
+})

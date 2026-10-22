@@ -29,7 +29,7 @@ const log = Log.create({ service: "edit-tool" })
  * Short on purpose: a server that has not answered by now is not going to make
  * the difference between a useful warning and a stalled tool.
  */
-const DIAGNOSTICS_BUDGET = "1500 millis"
+export const DIAGNOSTICS_BUDGET = "1500 millis"
 
 const MAX_BACKUPS_PER_SESSION = 50
 

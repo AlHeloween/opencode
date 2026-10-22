@@ -13,13 +13,15 @@ import { Format } from "../format"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Instance } from "../project/instance"
 import { Snapshot } from "@/snapshot"
-import { addressReport, terminated, trimDiff } from "./edit"
+import { DIAGNOSTICS_BUDGET, addressReport, terminated, trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as TextCodec from "@/util/text-codec"
 import { Constitution } from "@/session/constitution"
 import { validateCodeSyntax } from "@/util/syntax-validator"
 import { filePathDescription } from "./path-hint"
+import * as Log from "@opencode-ai/core/util/log"
 
+const log = Log.create({ service: "write-tool" })
 const MAX_PROJECT_DIAGNOSTICS_FILES = 5
 
 export const Parameters = Schema.Struct({
@@ -149,8 +151,22 @@ export const WriteTool = Tool.define(
           if (diverged) {
             output += `\n\n${path.relative(Instance.worktree, filepath)}: the file on disk is not what was written — ${divergence}. Read it back before addressing it.`
           }
-          yield* lsp.touchFile(filepath, "document")
-          const diagnostics = yield* lsp.diagnostics()
+          // Diagnostics are advisory and the write has already happened, so they must never gate the return.
+          // `edit` bounds the same wait with the SAME budget (DIAGNOSTICS_BUDGET — one constant, not a second): a
+          // server that has not answered by now is not going to make the difference between a useful warning and a
+          // stalled tool. An UNBOUNDED wait here is what made this suite time out on a host whose language server
+          // cannot boot: the tool hung until the test's 30 s ceiling, and every case after it inherited the dead
+          // stream.
+          const diagnostics = yield* Effect.gen(function* () {
+            yield* lsp.touchFile(filepath, "document")
+            return yield* lsp.diagnostics()
+          }).pipe(
+            Effect.timeout(DIAGNOSTICS_BUDGET),
+            Effect.catch((cause) => {
+              log.debug("diagnostics skipped; reporting the write without them", { error: cause })
+              return Effect.succeed({} as Record<string, Diagnostic[]>)
+            }),
+          )
           const normalizedFilepath = AppFileSystem.normalizePath(filepath)
           let projectDiagnosticsCount = 0
           for (const [file, issues] of Object.entries(diagnostics)) {

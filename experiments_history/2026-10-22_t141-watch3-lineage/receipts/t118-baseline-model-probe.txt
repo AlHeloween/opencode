@@ -1,0 +1,28 @@
+command: D:\USESoft\Python313\python.exe -c import json, os, subprocess, sys, tempfile, pathlib
+WAVE = pathlib.Path('D:/zPython/opencode/experiments/2026-10-08_robot-wave')
+SID = 'ses_t118_fixture'
+OWNER = {'providerID':'opencode-go','modelID':'minimax-m3.1-flash-free','variant':'xhigh'}
+rows = [{'info':{'role':'user','id':'msg_u1','model':OWNER},'parts':[{'type':'text','text':'do the work'}]},
+        {'info':{'role':'assistant','id':'msg_a1','modelID':'muse','providerID':'opencode-go'},
+         'parts':[{'type':'text','text':'still working, no SV yet'}]}]
+fx = {'questions':[],'permissions':[],'status':{SID:{'type':'idle'}},'messages':{SID:rows},'watchers':[]}
+with tempfile.TemporaryDirectory() as tmp:
+    p = pathlib.Path(tmp)/'fx.json'; p.write_text(json.dumps(fx), encoding='utf-8')
+    env = dict(os.environ, ROBOT_WATCH3_FIXTURE=str(p))
+    r = subprocess.run([sys.executable, str(WAVE/'watch3_before_addendum2.py'), 'name='+SID],
+                       capture_output=True, text=True, timeout=60, env=env)
+    posted = None
+    for line in r.stdout.splitlines():
+        if line.startswith('post: '):
+            posted = (json.loads(line[6:]).get('body') or {}).get('model')
+sys.path.insert(0, str(WAVE))
+import dispatch
+print('baseline posted model :', json.dumps(posted, ensure_ascii=False))
+print('dispatch.MODEL        :', json.dumps(dispatch.MODEL, ensure_ascii=False))
+print('equal                 :', posted == dispatch.MODEL)
+
+exit: 0
+
+baseline posted model : {"providerID": "opencode-go", "modelID": "minimax-m3.1-flash-free"}
+dispatch.MODEL        : {"providerID": "opencode-go", "modelID": "minimax-m3.1-flash-free"}
+equal                 : True

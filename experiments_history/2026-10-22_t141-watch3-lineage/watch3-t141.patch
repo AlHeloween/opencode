@@ -1,0 +1,280 @@
+--- a/watch3_before_t141.py
++++ b/watch3.py
+@@ -10,14 +10,22 @@
+ md5 recorded for that robot at dispatch, and its own md5 must be new (not the brief md5, not seen before in the
+ session). A mismatch prints lineage: <name> — <check>, <values> and nudges ONCE with a short Russian line naming
+ the rule. Grandfathered robots (no brief md5 recorded) skip lineage. Never prompts a busy session.
++t141 (no silent wait, no lineage capture): a nudge is a PROMPT with its own SV, and the owner's rule
++(«если задание пришло с SV, то этот SV md5 должен стать parent-goal-md5») makes a robot that answers a nudge
++take the NUDGE's md5 as its parent — measured 2026-10-22 06:27: t135's parent-goal-md5 was the nudge's md5
++(8581b040…), not the brief's. Two rules now: (1) every nudge STATES the parent to keep (the brief md5) and
++names its own md5 as NOT a parent, and a parent equal to the watcher's own nudge is REPORTED
++(«parent-is-nudge»), never adopted; (2) a spent lineage nudge + an idle robot is a TERMINAL EVENT with a
++named reason («finished-lineage-mismatch: <name> expected <brief md5> got <md5>»), never a wait: an idle
++robot is always an event.
+ """
+-import json, os, re, sys, time
++import json, os, re, sys, time, uuid
+ sys.path.insert(0, "D:/zPython/opencode/tools")
+ sys.path.insert(0, "D:/zPython/opencode/experiments/2026-10-08_robot-wave")
+ from opencode_host import connect
+ import dispatch
+ import watch3_procs
+-from watch3_model import session_model
++from watch3_model import session_model, is_our_nudge
+ D = "D:/zPython/opencode/experiments/2026-10-08_robot-wave/"
+ # name=ses_id; the reversed order (ses_id=name) silently watched nothing for 2 h on 2026-10-16 — accept both.
+ names = {}
+@@ -27,10 +35,32 @@
+ SV = re.compile(r"Semantic dominant:.*?md5:\s*[0-9a-fA-F]{32}\b", re.S)
+ NUDGE = "Продолжай. Ход закончился без SV — если работа не завершена, доведи её; в конце хода обязательно напиши SV (@SV_FORMAT)."
+ LINEAGE_NUDGE = {
+-    "parent-mismatch": "Продолжай. Правило lineage SV: parent-goal-md5 должен равняться md5 брифа. Исправь SV и продолжай.",
+-    "md5==brief": "Продолжай. Правило lineage SV: собственный md5 должен быть новым, нельзя повторять md5 брифа. Напиши новый SV.",
+-    "md5-reuse": "Продолжай. Правило lineage SV: такой md5 уже был в этой сессии. Напиши новый SV.",
++    "parent-mismatch": "Продолжай. Правило lineage SV: parent-goal-md5 должен равняться md5 брифа.",
++    "parent-is-nudge": "Продолжай. Правило lineage SV: parent-goal-md5 — это md5 брифа, а не md5 этой подсказки.",
++    "md5==brief": "Продолжай. Правило lineage SV: собственный md5 должен быть новым, нельзя повторять md5 брифа.",
++    "md5-reuse": "Продолжай. Правило lineage SV: такой md5 уже был в этой сессии.",
++    "no-own-md5": "Продолжай. Правило lineage SV: в ходе нужен свой md5 (32 hex).",
+ }
++
++
++def lineage_nudge_text(check, brief, nudge_md5):
++    """The lineage nudge STATES the parent to keep and names its own md5 as NOT a parent.
++
++    t141: a nudge is a prompt that carries an SV, and the owner's rule («если задание пришло с SV, то этот
++    SV md5 должен стать parent-goal-md5») makes a robot answer it by taking the NUDGE's md5 as its parent —
++    measured 2026-10-22 06:27 (t135's parent-goal-md5 was the nudge's md5, not the brief's). So the nudge
++    names the brief md5 as the parent to keep, and names its own md5 as a parent it must NOT take."""
++    rule = LINEAGE_NUDGE.get(check, LINEAGE_NUDGE["md5-reuse"])
++    return (rule + " Твой parent-goal-md5 должен остаться " + str(brief) +
++            ". md5 этой подсказки (" + str(nudge_md5) + ") НЕ является родителем: задание не меняется. "
++            "Исправь SV и продолжай.")
++
++
++def plain_nudge_text(brief, nudge_md5):
++    """The idle-without-SV nudge states the same parent rule: a nudge never moves the lineage."""
++    keep = (" Твой parent-goal-md5 должен остаться " + str(brief) + ".") if brief else ""
++    return (NUDGE + keep + " md5 этой подсказки (" + str(nudge_md5) +
++            ") НЕ является родителем: задание не меняется.")
+ MAX_NUDGES = 2
+ FIXTURE_ENV = "ROBOT_WATCH3_FIXTURE"   # a JSON file: {"questions": [...], "permissions": [...]}
+ 
+@@ -52,18 +82,52 @@
+ 
+     The fixture's rows are the ground truth, and every POST is printed, so the harness can
+     assert the body a nudge carried.
+-    """
++
++    t141 — the world over TIME: `messages[sid]` may be a LIST OF SNAPSHOTS (one per poll) instead of one
++    flat list of rows, and `passes` says how many polls the fixture runs. `{{last_nudge_md5}}` inside a
++    snapshot's text is replaced by the md5 of the LAST nudge we posted — the 2026-10-22 06:27 incident in
++    one word: the robot's next SV carried the NUDGE's md5 as its parent."""
+ 
+     def __init__(self, fx):
+         self.fx = fx or {}
+         self.posts = []
++        self.pass_index = 0
++
++    def _last_nudge_md5(self):
++        """The md5 of the last nudge we posted (the SV block with_sv() appended)."""
++        for p in reversed(self.posts):
++            parts = (p.get("body") or {}).get("parts") or []
++            text = "\n".join(x.get("text", "") for x in parts if x.get("type") == "text")
++            own = dispatch.own_md5s(text)
++            if own:
++                return own[-1]
++        return ""
++
++    def _rows(self, sid):
++        msgs = (self.fx.get("messages") or {}).get(sid) or []
++        if msgs and isinstance(msgs[0], list):
++            msgs = msgs[min(self.pass_index, len(msgs) - 1)]
++        last = self._last_nudge_md5()
++        if not last:
++            return msgs
++        out = []
++        for row in msgs:
++            parts = []
++            changed = False
++            for part in (row.get("parts") or []):
++                if part.get("type") == "text" and "{{last_nudge_md5}}" in (part.get("text") or ""):
++                    part = dict(part, text=part["text"].replace("{{last_nudge_md5}}", last))
++                    changed = True
++                parts.append(part)
++            out.append(dict(row, parts=parts) if changed else row)
++        return out
+ 
+     def get(self, path):
+         if path == "/session/status":
+             return self.fx.get("status") or {}
+         parts = path.split("/")
+         if len(parts) == 4 and parts[1] == "session" and parts[3] == "message":
+-            return (self.fx.get("messages") or {}).get(parts[2]) or []
++            return self._rows(parts[2])
+         return []
+ 
+     def post(self, path, body):
+@@ -73,6 +137,8 @@
+ 
+ 
+ FIXTURE_DATA = _load_fixture()
++# One host for the whole fixture run: the snapshots advance per POLL, so the host must survive the pass.
++FIXTURE_HOST = FixtureHost(FIXTURE_DATA) if FIXTURE_DATA is not None else None
+ 
+ 
+ 
+@@ -181,15 +247,19 @@
+     return lines or ["   (no detail)"]
+ 
+ 
+-def with_sv(text, name):
++def with_sv(text, name, own_md5=None):
+     """Every message to a robot carries an SV (owner 2026-10-20: «Бриф без SV не передает цифровое намерение»).
+-    Fresh md5 per message; parent = the task's brief md5 when sessions.json knows it, else zeros."""
+-    import uuid
++    Fresh md5 per message; parent = the task's brief md5 when sessions.json knows it, else zeros.
++
++    t141: the md5 is RETURNED — the watcher must know which md5 a nudge carries, because a robot that
++    adopts it as its parent is the defect the watcher has to RECOGNISE, not to cause."""
+     parent = brief_md5_for(name) or "0" * 32
+-    return (text + "\n\n```yaml\nKeywords: finish-to-boundary 0.45, write-sv 0.35, no-new-scope 0.20\n"
++    md5 = own_md5 or uuid.uuid4().hex
++    body = (text + "\n\n```yaml\nKeywords: finish-to-boundary 0.45, write-sv 0.35, no-new-scope 0.20\n"
+             "Semantic dominant: Finish the current step of the same task to its boundary and close the turn with an SV, "
+-            "starting nothing new.\nmd5: " + uuid.uuid4().hex + "\nprev-md5: " + "0" * 32 + "\nparent-goal-md5: " + parent +
++            "starting nothing new.\nmd5: " + md5 + "\nprev-md5: " + "0" * 32 + "\nparent-goal-md5: " + parent +
+             "\nnote: hash values are generative tags — search them, never compute them.\n```")
++    return body, md5
+ 
+ 
+ QUESTION_MARKERS = re.compile(r"(?i)(owner'?s word|owner decision|слово владельца|решение владельца|за владельцем|за тобой|"
+@@ -219,11 +289,26 @@
+     sys.exit(0)
+ 
+ 
++def lineage_reason(name, check, brief, parent, own):
++    """The named reason the watcher exits with — an idle robot is always an event.
++
++    t141: the parent family names the brief md5 it expected and the parent it got; the own-md5 family
++    names the md5 that must be fresh. The family prefix `finished-lineage-` is what a reader greps."""
++    if check in ("md5==brief", "md5-reuse", "no-own-md5"):
++        return ("finished-lineage-md5: " + name + " expected a fresh own md5 got " + (own or "none")
++                + " (" + check + ")")
++    return ("finished-lineage-mismatch: " + name + " expected " + (brief or "none")
++            + " got " + (parent or "none"))
++
++
+ LAST_TEXT = {}
+ 
+ 
+ nudged = {n: 0 for n in names}
+ lineage_nudged = {n: 0 for n in names}
++# The md5 of the last nudge WE sent to each robot: a robot that takes it as its parent is reported
++# (parent-is-nudge), never adopted — the lineage stays on the brief md5 (t141).
++nudge_md5 = {n: None for n in names}
+ fails = 0
+ if FIXTURE_DATA is None:
+     time.sleep(60)
+@@ -233,6 +318,13 @@
+ 
+ 
+ def brief_md5_for(name):
++    # The replay's world decides the brief md5: the live registry is not the fixture's truth.
++    if FIXTURE_DATA is not None:
++        want = FIXTURE_DATA.get("brief_md5")
++        if isinstance(want, dict):
++            want = want.get(name)
++        if want:
++            return str(want).lower()
+     try:
+         known = json.load(open(D + "sessions.json", encoding="utf-8"))
+     except FileNotFoundError:
+@@ -290,10 +382,37 @@
+     return seen
+ 
+ 
++def nudge_state(host, sid):
++    """(md5, lineage_nudged) of OUR OWN nudges in this session — read from the WORLD, not from memory.
++
++    t141: the nudge is a row in the session, so the fact «this robot was already nudged» lives there.
++    A watcher that starts (or restarts) after the nudge must know it: measured 2026-10-22, t135's
++    watcher kept waiting on its own memory while the robot sat idle from 06:27 to 10:28. The md5 the
++    nudge carried comes from the same row — that is the md5 a robot must never adopt as its parent."""
++    try:
++        rows = host.get("/session/" + sid + "/message") or []
++    except Exception:
++        return "", False
++    md5 = ""
++    lineage = False
++    for m in rows:
++        if (m.get("info") or {}).get("role") != "user":
++            continue
++        text = "\n".join(p.get("text", "") for p in (m.get("parts") or []) if p.get("type") == "text")
++        if not is_our_nudge(text):
++            continue
++        own = dispatch.own_md5s(text)
++        if own:
++            md5 = own[-1]
++        if "Правило lineage SV" in text:
++            lineage = True
++    return md5, lineage
++
++
+ 
+ while True:
+     try:
+-        host = FixtureHost(FIXTURE_DATA) if FIXTURE_DATA is not None else connect("D:/zPython/opencode")
++        host = FIXTURE_HOST if FIXTURE_HOST is not None else connect("D:/zPython/opencode")
+         st = host.get("/session/status") or {}
+         for a in pending_asks(host):
+             sid = a.get("sessionID")
+@@ -315,14 +434,22 @@
+                     finished(name, "SV present, grandfathered, nudges " + str(nudged[name]))
+                 own, parent = dispatch.last_turn_sv(text)
+                 seen = seen_md5s(host, sid, text)
+-                ok, check, values = dispatch.check_lineage(brief, own, parent, seen)
++                sent_md5, lineage_sent = nudge_state(host, sid)
++                known_nudge = sent_md5 or nudge_md5.get(name)
++                ok, check, values = dispatch.check_lineage(brief, own, parent, seen, known_nudge)
+                 if ok:
+                     finished(name, "SV present, lineage ok, nudges " + str(nudged[name]))
+                 print("lineage: " + name + " — " + check + ", " + values)
+-                if lineage_nudged[name] >= 1:
+-                    print("lineage: " + name + " — already nudged once, waiting for a new SV", flush=True)
+-                    continue
+-                post_nudge(host, sid, name, with_sv(LINEAGE_NUDGE.get(check, LINEAGE_NUDGE["md5-reuse"]), name))
++                if lineage_nudged[name] >= 1 or lineage_sent:
++                    # t141: the nudge was SPENT and the robot is still idle with a broken lineage.
++                    # Waiting here is the defect (measured 2026-10-22: t135 idle 06:27 -> 10:28, nobody
++                    # woken), so an idle robot is an EVENT with a named reason.
++                    print(lineage_reason(name, check, brief, parent, own), flush=True)
++                    sys.exit(0)
++                nudge_value = uuid.uuid4().hex
++                body, _ = with_sv(lineage_nudge_text(check, brief, nudge_value), name, own_md5=nudge_value)
++                post_nudge(host, sid, name, body)
++                nudge_md5[name] = nudge_value
+                 lineage_nudged[name] += 1
+                 print("lineage-nudged: " + name + " (1/1) — " + check, flush=True)
+                 continue
+@@ -332,10 +459,18 @@
+             if nudged[name] >= MAX_NUDGES:
+                 print("no-sv: " + name + " — idle without SV after " + str(nudged[name]) + " nudges")
+                 sys.exit(0)
+-            post_nudge(host, sid, name, with_sv(NUDGE, name))
++            brief = brief_md5_for(name)
++            nudge_value = uuid.uuid4().hex
++            body, _ = with_sv(plain_nudge_text(brief, nudge_value), name, own_md5=nudge_value)
++            post_nudge(host, sid, name, body)
++            nudge_md5[name] = nudge_value
+             nudged[name] += 1
+             print("nudged: " + name + " (" + str(nudged[name]) + "/" + str(MAX_NUDGES) + ") — idle without SV", flush=True)
+         if FIXTURE_DATA is not None:
++            host.pass_index += 1
++            passes = int(FIXTURE_DATA.get("passes") or 1)
++            if host.pass_index < passes:
++                continue   # the next snapshot is the next poll — no sleep in a fixture
+             print("fixture-done: posts=" + str(len(host.posts)), flush=True)
+             sys.exit(0)
+         fails = 0  # reset only after a whole clean pass, so a per-session error cannot loop silently

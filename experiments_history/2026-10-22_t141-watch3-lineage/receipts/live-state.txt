@@ -1,0 +1,27 @@
+command: D:\USESoft\Python313\python.exe -c import sys, json
+sys.path.insert(0,'D:/zPython/opencode/tools')
+sys.path.insert(0,'D:/zPython/opencode/experiments/2026-10-08_robot-wave')
+import watch3_procs
+from opencode_host import connect
+h = connect('D:/zPython/opencode')
+st = h.get('/session/status') or {}
+print('watchers:', json.dumps(watch3_procs.watch3_processes(), ensure_ascii=False, indent=1))
+print('busy sessions:', json.dumps({k: v.get('type') for k, v in st.items()}, ensure_ascii=False))
+print('t135 (ses_e9ffe1e38ffeom6UvwKP1ZNMgo) in status:', st.get('ses_e9ffe1e38ffeom6UvwKP1ZNMgo'))
+
+exit: 0
+
+watchers: [
+ {
+  "pid": 15076,
+  "image": "python.exe",
+  "cmd": "D:\\USESoft\\Python313\\python.exe D:/zPython/opencode/experiments/2026-10-08_robot-wave/watch3.py t141=ses_e9e83a349ffeDv64NoAgxwmtK7"
+ },
+ {
+  "pid": 28676,
+  "image": "python.exe",
+  "cmd": "D:\\USESoft\\Python313\\python.exe D:/zPython/opencode/experiments/2026-10-08_robot-wave/watch3.py t140=ses_e9e8f0cfbffejhQd1fRGWi7Z4X"
+ }
+]
+busy sessions: {"ses_e9e83a349ffeDv64NoAgxwmtK7": "busy", "ses_e9e8f0cfbffejhQd1fRGWi7Z4X": "busy"}
+t135 (ses_e9ffe1e38ffeom6UvwKP1ZNMgo) in status: None

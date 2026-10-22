@@ -1,0 +1,15 @@
+Smit, исследователь первичных источников. ПРИКАЗ R1 после расшифровки. Родительское намерение: «найти, какой компонент останавливает ответы Клода, установить причины по журналам и воспроизводимым признакам, привлечь внешних специалистов и сопоставить находки с первичными источниками».
+
+План plans/2026-10-22_claude-classifier-investigation.md. Твой parent-goal-md5 a93e1f60d8c247b519ef3a06c4b872de. Ticket d8412ae3c7582faa876165cc35701c58cf8f22f5 / claude-classifier-sources; assignee smit-opencode. Init/protocol перед org; claim с --user smit-opencode --session <твой sid> --lease 1200. Никаких дочерних агентов. Не коммить.
+
+Binding READ: публичный интернет, документация поиска. WRITE: только experiments/2026-10-22_classifier-investigation/research/ . Не читать личные переписки/секреты и не посылать их наружу, не писать issues/сообщения в поддержку, не менять настройки, политики, runtime, bin/ и общие документы. Не воспроизводить запрещённые запросы.
+
+Исследуй точные публичные маркеры `Your response above was stopped by a safety classifier`, `stop_reason: refusal`, `stop_details.category`, `reasoning_extraction`; различи это с auto-mode tool classifier и отказом самого запроса к этому классификатору. Нужны первичные документы и текущие public issue reports по production false positives. Issue = свидетельство автора, не установленная причина нашего случая. Не назначай виновным RAM или конкретное слово без эксперимента.
+
+Universal Search skill C:/Users/Alexander/.codex/skills/universal-search/SKILL.md и references/api.md. Сервис http://127.0.0.1:3005/health проверен родителем healthy; самостоятельно проверь перед использованием. /web/search discovery, /web/context или /web/fetch для содержимого и content_hash, /web/sourcegraph для публичного кода. Запросы JSON через файл/клиент, не теряй кавычки shell. Если service backend не работает, сохрани failure/status и используй доступный официальный webfetch. Не трогай service config.
+
+Начальные URL (проверяй содержание, не верь названиям): https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback ; https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/handle-streaming-refusals ; https://code.claude.com/docs/en/errors ; https://www.anthropic.com/research/claude-code-auto-mode ; официальный github anthropics/claude-code issues. /docs/en/errors может быть >4 MB: use markdown/llms endpoint или /web/context, не объявляй отсутствие.
+
+Выход research/REPORT.md + sources.json: exact URLs, дата, primary/secondary, хеш полученного содержимого, 1-2 коротких выдержки или пересказ (не копировать статьи), различия классификаторов и последствия для пользователя; публично поддерживаемые варианты действий без выключения защит и без утверждения непроверенного исправления. Нужна явная граница: категория отказа ≠ доказательство неправомерности задачи; совпадение формулировок в промпте ≠ установленный триггер.
+
+Бюджет 10 минут, 35 tool calls, depth 1. Org report + done после результата, не verify. Product actual_diff=none, build не нужен. Работай сейчас.

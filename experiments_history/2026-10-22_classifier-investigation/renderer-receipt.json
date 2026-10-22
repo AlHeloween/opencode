@@ -1,0 +1,26 @@
+{
+  "run": "20261022T034503Z_c2bca154",
+  "state": {
+    "status": "finished",
+    "pids": [
+      26072
+    ],
+    "exit_code": 0,
+    "started_utc": "2026-10-22T03:45:04Z",
+    "finished_utc": "2026-10-22T03:45:08Z",
+    "stopped_utc": null,
+    "timeout_utc": null,
+    "backend": "raw-pipe",
+    "log": {
+      "limit_bytes": 52428800,
+      "bytes_written": 246,
+      "bytes_dropped": 0,
+      "truncated": false
+    },
+    "creation_tick": 0,
+    "host_pid": 24248,
+    "host_creation_tick": 134371143038561730,
+    "notes": "log final"
+  },
+  "stdout": "{\n  \"ok\": true,\n  \"file\": \"plans/MASTER_PLAN.md\",\n  \"bytes\": 72407,\n  \"stats\": {\n    \"plans\": 51,\n    \"openBoxes\": 231,\n    \"missingPlanSv\": 1,\n    \"missingTaskSv\": 145,\n    \"missingManifests\": 223,\n    \"unlinked\": 27,\n    \"gapsBefore\": []\n  }\n}\n"
+}

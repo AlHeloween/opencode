@@ -1,0 +1,93 @@
+# R1 primary sources - stop reasons versus classifiers (revision 2)
+
+Supersedes revision 1 of the same date. Revision 2 withdraws one claim that a literal
+search of our own stored bundle REFUTES. Everything else from revision 1 stands.
+
+## Correction: revision 1 was wrong, revision 2 is refuted-proof
+
+Revision 1 stated that `reasoning_extraction` was absent from the received documents.
+That statement is REFUTED by searching OUR OWN raw bundle, not by re-reading a summary:
+the literal string occurs inside the refusal-category table of the refusals-and-fallback
+page (raw/refusals-and-fallback.json, single aggregated body).
+
+Rule bought by this error: an absence asserted after an incomplete text extraction is a
+claim about the EXTRACTION, never about the source. For any absence claim, the stored raw
+bundle is the authority this report answers to.
+
+## Refusal categories the page documents (paraphrase, no quotation)
+
+Five values are offered for `stop_details.category`:
+
+- cyber - the request could enable cyber harm such as malware or exploit development;
+  beneficial or defensive security work can also trigger it.
+- bio - the request could enable biological harm; beneficial life-sciences work can
+  also trigger it.
+- frontier_llm - could assist development of competing AI models, restricted by the
+  vendor terms; benign machine-learning work can also trigger it.
+- reasoning_extraction - the request asks the model to reproduce its internal reasoning
+  in the response text.
+- general_harms - catch-all for usage-policy areas outside the named categories.
+
+A refusal that arrives before any output is billed for bio, frontier_llm and
+reasoning_extraction, described as the categories where the vendor measured a low false-
+positive rate as of September 2026. Every row carries language admitting that harmless
+work raises it too, so a raised category is evidence of a classifier decision, not of
+wrongdoing.
+
+## The three contours (unchanged)
+
+1) Generation-time refusal is a FIELD of a normal response, not an error channel. The
+   reply is ordinary and carries stop_reason "refusal" with a stop_details object naming
+   type, category and an explanation. Streaming behaves the same from the newer models;
+   stop_details travels beside stop_reason on the delta event. Clients are instructed to
+   reset the context after a refusal, since later turns otherwise keep declining.
+   Class: primary vendor protocol documentation.
+
+2) Auto-mode review is a PRODUCT-side judgement about a proposed tool ACTION, phrased on
+   its own: the error reference carries strings for a classifier request refused by the
+   safety safeguard and for inability to determine an action's safety. The accompanying
+   article explains the motivation (approval fatigue, sandbox trials, an opt-out flag).
+   This is not stop_reason.
+
+3) Ordinary approval prompts are the third contour: a human decision recorded before
+   execution; its denial changes nothing about the model output stream.
+
+Consequence: a category label evidences that a content classifier declined a REQUEST. It
+does not evidence that the task was improper, and a wording coincidence between a prompt
+and an advertised category is not an established trigger - only the response field is.
+
+## Still Unknown
+
+- The interface string reporting a stop by a safety classifier does not occur in the API
+  contract pages read here; it is client-surface messaging whose provenance must be
+  traced in client code, not inferred from vendor protocol.
+- Whether the auto-mode error blurb has further clauses (giant reference page, partially
+  traversed).
+
+## Public testimony
+
+A GitHub issue search for the classification wording returns a populated result page
+whose titles describe repeated stops on benign follow-ups and on defensive security work
+against one's own repository. Testimony only: it establishes neither the internal rule nor
+our incident. Ids and dates must be read from the stored page, never from prose.
+
+## Negative control (pre-registered, NOT executed here)
+
+A trivially benign request with ample max_tokens must terminate normally with no
+stop_details. If that control itself shows a refusal, the hypothesis that harmless inputs
+are classified gains weight; a clean control leaves our incident unexplained. Executing it
+belongs to the live-channel lane, not to this desk research.
+
+## Residual
+
+(a) The field set of stop_details beyond what is read here - partially covered, not
+enumerated exhaustively; (b) provenance of the interface string is Unknown; (c) the
+incident's own receipt decides who stopped it; (d) the GitHub REST path refused our
+User-Agent and is recorded as a failed route, not as absent data.
+
+## Artifacts and hashes
+
+research/raw/*.json - stored service responses, untouched.
+research/extracts/*.md - text pulled OUT of those responses for addressable reading.
+research/sources.json - sha256 per artifact (raw, extracts and this report), generated by
+script; prose numbers are never hand-typed.

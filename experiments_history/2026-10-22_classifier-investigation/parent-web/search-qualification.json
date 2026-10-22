@@ -1,0 +1,12 @@
+{
+  "query": "site:github.com/anthropics/claude-code/issues reasoning_extraction false positive",
+  "httpStatus": 200,
+  "observedCount": 4,
+  "urls": [
+    "https://dictionary.cambridge.org/dictionary/english/reasoning",
+    "https://doi.org/10.1007/978-1-59745-240-3_10",
+    "https://en.wikipedia.org/wiki/Reason",
+    "https://doi.org/10.1109/bigdata.2018.8622456"
+  ],
+  "finding": "Search returned unrelated dictionary/Wikipedia/DOI hits for a GitHub site-scoped classifier query; relevance qualification failed for this query. Known-URL context retrieval succeeded separately. No whole-service absence or cause is inferred."
+}

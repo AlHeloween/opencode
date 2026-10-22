@@ -1,0 +1,1 @@
+{"status":"healthy","service":"universal-search-service","version":"0.4.0","stack":{"webclaw":{"enabled":true,"port":3010,"healthy":true,"url":"http://127.0.0.1:3010"},"chromium_cdp":{"enabled":true,"port":9222,"healthy":true,"url":"http://127.0.0.1:9222"}},"agent":{"enabled":true,"healthy":true}}

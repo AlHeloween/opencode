@@ -1,0 +1,70 @@
+{
+  "snapshot_now": {
+    "size_bytes": 4810663,
+    "sha256": "43812852d676aaaa3889387a98ad5c052514b07886a6e9c2dbaa5db07f01617c"
+  },
+  "tool_use_target_ids": [
+    "toolu_016rrv7xcPV67wcxiXhJuWig",
+    "toolu_01LvB7ecpr7PsUEYfCVypPwc",
+    "toolu_01RN6ihoXvTRDJJtK8ooXLX4"
+  ],
+  "findings": [
+    {
+      "kind": "tool_use",
+      "tool_use_id": "toolu_01RN6ihoXvTRDJJtK8ooXLX4",
+      "tool_name": "Bash",
+      "line": 1086,
+      "in_message_id": "msg_011CgGVFWRricwk9VhD57Hgv",
+      "in_refusal_message": true,
+      "timestamp": "2026-10-22T02:29:18.508Z"
+    },
+    {
+      "kind": "tool_use",
+      "tool_use_id": "toolu_01LvB7ecpr7PsUEYfCVypPwc",
+      "tool_name": "Bash",
+      "line": 1087,
+      "in_message_id": "msg_011CgGVFWRricwk9VhD57Hgv",
+      "in_refusal_message": true,
+      "timestamp": "2026-10-22T02:29:19.470Z"
+    },
+    {
+      "kind": "tool_result",
+      "tool_use_id": "toolu_01RN6ihoXvTRDJJtK8ooXLX4",
+      "line": 1088,
+      "is_error": true,
+      "classification": "INTERRUPTED",
+      "excerpt_first_200_chars": "Interrupted: the response that made this tool call was stopped by a safety classifier while the call was running; it may have partially or fully completed.",
+      "content_length_chars": 155,
+      "timestamp": "2026-10-22T02:29:19.788Z"
+    },
+    {
+      "kind": "tool_result",
+      "tool_use_id": "toolu_01LvB7ecpr7PsUEYfCVypPwc",
+      "line": 1089,
+      "is_error": true,
+      "classification": "NOT_RUN",
+      "excerpt_first_200_chars": "Not run: the response that made this tool call was stopped by a safety classifier.",
+      "content_length_chars": 82,
+      "timestamp": "2026-10-22T02:29:19.788Z"
+    },
+    {
+      "kind": "tool_use",
+      "tool_use_id": "toolu_016rrv7xcPV67wcxiXhJuWig",
+      "tool_name": "Write",
+      "line": 1457,
+      "in_message_id": "msg_011CgGZGc4gS9yVjRS9ZXJLx",
+      "in_refusal_message": true,
+      "timestamp": "2026-10-22T03:22:02.224Z"
+    },
+    {
+      "kind": "tool_result",
+      "tool_use_id": "toolu_016rrv7xcPV67wcxiXhJuWig",
+      "line": 1458,
+      "is_error": true,
+      "classification": "INTERRUPTED",
+      "excerpt_first_200_chars": "Interrupted: the response that made this tool call was stopped by a safety classifier while the call was running; it may have partially or fully completed.",
+      "content_length_chars": 155,
+      "timestamp": "2026-10-22T03:22:02.573Z"
+    }
+  ]
+}

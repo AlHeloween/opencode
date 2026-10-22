@@ -1,0 +1,20 @@
+[
+  {
+    "lane": "local",
+    "sid": "ses_e9e5d545bffe9ClnCt1PdLsy6J",
+    "abortResult": true,
+    "statusAfter": "idle"
+  },
+  {
+    "lane": "research",
+    "sid": "ses_e9e5d4b12ffeSCmuLuQFEKoIhI",
+    "abortResult": true,
+    "statusAfter": "idle"
+  },
+  {
+    "lane": "verify",
+    "sid": "ses_e9e5d41adffeUgrNVztMDV42ZB",
+    "abortResult": true,
+    "statusAfter": "idle"
+  }
+]

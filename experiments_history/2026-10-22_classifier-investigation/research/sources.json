@@ -1,0 +1,45 @@
+{
+ "algorithm": "sha256",
+ "items": [
+  {
+   "file": "raw/claude-code-auto-mode.json",
+   "bytes": 24256,
+   "sha256": "95fafebaea4ef511c59c60d297294991527301067aafb8b08d41c400528fbe77"
+  },
+  {
+   "file": "raw/claude-code-errors.json",
+   "bytes": 609921,
+   "sha256": "824e8791befdf4d940a63ac56d0357ce31753b8f33ff34c5d763c683e7ccf7bb"
+  },
+  {
+   "file": "raw/gh-issues-safety-classifier.json",
+   "bytes": 460,
+   "sha256": "20e8f12a0ecb6901e422d1389be1185db1bcead2c06d0b0030ed2495f889331e"
+  },
+  {
+   "file": "raw/gh-issues-ui.json",
+   "bytes": 7905,
+   "sha256": "865dd5ac6acce5d9302f6ce255f559f0312c5f22564edb21e262ae2fec1a39a5"
+  },
+  {
+   "file": "raw/handle-streaming-refusals.json",
+   "bytes": 6676,
+   "sha256": "c296edf535d6eca74694186aaadbb3356fca899ef3e1bd39d49357bae1197c3d"
+  },
+  {
+   "file": "raw/refusals-and-fallback.json",
+   "bytes": 34148,
+   "sha256": "9c320825cca59bd71ef27afef6a802db52071fc900b762eceff81252c551d40b"
+  },
+  {
+   "file": "extracts/refusals_and_fallback.md",
+   "bytes": 33477,
+   "sha256": "02adf57f4b70be827199fcd97fc0b508dba7d66c44eddf06a153ed7576e29d61"
+  },
+  {
+   "file": "REPORT.md",
+   "bytes": 4990,
+   "sha256": "51f2b8a9d9de7e0d504141795edb99fe54ca932807b8e0fc4989b2416e6d2caa"
+  }
+ ]
+}

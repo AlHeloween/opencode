@@ -75,6 +75,8 @@
 Extended in the same split: [architecture.md](architecture.md) (layer table, closed loop, agent inventory), [compaction.md](compaction.md) (continuity owner statement), [content-lifecycle.md](content-lifecycle.md) (owner quote, verb table, corollary, shipped status), [fossil-snapshot.md](fossil-snapshot.md) (backend decision, per-tool evidence), [tools-and-sidecars.md](tools-and-sidecars.md) (unknown apps, cmd_runner debugger), [tool-playbook.md](tool-playbook.md) (no-script constraint, search-instrument quote), [agentic-reasoning-runtime.md](agentic-reasoning-runtime.md) (language slips = G0).
 ## Measured vendor behaviour
 
+- [Остановки Claude: reasoning_extraction — 2026-10-22](../experiments_history/2026-10-22_classifier-investigation/REPORT.md) — четыре первичных refusal-события, независимая проверка, различение auto mode и серверного отказа; конкретный триггер и исправление остаются открыты
+
 - [Haiku 5.5 adaptive thinking](haiku-adaptive-thinking.md) — исправление классификации модели, SDK wire-регрессия и граница локального доказательства
 - [Reasoning round-trip contract](reasoning-round-trip-contract.md) — cross-vendor reasoning field behaviour
 - [DeepSeek thinking cache](deepseek-thinking-cache.md) — measured thinking vs prompt cache

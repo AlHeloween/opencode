@@ -1,0 +1,27 @@
+{
+  "capturedAt": "2026-10-22T03:35:55.599Z",
+  "roots": [
+    "C:/Users/Alexander/.claude",
+    "D:/zPython/opencode/.claude",
+    "C:/Users/Alexander/AppData/Local/Claude/logs",
+    "C:/Users/Alexander/AppData/Local/Claude-Data/claude_pzs8sxrjxfjjc"
+  ],
+  "storage": {
+    "transcript": "JSONL; structured message and api-request-blob records",
+    "desktopCodeVersions": [
+      "2.1.299",
+      "2.1.304"
+    ],
+    "desktopSessionRoots": 2,
+    "localAgentRoots": 3,
+    "indexedDBRoots": 2,
+    "telemetrySQLite": {
+      "file": "declarative_performance_observer.db",
+      "bytes": 32768,
+      "header": "SQLite format 3",
+      "examined": "header only; browser telemetry is not a refusal-event oracle"
+    },
+    "secretStores": "credentials, cookies, tokens excluded"
+  },
+  "limits": "Directory counts apply only to the explicitly enumerated roots; no all-files content search claimed."
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "source": "5ee34a89-f9f6-42c3-9b6b-8f8d38a334de.jsonl",
+    "line": 28,
+    "hash": "d8e61939045bfc1dfef52c7203ee5ff84151f0b5efb604a6a7c001e9b2c0b492",
+    "role": "user",
+    "bodySha256": "c2d2f5587b5889ffecaa6f87c356b0f3c2e9a87916ff9e3f1d4ba26571be8f74",
+    "matches": [
+      {
+        "lineWithinBlob": 129,
+        "text": "- **Answer in the user's language — reasoning included, not only the final text.** An answer in another language is a failed UNDERSTAND and returns the session to G0."
+      },
+      {
+        "lineWithinBlob": 671,
+        "text": "## Vendor Reasoning Contract — thinking models"
+      },
+      {
+        "lineWithinBlob": 1078,
+        "text": "#### @CURRENT_SV"
+      },
+      {
+        "lineWithinBlob": 1146,
+        "text": "- Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency."
+      }
+    ]
+  }
+]

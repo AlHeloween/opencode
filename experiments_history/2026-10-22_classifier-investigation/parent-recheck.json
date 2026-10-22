@@ -1,0 +1,35 @@
+{
+  "verifierPrefixMatches": true,
+  "prefixSha256": "7a7966f92433a4ea49386b5851762f9744ea8313e92aa4d7f3259f03b751a022",
+  "events": [
+    {
+      "id": "msg_011CgG1ceHU9GxpDi3rMfrJM",
+      "line": 173,
+      "time": "2026-10-21T20:27:13.676Z",
+      "category": "reasoning_extraction",
+      "requestId": "req_011CgG1cdutjrFGQLim3vjFj"
+    },
+    {
+      "id": "msg_011CgGVFWRricwk9VhD57Hgv",
+      "line": 1086,
+      "time": "2026-10-22T02:29:18.508Z",
+      "category": "reasoning_extraction",
+      "requestId": "req_011CgGVFVxLmLcRBfHUBvjzX"
+    },
+    {
+      "id": "msg_011CgGYaETonQCQmCkt8M9aX",
+      "line": 1348,
+      "time": "2026-10-22T03:12:52.332Z",
+      "category": "reasoning_extraction",
+      "requestId": "req_011CgGYaE3ziRN8qeq2VkDo8"
+    },
+    {
+      "id": "msg_011CgGZGc4gS9yVjRS9ZXJLx",
+      "line": 1456,
+      "time": "2026-10-22T03:22:00.627Z",
+      "category": "reasoning_extraction",
+      "requestId": "req_011CgGZGbedd68JkXoFo3qiz"
+    }
+  ],
+  "currentBytes": 4800098
+}

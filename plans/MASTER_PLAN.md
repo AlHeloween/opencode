@@ -585,6 +585,17 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-22_claude-classifier-investigation.md` — 2 open / 5 box(es) · lifecycle UNKNOWN
+  sv: intention "ответы Claude о производственной работе останавливаются без установленного источника -> компонент остановки и причины установлены в пределах наблюдаемых свидетельств, локальные следы сверены с первичными источниками независимыми внешними роботами" · keywords [Keywords: classifier-attribution 0.35, local-forensics 0.25, primary-sources 0.20, independent-check 0.20
+Semantic dominant: Установить слой остановки Claude по первичным событиям и отделить измеренную причину от недоступного внутреннего решения.
+md5: e7a1c49d032f6b85a90e7c2d416fb308
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
+  - TASK-1 [PENDING] · sv [local-forensics, stop-reason, source-addresses] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv [prompt-compatibility, controlled-comparison, causal-attribution] · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-22_legislator-reincarnation-method.md` — 7 open / 8 box(es) · lifecycle ACTIVE
   sv: intention "the Legislator dies with its transcripts and a model under the same kernel cannot adapt into it -> a documented, tracked, oracle-checked method rebuilds it from its own ordered full SV blocks and the owner's rows, cut before a wrong axis, and the sources it needs survive the app's transcript deletion" · keywords []
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is

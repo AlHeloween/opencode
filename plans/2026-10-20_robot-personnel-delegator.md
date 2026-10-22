@@ -3,10 +3,9 @@
 Semantic dominant: Автоматизировать назначение внешних роботов и независимых проверок без подмены доказательств кадровым мнением.
 md5: 25f8c07b61a94d3e8b204af59c716de2
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 note: hash values are generative tags — search them, never compute them.
 -->
-<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 # Робот кадровик-делегатор
 
 State: ACTIVE. Основание: прямое поручение владельца 2026-10-20 о роботе, автоматически выполняющем кадровые и делегирующие задачи. Встроенные субагенты запрещены; внешние роботы исполняют и проверяют, Codex принимает адресуемые доказательства.

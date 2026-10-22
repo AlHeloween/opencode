@@ -1,0 +1,81 @@
+before  e19c42f  head_bytes 14053  crlf 0  sha256 2037351ea5f7d6b5d30691abad7b567788bef5b1bcc36971eb09ac077d58e582
+after   working tree  head_bytes 18087  crlf 143  sha256 aaa56d81f6d16ed88493f02efb2376114078b528f5cbbcdbe3814d73a024e891
+content (LF-normalised)  sha256 2037351ea5f7d6b5d30691abad7b567788bef5b1bcc36971eb09ac077d58e582
+                          -> sha256 04f27bcd001027739a18038eff4c1a22825ae1c29beab2b310f587508e477dbf
+body    58558 -> 63076 bytes (generated, not in this diff)
+
+--- e19c42f:head
++++ working:head
+@@ -44,4 +44,70 @@
+ семантического вектора»).
+ 
++## Subgoals — level 1
++
++### S1 — Delegation, verification and the organisation protocol
++
++An order becomes a dossier, the dossier becomes a verified result, and no robot is left unwatched — the fleet works as one organisation whose state the owner can see.
++
++```yaml
++Keywords: delegation-cycle 0.30, dossier-gate 0.20, independent-verification 0.20, unwatched-robot 0.15, owner-visible-state 0.15
++Semantic dominant: An order becomes a dossier, the dossier becomes a verified result, and no robot is left unwatched — the fleet works as one organisation whose state the owner can see.
++md5: 221e9347f99b038b669b74d80886fca1
++prev-md5: 00000000000000000000000000000000
++parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
++note: hash values are generative tags — search them, never compute them.
++```
++
++### S2 — Distribution: the robot reaches another machine, hermetically and audited
++
++A colleague's unprepared Windows gets a working robot from one offline bundle — nothing leaks from a parent folder, and everything shipped has a measured egress and a known build provenance.
++
++```yaml
++Keywords: offline-installer 0.30, hermetic-binary 0.25, egress-manifest 0.20, portable-org-home 0.15, tracked-procedure 0.10
++Semantic dominant: A colleague's unprepared Windows gets a working robot from one offline bundle — nothing leaks from a parent folder, and everything shipped has a measured egress and a known build provenance.
++md5: 2c33f070c3231dc454ef0caaafff392e
++prev-md5: 00000000000000000000000000000000
++parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
++note: hash values are generative tags — search them, never compute them.
++```
++
++### S3 — Surfaces the agent sees and drives
++
++The TUI, the browser and the desktop driver show the same live state and obey the same surface standards, and the agent can act on a window without taking the owner's cursor.
++
++```yaml
++Keywords: tui-surface-standards 0.30, web-tui-parity 0.20, live-session-state 0.20, observable-window 0.15, input-without-focus-steal 0.15
++Semantic dominant: The TUI, the browser and the desktop driver show the same live state and obey the same surface standards, and the agent can act on a window without taking the owner's cursor.
++md5: 423648bc309f9b843f29291adf271959
++prev-md5: 00000000000000000000000000000000
++parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
++note: hash values are generative tags — search them, never compute them.
++```
++
++### S4 — What crosses the model boundary: cost, cache, transport and the text that comes back
++
++Every request costs what it says, the static half is cached where it belongs, the transport is qualified against the provider's own caps, and the text that returns is the text the agent needs.
++
++```yaml
++Keywords: request-cost 0.30, cache-placement 0.25, transport-qualification 0.20, reasoning-preservation 0.15, returned-text 0.10
++Semantic dominant: Every request costs what it says, the static half is cached where it belongs, the transport is qualified against the provider's own caps, and the text that returns is the text the agent needs.
++md5: 51b888a0804adb07ef476bdf40de0da1
++prev-md5: 00000000000000000000000000000000
++parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
++note: hash values are generative tags — search them, never compute them.
++```
++
++### S5 — Which model, and whose credentials
++
++The model a layer picks is checked against the allowlist, and a failed authorisation says why instead of `{}`.
++
++```yaml
++Keywords: model-allowlist 0.35, credential-errors 0.30, layer-model-constraint 0.20, port-conflict-fallback 0.15
++Semantic dominant: The model a layer picks is checked against the allowlist, and a failed authorisation says why instead of an empty error.
++md5: a9cdbdeef0bce63c1eea1385e0c8ab64
++prev-md5: 00000000000000000000000000000000
++parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
++note: hash values are generative tags — search them, never compute them.
++```
+ ## How this file is kept true (hand-owned)
+ 
+
++66 / -0 lines in the head

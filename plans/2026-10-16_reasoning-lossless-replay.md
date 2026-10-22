@@ -9,9 +9,8 @@ Keywords: reasoning-preservation 0.35, wire-proof 0.25, provider-contracts 0.20,
 Semantic dominant: Сохранить reasoning до wire и независимо квалифицировать HTTP3/QUIC и fallback Anthropic.
 md5: 6e41b38c90ad4a5f8732d697e0bc512a
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 51b888a0804adb07ef476bdf40de0da1
 ```
-<!-- subgoal: s4-model-boundary — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S4 -->
 
 ## Намерение владельца и неподвижный критерий
 

@@ -4,10 +4,9 @@
 Semantic dominant: Ground what exists of the fossil bridges, then design one observable process with a panel that both the owner and agents use, where every robot server reports its state into it.
 md5: 7c2e9a4b5d6f48e0a1b2c3d4e5f6a7b8
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 note: hash values are generative tags — search them, never compute them.
 -->
-<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 
 # t125 — corporation observability bridge (plan only, no code)
 

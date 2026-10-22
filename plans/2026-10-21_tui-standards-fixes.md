@@ -4,10 +4,9 @@
 Semantic dominant: Turn the t121 audit FAILs into bound fixes — pickers over free text, confirmed destructives, discoverable hints — each proven by a live capture.
 md5: 7d1e9f2a4b5c48d6a0f3e5c7a9b1d4e2
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 423648bc309f9b843f29291adf271959
 note: hash values are generative tags — search them, never compute them.
 -->
-<!-- subgoal: s3-surfaces-agent-sees-drives — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S3 -->
 # t121 — TUI surface-standards fixes (from audit REPORT)
 
 Owner trigger (2026-10-21, verbatim): «Что за... Проверить все комманды TUI на

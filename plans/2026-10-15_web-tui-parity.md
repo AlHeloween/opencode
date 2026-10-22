@@ -4,9 +4,8 @@ Keywords: web-tui-parity 0.35, same-server-source 0.25, active-sessions-web 0.20
 Semantic dominant: The browser form shows everything the TUI shows by reading the same server data, starting with the active-sessions block the owner needs to not kill a running session.
 md5: 9f3a7c2d1e4b4f6a8d2c5e7f1a3b4c5d
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 423648bc309f9b843f29291adf271959
 -->
-<!-- subgoal: s3-surfaces-agent-sees-drives — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S3 -->
 
 # t59 — web/TUI parity: the browser form shows everything the TUI shows
 

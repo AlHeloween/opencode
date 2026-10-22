@@ -7,9 +7,8 @@ Keywords: message-cleaner 0.35, free-model-fixer 0.25, deterministic-validator 0
 Semantic dominant: Measure whether a one-shot free-model fix plus a deterministic validator safely cleans foreign-script slips in chain replies, before any product code.
 md5: 7c2a9e4f1b5d43a08f6e2d7c9a1b4e55
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 51b888a0804adb07ef476bdf40de0da1
 ```
-<!-- subgoal: s4-model-boundary — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S4 -->
 
 Owner, 2026-10-16, verbatim: «И вот на счет чего подумай - цепная обработка сообщений - но надо тестировать -
 например последнее сообщение пришло от longcat-2.5, в нем ошибки мы делаем быстрый запрос на openrouter (только это

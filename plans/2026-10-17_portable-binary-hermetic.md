@@ -5,9 +5,8 @@ Keywords: portable hermetic, exe-adjacent config, parent walk, tui plugin leak, 
 Semantic dominant: Make a copied dist/bin hermetic so no parent .opencode is ever loaded.
 md5: 8f2a4c1d9e3b47a5b6c8d0f1a2b3c4d5
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 2c33f070c3231dc454ef0caaafff392e
 
-<!-- subgoal: s2-distribution-and-supply-chain — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S2 -->
 ## Update 2026-10-17 — live portable run found the true warn sites
 
 A real dist/bin copy launched from .temp/t78-install/a/b/bin (build 10.0.1415, with the

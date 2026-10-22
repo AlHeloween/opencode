@@ -4,9 +4,8 @@ Keywords: sidebar-active-sessions 0.35, event-synced-store 0.25, elapsed-tick 0.
 Semantic dominant: The owner sees at a glance which sessions of this server are running — robots included — read from the store the TUI already event-syncs, with the 1 s tick spent only on elapsed time and an explicit «none active» when idle.
 md5: b7e2c41d90a85f3671d4c0e2f8a6b593
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 423648bc309f9b843f29291adf271959
 -->
-<!-- subgoal: s3-surfaces-agent-sees-drives — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S3 -->
 
 # t52 — TUI sidebar: live list of active sessions on the server
 

@@ -7,10 +7,9 @@ Keywords: codex-oauth-error 0.30, empty-error-refusal 0.25, real-cause-propagate
 Semantic dominant: The Codex OAuth login stops answering with an empty {} — the real cause travels to the surface and a taken port falls back instead of lying about itself.
 md5: 9adfd300a9b35c3295d73bcf6725ac48
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: a9cdbdeef0bce63c1eea1385e0c8ab64
 note: hash values are generative tags — search them, never compute them.
 ```
-<!-- subgoal: s5-model-and-credentials — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S5 -->
 ## Контекст
 - TUI `dialog-provider.tsx:188-200`: при `result.error` показывает `JSON.stringify(result.error)`. Пустой объект = строка `{}`.
 - Сервер `httpapi/provider.ts:120,134`: `Effect.catch(() => BadRequest({}))` глотает настоящую ошибку.

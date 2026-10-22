@@ -1,0 +1,208 @@
+51 plan(s) · {'goal-tree': 51}
+
+51 plan(s) NOT resolving to the level-0 goal:
+
+[      goal-tree] 2026-09-12_anthropic-cache-breakpoints.md
+      parent@14=51b888a0804adb07ef476bdf40de0da1 label@12=e9f8f8389d605ff2a2d49a94b283c1fe
+      open=5/5 lifecycle=-
+      aim: 55.1% of the static prefix sits behind no static breakpoint and 13 of 14 Anthropic catalog models emit an invalid or removed thinking payload -> the static half is covered by breakpoints (≤4, system messages included), the variant
+[      goal-tree] 2026-09-19_database-truth.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=22c38dcb3be6d92d14855dbc9b2b8b4e
+      open=4/4 lifecycle=-
+      aim: tables and counters nobody writes produce mechanisms that never fire while every suite stays green -> every table has a named writer, every dead surface is removed, and any counter is checked against the live database
+[      goal-tree] 2026-09-21_mstar-order-and-summary-restore.md
+      parent@9=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@7=29605e36f66e3745627865dc378893b1
+      open=5/24 lifecycle=-
+      aim: m* и summary деградировали (порядок блоков неверен, summary стал дампом патчей, память стала пачкой записок) -> вернуть порядок владельца и вернуть summary к намерениям с планами
+[      goal-tree] 2026-09-22_reasoning-stream-render-stability.md
+      parent@11=423648bc309f9b843f29291adf271959 label@9=506dc328b39c5e55c4a73084c46ae4fc
+      open=10/24 lifecycle=-
+      aim: a long reasoning stream flickers — formatting arrives late or never, the viewport jumps, artifacts appear -> the visible reasoning window is append-only again and highlight commits atomically at quiet-window and at time.end
+[      goal-tree] 2026-09-24_to-be-confirmed-shelf-triage.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=3a799606d3fdb3315940746e663e09f7
+      open=3/4 lifecycle=-
+      aim: 19 plans sit on plans/to_be_confirmed/ after the 2026-09-24 audit — four of them owner-confirmed as shipped and live-tested, one (TUI gateway row) awaiting a confirmation run, the rest awaiting re-verification against current code
+[      goal-tree] 2026-09-28_kernel-candidate-incorporation.md
+      parent@11=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@9=9ca618b9096545f78d469e869c863bb0
+      open=3/59 lifecycle=-
+      aim: incorporate the candidate kernel's stronger mechanisms (complete edge graph, real budgets, digest/rights formulas, knowledge statuses) into prompt_kernel/source.py via L2 cycles; never replace the file
+[      goal-tree] 2026-09-29_codegraph-impact-decoupling.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=cdb9eee52f16dd2da3d32328cb7b531c
+      open=1/6 lifecycle=-
+      aim: fossil carries only the BRIEF (which files changed) and codegraph carries the REAL impact (symbols and edges touched) selected by the SUMMARY's own time window; the graph is synced off the turn's critical path -> the turn stops pa
+[      goal-tree] 2026-09-29_cua-windows-debug-input.md
+      parent@10=423648bc309f9b843f29291adf271959 label@8=6a1f0c93e2b847d5a09c3e71f4b28d56
+      open=15/29 lifecycle=-
+      aim: CUA debugging requires manual screenshots, IDs and multiple slow commands and cannot yet drive continuous Windows mouse input -> agents obtain an addressable visual observation and bounded, verifiable Windows mouse actions with mi
+[      goal-tree] 2026-09-29_h2-session-pool-and-connection-badge.md
+      parent@10=51b888a0804adb07ef476bdf40de0da1 label@8=790170ed641655da683b33e78f70746b
+      open=1/8 lifecycle=-
+      aim: up to 2500 concurrent provider streams must ride a REUSED pool of HTTP/2 sessions (one session caps at the server's advertised 128), never short-lived connections, and the TUI sidebar must show the living connection as an icon -> 
+[      goal-tree] 2026-09-30_cua-supply-chain-audit.md
+      parent@10=2c33f070c3231dc454ef0caaafff392e label@8=8b41e0c7d3f95a2e6c1b7d04f9a3e582
+      open=2/10 lifecycle=-
+      aim: cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a record
+[      goal-tree] 2026-09-30_robot-installer.md
+      parent@10=2c33f070c3231dc454ef0caaafff392e label@8=3c90f5a1e7b24d68c0a9e3f7b15d2c84
+      open=18/33 lifecycle=-
+      aim: the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unpr
+[      goal-tree] 2026-10-01_tool-description-contracts.md
+      parent@17=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@15=d99945d67a57440775f414e816c78773
+      open=2/9 lifecycle=-
+      aim: 36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one 
+[      goal-tree] 2026-10-04_files-api-and-tariff.md
+      parent@11=51b888a0804adb07ef476bdf40de0da1 label@9=885fe2cd0ab29b492768937e9a96b3e1
+      open=2/5 lifecycle=-
+      aim: расход не сходится с моделью, и картинки едут инлайном в каждом запросе -> деньги считаются по фактическому тарифу, файлы живут в провайдерском хранилище и адресуются ссылкой, кеш не ломается
+[      goal-tree] 2026-10-07_supersede-between-steps-loses-reply.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=6c1f0e8a93b24d7f05ae11c2d8e4b7a9
+      open=3/3 lifecycle=-
+      aim: a user prompt that replaces a running turn is sometimes left unanswered (no request, one aborted empty row) -> every replacing prompt either gets its own reply or a visible, named failure; the race between the superseded run and t
+[      goal-tree] 2026-10-08_mcps-connector-manager.md
+      parent@11=423648bc309f9b843f29291adf271959 label@9=12817c6e2b8a1c5b578ab36838955cd6
+      open=4/8 lifecycle=-
+      aim: /mcps is a runtime-only toggle list -> the TUI's ONE place to attach MCP connectors: statuses, OAuth auth, add/remove with scope, persistent enable/disable, and a connector catalog (Canva first). The server-side routes (add / auth
+[      goal-tree] 2026-10-08_org-portable-home.md
+      parent@11=2c33f070c3231dc454ef0caaafff392e label@9=1d77cc3731109853fcd4091e486824a5
+      open=1/9 lifecycle=-
+      aim: hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and th
+[      goal-tree] 2026-10-10_plan-hygiene-in-build-mode.md
+      parent@11=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@9=7c49800b554334e7c4e2518ffd7ee1cc
+      open=2/3 lifecycle=-
+      aim: plan hygiene (reconcilePlans) is invoked only from AGI mode and by construction never ticks a box, so finished plans pile up in plans/ and the debt only grows -> every ordinary turn repairs plans/ itself (finished plans move to pl
+[      goal-tree] 2026-10-11_memory-orphan-parts.md
+      parent@11=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@9=c6c8ea653074a18db658845cc3541532
+      open=4/4 lifecycle=-
+      aim: the memory index only ever ADDS (rowid watermark, monotonic) and carries no liveness filter on the session -> parts of DELETED sessions stay in the index and in search results forever (18 903 parts + 4 310 messages left behind by 
+[      goal-tree] 2026-10-12_specs-inventory-truth.md
+      parent@11=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@9=b2d2bf600f8b088f980cdaade238ad06
+      open=1/4 lifecycle=-
+      aim: the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since cha
+[      goal-tree] 2026-10-13_recall-read-address-space.md
+      parent@18=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@16=5d2b8e1a7c4f903be6a1d5c8f2e0b479
+      open=3/13 lifecycle=-
+      aim: a robot that reads a file through `read` and `recall` gets the lines it asked for and pays for each file about once -> `recall` addresses the same lines `read` printed, a long line can be read in pieces, a recall cannot be recalle
+[      goal-tree] 2026-10-14_kernel-stop-claim-release.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=6e8a0c2f4b1d3579a1c3e5b7d9f02468
+      open=4/9 lifecycle=-
+      aim: the kernel lets any terminal verdict (SUCCESS, BLOCKED, WAITING) close without falsification -> the fixed kernel (stop-claim form, @STATUS_CLAIM, JIDOKA/KAIZEN) is installed here, carried into ADID_Python's canonical bundle, relea
+[      goal-tree] 2026-10-14_return-channel-binding.md
+      parent@19=221e9347f99b038b669b74d80886fca1 label@17=7c2d9a4f1e6b8304c5d7e2a9b6140f3d
+      open=5/5 lifecycle=-
+      aim: `done [--report]` makes the report optional and `escalate --code "why"` sets BLOCKED on one sentence, so the delegator receives bare fields and cannot tell a busy WORKING ticket from a dead one (heartbeat frozen at claim time) -> 
+[      goal-tree] 2026-10-15_dais-peer-trust-reward.md
+      parent@72=221e9347f99b038b669b74d80886fca1 label@70=3b8f1d6a9c2e07f45d3b8a1c6e9f2d47
+      open=4/5 lifecycle=-
+      aim: the reward sees one run alone and the syndicate has no memory of whose claims held -> peer trust, earned only by claims that survived independent verification, enters the reward and routes delegation
+[      goal-tree] 2026-10-15_kernel-undefined-contract-audit.md
+      parent@33=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@31=21a66067b9824dab91f15b37970ac653
+      open=1/2 lifecycle=-
+      aim: расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source
+[      goal-tree] 2026-10-15_tui-active-sessions-panel.md
+      parent@7=423648bc309f9b843f29291adf271959 label@5=b7e2c41d90a85f3671d4c0e2f8a6b593
+      open=1/7 lifecycle=-
+      aim: TUI sidebar has no live view of running sessions (owner must open the sessions dialog to guess what is running) -> a sidebar block lists every busy/retrying session of THIS server (API robots included), refreshed ~1 s, with an exp
+[      goal-tree] 2026-10-15_web-tui-parity.md
+      parent@7=423648bc309f9b843f29291adf271959 label@5=9f3a7c2d1e4b4f6a8d2c5e7f1a3b4c5d
+      open=1/6 lifecycle=-
+      aim: browser form shows only part of what the TUI shows (no active-sessions block, no sidebar status rows, no scoped agent/model write path) -> the web app reaches parity surface by surface through the SAME server routes/events the TUI
+[      goal-tree] 2026-10-16_haiku-omp-controlled-latency.md
+      parent@12=51b888a0804adb07ef476bdf40de0da1 label@10=81e70d3af5c64b8292d15e6f370a49bc
+      open=2/5 lifecycle=-
+      aim: Haiku в OpenCode даёт длительные паузы, в omp с загруженным kernel пользователь наблюдает быстрый ответ -> воспроизводимое сравнение actual запросов и изолированных факторов, с установленной областью причинного вывода и непокрытым
+[      goal-tree] 2026-10-16_message-cleaner.md
+      parent@10=51b888a0804adb07ef476bdf40de0da1 label@8=7c2a9e4f1b5d43a08f6e2d7c9a1b4e55
+      open=3/9 lifecycle=-
+      aim: raw chain replies with foreign-script slips flow into requests uncleaned -> measured go/no-go on a one-shot free-model cleaner with a deterministic validator, no product change
+[      goal-tree] 2026-10-16_model-chain-failover.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=8f3a1c2d4e5f6a7b8c9d0e1f2a3b4c5d
+      open=8/9 lifecycle=-
+      aim: blind retry loops on dead models with human failover -> explicit ordered model chain per agent/scope with automatic classified failover and 10-minute health checks
+[      goal-tree] 2026-10-16_reasoning-lossless-replay.md
+      parent@12=51b888a0804adb07ef476bdf40de0da1 label@10=6e41b38c90ad4a5f8732d697e0bc512a
+      open=3/9 lifecycle=-
+      aim: reasoning и metadata могут теряться до следующего запроса, поддержка HTTP3 у Anthropic на нашем сетевом пути не проверена -> reasoning сохраняется полностью и replay квалифицирован, HTTP3/QUIC и fallback установлены отдельными сет
+[      goal-tree] 2026-10-16_self-edit-directive.md
+      parent@12=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@10=51ebec8743f05391e69584a8b4cdeca2
+      open=2/12 lifecycle=-
+      aim: agent sees its own previous-message error and cannot remove it, window copies it forward by attention -> agent emits bounded self-edit directive (cut ranges + errata) addressed by message md5, stored original untouched, replay nar
+[      goal-tree] 2026-10-16_zoekt-scip-fossil-sv.md
+      parent@6=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@4=e8a16f092bce49a5b9f4130dd7c26e84
+      open=3/9 lifecycle=-
+      aim: CodeGraph остаётся обязательной зависимостью поиска и impact -> локальная навигация по коду через Zoekt/SCIP, связанная с Fossil diff и SV, с проверенной заменой потребителей CodeGraph
+[      goal-tree] 2026-10-17_portable-binary-hermetic.md
+      parent@8=2c33f070c3231dc454ef0caaafff392e label@6=8f2a4c1d9e3b47a5b6c8d0f1a2b3c4d5
+      open=6/6 lifecycle=-
+      aim: portable install dir with exe-adjacent config -> hermetic binary that reads only exe-adjacent and data-root sources, never parent folders
+[      goal-tree] 2026-10-18_codex-oauth-empty-error.md
+      parent@10=a9cdbdeef0bce63c1eea1385e0c8ab64 label@8=9adfd300a9b35c3295d73bcf6725ac48
+      open=4/4 lifecycle=-
+      aim: от пустого {} при OAuth-логине -> к понятной ошибке или рабочему логину
+[      goal-tree] 2026-10-18_global-recents-constraint.md
+      parent@10=a9cdbdeef0bce63c1eea1385e0c8ab64 label@8=6d0b84e2f9a317c5b8e0d4a6c2f91b73
+      open=1/6 lifecycle=-
+      aim: stale per-worktree/session/chain model picks run unchecked -> every worktree, session and chain layer is checked against the global recents allowlist before a model is used
+[      goal-tree] 2026-10-18_kernel-method-preamble.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=b7c2e9a14d5f48b0a3c6e1f7d9a2b5c4
+      open=1/15 lifecycle=-
+      aim: kernel states machinery without stating its method -> every kernel variant opens with the working method, its why, and the no-human-oracle line, and the Claude variant grounds search on Universal Search hybrid
+[      goal-tree] 2026-10-19_codex-robot-event-handoff.md
+      parent@13=221e9347f99b038b669b74d80886fca1 label@11=6b8e3a09c1754d62af4037e9b2d81650
+      open=4/5 lifecycle=-
+      aim: внешний робот завершает работу, отчёт остаётся без реакции родителя -> событие OpenCode завершает ожидающий вызов инструмента Codex, родитель получает адресный отчёт и продолжает независимую приёмку без таймерного опроса
+[      goal-tree] 2026-10-19_edit-description-contract.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=84719f6efd224ad99c3f617cb2c92570
+      open=1/7 lifecycle=-
+      aim: edit tool description drifts from its refusals -> description rewritten from the code's own refusals with a contract test that fails on drift
+[      goal-tree] 2026-10-19_tool-description-contracts.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=a3eb5a7edb7d42fabae35e82e1c60284
+      open=3/13 lifecycle=-
+      aim: tool descriptions drift from refusals across 36 tools -> each description checked against its code by refusal keys, schema and examples, in error-rate order, so no model fails a tool because its manual promised what the code refus
+[      goal-tree] 2026-10-20_hr-delegator-driver.md
+      parent@9=221e9347f99b038b669b74d80886fca1 label@7=9b4d1f2a6c7e48b3a0d5c8e71f2a3b4c
+      open=15/15 lifecycle=ACTIVE
+      aim: manual-handshake-and-unchecked-delegation -> automatic-hr-delegator-driver-with-deterministic-dossier-gate
+[      goal-tree] 2026-10-20_kernel-line-audit.md
+      parent@11=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@9=7f3a9c1e4b5d6a8091c2d3e4f5a6b7c8
+      open=9/10 lifecycle=-
+      aim: kernel-unaudited -> candidate-table-for-owner-approval
+[      goal-tree] 2026-10-20_robot-personnel-delegator.md
+      parent@6=221e9347f99b038b669b74d80886fca1 label@4=25f8c07b61a94d3e8b204af59c716de2
+      open=3/4 lifecycle=-
+      aim: подбор роботов, инициализация по SV и назначение проверяющего выполняются Codex вручную -> внешний робот кадровик-делегатор автоматически ведёт этот цикл по проверяемым досье, с отдельным проверяющим и адресуемым результатом
+[      goal-tree] 2026-10-21_corporation-observability-bridge.md
+      parent@7=221e9347f99b038b669b74d80886fca1 label@5=7c2e9a4b5d6f48e0a1b2c3d4e5f6a7b8
+      open=7/7 lifecycle=ACTIVE
+      aim: fossil bridges in every tree stay silent about live robots -> one observable process with a panel for owner and agents, where each robot server finds its tree bridge and reports state, giving a whole-corporation summary
+[      goal-tree] 2026-10-21_delegation-tool-tdz.md
+      parent@10=221e9347f99b038b669b74d80886fca1 label@8=6f2a9c4b7e15d803a5c9f2e6b4d17a05
+      open=1/6 lifecycle=-
+      aim: the delegation lane has been dead on every host since the t87 global-recents change — both `task` and `pipeline` read the `globalRecents` list inside the `Effect.sync` thunk of `chainResolved` while the lookup that fills it is dec
+[      goal-tree] 2026-10-21_delegator-memory-repair.md
+      parent@21=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@19=19d43ab86d651e97f28b5016e28c0dcc
+      open=10/10 lifecycle=ACTIVE
+      aim: the desktop /clear of 2026-10-21 left the delegator's memory folder intact but delivered an empty window (its only input was «Продолжай») because the fold restore is routed on a session source the app never emits and two captures 
+[      goal-tree] 2026-10-21_fold-hooks-desktop-fork.md
+      parent@20=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@18=9e4b7c2a51f683d0a9e5f147b3c8d621
+      open=2/9 lifecycle=ACTIVE
+      aim: whatever way the Claude desktop app rebuilds a window — fork with a new session id, compact or clear — opens with no owner messages and no semantic vectors -> the new window opens with the previous window's owner messages and full
+[      goal-tree] 2026-10-21_portable-delegation-kit.md
+      parent@7=2c33f070c3231dc454ef0caaafff392e label@5=3f8a2c1d9e047b5a6c7d8e9f0a1b2c3d
+      open=7/7 lifecycle=ACTIVE
+      aim: delegation-procedure-gitignored-and-host-pinned -> tracked-path-discovering-kit-with-fresh-machine-oracle
+[      goal-tree] 2026-10-21_robot-pending-stop-hook.md
+      parent@20=221e9347f99b038b669b74d80886fca1 label@18=6c47e1b93a2d058f6e31b7c4a9d2058e
+      open=1/11 lifecycle=ACTIVE
+      aim: Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher runn
+[      goal-tree] 2026-10-21_tui-standards-fixes.md
+      parent@7=423648bc309f9b843f29291adf271959 label@5=7d1e9f2a4b5c48d6a0f3e5c7a9b1d4e2
+      open=6/6 lifecycle=ACTIVE
+      aim: tui-commands-violate-surface-standards -> all-dialogs-bound-to-ui-standards-clauses-with-capture-evidence
+[      goal-tree] 2026-10-22_claude-classifier-investigation.md
+      parent@8=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@6=e7a1c49d032f6b85a90e7c2d416fb308
+      open=2/5 lifecycle=-
+      aim: ответы Claude о производственной работе останавливаются без установленного источника -> компонент остановки и причины установлены в пределах наблюдаемых свидетельств, локальные следы сверены с первичными источниками независимыми в
+[      goal-tree] 2026-10-22_legislator-reincarnation-method.md
+      parent@10=f2e94a7cb5d18603e8a4c9d2f7b56e0a label@8=2d7f4b9e1c6a38e05b2d9f7c4a1e6b38
+      open=7/8 lifecycle=-
+      aim: the Legislator dies with its transcripts and a model under the same kernel cannot adapt into it -> a documented, tracked, oracle-checked method rebuilds it from its own ordered full SV blocks and the owner's rows, cut before a wro

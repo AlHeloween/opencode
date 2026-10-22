@@ -7,9 +7,8 @@ Keywords: supply-chain-audit 0.30, egress-manifest 0.25, telemetry 0.20, provena
 Semantic dominant: Measure what cua (then Universal Search) sends out, what its binaries are built from, and how reliably it behaves, before shipping it to colleagues.
 md5: 8b41e0c7d3f95a2e6c1b7d04f9a3e582
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 2c33f070c3231dc454ef0caaafff392e
 ```
-<!-- subgoal: s2-distribution-and-supply-chain — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S2 -->
 
 **Status:** ACTIVE — owner, 2026-09-30: «Всё вместе, начинай аудит с cua». Scope: egress + hidden code + reliability.
 Consumer: `plans/2026-09-30_robot-installer.md` ships only components with an approved egress manifest.

@@ -7,9 +7,8 @@ Keywords: global-recents-allowlist 0.35, layer-model-constraint 0.25, stale-work
 Semantic dominant: The global recents list becomes the single allowlist that every worktree, session and chain layer is checked against before a model is used.
 md5: 6d0b84e2f9a317c5b8e0d4a6c2f91b73
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: a9cdbdeef0bce63c1eea1385e0c8ab64
 ```
-<!-- subgoal: s5-model-and-credentials — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S5 -->
 
 ## Status
 

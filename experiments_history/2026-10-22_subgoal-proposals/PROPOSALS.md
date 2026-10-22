@@ -1,5 +1,14 @@
 # t142 — proposed subgoals for the plans that do not serve the level-0 goal directly
 
+> **ACCEPTED 2026-10-22 — this proposal is now the RECORD, the head is the LIVE STATEMENT.** The owner read
+> it and wrote: «Да, с подцелями все верно. Только что прочитал.» S1–S5 were then written into the
+> hand-owned head of `plans/MASTER_PLAN.md` under the level-0 goal, EXACTLY as proposed below (the aim line,
+> the Keywords, the dominant, the md5, and `parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a`), and the 27
+> plans that waited on them now carry their subgoal's md5 as their own `parent-goal-md5`. The 28th plan of
+> §4 — `2026-10-22_write-writeback.md` — was COMPLETED by its owner and moved to `plans_completed/`
+> (commit `0cce58cb24`) before the apply, so it needed no link. The `<!-- subgoal: … -->` markers are gone
+> from the plans: nothing waits on a decision any more. The unlinked count is **0**.
+
 Measured 2026-10-22 on `Local_Development` (branch of record), two other robots working the same tree on
 disjoint paths. Every number below is READ from an artefact this task wrote or from the product's own
 instrument — nothing is typed from memory.

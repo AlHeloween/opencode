@@ -8,10 +8,9 @@ Keywords: org-portable-home 0.30, org-home-port-resolver 0.25, bundled-fossil-ou
 Semantic dominant: The organization becomes portable — one supported resolver for ORG_HOME/ORG_PORT, a bundled fossil that outranks PATH, and reads only through the org.py verbs.
 md5: 1d77cc3731109853fcd4091e486824a5
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 2c33f070c3231dc454ef0caaafff392e
 note: hash values are generative tags — search them, never compute them.
 ```
-<!-- subgoal: s2-distribution-and-supply-chain — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S2 -->
 - Owner, 2026-10-08: «вся наша корпорация агентов была переносимой». Requested by the Installer session for
   `plans/2026-09-30_robot-installer.md` box B1f (component `org` = `scripts/org-genesis/**`).
 - Requested by: Installer session (t14-org-portable-home). Kernel part STOPS before `--install`: Claude reviews

@@ -8,10 +8,9 @@ Keywords: files-api 0.30, measured-tariff 0.25, provider-file-storage 0.20, link
 Semantic dominant: The money is counted at the measured tariff and the files live in the provider's storage addressed by a link, so the cache stops breaking.
 md5: 885fe2cd0ab29b492768937e9a96b3e1
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 51b888a0804adb07ef476bdf40de0da1
 note: hash values are generative tags — search them, never compute them.
 ```
-<!-- subgoal: s4-model-boundary — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S4 -->
 Status: ACTIVE · owner-approved 2026-10-04 · T1, T2, T5 done; T3, T4 open (boxes added 2026-10-12 — the plan carried none, so the status surface could not see it; the line above said "T3-T5 open" after T5 had shipped)
 
 ## Прогресс

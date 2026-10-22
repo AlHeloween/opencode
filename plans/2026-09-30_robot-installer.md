@@ -7,9 +7,8 @@ Keywords: installer 0.30, preflight 0.25, hello-smoke 0.20, offline-bundle 0.15,
 Semantic dominant: One offline Go+Wails installer that turns an unprepared Windows into a working robot that answers «привет».
 md5: 3c90f5a1e7b24d68c0a9e3f7b15d2c84
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 2c33f070c3231dc454ef0caaafff392e
 ```
-<!-- subgoal: s2-distribution-and-supply-chain — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S2 -->
 
 **Status:** DRAFT — owner decisions 2026-09-30: all packages we use (draft bundle `d:\!Smit\Smit2\`), unified builder +
 unified installer, **Windows only**, **free models only**, **fully offline delivery**. Audience: colleagues in

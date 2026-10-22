@@ -69,6 +69,5 @@ Keywords: peer-trust-ledger 0.40, verification-not-votes 0.30, reward-integratio
 Semantic dominant: Peer trust enters the DAIS reward only as a track record of claims that survived independent verification in org.fossil, never as peer approval.
 md5: 3b8f1d6a9c2e07f45d3b8a1c6e9f2d47
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 ```
-<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->

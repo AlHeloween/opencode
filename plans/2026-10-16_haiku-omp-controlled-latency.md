@@ -9,9 +9,8 @@ Keywords: controlled-latency 0.35, wire-equivalence 0.30, protocol-grounding 0.2
 Semantic dominant: Найти измеренные различия OpenCode и omp без переноса локального PASS на сквозную работоспособность.
 md5: 81e70d3af5c64b8292d15e6f370a49bc
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 51b888a0804adb07ef476bdf40de0da1
 ```
-<!-- subgoal: s4-model-boundary — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S4 -->
 
 ## G0: намерение и границы
 

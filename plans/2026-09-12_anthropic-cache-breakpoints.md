@@ -11,10 +11,9 @@ Keywords: anthropic-cache-breakpoints 0.30, static-prefix-breakpoints 0.25, thin
 Semantic dominant: The static half of the prompt is behind real cache breakpoints and every high/max thinking variant carries its own payload to the wire, so the cost follows the measured price.
 md5: e9f8f8389d605ff2a2d49a94b283c1fe
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 51b888a0804adb07ef476bdf40de0da1
 note: hash values are generative tags — search them, never compute them.
 ```
-<!-- subgoal: s4-model-boundary — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S4 -->
 ## Shelf triage 2026-10-09 (t25-shelf-triage)
 
 **Verdict: RETURN — moved back to `plans/` root.** Verified current against the code: T1–T3 are unstarted, not stale.

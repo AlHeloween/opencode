@@ -10,10 +10,9 @@ Keywords: event-handoff 0.50, completion-predicate 0.30, parent-continuation 0.2
 Semantic dominant: Связать завершение внешнего робота с реальным продолжением ожидающего родительского инструмента.
 md5: 6b8e3a09c1754d62af4037e9b2d81650
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 note: hash values are generative tags — search them, never compute them.
 ```
-<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 
 ## Grounding / mechanism
 

@@ -10,6 +10,12 @@ WHY THIS MIRRORS `src/util/plan-status.ts` AND DOES NOT GUESS:
   - the population = the top-level `plans/*.md` minus NON_PLAN_FILES
     (plan-status.ts:441 `collectPlans`) — subfolders (futures/, postponed/) are
     NOT plans for this instrument.
+  - the GOAL TREE = every `md5:` label declared in the hand-owned HEAD of
+    `plans/MASTER_PLAN.md` (the level-0 goal plus the subgoals under it, read
+    from the file that owns them). A parent that names one of those labels is
+    RESOLVED; a non-zero parent that names none is FOREIGN — a link into
+    nothing. The product's gate (`isPlanLinked`) only asks "non-zero", so this
+    census is STRICTLY STRICTER than it, and says so.
 
 READ-ONLY. It writes nothing.
 
@@ -34,8 +40,21 @@ BOX_RE = re.compile(r"^\s*- \[( |x|~)\] ", re.M)
 LIFECYCLE_RE = re.compile(r"<!--\s*workflow:\s*lifecycle\s+(\w+)")
 
 
+def goal_tree(worktree: Path) -> set[str]:
+    """Every label the master plan's HEAD owns: the level-0 goal and its subgoals."""
+    master = worktree / "plans" / "MASTER_PLAN.md"
+    if not master.exists():
+        return set()
+    raw = master.read_bytes()
+    cut = raw.find(b"<!-- generated below")
+    head = raw if cut < 0 else raw[:cut]
+    text = head.decode("utf-8", "replace")
+    return {m.group(1).lower() for m in LABEL_RE.finditer(text)}
+
+
 def census(worktree: Path) -> list[dict]:
     plans_dir = worktree / "plans"
+    tree = goal_tree(worktree)
     rows = []
     for path in sorted(plans_dir.glob("*.md")):
         if path.name.lower() in NON_PLAN_FILES:
@@ -68,8 +87,8 @@ def census(worktree: Path) -> list[dict]:
             link = "no-parent-line"
         elif parent_val == ZERO:
             link = "zeros"
-        elif parent_val == GOAL:
-            link = "goal"
+        elif parent_val in tree:
+            link = "goal-tree"
         else:
             link = "foreign"
 

@@ -16,9 +16,8 @@ Keywords: return-channel 0.28, done-report-gate 0.22, stop-claim-gate 0.20, hear
 Semantic dominant: done refuses without a clean-next-state technote, escalate refuses without a stop-claim technote, the delegator's wake and inbox carry the report ref with its first lines, and orgd refreshes the heartbeat from the claimed session's own activity.
 md5: 7c2d9a4f1e6b8304c5d7e2a9b6140f3d
 prev-md5: 0b7e4d29c6a13f85de90b2c4718fa6d3
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 ```
-<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 
 ## Evidence (each line carries its instrument)
 

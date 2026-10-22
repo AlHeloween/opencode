@@ -7,10 +7,9 @@ Keywords: delegation-tdz 0.35, temporal-dead-zone 0.25, global-recents-order 0.2
 Semantic dominant: The whole delegation lane died on one ordering mistake — both delegation tools read the global recents list inside a thunk that runs before the lookup that fills it — so the fix moves the lookup ahead of its first use, covers the lane that had no test, and proves it live in an isolated stand.
 md5: 6f2a9c4b7e15d803a5c9f2e6b4d17a05
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 note: hash values are generative tags — search them, never compute them.
 ```
-<!-- subgoal: s1-delegation-org-protocol — proposed subgoal awaiting the owner's decision; see experiments_history/2026-10-22_subgoal-proposals/PROPOSALS.md §S1 -->
 
 - **plan_id:** 2026-10-21_delegation-tool-tdz
 - **revision:** 1

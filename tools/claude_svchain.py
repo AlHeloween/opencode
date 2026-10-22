@@ -3,6 +3,7 @@
     python tools/claude_svchain.py --list
     python tools/claude_svchain.py <session-id-or-path>
     python tools/claude_svchain.py <session-id-or-path> --grep topic
+    python tools/claude_svchain.py <session-id-or-path> --full
 
 Sibling of tools/codex_svchain.py — same contract, different host: this one reads
 ~/.claude/projects/<slugged-cwd>/*.jsonl instead of Codex rollouts.
@@ -51,6 +52,7 @@ def vector_in(text: str):
         "dominant": found["dominant"],
         "own": found["own"].lower(),
         "prev": found["prev"].lower(),
+        "parent": found["parent"].lower(),
     }
 
 
@@ -85,10 +87,13 @@ def vectors(path: Path) -> list[dict]:
     return chain
 
 
-def format_chain(chain: list[dict], needle: str | None = None) -> list[str]:
+def format_chain(chain: list[dict], needle: str | None = None, full: bool = False) -> list[str]:
     """Numbered lines with edge status. A filter narrows what PRINTS, never the
     numbering and never the edge check — an edge is always compared against the
-    real predecessor in the full stream, or a filtered view would invent breaks."""
+    real predecessor in the full stream, or a filtered view would invent breaks.
+
+    With full=True each vector prints its whole block — keywords, dominant and the
+    lineage — so the printed chain can be read back by this same tool."""
     lines: list[str] = []
     for index, vector in enumerate(chain):
         if index == 0 or vector["prev"] == ZERO:
@@ -101,7 +106,14 @@ def format_chain(chain: list[dict], needle: str | None = None) -> list[str]:
                 and needle.lower() not in vector["keywords"].lower():
             continue
         lines.append(f"{index + 1:>4} {edge}")
-        lines.append(f"     {vector['dominant']}")
+        if full:
+            lines.append(f"     Keywords: {vector['keywords']}")
+            lines.append(f"     Semantic dominant: {vector['dominant']}")
+            lines.append(f"     md5: {vector['own']}")
+            lines.append(f"     prev-md5: {vector['prev']}")
+            lines.append(f"     parent-goal-md5: {vector['parent']}")
+        else:
+            lines.append(f"     {vector['dominant']}")
     return lines
 
 def slug_for(path_text: str) -> str:
@@ -154,6 +166,7 @@ def main() -> int:
     parser.add_argument("session", nargs="?", help="session id, file name, or path; default is the newest")
     parser.add_argument("--list", action="store_true", help="list transcripts with their vector counts")
     parser.add_argument("--grep", metavar="TEXT", help="only vectors whose dominant or keywords contain TEXT")
+    parser.add_argument("--full", action="store_true", help="print each vector's full block (keywords, dominant, lineage)")
     args = parser.parse_args()
 
     folder = project_dir()
@@ -170,7 +183,7 @@ def main() -> int:
     target = select_session(files, args.session) if args.session else files[-1]
     chain = vectors(target)
     print(f"# {target.name}   {len(chain)} vectors")
-    for line in format_chain(chain, args.grep):
+    for line in format_chain(chain, args.grep, args.full):
         print(line)
     return 0
 

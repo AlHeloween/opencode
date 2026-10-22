@@ -184,10 +184,13 @@ UPCOMING_CHANGELOG.md
 logseq/
 .adm.mcp.lock.json
 
-# Local binaries / side tools (not project source — keep on disk, not in git)
+# Local binaries / side tools (keep on disk, not in git). The tracked SOURCES under
+# tools/ stay tracked: a method that lives only on disk is lost with the disk.
 adm.exe
 cmd_runner.exe
-/tools/
+/tools/*
+!/tools/*.py
+!/tools/tests/
 
 # Generated / refreshed provider model catalogs (build regenerates; too noisy for git)
 packages/opencode/src/provider/models/

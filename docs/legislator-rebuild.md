@@ -61,8 +61,11 @@ c12b531d (10-13..15, journal in memory) → c1ecd23b (10-15..17, dominants only)
 
 ## The build
 
-Instrument: `experiments/2026-10-22_legislator-rebuild/` (`build.py` + `config.json`; the turn preambles; `oracle.md`).
-`python build.py` reads only and writes into that folder:
+Instrument: the tracked reader is `tools/legislator_rebuild.py`; the run's own folder
+(`experiments/2026-10-22_legislator-rebuild/`) holds `config.json`, the turn preambles,
+`oracle.md` and the outputs. `python tools/legislator_rebuild.py <config.json>` reads only and
+writes into the config's own folder; the experiment's `build.py` is a thin driver over the
+same code, so the method survives a lost disk.
 
 - `entries.jsonl`: every entry with era, row/time, SV fields, refs, and `dropped` + reason. This is the full record;
   nothing is cut here.
@@ -117,10 +120,11 @@ analyse, not a pass.
 1. List the sessions: `python tools/claude_svchain.py --list`. Look for `*.desktop-released.json` (deleted) and
    `~/.claude/fold/<id>.md` (the surviving maps).
 2. Add each era to `config.json` with its format. Set the notes window. Find the cut with the SV-axis rule above.
-3. `python build.py`. Read `chain.md` and `dropped.md` whole.
+3. `python tools/legislator_rebuild.py <config.json>`. Read `chain.md` and `dropped.md` whole.
 4. Write `oracle.md` before sending anything.
 5. Start the session, send the turns one by one, then score the oracle and record the result in this folder's
    `RESULT.md`.
 
-Tool gap, still open: `tools/claude_svchain.py` has no `--full` mode and no fold-map reader. `build.py` holds both and
-is the candidate to move there.
+Tool gap, closed 2026-10-22 (T2): `tools/claude_svchain.py` has a `--full` mode now (it prints
+the whole block, and `vector_in` keeps `parent-goal-md5` instead of dropping it), and the
+fold-map reader lives in the tracked instrument `tools/legislator_rebuild.py`, beside it.

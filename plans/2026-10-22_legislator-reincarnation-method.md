@@ -40,11 +40,24 @@ note: hash values are generative tags — search them, never compute them.
 - [x] T1 — First rebuild of the Legislator (1e712796, cut at row 5108) with a sealed oracle. Artifact:
   `experiments/2026-10-22_legislator-rebuild/RESULT.md` (6/6 content; lineage UNKNOWN). Canon:
   `docs/legislator-rebuild.md`.
-- [ ] T2 — Make the instrument tracked. `build.py` lives in gitignored `experiments/`, so a lost disk loses the method.
+- [x] T2 — Make the instrument tracked. `build.py` lives in gitignored `experiments/`, so a lost disk loses the method.
   Move the readers (transcript, fold-trajectory, fold-map, robot-DB notes) into `tools/` beside `claude_svchain.py`,
   add its missing `--full` mode, and add tests in `tools/tests/`: a full block round-trips; a fold line parses; a
   dropped ack still links; a pasted body keeps its address. Standard: PEP 8; repo test canon `cd tools && python -m
   pytest tests/ -q`. Oracle: the tests RED before the move, GREEN after; `build.py` output byte-identical before and after.
+  **Closed 2026-10-22 (t145).** The four readers (transcript, fold-trajectory, fold-map, robot-DB
+  notes) are tracked in `tools/legislator_rebuild.py`; `tools/claude_svchain.py` gained the
+  `--full` mode; `tools/tests/test_legislator_rebuild.py` holds the four named cases (a full
+  block round-trips; a fold line parses; a dropped ack still links; a pasted body keeps its
+  address). Oracle: RED before the move (`ModuleNotFoundError: No module named
+  'legislator_rebuild'`), GREEN after (`cd tools && python -m pytest tests/ -q` → 9 passed).
+  The same run exposed a pre-existing red: `ImportError: cannot import name 'slug_for'` — the
+  worktree copy of `claude_svchain.py` was OLDER than HEAD (`f9d50d8df2`), so it was restored
+  from HEAD first and the measured slug rule was not reverted. The rebuild through the tracked
+  instrument prints the same counts (`kept 1050 / 1190; chain breaks 4`, 274,883 / 182,790 /
+  8,692 chars) and all six outputs are byte-identical to the baseline sha256 set
+  (`turn1/2/3.md`, `entries.jsonl`, `dropped.md`, `chain.md`); `turn3.md` also equals the
+  sealed `sha256.txt`. The canon (`docs/legislator-rebuild.md`) names the new path.
 - [x] T3 — Control leg (EXPECTED_FAIL). Done 2026-10-22 as the portability pair on MiniMax m3.1 flash:
   - control K = 1/6 (0 tools, 0 row cites);
   - transfer X = 6/6 (cites 21/26 valid; 5 invented rows were stamped CONFIRMED).

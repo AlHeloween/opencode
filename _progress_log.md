@@ -8758,3 +8758,34 @@ SUMMARIES PAID: both open Layer-1 summaries carried empty «Constraints & Prefer
 
 NOT TOUCHED: every plan file, the master's head, `bin/`, the kernel, every product source file — this commit changes the ARCHIVE's instrument and its measurement only.
 [2026-10-22] plans/2026-10-22_claude-classifier-investigation.md revision 2 P1/P2/P4: ✓ CONFIRMED (census.json, validation.json, runner-receipts.json) — 222 JSONL / 276670100 predicted bytes, 13 refusal message IDs / 11 request IDs, parser controls 4/4; отдельная Claude-specific публичная вставка, без установки. Новые baseline/candidate CLI: оба end_turn, оба FAIL raw JSON; повторный независимый review не получен, frameless critic не квалифицирован. Публичные артефакты: experiments_history/2026-10-22_claude-public-records/; предложение: docs/proposals/2026-10-22_claude-public-records.md. F1/F2/P3 активны: точный триггер, полный контекст, независимый review. Продолжение root ticket 327dbf71ae; чужая lease smit-opencode epoch 2 не менялась. _build.ps1 не запускался: product-source/runtime не менялись, install вне envelope. Changed surfaces: candidate, evidence, plan, docs index. FIXED/SUCCESS не заявлены.
+## [2026-10-22] t145 — the Legislator's rebuild instrument is tracked; the shared tree's test suite was red before this
+
+WHAT: (a) INSTRUMENT — the four readers (transcript, fold-trajectory, fold-map, robot-DB notes) now live in
+`tools/legislator_rebuild.py`, beside `tools/claude_svchain.py`; the experiment's `build.py` became a
+thin driver over the same code, so there is ONE implementation and the method survives a lost disk.
+`.gitignore` had ignored the whole `tools/` directory, so a new source there could not be added at all
+while nine tracked sources already lived in it; the rule is now `/tools/*` with `!/tools/*.py` and
+`!/tools/tests/`, so the local binaries stay out of git and the tracked sources come back in.
+(b) `--full` — `tools/claude_svchain.py` prints a vector's whole block (keywords, dominant, md5 / prev-md5 /
+parent-goal-md5); the defect underneath was that `vector_in` READ `parent-goal-md5` and DROPPED it, so a full
+block could not be printed at all — fixed at the root, not in the test. (c) TESTS —
+`tools/tests/test_legislator_rebuild.py` holds the four named cases (a full block round-trips; a fold line
+parses; a dropped ack still links; a pasted body keeps its address). (d) CANON — `docs/legislator-rebuild.md`
+names the new path and closes the tool gap it had recorded; the plan's T2 box is ticked with its receipts.
+
+MEASURED: `cd tools && python -m pytest tests/ -q` → RED before the move (`ModuleNotFoundError: No module named
+'legislator_rebuild'`) → GREEN after (9 passed). The same RED run exposed a PRE-EXISTING red: `ImportError:
+cannot import name 'slug_for'` — the worktree copy of `tools/claude_svchain.py` was OLDER than HEAD (HEAD carries
+the measured slug rule from `f9d50d8df2`), while its test file stayed clean and still imported `slug_for`; the
+pair was inconsistent, so the file was restored from HEAD first and `git diff HEAD -- tools/claude_svchain.py`
+now shows only the `--full` and `parent` additions. The rebuild through the tracked instrument prints the plan's
+predicted numbers unchanged (`kept 1050 / 1190; chain breaks 4`, 274,883 / 182,790 / 8,692 chars) and all six
+outputs are byte-identical to the baseline sha256 set (`turn1/2/3.md`, `entries.jsonl`, `dropped.md`,
+`chain.md`); `turn3.md` also equals the sealed `sha256.txt`. The baseline was taken BEFORE any edit, from the
+plan's own Smoke Tests.
+
+RESIDUAL: I did not re-render the map — the renderer that keeps its 49 `link:` rows was a script under
+`experiments/` that is now gone, and the running build's renderer would DROP those rows (measured in
+t143); a refresh needs whoever renders from the current source.
+The run's own folder (`experiments/2026-10-22_legislator-rebuild/`, with `oracle.md` and `RESULT.md`) stays untracked until T6
+decides where the evidence lives. Plan `plans/2026-10-22_legislator-reincarnation-method.md`, box T2.

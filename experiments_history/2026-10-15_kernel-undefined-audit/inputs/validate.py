@@ -1,0 +1,290 @@
+from __future__ import annotations
+
+import re
+
+from .model import Kernel, SourceRoutingContract, SemanticVectorContract, StateMachine
+
+
+REFERENCE = re.compile(r"@([A-Z][A-Z0-9_]*)")
+SYMBOL = re.compile(r"[A-Z][A-Z0-9_]*")
+EXPECTED_GATES = tuple(f"G{i}" for i in range(0, 10))
+EXPECTED_SPINE = ("G0", "G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9")
+EXPECTED_SV_DIGEST = ("md5", "prev-md5", "parent-goal-md5")
+EXPECTED_EVIDENCE_STATUSES = ("Guess", "Hypothetical", "Inferred", "Exact", "Unknown")
+
+# 2026-10-12 (K02): the declared deviation classes ride beside the spine only where named —
+# `side` for the concern path, a `forward` branch for the read/plan-only deliverable. Pinned
+# here so a new one is a deliberate act in the validator too, not just in test_architecture.
+DECLARED_SIDE_EDGES = (("G4", "G5"),)
+DECLARED_FORWARD_BRANCHES = (("G6", "G8"),)
+
+
+def _duplicates(values: list[str]) -> list[str]:
+    return sorted({value for value in values if values.count(value) > 1})
+
+
+def _validate_fsm(owner: str, fsm: StateMachine | None, errors: list[str]) -> None:
+    """An FSM is only meaningful against its own declared states and its owner's name."""
+    if fsm is None:
+        return
+    if fsm.id != owner:
+        errors.append(f"FSM {fsm.id} id must match its owner {owner}")
+    if fsm.initial_state not in fsm.states:
+        errors.append(f"FSM {fsm.id} initial state {fsm.initial_state} is not among its declared states")
+    for state in fsm.accepting_states:
+        if state not in fsm.states:
+            errors.append(f"FSM {fsm.id} accepting state {state} is not among its declared states")
+    for transition in fsm.transitions:
+        for endpoint in (transition.from_state, transition.to_state):
+            if endpoint not in fsm.states:
+                errors.append(f"FSM {fsm.id} transition endpoint {endpoint} is not among its declared states")
+
+
+def validate_kernel(kernel: Kernel) -> list[str]:
+    errors: list[str] = []
+    gate_ids = tuple(gate.id for gate in kernel.gates)
+    if gate_ids != EXPECTED_GATES:
+        errors.append(f"gate order must be {EXPECTED_GATES}, got {gate_ids}")
+    if kernel.spine != EXPECTED_SPINE:
+        errors.append(f"canonical spine must be {EXPECTED_SPINE}, got {kernel.spine}")
+
+    known_nodes = set(gate_ids) | set(kernel.terminals)
+    terminal_ids = set(kernel.terminals)
+    for edge in kernel.edges:
+        if edge.source != "*" and edge.source not in known_nodes:
+            errors.append(f"edge source is unknown: {edge.source}")
+        if edge.target not in known_nodes:
+            errors.append(f"edge target is unknown: {edge.target}")
+        if edge.kind not in {"forward", "side", "back", "terminal", "interrupt"}:
+            errors.append(f"edge kind is invalid: {edge.kind}")
+        if edge.kind == "terminal" and edge.target not in set(kernel.terminals):
+            errors.append(f"terminal edge must target a terminal: {edge.source} -> {edge.target}")
+        if edge.kind != "terminal" and edge.target in set(kernel.terminals):
+            errors.append(f"non-terminal edge cannot target a terminal: {edge.source} -> {edge.target}")
+        # 2026-09-29 (F1): `*` is the one wildcard source, and only an interrupt may use it — a run
+        # can be interrupted at ANY active gate, and G9 is the only gate that records partial state
+        # before closure decides. Any other use of `*` would smuggle an unconditional edge into the
+        # map, so it is refused rather than ignored.
+        if edge.kind == "interrupt" and (edge.source != "*" or edge.target != "G9"):
+            errors.append(f"interrupt edge must be * -> G9: {edge.source} -> {edge.target}")
+
+        # 2026-10-12 (K02): the audit (experiments_history/2026-10-12_kernel-audit/) measured that
+        # `* -> G7`, `G0 -> G7` and `SUCCESS -> G7` were all accepted as `side` edges. The wildcard
+        # exists for exactly one interrupt (any active gate may be hit; G9 alone records partial
+        # state), a terminal is a run END that originates nothing, and `side` is the declared
+        # concern path — anything else here is a bypass wearing the map's clothes.
+        if edge.source == "*" and edge.kind != "interrupt":
+            errors.append(f"wildcard source is only lawful on the interrupt edge: {edge.source} -> {edge.target} ({edge.kind})")
+        if edge.source in terminal_ids:
+            errors.append(f"terminal {edge.source} must have no outgoing edges: {edge.source} -> {edge.target} ({edge.kind})")
+        if edge.kind == "side" and (edge.source, edge.target) not in DECLARED_SIDE_EDGES:
+            errors.append(f"undeclared side edge: {edge.source} -> {edge.target} (only the declared concern path G4 -> G5 may ride beside the spine)")
+
+    # 2026-09-24: mutation starts at G7, so a terminal reached from G7 or G8 leaves a changed tree
+    # with no CLOSURE_PROOF, no residual, no tool-state report and no next route. G9 is the only
+    # lawful exit after the tree moves; a STALL is DETECTED at G8 and CLOSED at G9.
+    for edge in kernel.edges:
+        if edge.kind == "terminal" and edge.source in {"G7", "G8"}:
+            errors.append(f"terminal edge may not originate after mutation begins: {edge.source} -> {edge.target}")
+
+    expected_forward = set(zip(kernel.spine, kernel.spine[1:]))
+    actual_forward = {(edge.source, edge.target) for edge in kernel.edges if edge.kind == "forward"}
+    if not expected_forward <= actual_forward:
+        errors.append(f"forward edges must serialize the canonical spine: {sorted(expected_forward - actual_forward)}")
+    # 2026-09-29 (F1): a declared BRANCH may ride beside the spine — G6 -> G8, the read/plan-only
+    # deliverable, skips G7 because there is nothing to mutate. It may only move FORWARD along the
+    # spine: a "forward" edge that goes sideways or backward is a bug wearing the success path's
+    # clothes. Which branches exist is pinned by test_architecture, so a new one is a deliberate act.
+    for source, target in sorted(actual_forward - expected_forward):
+        if source not in kernel.spine or target not in kernel.spine or kernel.spine.index(target) <= kernel.spine.index(source):
+            errors.append(f"forward branch must move forward along the spine: {source} -> {target}")
+        if (source, target) not in DECLARED_FORWARD_BRANCHES:
+            errors.append(f"undeclared forward branch: {source} -> {target} (the only declared branch beside the spine is G6 -> G8, the read/plan-only deliverable)")
+    if not any(edge.source == "G4" and edge.target == "G5" and edge.kind == "side" for edge in kernel.edges):
+        errors.append("G5 concern path must be explicit side edge G4 -> G5")
+    if not any(edge.source == "G5" and edge.target == "G2" and edge.kind == "back" for edge in kernel.edges):
+        errors.append("G5 concern path must return through explicit back edge G5 -> G2")
+
+    shared_ids = {rule.id for rule in kernel.shared_rules}
+    all_rules = [*kernel.shared_rules]
+    for gate in kernel.gates:
+        all_rules.extend(gate.local_rules)
+        if any(rule.owner != gate.id for rule in gate.local_rules):
+            errors.append(f"gate {gate.id} has a local rule owned elsewhere")
+        for rule_id in gate.shared_rules:
+            if rule_id not in shared_ids:
+                errors.append(f"gate {gate.id} references unknown shared rule {rule_id}")
+    for protocol in kernel.protocols:
+        all_rules.extend(protocol.local_rules)
+        if protocol.authority != "advisory":
+            errors.append(f"optional protocol {protocol.id} must remain advisory")
+        if any(rule.owner != protocol.id for rule in protocol.local_rules):
+            errors.append(f"protocol {protocol.id} has a local rule owned elsewhere")
+        for gate_id in protocol.observed_at:
+            if gate_id not in set(gate_ids):
+                errors.append(f"protocol {protocol.id} observes unknown gate {gate_id}")
+        if protocol.returns_to not in set(gate_ids) | {"SAME_GATE"}:
+            errors.append(f"protocol {protocol.id} returns to unknown node {protocol.returns_to}")
+    if any(rule.owner != "KERNEL" for rule in kernel.shared_rules):
+        errors.append("shared rules must be owned by KERNEL")
+    for duplicate in _duplicates([rule.id for rule in all_rules]):
+        errors.append(f"duplicate rule definition: {duplicate}")
+
+    state_fields = set(kernel.state_fields)
+    for field in kernel.initial_state:
+        if field not in state_fields:
+            errors.append(f"initial state field is unknown: {field}")
+    for gate in kernel.gates:
+        for field in (*gate.requires, *gate.outputs):
+            if field not in state_fields:
+                errors.append(f"gate {gate.id} references unknown state field {field}")
+
+    available = set(kernel.initial_state)
+    gates = {gate.id: gate for gate in kernel.gates}
+    for gate_id in kernel.spine:
+        gate = gates.get(gate_id)
+        if gate is None:
+            continue
+        missing = sorted(set(gate.requires) - available)
+        if missing:
+            errors.append(f"spine dataflow reaches {gate_id} before fields exist: {missing}")
+        available.update(gate.outputs)
+
+    # Reverse reachability. The forward check above proves every `requires` is
+    # produced; nothing proved the converse. G0 shipped with `outputs=()` on
+    # 2026-09-07 and stayed undetected for five days precisely because a gate that
+    # produces nothing cannot be observed to have been skipped.
+    for gate_id in kernel.spine:
+        gate = gates.get(gate_id)
+        if gate is not None and not gate.outputs:
+            errors.append(f"spine gate {gate_id} declares no output")
+    consumed = {field for gate in kernel.gates for field in gate.requires}
+    for gate in kernel.gates:
+        for field in gate.outputs:
+            if field not in consumed and field not in kernel.terminal_outputs:
+                errors.append(f"gate {gate.id} output {field} is consumed by nobody and is not declared terminal")
+    for field in sorted(kernel.terminal_outputs):
+        if field not in state_fields:
+            errors.append(f"terminal output is unknown state field: {field}")
+        if not any(field in gate.outputs for gate in kernel.gates):
+            errors.append(f"terminal output {field} is produced by no gate")
+
+    for rule_id in sorted(kernel.constitution_core):
+        if rule_id not in {rule.id for rule in all_rules}:
+            errors.append(f"constitution core names an unknown rule: {rule_id}")
+
+    identities = {identity.id for identity in kernel.identities}
+    for identity in kernel.identities:
+        if not SYMBOL.fullmatch(identity.id):
+            errors.append(f"identity id must be a kernel symbol: {identity.id}")
+        if not identity.runtime or identity.runtime != identity.runtime.lower():
+            errors.append(f"identity {identity.id} runtime slug must be lowercase: {identity.runtime}")
+    for duplicate in _duplicates([identity.runtime for identity in kernel.identities]):
+        errors.append(f"duplicate identity runtime slug: {duplicate}")
+    for gate in kernel.gates:
+        for identity in gate.identities:
+            if identity not in identities:
+                errors.append(f"gate {gate.id} references unknown identity {identity}")
+
+    # 2026-10-12 (K03): the audit (`undeclared-fsm-state`) measured that a gate FSM whose
+    # `initial_state` sat outside its own `states` validated clean and rendered byte-identically —
+    # invalid IR slipped the one gate that stands before render (cutover.py validates, then
+    # renders). The FSM is the gate's executable contract: its id must match its owner, and its
+    # initial, accepting and transition endpoints must be declared states. `fsm` stays optional —
+    # the model declares it so and the renderer never reads it.
+    for gate in kernel.gates:
+        _validate_fsm(gate.id, gate.fsm, errors)
+    for protocol in kernel.protocols:
+        _validate_fsm(protocol.id, protocol.fsm, errors)
+
+    errors.extend(_validate_sv_contract(kernel.sv_contract))
+    errors.extend(_validate_source_routing(kernel.source_routing))
+
+    namespaces = {
+        "gate": set(gate_ids),
+        "anchor": {gate.anchor for gate in kernel.gates},
+        "term": set(kernel.terms),
+        "state": state_fields,
+        "action": set(kernel.action_classes),
+        "rule": {rule.id for rule in all_rules},
+        "protocol": {protocol.id for protocol in kernel.protocols},
+        "identity": identities,
+        "terminal": set(kernel.terminals),
+        "contract": {
+            kernel.sv_contract.tag,
+            kernel.source_routing.tag,
+            kernel.source_routing.alias,
+        },
+    }
+    owners: dict[str, list[str]] = {}
+    for namespace, names in namespaces.items():
+        for name in names:
+            owners.setdefault(name, []).append(namespace)
+    for name, categories in sorted(owners.items()):
+        if len(categories) > 1:
+            errors.append(f"symbol {name} is ambiguous across namespaces: {categories}")
+    symbols = set(owners)
+    texts = [rule.text for rule in all_rules]
+    texts.extend(kernel.terms.values())
+    texts.extend(kernel.state_fields.values())
+    texts.extend(gate.objective for gate in kernel.gates)
+    texts.extend(protocol.objective for protocol in kernel.protocols)
+    for reference in sorted({match for text in texts for match in REFERENCE.findall(text)}):
+        if reference not in symbols:
+            errors.append(f"unresolved reference: @{reference}")
+
+    if [rule.id for rule in kernel.shared_rules].count("ROOT_OF_TRUTH") != 1:
+        errors.append("ROOT_OF_TRUTH must have exactly one canonical definition")
+    if not kernel.utf8_budget or kernel.utf8_budget > 66_000:
+        errors.append("UTF-8 budget must be explicit and no greater than 66000 bytes")
+    from .dedup import find_unapproved_semantic_overlaps
+
+    errors.extend(f"unapproved semantic overlap: {overlap}" for overlap in find_unapproved_semantic_overlaps(kernel))
+    return sorted(set(errors))
+
+
+def _validate_sv_contract(contract: SemanticVectorContract) -> list[str]:
+    errors: list[str] = []
+    if contract.tag != "SV_FORMAT":
+        errors.append("sv_contract tag must be SV_FORMAT")
+    if contract.keyword_min != 3 or contract.keyword_max != 9:
+        errors.append("sv_contract must require 3-9 unique keywords")
+    if abs(contract.weight_sum - 1.0) > 1e-9:
+        errors.append("sv_contract weights must sum to 1.0")
+    if contract.digest_fields != EXPECTED_SV_DIGEST:
+        errors.append("sv_contract digest chain must be md5, prev-md5, parent-goal-md5")
+    if contract.first_prev_md5 != "0" * 32:
+        errors.append("sv_contract first prev-md5 must be 32 zeros")
+    if "acknowledged" not in contract.trivial_emission:
+        errors.append("sv_contract must define a trivial emission")
+    return errors
+
+
+def _validate_source_routing(contract: SourceRoutingContract) -> list[str]:
+    from .source import LEGACY_DOMAIN_DISCIPLINES
+
+    errors: list[str] = []
+    if contract.tag != "SOURCE_ROUTING":
+        errors.append("source_routing tag must be SOURCE_ROUTING")
+    if contract.alias != "DOMAIN_SOURCES":
+        errors.append("source_routing alias must remain DOMAIN_SOURCES")
+    statuses = tuple(status for _, status in contract.ladder)
+    if statuses != EXPECTED_EVIDENCE_STATUSES:
+        errors.append(f"source_routing ladder must cover {EXPECTED_EVIDENCE_STATUSES}, got {statuses}")
+    if "Inferred" not in contract.generic_web_rule or "source_stamp" not in contract.generic_web_rule:
+        errors.append("generic web must not reach Inferred without source_stamp")
+    disciplines = [route.discipline for route in contract.routes]
+    for duplicate in _duplicates(disciplines):
+        errors.append(f"duplicate source-routing discipline: {duplicate}")
+    missing_legacy = [name for name in LEGACY_DOMAIN_DISCIPLINES if name not in set(disciplines)]
+    if missing_legacy:
+        errors.append(f"source_routing missing legacy disciplines: {missing_legacy}")
+    for route in contract.routes:
+        if not route.primary:
+            errors.append(f"{route.discipline} has no primary authority route")
+        if route.constraint_class not in contract.classes:
+            errors.append(f"{route.discipline} references unknown constraint class {route.constraint_class}")
+    for class_name in contract.classes:
+        if not any(route.constraint_class == class_name for route in contract.routes):
+            errors.append(f"constraint class {class_name} has no routes")
+    return errors

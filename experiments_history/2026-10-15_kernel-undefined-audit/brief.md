@@ -1,0 +1,17 @@
+Smit, software architect: проведи независимый READ-ONLY аудит неопределённых контрактов.
+
+<!-- intention: расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source -->
+Plan: plans/2026-10-15_kernel-undefined-contract-audit.md, task A1.
+SV: undefined-contracts0.70, source-pins0.30.
+
+Пользователь: «для каждого действия нужен проверяемый критерий, даже если его никто считать не будет — это задает границы». Пример `answer short`: без меры разные модели дают разные объёмы.
+
+Binding READ: prompt_kernel/source.py, model.py, render.py, evidence.py, validate.py, addons.py, addons_claude.py, addons_codex.py, addons_cursor.py; owning docs/kernel-quality-doctrine.md и prompt_kernel/README.md; действующие style/system prompts под packages/opencode/src/session/prompt/ и packages/opencode/src/agent/prompt/, их сборщик. CodeGraph FIRST по canonical symbols и owning functions, затем только его gaps через read/grep. Определения из ABI, referenced rule, standard name и host adapter тоже учитывай. Historical comment сам по себе не является действующей нормой. Generated copies одного правила не независимы.
+
+Три класса: термин без определения; мера/порог без единицы, scope или comparator; обязательное действие без проверяемого success/failure predicate. Не путай отсутствие автоматического калькулятора с отсутствием определения. Критерий может быть качественным, если наблюдаем и допускает опровержение. Не заявляй numeric bound для short без действующего источника.
+
+Для КАЖДОГО finding: stable id, class, current source path:line, exact small wording, definition sweep receipt, missing boundary, consequence, proposed observable predicate. Отдельно отвергнутые кандидаты с определениями: known-positive control для sweep. Посчитай unique по классу и union (одна норма с двумя дефектами не удваивает union). Инвентаризация должна покрывать все bound canonical norm fields, не первые найденные строки. Ссылки-пины и числа вместо стен текста.
+
+Oracle parent: сверит каждую строку с current source и определения, воспроизведёт union/class counts. Возврат final table/report с counts, source pins, read tools/errors и currentSV. Не оставляй задачу молча: финальный ответ обязателен, даже если есть остаток.
+
+Никаких edits, write product/tests/docs/kernel/планы, install/build/commit, запусков bin/, изменения чужих sessions, внешних сообщений или APIkeys. Все persistent artifacts запишет parent. Permission refused: сообщи action+runtime reason, не обходи. Limits:30tools/25steps/2loops/depth2/900000ms. Current source может измениться при следующем kernel task: зафиксируй стартовые SHA256, при смене файла сообщи divergence и перечитай его один раз. Не выдумывай итоговую причину остановки группы; Unknown — направление дополнительной проверки.

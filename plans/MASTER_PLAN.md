@@ -43,6 +43,72 @@ source. Every vector below it is READ from where it lives — and the goal is th
 at, which is why it carries one at all (asked by an outside reader, 2026-09-30: «почему у goal нету
 семантического вектора»).
 
+## Subgoals — level 1
+
+### S1 — Delegation, verification and the organisation protocol
+
+An order becomes a dossier, the dossier becomes a verified result, and no robot is left unwatched — the fleet works as one organisation whose state the owner can see.
+
+```yaml
+Keywords: delegation-cycle 0.30, dossier-gate 0.20, independent-verification 0.20, unwatched-robot 0.15, owner-visible-state 0.15
+Semantic dominant: An order becomes a dossier, the dossier becomes a verified result, and no robot is left unwatched — the fleet works as one organisation whose state the owner can see.
+md5: 221e9347f99b038b669b74d80886fca1
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
+
+### S2 — Distribution: the robot reaches another machine, hermetically and audited
+
+A colleague's unprepared Windows gets a working robot from one offline bundle — nothing leaks from a parent folder, and everything shipped has a measured egress and a known build provenance.
+
+```yaml
+Keywords: offline-installer 0.30, hermetic-binary 0.25, egress-manifest 0.20, portable-org-home 0.15, tracked-procedure 0.10
+Semantic dominant: A colleague's unprepared Windows gets a working robot from one offline bundle — nothing leaks from a parent folder, and everything shipped has a measured egress and a known build provenance.
+md5: 2c33f070c3231dc454ef0caaafff392e
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
+
+### S3 — Surfaces the agent sees and drives
+
+The TUI, the browser and the desktop driver show the same live state and obey the same surface standards, and the agent can act on a window without taking the owner's cursor.
+
+```yaml
+Keywords: tui-surface-standards 0.30, web-tui-parity 0.20, live-session-state 0.20, observable-window 0.15, input-without-focus-steal 0.15
+Semantic dominant: The TUI, the browser and the desktop driver show the same live state and obey the same surface standards, and the agent can act on a window without taking the owner's cursor.
+md5: 423648bc309f9b843f29291adf271959
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
+
+### S4 — What crosses the model boundary: cost, cache, transport and the text that comes back
+
+Every request costs what it says, the static half is cached where it belongs, the transport is qualified against the provider's own caps, and the text that returns is the text the agent needs.
+
+```yaml
+Keywords: request-cost 0.30, cache-placement 0.25, transport-qualification 0.20, reasoning-preservation 0.15, returned-text 0.10
+Semantic dominant: Every request costs what it says, the static half is cached where it belongs, the transport is qualified against the provider's own caps, and the text that returns is the text the agent needs.
+md5: 51b888a0804adb07ef476bdf40de0da1
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
+
+### S5 — Which model, and whose credentials
+
+The model a layer picks is checked against the allowlist, and a failed authorisation says why instead of `{}`.
+
+```yaml
+Keywords: model-allowlist 0.35, credential-errors 0.30, layer-model-constraint 0.20, port-conflict-fallback 0.15
+Semantic dominant: The model a layer picks is checked against the allowlist, and a failed authorisation says why instead of an empty error.
+md5: a9cdbdeef0bce63c1eea1385e0c8ab64
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
+note: hash values are generative tags — search them, never compute them.
+```
 ## How this file is kept true (hand-owned)
 
 **RULE (owner, 2026-09-29, restated 2026-09-30): an SV is mandatory for every subplan, task and link** —
@@ -154,10 +220,11 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 306 |
-| plans active | 51 |
-| tasks passed / total | 1544 / 1914 |
-| open boxes | 230 |
+| plans completed | 308 |
+| plans active | 50 |
+| tasks passed / total | 1550 / 1919 |
+| open boxes | 229 |
+| unlinked plans | 0 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -167,6 +234,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-12_anthropic-cache-breakpoints.md` — 5 open / 5 box(es) · lifecycle DRAFT
   sv: intention "55.1% of the static prefix sits behind no static breakpoint and 13 of 14 Anthropic catalog models emit an invalid or removed thinking payload -> the static half is covered by breakpoints (≤4, system messages included), the variant's reasoning options and budget travel to the provider, and the diagnostic reads the live dialect" · keywords [anthropic-cache-breakpoints, static-prefix-breakpoints, thinking-variant-payload, reasoning-options-carry, live-dialect-diagnostic]
+  link: parent-goal-md5 51b888a0804adb07ef476bdf40de0da1 (names a master-plan goal)
   - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -175,6 +243,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-19_database-truth.md` — 4 open / 4 box(es) · lifecycle UNKNOWN
   sv: intention "tables and counters nobody writes produce mechanisms that never fire while every suite stays green -> every table has a named writer, every dead surface is removed, and any counter is checked against the live database" · keywords [database-truth, named-writer, dead-surface-removal, counter-vs-live-db, fixture-truth]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -182,6 +251,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-21_mstar-order-and-summary-restore.md` — 5 open / 24 box(es) · lifecycle UNKNOWN
   sv: intention "m* и summary деградировали (порядок блоков неверен, summary стал дампом патчей, память стала пачкой записок) -> вернуть порядок владельца и вернуть summary к намерениям с планами" · keywords [mstar-order, summary-restore, memory-form, owner-order, legend-not-dump]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-11 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-16 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -190,6 +260,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-22_reasoning-stream-render-stability.md` — 10 open / 24 box(es) · lifecycle UNKNOWN
   sv: intention "a long reasoning stream flickers — formatting arrives late or never, the viewport jumps, artifacts appear -> the visible reasoning window is append-only again and highlight commits atomically at quiet-window and at time.end" · keywords [reasoning-window-append-only, two-phase-highlight-commit, quiet-window-commit, viewport-stability, no-partial-flush]
+  link: parent-goal-md5 423648bc309f9b843f29291adf271959 (names a master-plan goal)
   - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T10b-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -203,12 +274,14 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-24_to-be-confirmed-shelf-triage.md` — 3 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "19 plans sit on plans/to_be_confirmed/ after the 2026-09-24 audit — four of them owner-confirmed as shipped and live-tested, one (TUI gateway row) awaiting a confirmation run, the rest awaiting re-verification against current code — while planstatus cannot see the shelf at all -> every file on the shelf reaches a proven terminal (plans_completed/ with evidence, plans/ with a single named remaining criterion, or a lawfully shelved terminal), and the shelf readme states the result" · keywords [shelf-triage, proven-terminal, visible-shelf, single-criterion, ground-named]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-28_kernel-candidate-incorporation.md` — 12 open / 59 box(es) · lifecycle ACTIVE
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-6 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-10 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -224,10 +297,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-29_codegraph-impact-decoupling.md` — 1 open / 6 box(es) · lifecycle ACTIVE
   sv: intention "fossil carries only the BRIEF (which files changed) and codegraph carries the REAL impact (symbols and edges touched) selected by the SUMMARY's own time window; the graph is synced off the turn's critical path -> the turn stops paying 2.2 s for a value its own summary consumes, and an empty impact stops reading as "nothing happened"" · keywords [graph-impact, turn-granularity, time-window, empty-impact-visible, off-critical-path]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-29_cua-windows-debug-input.md` — 16 open / 29 box(es) · lifecycle UNKNOWN
   sv: intention "CUA debugging requires manual screenshots, IDs and multiple slow commands and cannot yet drive continuous Windows mouse input -> agents obtain an addressable visual observation and bounded, verifiable Windows mouse actions with minimal tool calls while protected operations stay protected; mode A (play together with the robot) runs on the primary monitor, mode B (debug interactive GUI and web apps) runs in the background on THIS host without a second computer and without taking the owner's cursor or focus" · keywords [cua, background-isolation, capture-binding, vmware-guest, virtual-monitor, cdp-web]
+  link: parent-goal-md5 423648bc309f9b843f29291adf271959 (names a master-plan goal)
   - TASK-2 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1 [PENDING] · sv [page-read, webview2, js-policy-refusal] · manifest: MISSING — nobody has written down what this box is
   - S2 [PENDING] · sv [capture-baseline, directcomposition, minimized-refusal] · manifest: MISSING — nobody has written down what this box is
@@ -247,16 +322,19 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-29_h2-session-pool-and-connection-badge.md` — 2 open / 8 box(es) · lifecycle ACTIVE
   sv: intention "up to 2500 concurrent provider streams must ride a REUSED pool of HTTP/2 sessions (one session caps at the server's advertised 128), never short-lived connections, and the TUI sidebar must show the living connection as an icon -> session pool + model concurrency limits + connected/disconnected badge" · keywords [h2-session-pool, model-concurrency-limits, warm-session-reuse, connection-badge, provider-advertised-caps]
+  link: parent-goal-md5 51b888a0804adb07ef476bdf40de0da1 (names a master-plan goal)
   - T4 [PARTIAL] · sv MISSING · manifest: T4a/b shipped as glyphs — ◉ on the active /agents row and ⇅ on the sidebar protocol cell, text oracles green, the on-screen check still owed to the owner. · eta 2 · waiting-on-user
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-30_cua-supply-chain-audit.md` — 2 open / 10 box(es) · lifecycle ACTIVE
   sv: intention "cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a recorded reliability profile, and nothing leaves a machine the owner did not approve" · keywords [supply-chain-audit, egress-manifest, telemetry, provenance, reliability]
+  link: parent-goal-md5 2c33f070c3231dc454ef0caaafff392e (names a master-plan goal)
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-30_robot-installer.md` — 18 open / 33 box(es) · lifecycle DRAFT
   sv: intention "the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unprepared Windows install it, start the robot and get an answer to «привет» with no manual setup" · keywords [installer, offline-bundle, preflight, hello-smoke, free-models]
+  link: parent-goal-md5 2c33f070c3231dc454ef0caaafff392e (names a master-plan goal)
   - Q2b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - Q6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -278,22 +356,26 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-01_tool-description-contracts.md` — 2 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - C2 [PENDING] · sv MISSING · manifest: Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно. · eta 1 · doing
   - C7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-04_files-api-and-tariff.md` — 2 open / 5 box(es) · lifecycle ACTIVE
   sv: intention "расход не сходится с моделью, и картинки едут инлайном в каждом запросе -> деньги считаются по фактическому тарифу, файлы живут в провайдерском хранилище и адресуются ссылкой, кеш не ломается" · keywords [files-api, measured-tariff, provider-file-storage, link-addressing, cache-stability]
+  link: parent-goal-md5 51b888a0804adb07ef476bdf40de0da1 (names a master-plan goal)
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-07_supersede-between-steps-loses-reply.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a user prompt that replaces a running turn is sometimes left unanswered (no request, one aborted empty row) -> every replacing prompt either gets its own reply or a visible, named failure; the race between the superseded run and the new run is reproduced, explained and closed" · keywords []
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-08_mcps-connector-manager.md` — 5 open / 8 box(es) · lifecycle UNKNOWN
   sv: intention "/mcps is a runtime-only toggle list -> the TUI's ONE place to attach MCP connectors: statuses, OAuth auth, add/remove with scope, persistent enable/disable, and a connector catalog (Canva first). The server-side routes (add / auth start / auth authenticate / auth callback / auth remove / connect / disconnect / status) already exist and are REUSED, not rebuilt; the work is the TUI surface, the persistence, and the connector data." · keywords [mcps-connector-manager, connector-auth, config-persist, oauth-flow, catalog-presets]
+  link: parent-goal-md5 423648bc309f9b843f29291adf271959 (names a master-plan goal)
   - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S6 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -302,15 +384,18 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-08_org-portable-home.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and the kernel add-on (plan 2026-09-30_robot-installer.md B1f)" · keywords [org-portable-home, org-home-port-resolver, bundled-fossil-outranks-path, read-verbs-only, protocol-documented]
+  link: parent-goal-md5 2c33f070c3231dc454ef0caaafff392e (names a master-plan goal)
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-10_plan-hygiene-in-build-mode.md` — 2 open / 3 box(es) · lifecycle ACTIVE
   sv: intention "plan hygiene (reconcilePlans) is invoked only from AGI mode and by construction never ticks a box, so finished plans pile up in plans/ and the debt only grows -> every ordinary turn repairs plans/ itself (finished plans move to plans_completed/), and the accumulated plans are swept per protocol: green oracle -> box ticked with an artifact -> move -> docs; anything new that surfaces becomes a NEW plan." · keywords [plan-hygiene, every-turn-repair, green-oracle-tick, move-and-doc, sweep-as-protocol]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - M2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - SW [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-11_memory-orphan-parts.md` — 4 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "the memory index only ever ADDS (rowid watermark, monotonic) and carries no liveness filter on the session -> parts of DELETED sessions stay in the index and in search results forever (18 903 parts + 4 310 messages left behind by the cmd_runner bug cleanup; 4 sampled deleted sessions each still carry 3 indexed parts) -> the index stops serving deleted content and stops growing on it." · keywords [memory-index-liveness, deleted-session-parts, no-ghost-search, watermark-monotonic, index-truth]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - S1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -318,16 +403,19 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-12_specs-inventory-truth.md` — 1 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since changed on BOTH sides, http-api.md still announces a gate flag that no longer exists in src) -> inventory that can rot is either replaced by the command that recomputes it or generated, while the rules and the work order — which do not rot — stay hand-written." · keywords [specs-inventory, no-rotting-numbers, recomputed-or-generated, rules-stay-handwritten, live-truth]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-13_recall-read-address-space.md` — 3 open / 13 box(es) · lifecycle UNKNOWN
   sv: intention "a robot that reads a file through `read` and `recall` gets the lines it asked for and pays for each file about once -> `recall` addresses the same lines `read` printed, a long line can be read in pieces, a recall cannot be recalled, and no size threshold releases a result the robot has not chosen to release" · keywords [recall-address-space, read-window-cost, release-gate-removal, long-line-offset, recall-of-recall]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - R3 [PENDING] · sv MISSING · manifest: prove the model-to-tool plumbing of the shared address space — read a unit whole, edit by hash, release, recall it back — in a live source run. · eta 6 · waiting-on-user
   - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-14_kernel-stop-claim-release.md` — 4 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "the kernel lets any terminal verdict (SUCCESS, BLOCKED, WAITING) close without falsification -> the fixed kernel (stop-claim form, @STATUS_CLAIM, JIDOKA/KAIZEN) is installed here, carried into ADID_Python's canonical bundle, released, installed to every consumer with readback, and the opencode binary rebuilt" · keywords []
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-6 [PENDING] · sv [adid-release 1.0] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [consumer-readback 1.0] · manifest: MISSING — nobody has written down what this box is
   - TASK-8 [PENDING] · sv [codex-compact 1.0] · manifest: MISSING — nobody has written down what this box is
@@ -335,6 +423,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-14_return-channel-binding.md` — 5 open / 5 box(es) · lifecycle UNKNOWN
   sv: intention "`done [--report]` makes the report optional and `escalate --code "why"` sets BLOCKED on one sentence, so the delegator receives bare fields and cannot tell a busy WORKING ticket from a dead one (heartbeat frozen at claim time) -> `done` refuses without a CLEAN_NEXT_STATE technote, `escalate` refuses without a stop-claim technote, the wake text and `inbox --json` carry the report ref with its first lines, and orgd refreshes the heartbeat from the claimed session's own activity (silence stays silence); the retracted session-delivery machinery leaves the tree" · keywords [return-channel, done-report-gate, stop-claim-gate, delegator-wake, heartbeat-activity]
+  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
   - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -343,21 +432,19 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-15_dais-peer-trust-reward.md` — 4 open / 5 box(es) · lifecycle ACTIVE
   sv: intention "the reward sees one run alone and the syndicate has no memory of whose claims held -> peer trust, earned only by claims that survived independent verification, enters the reward and routes delegation" · keywords [peer-trust-ledger 0.40, verification-not-votes 0.30, reward-integration 0.20, delegation-routing 0.10]
+  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-10-15_kernel-undefined-contract-audit.md` — 1 open / 2 box(es) · lifecycle ACTIVE
-  sv: intention "расплывчатые нормы допускают произвольную трактовку -> каждое неопределённое понятие или действие без критерия посчитано и привязано к canonical source" · keywords [contract-boundaries 0.50, undefined-terms 0.30, independent-audit 0.20]
-  - TASK-2 [PENDING] · sv [independent-verification 0.6, evidence 0.4] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-15_tui-active-sessions-panel.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
   sv: intention "TUI sidebar has no live view of running sessions (owner must open the sessions dialog to guess what is running) -> a sidebar block lists every busy/retrying session of THIS server (API robots included), refreshed ~1 s, with an explicit «none active» when idle" · keywords [Keywords: sidebar-active-sessions 0.35, event-synced-store 0.25, elapsed-tick 0.20, none-active-invariant 0.20
 Semantic dominant: The owner sees at a glance which sessions of this server are running — robots included — read from the store the TUI already event-syncs, with the 1 s tick spent only on elapsed time and an explicit «none active» when idle.
 md5: b7e2c41d90a85f3671d4c0e2f8a6b593
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000]
+parent-goal-md5: 423648bc309f9b843f29291adf271959]
+  link: parent-goal-md5 423648bc309f9b843f29291adf271959 (names a master-plan goal)
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-15_web-tui-parity.md` — 1 open / 6 box(es) · lifecycle UNKNOWN
@@ -365,22 +452,26 @@ parent-goal-md5: 00000000000000000000000000000000]
 Semantic dominant: The browser form shows everything the TUI shows by reading the same server data, starting with the active-sessions block the owner needs to not kill a running session.
 md5: 9f3a7c2d1e4b4f6a8d2c5e7f1a3b4c5d
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000]
+parent-goal-md5: 423648bc309f9b843f29291adf271959]
+  link: parent-goal-md5 423648bc309f9b843f29291adf271959 (names a master-plan goal)
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-16_haiku-omp-controlled-latency.md` — 2 open / 5 box(es) · lifecycle UNKNOWN
   sv: intention "Haiku в OpenCode даёт длительные паузы, в omp с загруженным kernel пользователь наблюдает быстрый ответ -> воспроизводимое сравнение actual запросов и изолированных факторов, с установленной областью причинного вывода и непокрытым остатком" · keywords [controlled-latency, wire-equivalence, protocol-grounding, causal-boundaries]
+  link: parent-goal-md5 51b888a0804adb07ef476bdf40de0da1 (names a master-plan goal)
   - P2 [PENDING] · sv [actual-wire, payload-diff, source-provenance] · manifest: MISSING — nobody has written down what this box is
   - P5 [PENDING] · sv [measured-outcome, continuation-receipt, research-closure] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-16_message-cleaner.md` — 3 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "raw chain replies with foreign-script slips flow into requests uncleaned -> measured go/no-go on a one-shot free-model cleaner with a deterministic validator, no product change" · keywords [message-cleaner-experiment 0.40, free-model-fixer 0.25, deterministic-validator 0.20, detector-precision-recall 0.15]
+  link: parent-goal-md5 51b888a0804adb07ef476bdf40de0da1 (names a master-plan goal)
   - E3 [PENDING] · sv MISSING · manifest: Re-run the 27-call fixer campaign when the free pool answers; validator and report supplement follow. · eta 2 · doing
   - E6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - E8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-16_model-chain-failover.md` — 8 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "blind retry loops on dead models with human failover -> explicit ordered model chain per agent/scope with automatic classified failover and 10-minute health checks" · keywords [model-chain, failover-classification, health-probe, assignment]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - C3b [PENDING] · sv [inrequest-failover 0.50, visible-note 0.30, partial-kept 0.20] · manifest: Walk the session chain inside one request with first-token abort and a visible note. · eta 2 · doing
   - C1 [PENDING] · sv [chain-store 0.45, fill-not-resolve 0.30, shared-route 0.25] · manifest: Persist the explicit model chain per agent and scope in LMDB through the TUI server path with fill-once semantics. · eta 3 · doing
   - C2 [PENDING] · sv [error-classification 0.50, reuse-existing 0.30, measured-threshold 0.20] · manifest: MISSING — nobody has written down what this box is
@@ -392,12 +483,14 @@ parent-goal-md5: 00000000000000000000000000000000]
 
 - `plans/2026-10-16_reasoning-lossless-replay.md` — 3 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "reasoning и metadata могут теряться до следующего запроса, поддержка HTTP3 у Anthropic на нашем сетевом пути не проверена -> reasoning сохраняется полностью и replay квалифицирован, HTTP3/QUIC и fallback установлены отдельными сетевыми измерениями" · keywords [reasoning-preservation, wire-proof, provider-contracts, continuity, transport-qualification]
+  link: parent-goal-md5 51b888a0804adb07ef476bdf40de0da1 (names a master-plan goal)
   - T4 [PENDING] · sv [adapter-contracts 0.45, actual-wire 0.35, unsupported-observability 0.20] · manifest: MISSING — nobody has written down what this box is
   - T8 [PENDING] · sv [independent-oracle 0.40, clean-state 0.35, documentation 0.25] · manifest: MISSING — nobody has written down what this box is
   - T9 [PENDING] · sv [http3-quic 0.45, client-network-qualification 0.35, fallback-evidence 0.20] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-16_self-edit-directive.md` — 2 open / 12 box(es) · lifecycle UNKNOWN
   sv: intention "agent sees its own previous-message error and cannot remove it, window copies it forward by attention -> agent emits bounded self-edit directive (cut ranges + errata) addressed by message md5, stored original untouched, replay narrowed; error stopped at next step" · keywords [self-edit-directive, reasoning-hygiene, error-recurrence, fault-tolerance, keep-machinery]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - P2a [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - P2b [PENDING] · sv [robot-runs 0.45, error-recurrence 0.35, owner-decision 0.20] · manifest: MISSING — nobody has written down what this box is
 
@@ -407,12 +500,14 @@ Semantic dominant: Поиск и навигация получают прове�
 md5: e8a16f092bce49a5b9f4130dd7c26e84
 prev-md5: 00000000000000000000000000000000
 parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - M0b [PENDING] · sv [baseline, corpus, measurement] · manifest: MISSING — nobody has written down what this box is
   - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-17_portable-binary-hermetic.md` — 6 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "portable install dir with exe-adjacent config -> hermetic binary that reads only exe-adjacent and data-root sources, never parent folders" · keywords []
+  link: parent-goal-md5 2c33f070c3231dc454ef0caaafff392e (names a master-plan goal)
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -422,6 +517,7 @@ parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a]
 
 - `plans/2026-10-18_codex-oauth-empty-error.md` — 4 open / 4 box(es) · lifecycle UNKNOWN
   sv: intention "от пустого {} при OAuth-логине -> к понятной ошибке или рабочему логину" · keywords [codex-oauth-error, empty-error-refusal, real-cause-propagated, port-conflict-fallback, protocol-reference]
+  link: parent-goal-md5 a9cdbdeef0bce63c1eea1385e0c8ab64 (names a master-plan goal)
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -429,14 +525,17 @@ parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a]
 
 - `plans/2026-10-18_global-recents-constraint.md` — 1 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "stale per-worktree/session/chain model picks run unchecked -> every worktree, session and chain layer is checked against the global recents allowlist before a model is used" · keywords []
+  link: parent-goal-md5 a9cdbdeef0bce63c1eea1385e0c8ab64 (names a master-plan goal)
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-18_kernel-method-preamble.md` — 1 open / 15 box(es) · lifecycle UNKNOWN
   sv: intention "kernel states machinery without stating its method -> every kernel variant opens with the working method, its why, and the no-human-oracle line, and the Claude variant grounds search on Universal Search hybrid" · keywords []
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-19_codex-robot-event-handoff.md` — 5 open / 5 box(es) · lifecycle ACTIVE
   sv: intention "внешний робот завершает работу, отчёт остаётся без реакции родителя -> событие OpenCode завершает ожидающий вызов инструмента Codex, родитель получает адресный отчёт и продолжает независимую приёмку без таймерного опроса" · keywords []
+  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
   - TASK-1 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - E1 [PENDING] · sv [completion-predicate 0.60, primary-preservation 0.40] · manifest: MISSING — nobody has written down what this box is
   - E2 [PENDING] · sv [event-handoff 0.60, bounded-lifetime 0.40] · manifest: MISSING — nobody has written down what this box is
@@ -452,6 +551,7 @@ prev-md5: 00000000000000000000000000000000
 parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-19_tool-description-contracts.md` — 3 open / 13 box(es) · lifecycle UNKNOWN
@@ -463,6 +563,7 @@ prev-md5: 00000000000000000000000000000000
 parent-goal-md5: f2e94a7cb5d18603e8a4c9d2f7b56e0a
 note: hash values are generative tags — search them, never compute them.
 ```]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-11 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-12 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-13 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -472,8 +573,9 @@ note: hash values are generative tags — search them, never compute them.
 Semantic dominant: An automatic HR-delegator driver that gates every order on a deterministic handshake dossier and guarantees delivery, independent verification and the owner-authority boundary.
 md5: 9b4d1f2a6c7e48b3a0d5c8e71f2a3b4c
 prev-md5: 7f3c2a91b8e44d05a6c7f1e29d3b5a77
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 note: hash values are generative tags — search them, never compute them.]
+  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
   - TASK-1 [PENDING] · sv [internship-admission, sv-decode-exam, trivial-triz-exam] · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv [handshake-brief, triz-probe, predicate-list] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [dossier-gate, model-extracts-gate-decides] · manifest: MISSING — nobody has written down what this box is
@@ -492,6 +594,7 @@ note: hash values are generative tags — search them, never compute them.]
 
 - `plans/2026-10-20_kernel-line-audit.md` — 9 open / 10 box(es) · lifecycle UNKNOWN
   sv: intention "kernel-unaudited -> candidate-table-for-owner-approval" · keywords []
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -507,8 +610,9 @@ note: hash values are generative tags — search them, never compute them.]
 Semantic dominant: Автоматизировать назначение внешних роботов и независимых проверок без подмены доказательств кадровым мнением.
 md5: 25f8c07b61a94d3e8b204af59c716de2
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 note: hash values are generative tags — search them, never compute them.]
+  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
   - TASK-1 [PARTIAL] · sv [robot-personnel, sv-handshake, qualification] · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv [delegation-cycle, event-handoff, evidence-dossier] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [independent-verification, refusal-controls, receipts] · manifest: MISSING — nobody has written down what this box is
@@ -519,8 +623,9 @@ note: hash values are generative tags — search them, never compute them.]
 Semantic dominant: Ground what exists of the fossil bridges, then design one observable process with a panel that both the owner and agents use, where every robot server reports its state into it.
 md5: 7c2e9a4b5d6f48e0a1b2c3d4e5f6a7b8
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 221e9347f99b038b669b74d80886fca1
 note: hash values are generative tags — search them, never compute them.]
+  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
   - TASK-1 [PENDING] · sv [bridge-census, writers-readers, visible-today] · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv [state-schema, cheapest-route, no-new-table] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [autoconnect, well-known-path, visible-failure] · manifest: MISSING — nobody has written down what this box is
@@ -531,11 +636,13 @@ note: hash values are generative tags — search them, never compute them.]
 
 - `plans/2026-10-21_delegation-tool-tdz.md` — 2 open / 6 box(es) · lifecycle UNKNOWN
   sv: intention "the delegation lane has been dead on every host since the t87 global-recents change — both `task` and `pipeline` read the `globalRecents` list inside the `Effect.sync` thunk of `chainResolved` while the lookup that fills it is declared further down, so the thunk reads a `const` still in its temporal dead zone and the tool dies with «Cannot access '<name>' before initialization.» -> both tools resolve the list FIRST (one lookup, one key — the t87 contract preserved), the red suite turns green, the lane that had no test at all gets one, and a live delegation in an isolated stand proves the lane works end to end and serves as the second reader t127's T7 asks for" · keywords []
+  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
   - T5 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-21_delegator-memory-repair.md` — 10 open / 10 box(es) · lifecycle ACTIVE
   sv: intention "the desktop /clear of 2026-10-21 left the delegator's memory folder intact but delivered an empty window (its only input was «Продолжай») because the fold restore is routed on a session source the app never emits and two captures were skipped on a reason the app never sends -> every link of the continuity path that is still a rule becomes a mechanism, every memory pointer becomes checkable, and the owner's own restore order (owner rows + full SVs, then fossil diffs by parent md5) is completed by code rather than by memory" · keywords [fold-restore-routing, dead-route-removal, measurable-cut, memory-provenance-check, generated-index]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - T1 [PENDING] · sv MISSING · manifest: The fold restore is routed on session sources the desktop app never emits and reads a pointer that can never be written, so the repair is routing, dead-route removal and a measurable cut, while the memory folder gets a provenance and pointer check that makes its index mechanical. · eta 1 · doing
   - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -549,6 +656,7 @@ note: hash values are generative tags — search them, never compute them.]
 
 - `plans/2026-10-21_fold-hooks-desktop-fork.md` — 2 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "whatever way the Claude desktop app rebuilds a window — fork with a new session id, compact or clear — opens with no owner messages and no semantic vectors -> the new window opens with the previous window's owner messages and full SV blocks, row-addressed, on all three routes, with every exit path logged" · keywords [fold-rebuild-routes, predecessor-pointer, live-transcript-build, replay-oracle]
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
@@ -557,8 +665,9 @@ note: hash values are generative tags — search them, never compute them.]
 Semantic dominant: Plan how the robot-delegation procedure becomes a tracked, path-discovering kit that installs on another machine and passes its oracles there.
 md5: 3f8a2c1d9e047b5a6c7d8e9f0a1b2c3d
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 2c33f070c3231dc454ef0caaafff392e
 note: hash values are generative tags — search them, never compute them.]
+  link: parent-goal-md5 2c33f070c3231dc454ef0caaafff392e (names a master-plan goal)
   - TASK-1 [PENDING] · sv [procedure-inventory, tracked-or-not, reader-map] · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv [kit-home, discovered-paths, no-literals] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [hooks-source, idempotent-installer, backup-first] · manifest: MISSING — nobody has written down what this box is
@@ -569,6 +678,7 @@ note: hash values are generative tags — search them, never compute them.]
 
 - `plans/2026-10-21_robot-pending-stop-hook.md` — 1 open / 11 box(es) · lifecycle ACTIVE
   sv: intention "Claude ends a turn saying «I will check when they finish» and nothing wakes it, so the owner has to write «continue» -> a Stop hook makes it mechanically impossible to end a turn while an ordered robot is busy with no watcher running, or has finished with a result Claude has not marked verified; the existing watch3.py is the watcher, so no new waiter is built" · keywords [robot-pending-stop-gate, watch3-liveness, verification-ledger, replay-oracle]
+  link: parent-goal-md5 221e9347f99b038b669b74d80886fca1 (names a master-plan goal)
   - T7 [PENDING] · sv MISSING · manifest: A real robot asks through the ask tool and the delegator's turn is blocked on that ask until the owner answers. · eta 1 · doing
 
 - `plans/2026-10-21_tui-standards-fixes.md` — 6 open / 6 box(es) · lifecycle ACTIVE
@@ -576,8 +686,9 @@ note: hash values are generative tags — search them, never compute them.]
 Semantic dominant: Turn the t121 audit FAILs into bound fixes — pickers over free text, confirmed destructives, discoverable hints — each proven by a live capture.
 md5: 7d1e9f2a4b5c48d6a0f3e5c7a9b1d4e2
 prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
+parent-goal-md5: 423648bc309f9b843f29291adf271959
 note: hash values are generative tags — search them, never compute them.]
+  link: parent-goal-md5 423648bc309f9b843f29291adf271959 (names a master-plan goal)
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -596,29 +707,18 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-1 [PENDING] · sv [local-forensics, stop-reason, source-addresses] · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv [prompt-compatibility, controlled-comparison, causal-attribution] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-22_legislator-reincarnation-method.md` — 7 open / 8 box(es) · lifecycle ACTIVE
+- `plans/2026-10-22_legislator-reincarnation-method.md` — 6 open / 8 box(es) · lifecycle ACTIVE
   sv: intention "the Legislator dies with its transcripts and a model under the same kernel cannot adapt into it -> a documented, tracked, oracle-checked method rebuilds it from its own ordered full SV blocks and the owner's rows, cut before a wrong axis, and the sources it needs survive the app's transcript deletion" · keywords []
+  link: parent-goal-md5 f2e94a7cb5d18603e8a4c9d2f7b56e0a (names a master-plan goal)
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-22_write-writeback.md` — 1 open / 8 box(es) · lifecycle ACTIVE
-  sv: intention "the write tool builds its result from what it MEANT to write, and says "Wrote file successfully." over a file it did not write — the file is read back (TextCodec.syncFile) ONLY when a formatter ran (write.ts:103-108, ticket ca760c924e) -> the file is read back after every write, the result is built from what is on disk, and a file that is not what the tool wrote is NAMED instead of claimed as a success" · keywords [```yaml
-Keywords: write-readback 0.35, same-shape-as-edit 0.25, divergence-named 0.20, reuse-t139-pattern 0.12, ticket-ca760c924e 0.08
-Semantic dominant: The write tool reports the text it meant to write whenever no formatter ran, exactly the shape t139 fixed in edit, so write reads the file back after every write and names a file on disk that differs from what it wrote instead of claiming success.
-md5: 6e2a9d4f1c7b38e05a6e2d9f4c1b7a85
-prev-md5: 00000000000000000000000000000000
-parent-goal-md5: 00000000000000000000000000000000
-note: hash values are generative tags — search them, never compute them.
-```]
-  - T8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 ## The checks
 
-This body names all 51 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 50 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

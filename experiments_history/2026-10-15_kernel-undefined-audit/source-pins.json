@@ -1,0 +1,38 @@
+[
+  {
+    "path": "prompt_kernel/source.py",
+    "sha256": "de547cdef9e285c8ee2d2153f1737a0401028e395fc9c296da9978471a7f411e"
+  },
+  {
+    "path": "prompt_kernel/model.py",
+    "sha256": "15ad2add2403932ce5dbd2b52a9c68c0ddb291604841a8a8ebfc4c276afa76de"
+  },
+  {
+    "path": "prompt_kernel/render.py",
+    "sha256": "b268f05c3c1406249cad4a6828ef4ba4b34a84acc7d6a70dddb8a077f68941e2"
+  },
+  {
+    "path": "prompt_kernel/evidence.py",
+    "sha256": "0048fc500236dae993800c5093d015a476422e63e18c608bf9c82949b92061ad"
+  },
+  {
+    "path": "prompt_kernel/validate.py",
+    "sha256": "2a6bb3abd5d8b5e50fd9aeb006a6063f6a83c59196b87d956a0d9874b8139d6d"
+  },
+  {
+    "path": "prompt_kernel/addons.py",
+    "sha256": "289bce04d6c40dadfc4bb9d6a1e1388a954414e4d4013caf7dc2bcf627c38dc9"
+  },
+  {
+    "path": "prompt_kernel/addons_claude.py",
+    "sha256": "654b82b70ef57d0b969f9ab9bb6657ad5b722152e025eb5ac30e0207595d9808"
+  },
+  {
+    "path": "prompt_kernel/addons_codex.py",
+    "sha256": "e180143f5abbf62840dc7e9b7282173e6ff678eab92c5e16db7ded637f5f2b70"
+  },
+  {
+    "path": "prompt_kernel/addons_cursor.py",
+    "sha256": "1892bd9eb3a53977b5d53643f9d88213ed3392df7e4a1f6d30a91978ade82325"
+  }
+]

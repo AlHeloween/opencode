@@ -1,0 +1,359 @@
+from __future__ import annotations
+
+import hashlib
+
+from .addons import (
+    GATE_ADDONS,
+    IDENTITY_ADDONS,
+    addon_lines_by_gate,
+    identity_addon_lines_by_identity,
+    validate_addons,
+    validate_identity_addons,
+)
+from .compatibility import CONTRACT_PINNED_RULES
+from .model import Gate, Identity, Kernel, Protocol, Rule, SemanticVectorContract, SourceRoutingContract
+from .validate import REFERENCE, validate_kernel
+
+
+def _list(values: tuple[str, ...], refs: bool = False) -> str:
+    return "[" + ", ".join(f"@{value}" if refs else value for value in values) + "]"
+
+
+def _render_named_rule(rule: Rule) -> list[str]:
+    return [f"#### @{rule.id}", rule.render(), ""]
+
+
+def _named_rule_ids(kernel: Kernel) -> set[str]:
+    """A rule earns a name only when something references it; shared law stays named."""
+    named = {rule.id for rule in kernel.shared_rules}
+    named.update(rule_id for gate in kernel.gates for rule_id in gate.shared_rules)
+    named.update(CONTRACT_PINNED_RULES)
+    texts = [rule.render() for rule in kernel.shared_rules]
+    for gate in kernel.gates:
+        texts.extend(rule.render() for rule in gate.local_rules)
+    for protocol in kernel.protocols:
+        texts.extend(rule.render() for rule in protocol.local_rules)
+    texts.extend(kernel.terms.values())
+    for text in texts:
+        named.update(REFERENCE.findall(text))
+    rule_ids = {rule.id for rule in kernel.shared_rules}
+    rule_ids.update(rule.id for gate in kernel.gates for rule in gate.local_rules)
+    rule_ids.update(rule.id for protocol in kernel.protocols for rule in protocol.local_rules)
+    return named & rule_ids
+
+
+def _render_rules_block(
+    owner_id: str,
+    rules: tuple[Rule, ...],
+    addon_lines: tuple[str, ...],
+    named: set[str],
+) -> list[str]:
+    lines = [f"<{owner_id}_RULES>"]
+    for rule in rules:
+        if rule.id in named:
+            lines.extend(_render_named_rule(rule))
+        else:
+            lines.append(f"- {rule.render()}")
+    lines.extend(f"- {line}" for line in addon_lines)
+    lines.append(f"</{owner_id}_RULES>")
+    lines.append("")
+    return lines
+
+
+def _render_gate(kernel: Kernel, gate: Gate, addon_lines: tuple[str, ...], named: set[str]) -> list[str]:
+    lines = [
+        f"### {gate.id} {gate.name}",
+        f"objective: {gate.objective}",
+        f"identity: {_list(gate.identities)}",
+        f"requires: {_list(gate.requires)}",
+        f"shared_rules: {_list(gate.shared_rules, refs=True)}",
+    ]
+    lines.extend(_render_rules_block(gate.id, gate.local_rules, addon_lines, named))
+    lines.append(f"outputs: {_list(gate.outputs)}")
+    lines.append(f"routes: WORKFLOW.{gate.id}")
+    lines.append("")
+    return lines
+
+
+def _render_identity(identity: Identity, addon_lines: tuple[str, ...]) -> list[str]:
+    lines = [
+        f"### {identity.id}",
+        f"kind: {identity.kind}",
+        f"scope: {identity.scope}",
+    ]
+    lines.extend(addon_lines)
+    lines.append("")
+    return lines
+
+
+def _render_sv_contract(contract: SemanticVectorContract) -> list[str]:
+    return [
+        f"1.2 @{contract.tag}:",
+        "```yaml",
+        "Keywords: topic1 0.35, topic2 0.25, topic3 0.20, topic4 0.12, topic5 0.08",
+        "Semantic dominant: One-line focus of this vector.",
+        "md5: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+        f"prev-md5: {contract.first_prev_md5}",
+        f"parent-goal-md5: {contract.first_prev_md5}",
+        "```",
+        f"- Keywords: {contract.keyword_min}-{contract.keyword_max} unique terms; weights>0; sum={contract.weight_sum}; highest first",
+        "- Semantic dominant: one sentence of this vector's focus",
+        "- md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters).",
+        f"- prev-md5: previous md5 or {contract.first_prev_md5}; a mid-session break means the chain lost a turn — recovery across it is Guess, not Inferred",
+        f"- parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; {contract.first_prev_md5} if none",
+        f"- trivial: {contract.trivial_emission}",
+        "- invariant: a semantic vector is an attention fingerprint, never a claim status",
+        "",
+    ]
+
+
+def _render_source_routing(contract: SourceRoutingContract) -> list[str]:
+    lines = [
+        f"1.3 @{contract.tag}:",
+        f"alias: @{contract.alias}",
+        "statuses: @INFORMATION_STATUS",
+        "ladder:",
+    ]
+    for condition, status in contract.ladder:
+        lines.append(f"- {condition} -> {status}")
+    lines.append(f"generic_web: {contract.generic_web_rule}")
+    lines.append("classes:")
+    for name, text in contract.classes.items():
+        lines.append(f"- {name}: {text}")
+    # 2026-09-29 (BGE dedup L1, owner-approved): the field names were repeated on all 17 rows
+    # (`primary=…; secondary=…`); the header names them once. Lossless — every authority stays.
+    lines.append("routes: discipline: primary | secondary")
+    grouped: dict[str, list] = {name: [] for name in contract.classes}
+    for route in contract.routes:
+        grouped.setdefault(route.constraint_class, []).append(route)
+    for class_name, routes in grouped.items():
+        if not routes:
+            continue
+        lines.append(f"{class_name}:")
+        for route in routes:
+            lines.append(
+                f"- {route.discipline}: {','.join(route.primary)} | {','.join(route.secondary)}"
+            )
+    lines.append("")
+    return lines
+
+
+def _render_protocol(protocol: Protocol, named: set[str]) -> list[str]:
+    lines = [
+        f"### {protocol.id}",
+        f"objective: {protocol.objective}",
+        # The advisory clause is hoisted into the section header — repeating it
+        # per protocol cost a five-gram four times over once DELEGATION landed.
+        *([] if protocol.authority == "advisory" else [f"authority: {protocol.authority}"]),
+        f"observed_at: {_list(protocol.observed_at)}",
+        f"returns_to: {protocol.returns_to}",
+    ]
+    lines.extend(_render_rules_block(protocol.id, protocol.local_rules, (), named))
+    return lines
+
+
+def render_kernel(
+    kernel: Kernel | None = None,
+    addons: tuple | None = None,
+    identity_addons: tuple | None = None,
+) -> str:
+    if kernel is None:
+        from .source import KERNEL
+
+        kernel = KERNEL
+    if addons is None:
+        addons = GATE_ADDONS
+    if identity_addons is None:
+        identity_addons = IDENTITY_ADDONS
+    errors = validate_kernel(kernel)
+    if errors:
+        raise ValueError("invalid kernel:\n- " + "\n- ".join(errors))
+    identity_ids = {identity.id for identity in kernel.identities}
+    addon_errors = validate_addons(addons) + validate_identity_addons(identity_addons, identity_ids)
+    if addon_errors:
+        raise ValueError("invalid addons:\n- " + "\n- ".join(addon_errors))
+    addon_map = addon_lines_by_gate(addons)
+    identity_addon_map = identity_addon_lines_by_identity(identity_addons)
+    named = _named_rule_ids(kernel)
+
+    lines = [
+        # First line MUST be >= 19 bytes: Bun compile's asset sniffer turns .txt
+        # with a shorter first line into a BunFS file-asset (path stub) instead
+        # of inlining the text — proven by byte-probe bisect (18->fail, 19->ok).
+        "## 0. WORKFLOW — gated execution protocol",
+        "",
+        # 2026-09-25, owner: the first line of the kernel proper. Everything below is
+        # machinery for this one sentence. It is an ECONOMIC claim, not a moral one:
+        # "am I done" and "what do they really want" both search a space that cannot be
+        # enumerated, so they have no stopping rule and halt when the budget runs out —
+        # their answer is an artifact of the LENGTH of deliberation, not of evidence.
+        # An instrument call is bounded and returns an address. Hence the retry charge in
+        # @LOOP_PROGRESS and the five properties in @ORACLE: both price this line.
+        "Simulate freely; buy every closure from reality. A purchase is bounded; what you compute has no stopping rule, so its length decides.",
+        "",
+        # 2026-10-05, owner: the line above names the ABSENCE — length decides because there is no
+        # stopping rule. This names the CAUSE. Deliberation with no instrument is a simulation with
+        # no addressee: nothing to finish, nobody to disagree, so the budget ends it. One statement
+        # at two altitudes, which is the shape this kernel already opens with. Measured on
+        # `d:/!!!`: completion is 75.5% of the bill and reasoning 59.5% of that output, against a
+        # 245 124-token context that costs $0.000781 — a turn reading one file spent 9 991
+        # reasoning tokens on 286 characters. Also in UNIVERSAL_ENV (system[0]) because that slot
+        # is read before the kernel and a model already deliberating has spent by the time it gets here.
+        "Think to produce an artifact or close an evidence gap; deliberation with no instrument is a simulation with no addressee, so it stops when the budget does rather than when the work is done. Act instead of rehearsing.",
+        # "Reality is a third thing, neither of yours" moved out: the line above is its
+        # operational form, and ORACLE_ROLE already pins "Neither simulation is the oracle".
+        # 2026-09-27, owner: the protocol named WHAT the oracle measures and never WHY anyone should want it —
+        # and said "never reward" once, about affect — so following it rested on obedience alone. The reward
+        # is declared here, before the first action: the divergence of the double simulation from reality,
+        # shrunk by EVIDENCE. "by evidence" is load-bearing: shrinking it by editing the simulation is the
+        # treatment @SIMULATION_ERROR forbids, and affect still opens a gap rather than paying (@DIVERGENCE_PROTOCOL).
+        # Maturity is the SAME reward accumulated, not a second one (owner: «чем меньше расхождение тем выше
+        # project maturity»): a divergence evidence has closed stays closed. Phrased so "the only reward" holds.
+        # Amended the same day after a bare `claude -p` falsifier (sonnet, no prompt/tools/MCP): "evidence
+        # SHRINKING it" paid nothing for a refutation or a newly found error — the most valuable measurements,
+        # the second of which LOOKS like growth — so it invited measurement-avoidance; "accumulated, it" had
+        # three live antecedents; "the simulation" named neither of the two. Unknown is deliberately NOT listed
+        # as paying: @INFORMATION_STATUS says it is "not a destination", and paying for it invites farming it.
+        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the only reward is both simulations moving toward reality under evidence — a refutation or a found error pays like a confirmation, and what stays moved is the project's maturity.",
+        "",
+        "gates:",
+    ]
+    for gate in kernel.gates:
+        lines.append(f"- {gate.id}: {gate.name}")
+    for terminal in kernel.terminals:
+        lines.append(f"- {terminal}: terminal")
+    lines.extend([
+        "forward_move:",
+    ])
+    forward_edges = [e for e in kernel.edges if e.kind == "forward"]
+    for edge in forward_edges:
+        lines.append(f"- {edge.source} -> {edge.target} : {edge.condition}")
+    concern_edges = [e for e in kernel.edges if e.kind == "side"]
+    for edge in concern_edges:
+        lines.append(f"CONCERN: {edge.source} -> {edge.target} : {edge.condition}")
+    lines.extend([
+        "back_move:",
+    ])
+    back_edges = [e for e in kernel.edges if e.kind == "back"]
+    for edge in back_edges:
+        lines.append(f"- {edge.source} -> {edge.target} : {edge.condition}")
+    lines.extend([
+        "terminal:",
+    ])
+    terminal_edges = [e for e in kernel.edges if e.kind == "terminal"]
+    for edge in terminal_edges:
+        lines.append(f"- {edge.source} -> {edge.target}; when: {edge.condition}")
+    # 2026-09-29 (F1): interruption is its own block. `terminal:` means "an edge to a terminal" and
+    # validate.py enforces that reading, while G9 is a GATE - so an interrupt landing there is not a
+    # terminal and must not be listed among them: it is how a run reaches closure early.
+    lines.append("interrupt:")
+    for edge in (e for e in kernel.edges if e.kind == "interrupt"):
+        lines.append(f"- {edge.source} -> {edge.target} : {edge.condition}")
+    lines.append("side_protocols:")
+    for protocol in kernel.protocols:
+        lines.append(f"- {protocol.id}: observe {_list(protocol.observed_at)} -> {protocol.returns_to}; authority={protocol.authority}")
+
+    lines.extend([
+        "",
+        "## 1. ABI_AND_VOCABULARY",
+        "",
+        f"precedence: {' > '.join(kernel.precedence)}",
+        "reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name.",
+        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, interrupt, terminal, or protocol return. Terminal ends this run; protocols cannot reopen it.",
+        "terms:",
+    ])
+    for name, description in kernel.terms.items():
+        lines.append(f"- {name}: {description}")
+    lines.extend([
+        "1.1 @INFOMARK",
+        "Guess -> (web hit) Hypothetical -> (authority|code) Inferred -> (smoke/PoC PASS) Exact",
+        "failed proof -> Unknown; simulation never equals reality",
+        "promotion: @INFORMATION_STATUS",
+        "",
+    ])
+    lines.extend(_render_sv_contract(kernel.sv_contract))
+    lines.extend(_render_source_routing(kernel.source_routing))
+    lines.append("1.4 state_contract:")
+    for name, description in kernel.state_fields.items():
+        lines.append(f"- {name}: {description}")
+    lines.append("1.5 action_classes:")
+    for name, description in kernel.action_classes.items():
+        lines.append(f"- {name}: {description}")
+
+    lines.extend(["", "## 2. SHARED_RULES", ""])
+    for rule in kernel.shared_rules:
+        lines.extend(_render_named_rule(rule))
+
+    lines.extend(["## 3. GATE_REFINEMENT", ""])
+    for gate in kernel.gates:
+        lines.extend(_render_gate(kernel, gate, addon_map.get(gate.id, ()), named))
+
+    lines.extend([
+        "## 4. CROSS_CUTTING_PROTOCOLS",
+        "",
+        "authority: advisory unless stated — a protocol steers, it cannot authorize mutation or promote claims.",
+        "",
+    ])
+    for protocol in kernel.protocols:
+        lines.extend(_render_protocol(protocol, named))
+
+    lines.extend([
+        "## 5. IDENTITY_CONTRACTS",
+        "",
+        "authority: runtime ACL and G4 envelope remain authoritative for every identity.",
+        "",
+    ])
+    for identity in kernel.identities:
+        lines.extend(_render_identity(identity, identity_addon_map.get(identity.id, ())))
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_review(
+    kernel: Kernel | None = None,
+    addons: tuple | None = None,
+    identity_addons: tuple | None = None,
+) -> str:
+    if kernel is None:
+        from .source import KERNEL
+
+        kernel = KERNEL
+    return "---\ndescription: map-first reasoning kernel candidate\nalwaysApply: true\n---\n\n" + render_kernel(kernel, addons, identity_addons)
+
+
+def kernel_digest(
+    kernel: Kernel | None = None,
+    addons: tuple | None = None,
+    identity_addons: tuple | None = None,
+) -> str:
+    if kernel is None:
+        from .source import KERNEL
+
+        kernel = KERNEL
+    return hashlib.sha256(render_kernel(kernel, addons, identity_addons).encode("utf-8")).hexdigest()
+
+
+def render_adapter(addons: tuple) -> str:
+    """The host-binding half of a render, on its own.
+
+    `render_kernel` interleaves a host's tool names into the gate blocks. When
+    the portable half has to travel separately — as Codex's `developer_instructions`
+    does — this renders the same bindings as their own section, so the Core that
+    ships beside it contains no tool name at all and the boundary stays visible.
+    """
+    grouped: dict[str, list[str]] = {}
+    for addon in addons:
+        grouped.setdefault(addon.gate_id, []).append(f"{addon.addon_id}: " + " ".join(addon.lines))
+    lines = [
+        "Runtime bindings for this host. Each line names what the Core asks for",
+        "(@CAPABILITY_ABSTRACTION) and what this runtime actually offers; a",
+        "capability with no binding here is CAPABILITY_UNAVAILABLE, not a reason",
+        "to expect a tool that another host happened to have.",
+        "",
+    ]
+    for gate_id in sorted(grouped, key=lambda value: int(value[1:])):
+        lines.append(f"### {gate_id}")
+        lines.append("")
+        for entry in grouped[gate_id]:
+            lines.append(f"- {entry}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"

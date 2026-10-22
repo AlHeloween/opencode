@@ -154,10 +154,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 305 |
-| plans active | 50 |
-| tasks passed / total | 1532 / 1900 |
-| open boxes | 228 |
+| plans completed | 306 |
+| plans active | 51 |
+| tasks passed / total | 1537 / 1913 |
+| open boxes | 236 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -276,8 +276,9 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - B7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B6 [PENDING] · sv [acceptance, pristine-vm, offline] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-01_tool-description-contracts.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-01_tool-description-contracts.md` — 2 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
+  - C2 [PENDING] · sv MISSING · manifest: Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно. · eta 1 · doing
   - C7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-04_files-api-and-tariff.md` — 2 open / 5 box(es) · lifecycle ACTIVE
@@ -594,8 +595,25 @@ note: hash values are generative tags — search them, never compute them.]
   - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-22_write-writeback.md` — 7 open / 7 box(es) · lifecycle ACTIVE
+  sv: intention "the write tool builds its result from what it MEANT to write, and says "Wrote file successfully." over a file it did not write — the file is read back (TextCodec.syncFile) ONLY when a formatter ran (write.ts:103-108, ticket ca760c924e) -> the file is read back after every write, the result is built from what is on disk, and a file that is not what the tool wrote is NAMED instead of claimed as a success" · keywords [```yaml
+Keywords: write-readback 0.35, same-shape-as-edit 0.25, divergence-named 0.20, reuse-t139-pattern 0.12, ticket-ca760c924e 0.08
+Semantic dominant: The write tool reports the text it meant to write whenever no formatter ran, exactly the shape t139 fixed in edit, so write reads the file back after every write and names a file on disk that differs from what it wrote instead of claiming success.
+md5: 6e2a9d4f1c7b38e05a6e2d9f4c1b7a85
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+note: hash values are generative tags — search them, never compute them.
+```]
+  - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 50 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 51 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

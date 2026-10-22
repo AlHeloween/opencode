@@ -57,6 +57,7 @@ Owner, 2026-10-15: «деньги это доверие, бумага ничег
 - [ ] D2 Falsify the design on that data (who would game it, how: collusion pairs, self-verify, rubber-stamp
   verifiers) — outside falsifier included.
 - [ ] D3 Owner decision: weight of T in R; then kernel text through the pipeline (STOP before install, review).
+  - **t135 review-2 (t136-C17):** NOT class (c) — no owner words on the T-weight exist anywhere (plan-file history, session index for an owner verbatim on weight-of-T: none; this box carries no quote and no resumption). Reclassified (b*): the kernel-pipeline half is robot-work gated on the weight; the weight itself is an UNQUOTED owner decision (quote MISSING). Resume: the owner names the T weight AND the words get quoted here; until then D3 is pending-quote, not (c).
 
 ## Smoke Tests
 

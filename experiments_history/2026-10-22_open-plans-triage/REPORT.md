@@ -38,7 +38,7 @@ Both censuses are file-backed: the PRE one in `pre_triage_census.json` (the stdo
 | `2026-10-15_project-fossil-cell.md` | 5 | 5 | 0 | 0 | 0 | 0 | NOT APPLIED — the file is dirty under another robot's edit; classified only |
 | `2026-10-08_mcps-connector-manager.md` | 4 | 0 | 3 | 1 | 0 | 0 | marked 1 box (c) with the owner's quote |
 | `2026-10-11_memory-orphan-parts.md` | 4 | 0 | 4 | 0 | 0 | 0 | left open |
-| `2026-10-15_dais-peer-trust-reward.md` | 4 | 0 | 3 | 1 | 0 | 0 | left open (D3 is the owner's) |
+| `2026-10-15_dais-peer-trust-reward.md` | 4 | 0 | 4 | 0 | 0 | 0 | left open (D3 pending-quote: weight unquoted, reclassified b* review-2) |
 | `2026-10-18_codex-oauth-empty-error.md` | 4 | 0 | 4 | 0 | 0 | 0 | left open |
 | `2026-10-19_codex-robot-event-handoff.md` | 4 | 0 | 4 | 0 | 0 | 0 | NOT APPLIED — the file is untracked (another robot's lane); classified only |
 | `2026-09-24_to-be-confirmed-shelf-triage.md` | 3 | 0 | 3 | 0 | 0 | 0 | next actions named for all 3 boxes |
@@ -73,7 +73,7 @@ Both censuses are file-backed: the PRE one in `pre_triage_census.json` (the stdo
 | `2026-09-12_anthropic-cache-breakpoints.md` | 0 | 0 | 0 | 0 | 0 | 0 | 5 boxes ADDED (the tasks were headings — the plan was invisible to planstatus) |
 | `2026-09-19_database-truth.md` | 0 | 0 | 0 | 0 | 0 | 0 | 4 boxes ADDED (the tasks were bullets — the plan was invisible to planstatus) |
 | `2026-10-16_unmanaged-options.md` | 0 | 0 | 0 | 0 | 0 | 0 | MOVED to plans/futures/ (0 boxes — the deliverable is delivered; the remainder is an owner DECISION, not a task) |
-| **TOTAL** | **211** | **10** | **173** | **17** | **7** | **4** | |
+| **TOTAL** | **211** | **10** | **174** | **16** | **7** | **4** | |
 
 Class meanings: **a** = already earned (closed with a receipt) · **b** = robot-finishable (binding + an oracle that could fail) · **c** = owner decision needed (the quote is in the plan) · **d** = superseded / obsolete · **e** = unobservable (split into leaves). `plans/2026-10-16_unmanaged-options.md` had no box at all, so it does not appear in the table; it is the plan-level (d) move below.
 
@@ -85,25 +85,24 @@ A box is ticked only with a receipt. Two kinds of receipt appear below: a RUN (a
 |---|---|---|---|
 | `2026-10-19_undo-broken.md` | T2 | d | commit `b38d45e5ce` + the plan's own S-T1 result (clean pass, H5 falsified) |
 | `2026-09-21_mstar-order-and-summary-restore.md` | the memory map | d | `memory/spine.ts:166` + `util/plan-status.ts:501` (parsePlanMap removed 2026-10-01; grep → 2 comment hits, 0 live readers) |
-| `2026-09-22_reasoning-stream-render-stability.md` | T4 | d | the plan's own STATUS line (2026-09-24) + the replacing boxes T11a/T13a |
+| `2026-09-22_reasoning-stream-render-stability.md` | T4 | d | the plan's STATUS lines (2026-09-23, :422/:461 — no 2026-09-24 STATUS exists) + the replacing boxes T11 (replay, DONE flicker half; T11a is the instrument section inside T11, not a box) + T11b + T13a (open, BUILT 2026-09-24) — corrected review-2 |
 | `2026-09-22_reasoning-stream-render-stability.md` | T7 | d | the box's own supersession line (2026-09-24) + the replacing box T13b |
-| `2026-10-01_tool-description-contracts.md` | C2 | a | commit `adedb84375` — the mutation check (one RED at each pin's own address) |
 | `2026-10-01_tool-description-contracts.md` | C3 | d | `plans/2026-10-19_tool-description-contracts.md` T10/T11 (the same tools, one commit per tool; `T10-write 805732ed`, `T10-task 8334d3f9`) |
 | `2026-10-01_tool-description-contracts.md` | C4 | d | the same plan's landed commits: logsearch `0edc8fc3fa`, universalsearch `ffe50230`, list `671edc13`, recall `aa706817`, glob `fa5c195e`, read `f064047e`, grep `67dc9000` |
 | `2026-10-01_tool-description-contracts.md` | C5 | d | the same plan's T10 list + T11's four orphan mappings (with the loading grep) |
 | `2026-10-14_kernel-stop-claim-release.md` | M1 | a + d | the first half is in the code (`util/plan-status.ts:790-836`); the second half is superseded by `session/stop-check.ts:152` («A stop claim no longer ends a turn») |
 | `2026-10-20_kernel-line-audit.md` | P1 | a | re-measured by t135: 75 630 B, sha256 `8407d4aeb42dc5f2aac8bfb897a25dfcafb58809e0e3adacd01527be043b6114` (the manifest's oracle names the same pin) |
-| `2026-10-20_triz-kernel-correspondence.md` | S8 | a | commit `7cb11a686e` (the plan, the 21 glossary entries, the report) |
+| `2026-10-20_triz-kernel-correspondence.md` | S8 | a | the plan in `7cb11a686e` (1 file only) + the report archived in `c79c2e91` (README + REPORT, one session token withheld by the canon) + the glossary block (23 headings) pre-existing via `168c982477` — re-earned review-2 |
 | `2026-10-20_triz-kernel-correspondence.md` | S9 | a | the `_build.ps1` run of this task (run id in the plan) |
 
-**10 boxes closed as already earned, 7 as superseded/obsolete.** Every one of them was ticked in the plan file itself, in this change — not in a report.
+**11 rows: 4 boxes closed as already earned, 8 as superseded/obsolete (M1 in both classes; C2 reopened review-2).** Every one of them was ticked in the plan file itself, in this change — not in a report.
 
 ## 3. The plans moved
 
 | from | to | ground |
 |---|---|---|
 | `plans/2026-10-19_undo-broken.md` | `plans_completed/2026-10-19_undo-broken.md` | its only open box (T2) was vacuous: the condition (T1 reproduces) never held and the crash was falsified (`b38d45e5ce`). A plan with no open box left is a completed plan (AGENTS § Plan Maintenance, JOB FAILED #2). |
-| `plans/2026-10-20_triz-kernel-correspondence.md` | `plans_completed/2026-10-20_triz-kernel-correspondence.md` | both open boxes closed with receipts (the commit + the build run). |
+| `plans/2026-10-20_triz-kernel-correspondence.md` | `plans_completed/2026-10-20_triz-kernel-correspondence.md` | both open boxes closed with receipts (the plan commit `7cb11a686e` + the report-archive commit `c79c2e91` + the build run) — re-earned review-2, the move stands. |
 | `plans/2026-10-16_unmanaged-options.md` | `plans/futures/2026-10-16_unmanaged-options.md` | class (d): the plan's own leaf scope is «INVENTORY + PLAN ONLY. No product code» and its deliverable IS delivered (the 88-row inventory + the /settings proposal, commit `a36f434dfe`). It has no executable box, and the one open thing it names («A3 owner decision outstanding: which USER rows get surfaced first») is a DECISION, not a task. The owner's rule: «План делается чтобы его сделать, для глобальной разработки есть мастерплан» — direction lives in the master plan and in futures, work lives in a plan. A CONDITION is written into the file: it resumes as a NEW executable plan when the owner names the first rows. |
 
 **Not moved, and why:** `plans/2026-10-15_project-fossil-cell.md` and `plans/2026-10-16_zoekt-scip-fossil-sv.md` are dirty under another robot's edit in this shared tree; t135 classified them and left them alone. The four untracked plans (`2026-10-14_return-channel-binding.md`, `2026-10-15_kernel-undefined-contract-audit.md`, `2026-10-19_codex-robot-event-handoff.md`, `2026-10-20_robot-personnel-delegator.md`) belong to other lanes; they are classified in the table and NOT committed by t135.
@@ -152,8 +151,8 @@ The rule the list obeys, quoted from the plan that asked for it (`plans/2026-10-
 | class | boxes | share |
 |---|---:|---:|
 | a — already earned (closed with a receipt) | 10 | 4.7% |
-| b — robot-finishable (binding + an oracle that could fail) | 173 | 82.0% |
-| c — owner decision needed (the quote is in the plan) | 17 | 8.1% |
+| b — robot-finishable (binding + an oracle that could fail) | 174 | 82.5% |
+| c — owner decision needed (the quote is in the plan) | 16 | 7.6% |
 | d — superseded / obsolete | 7 | 3.3% |
 | e — unobservable (split into leaves) | 4 | 1.9% |
 | **classified** | **211** | 100% |
@@ -272,3 +271,23 @@ All five cases met their expectation (the run's own last line: «every case met 
 - **Delegation-port was an owner decision, not a question.** Owner 2026-10-18 verbatim «29200 очень хорошо» (`60a3d22e:6584`); 2727 is IANA `mgcp-callagent` (dropped). Canonical = HEAD t92 (blob `763f5d67`; `*_2727_1.md` was byte-identical, removed as duplicate after the `fc` diff). Landed in `09c6f177` (plans/ deleted, completed/ = t92 + 1 merged t91-only line with provenance: the owner's live host on 4096). The t91-only hunks are otherwise all 2727-behavior superseded by the owner's choice — each named in the commit message, none silently dropped. ✓ (receipts: `git hash-object` + `git rev-parse` equal hashes, `fc` full hunk list, single ls-tree row)
 - **Three stray `plans_completed/` files, no exception for untracked.** `2026-10-14_claude-desktop-compact-handoff.md` (S1–S4 all `[x]` with fixture/oracle receipts) and `2026-10-14_cross-handoff-delivery.md` (T1–T5 all `[x]`, state COMPLETE, run ids in the boxes) are earned completions never tracked — tracked in the review commit below. Neither duplicates a tracked plan (`git ls-files` shows no same-named tracked file); neither was moved without being earned (both fully ticked with artefacts). `*_2727_1.md` handled above. ✓ (receipt: per-box `[x]` + oracle lines in each file, `git ls-files` absence)
 - **SV form + lineage.** The t135-addendum-2 closing block broke form (patterned md5, 33-char prev-md5) and carried the addendum md5 as parent. Correct rule (reviewer, also the SV-format invariant): on every turn of THIS task parent-goal-md5 stays the t135 brief md5 `ba748a084f9443aa9d39189641c4f9c4`; each vector carries a fresh 32-hex md5 and the previous own 32-hex md5. The closing block below obeys it. An addendum/nudge never changes the parent — it has its own md5/prev-md5 chain. ✓ (receipt: character counts 32/32/32 in the block)
+
+## Review 2 (2026-10-22, t136 verification of `e4b2313eb0`) — five findings, all closed
+
+Independent read-as-is: 33 rows, PASS 28 / FAIL 5. Each FAIL below is either re-earned with a receipt the verifier's oracle would now pass, or reopened with its reason.
+
+- **A3 (T4 receipt): RE-EARNED corrected.** The tick named a 2026-09-24 STATUS line (none exists — STATUS lines are 2026-09-23 at :422/:461) and boxes T11a/T13a (T11a is the instrument section inside T11 :628, not a box). Corrected receipt: owner direction 2026-09-23 (:301-302) + T11 ([x], DONE flicker half :627) + T11b ([x]) + T13a (open, BUILT 2026-09-24 :845). The plan box carries the same correction.
+- **A5 (C2 tick): REOPENED.** Class (a) over `adedb84375` contradicts the box's own residual (г) (:175-177, invalid-regex «No matches found», re-measured live by t136). The mutation receipt stands as history; the grep-tool residual is the live remainder. Resume: fix the invalid-regex path or record the owner's waiver. §2 loses the C2 row: **11 rows — 4 earned (A9, A10, A11, A12), 8 superseded (A1–A4, A6–A9; M1 in both).**
+- **A11 (S8 receipt): RE-EARNED.** `7cb11a686e` carries 1 file (the plan), no glossary, no report. Now: report archived `experiments_history/2026-10-20_triz-kernel/` (REPORT + README) in `c79c2e91` (one session token withheld by the canon; both hashes in the README); glossary = 23 headings via `168c982477` (t96), not 21 via this task. S6 annotated: the 21-row table half holds (archived), the docs-append half is VOID.
+- **B2 (TRIZ move): STANDS.** S8 re-earned + S9 confirmed → both open boxes closed; the rename stays earned.
+- **C17 (D3 class): RECLASSIFIED (b*).** No owner words on the T-weight exist anywhere (history + session index: none) — so not class (c). The pipeline half is robot-work gated on the weight; the weight is an UNQUOTED owner decision (quote MISSING). Resume: the owner names the T weight AND the words get quoted. Counts move: §1 dais row b 3→4, c 1→0; §5 b 173→174 (82.5%), c 17→16 (7.6%); TOTAL still 211.
+- **Number corrections (§E sustained):** §2 = 11 rows (not 10 boxes); §3 = 3 moves (not 2 — R092/R070/R095); line 99 split = 4 earned + 8 superseded (not 10+7); glossary = 23 headings (not 21), all via `168c982477`.
+
+### Unlinked plans under `plans/` (addendum-3 close-out, measured 2026-10-22)
+
+Probe: first `parent-goal-md5:` per plan file (the gate reads the FIRST match). 50 plans: **23 gate-linked** (non-zero parent), **27 unlinked**.
+
+- **Goal-linked (7)** — parent = level-0 goal `f2e94a7c…` (t135 addendum 3): `2026-10-01_tool-description-contracts.md`, `2026-10-07_supersede-between-steps-loses-reply.md`, `2026-10-13_recall-read-address-space.md`, `2026-10-14_kernel-stop-claim-release.md`, `2026-10-16_model-chain-failover.md`, `2026-10-19_edit-description-contract.md`, `2026-10-19_tool-description-contracts.md`.
+- **Non-zero but off-map (16)** — gate-counted-linked, but the parent names no label in the plan map (stale/foreign anchor from the plan's own task; needs a re-link to the level-0 goal or a subgoal): kernel-undefined `617f4b0a…`, tui-active-sessions `e31df24e…`, reasoning-lossless `81e70d3a…`, self-edit `6e41b38c…`, global-recents `6d0b84e2…`, kernel-method-preamble `3d81f6a0…`, codex-handoff `f81c69a2…`, hr-delegator `e27b5c90…`, kernel-line-audit `adc100a8…`, corp-bridge `6b1e8d4a…`, delegation-tdz `c7218c11…`, delegator-memory-repair `1e6b9d3a…`, fold-hooks `7f2c9a4e…`, portable-kit `2b6e9d4a…`, robot-stop-hook `4d7b2e9f…`, tui-standards-fixes `9f2c5e8a…`.
+- **Zero parent (12)** — own SV carries 32 zeros (predates the #184 link rule; needs one link line): cua-debug, cua-supply-chain, robot-installer, return-channel-binding, dais-peer-trust, web-tui-parity, haiku-omp, message-cleaner, zoekt-scip, portable-binary, robot-personnel-delegator, legislator-reincarnation-method (the active work plan itself).
+- **No SV block (15)** — predates the SV-header rule; there is no parent to read (needs an intention+SV header): anthropic-cache-breakpoints, database-truth, mstar-order, reasoning-stream-render-stability, shelf-triage, kernel-candidate-incorporation, codegraph-impact-decoupling, h2-session-pool, files-api-and-tariff, mcps-connector-manager, org-portable-home, plan-hygiene, memory-orphan-parts, specs-inventory-truth, codex-oauth-empty-error.

@@ -13,7 +13,7 @@ import { Format } from "../format"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Instance } from "../project/instance"
 import { Snapshot } from "@/snapshot"
-import { addressReport, trimDiff } from "./edit"
+import { addressReport, terminated, trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as TextCodec from "@/util/text-codec"
 import { Constitution } from "@/session/constitution"
@@ -100,10 +100,38 @@ export const WriteTool = Tool.define(
             }
           }
 
-          yield* fs.writeWithDirs(filepath, TextCodec.encode(contentNew, form.encoding))
+          // The file is read back AFTER EVERY WRITE — t139's shape, applied to `write` (ticket ca760c924e). The result
+          // must describe the file that is REALLY on disk, not the tool's model of the write: a formatter that ran is
+          // ONE reason the file differs, and anything else is a DIVERGENCE — which is NAMED, because a silent
+          // corruption reported as success is worse than any refusal (owner, t139).
+          const bytesWritten = TextCodec.encode(contentNew, form.encoding)
+          yield* fs.writeWithDirs(filepath, bytesWritten)
+          const formatted = yield* format.file(filepath)
+          const present = yield* fs.existsSafe(filepath)
           let contentFinal = contentNew
-          if (yield* format.file(filepath)) {
+          let diverged = false
+          let divergence = ""
+          if (!present) {
+            // The write did not land: there is NO file at this path (a sandbox that redirected it —
+            // `anthropics/claude-code#35230`). Named, never reported as a success.
+            diverged = true
+            divergence = "there is no file at this path — the write did not land here"
+          } else if (formatted) {
+            // A formatter ran: it may have stripped the BOM or the endings. `syncFile` puts the file back into the
+            // form the write chose and returns the text it now holds — the file as it is REALLY there.
             contentFinal = yield* TextCodec.syncFile(fs, filepath, form.encoding, form.ending)
+          } else {
+            // No formatter ran: nothing but the write touched the file, so what is on disk must be exactly what was
+            // written. The BYTES are read back and compared — the artefact, not the tool's opinion of it. Bytes, not
+            // text: a file that is not text is legal here (a binary write), and `syncFile` fails on one.
+            const bytesOnDisk = new Uint8Array(yield* fs.readFile(filepath))
+            const onDisk = TextCodec.decode(bytesOnDisk, filepath)
+            contentFinal = onDisk.kind === "text" ? onDisk.text : contentNew
+            diverged = !Buffer.from(bytesOnDisk).equals(bytesWritten)
+            divergence =
+              onDisk.kind === "text"
+                ? `the write wrote ${terminated(contentNew).length} lines, the file has ${terminated(onDisk.text).length}`
+                : `the write wrote ${bytesWritten.length} bytes, the file has ${bytesOnDisk.length} bytes`
           }
           const formatTouched = contentFinal !== contentNew
           yield* bus.publish(File.Event.Edited, { file: filepath })
@@ -112,9 +140,15 @@ export const WriteTool = Tool.define(
             event: exists ? "change" : "add",
           })
 
-          let output = "Wrote file successfully."
+          let output = diverged
+            ? "Wrote file, but the file on disk is not what was written — read it back before addressing it."
+            : "Wrote file successfully."
           // A conversion is never silent (owner: «агент получает уведомление»).
           if (form.notice) output += `\n\n${form.notice}`
+          // A divergence is never silent either (owner, t139): the model must know that its next address is a guess.
+          if (diverged) {
+            output += `\n\n${path.relative(Instance.worktree, filepath)}: the file on disk is not what was written — ${divergence}. Read it back before addressing it.`
+          }
           yield* lsp.touchFile(filepath, "document")
           const diagnostics = yield* lsp.diagnostics()
           const normalizedFilepath = AppFileSystem.normalizePath(filepath)
@@ -142,7 +176,13 @@ export const WriteTool = Tool.define(
           })
           if (report) output += `\n\n${report}`
 
-          const stats = yield* Effect.promise(() => diffStats(contentOld, contentNew))
+          const stats = yield* Effect.promise(() => diffStats(contentOld, contentFinal))
+          // The patch describes the file that is REALLY there: when the formatter or a third party changed it, the
+          // diff of the model's write would be a diff of something that is not on disk (t139).
+          const patch =
+            contentFinal === contentNew
+              ? diff
+              : trimDiff((yield* Effect.promise(() => createPatch(contentOld, contentFinal))) ?? "")
           const metadata: WriteMetadata = {
             filepath,
             exists,
@@ -150,7 +190,7 @@ export const WriteTool = Tool.define(
             filediffs: [
               {
                 file: filepath,
-                patch: diff,
+                patch,
                 additions: stats?.additions ?? 0,
                 deletions: stats?.deletions ?? 0,
               },

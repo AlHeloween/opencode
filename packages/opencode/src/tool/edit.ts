@@ -165,10 +165,10 @@ function withFileLocks<A, E, R>(filePaths: string[], effect: Effect.Effect<A, E,
  */
 export type EditAddress = { fromHash?: string; toHash?: string; insertAfter?: string; newString: string }
 
-type Line = { text: string; eol: string }
+export type Line = { text: string; eol: string }
 
 /** Lines WITH their terminators. No phantom line follows a final terminator — `read` prints none either. */
-function terminated(content: string): Line[] {
+export function terminated(content: string): Line[] {
   const out: Line[] = []
   let from = 0
   for (;;) {
